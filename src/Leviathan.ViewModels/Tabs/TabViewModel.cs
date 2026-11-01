@@ -18,7 +18,8 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="ViewRules">Saved folder views with inheritance (spec §8.1).</param>
 /// <param name="Time">Clock.</param>
 /// <param name="Home">The location a new tab opens (spec §4.1).</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home);
+/// <param name="Recent">Folders visited recently, shared by all tabs; every navigation is recorded there.</param>
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -290,6 +291,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         // A navigation resolves the saved view for the new folder; a view set explicitly on this tab only lasts until then.
         _useExplicitView = false;
         Address.Show(result.Location);
+        _services.Recent?.Add(result.Location);
         OnPropertyChanged(nameof(Title));
         ApplyView();
         await Folder.LoadAsync(result.Location, cancellationToken);
