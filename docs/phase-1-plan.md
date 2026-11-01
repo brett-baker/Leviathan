@@ -69,9 +69,10 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### D. Shell UI
 
-- [ ] **D1. App shell.** Replace the Phase 0 window: custom title bar with the tab strip, Mica, navigation row, body (sidebar |
-  file view | preview placeholder), status bar. Phase 0's worker status and compute-size demo move to Options ▸ Diagnostics so
-  the supervised worker connection stays testable.
+- [x] **D1. App shell.** Tab strip in the title bar (WinUI `TabView`, replaced by the custom control in D2), navigation row, sidebar, file list,
+  preview placeholder, status bar, Mica; every button and shortcut goes through the window's command registry. The Phase 0 worker demo is
+  now the Diagnostics window (Options). Placeholders: address text box (D3), plain list (D4), common folders and drives list (D6).
+  Open: the status bar showed 2 UI stalls over 50 ms during startup; find them in H3 (spec 3.2 allows none).
 - [ ] **D2. Tab strip control** (§4.1): drag reorder, tear-off to a new window, merge, pin, middle-click close, overflow.
 - [ ] **D3. Breadcrumb address bar control**: segment buttons, chevron drop-downs, edit mode, drop onto a segment, icons for lock/cloud/offline.
 - [ ] **D4. File view, Details.** `ItemsRepeater`-based virtualized grid, configurable columns (right-click header, reorder,

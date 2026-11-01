@@ -31,6 +31,10 @@
     <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
     <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
+    <ProjectReference Include="..\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
+    <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />
     <!-- Builds the worker and copies it next to Leviathan.exe so the UI can start it. -->
     <ProjectReference Include="..\Leviathan.Worker\Leviathan.Worker.csproj" />
   </ItemGroup>
