@@ -37,7 +37,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### B. Navigation and folder model
 
-- [ ] **B1. Navigation history.** Back/forward/up stacks, history lists for the right-click menus, "select the folder you came
+- [x] **B1. Navigation history.** Back/forward/up stacks, history lists for the right-click menus, "select the folder you came
   from" after Back/Up (§5.1).
 - [ ] **B2. Address bar model** (§5.2). Breadcrumb segments with sibling lists, edit mode, `LocationPath.TryResolve` for typed
   input (env vars, `shell:`, relative, file path → folder + select), copy-as variants (path, UNC, quoted, `file://`),
