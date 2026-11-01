@@ -64,7 +64,8 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [x] **C5. Launch and file associations.** Launcher (open, run as administrator, open with, system app chooser, terminal here, properties) and
   default-app lookup. Files' `OpenWithMenu` builds its app list from the shell context menu, so the "Open with" list arrives with the
   context-menu port in F2.
-- [ ] **C6. ShellNew and templates** (§6.1). Read `ShellNew` registry entries, user templates folder, built-in New items.
+- [x] **C6. ShellNew and templates** (§6.1). `ShellNewCatalog` reads `ShellNew` registrations, built-in items and the user templates folder;
+  `NewItemCreator` makes the item with Explorer-style numbering. The built-in Shortcut item waits for the target picker in D7.
 
 ### D. Shell UI
 

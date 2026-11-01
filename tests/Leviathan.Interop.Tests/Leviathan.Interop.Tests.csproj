@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Leviathan.Interop\Leviathan.Interop.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

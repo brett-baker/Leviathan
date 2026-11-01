@@ -1,7 +1,7 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 
-namespace Leviathan.Providers.Cloud;
+namespace Leviathan.Core.Platform;
 
 /// <summary>Registry hives the detectors read.</summary>
 public enum RegistryRoot
