@@ -19,7 +19,7 @@ The full specification lives in the **Leviathan File Manager — Software Specif
 
 ## Getting started (Visual Studio)
 
-1. Install **Visual Studio 2022 17.14+** (or VS 2026) with the **.NET desktop development** and **Windows application development** workloads, and the **.NET 10 SDK**.
+1. Install **Visual Studio 2026** (version 18.x) with the **.NET desktop development** and **WinUI application development** workloads. It includes the **.NET 10 SDK**, which this solution needs (Visual Studio 2022 cannot load .NET 10 projects). Check with `dotnet --list-sdks`: a `10.0.1xx` line must be there.
 2. Open `Leviathan.slnx`. Choose the **x64** platform.
 3. Set **Leviathan.App** as the startup project and press F5. The app starts `Leviathan.Worker` next to it and connects over a named pipe.
 4. In the window, type a folder (e.g. `C:\Users` or `\\Diskstation\media`) and click **Compute folder size**: the job runs in the worker and its progress streams back.
