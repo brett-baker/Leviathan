@@ -50,7 +50,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   math, selection survives re-sort and batch arrival.
 - [x] **B6. Tabs** (§4.1). `TabViewModel` (path, history, view, sort, selection), new/duplicate/close, reopen stack of 25,
   reorder, pin, lock, colour/rename, close others/right, overflow list.
-- [ ] **B7. Windows** (§4.2). `WindowViewModel`/`WindowManager`: several windows in one process, tear-off, merge, saved bounds with
+- [x] **B7. Windows** (§4.2). `WindowViewModel`/`WindowManager`: several windows in one process, tear-off, merge, saved bounds with
   a monitor-gone fallback.
 
 ### C. Windows interop and services
