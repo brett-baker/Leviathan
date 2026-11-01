@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Performance budgets (spec §3.1). `dotnet run -c Release -- --gate` checks the Phase 0 enumeration gate quickly;
+  <!-- Performance budgets (spec section 3.1). Pass the "gate" switch (see README) for the quick Phase 0 enumeration gate;
        without arguments it runs the full BenchmarkDotNet suite. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
