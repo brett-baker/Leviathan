@@ -26,3 +26,12 @@ DRIVE_REMOTE
 DRIVE_CDROM
 DRIVE_RAMDISK
 WIN32_ERROR
+SHCreateItemFromParsingName
+IShellItemImageFactory
+SIIGBF
+GetObject
+DeleteObject
+BITMAP
+CoInitializeEx
+CoUninitialize
+COINIT

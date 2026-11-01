@@ -59,7 +59,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [x] **C2. Known folders and drives.** Known Folder IDs for Common folders (relocated Documents works), drive list with
   type/label/free space, SSD vs HDD, mapped-drive UNC; behind `IKnownFolders` / `IVolumeInfo` with fakes.
 - [x] **C3. Cloud drive detection** (Internet section). Port `Utils/Cloud`; behind `ICloudProviderCatalog` with a fake.
-- [ ] **C4. Thumbnails.** `IThumbnailCache` over `IShellItemImageFactory`, off the UI thread, cancellable, size-capped LRU,
+- [x] **C4. Thumbnails.** `IThumbnailCache` over `IShellItemImageFactory`, off the UI thread, cancellable, size-capped LRU,
   requests for off-screen items cancelled (§3.1: < 200 ms cached, < 1 s generated).
 - [ ] **C5. Open With / launch / file associations.** Port from Files `OpenWithMenu`, `LaunchHelper`, `FileAssociationHelpers`.
 - [ ] **C6. ShellNew and templates** (§6.1). Read `ShellNew` registry entries, user templates folder, built-in New items.
