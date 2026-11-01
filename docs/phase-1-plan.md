@@ -55,7 +55,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### C. Windows interop and services
 
-- [ ] **C1. Interop base.** CsWin32 setup ported from `Files.App.CsWin32` (licence headers checked, `THIRD-PARTY-NOTICES.md` updated).
+- [x] **C1. Interop base.** CsWin32 setup ported from `Files.App.CsWin32` (licence headers checked, `THIRD-PARTY-NOTICES.md` updated).
 - [ ] **C2. Known folders and drives.** Known Folder IDs for Common folders (relocated Documents works), drive list with
   type/label/free space, SSD vs HDD, mapped-drive UNC; behind `IKnownFolders` / `IVolumeInfo` with fakes.
 - [ ] **C3. Cloud drive detection** (Internet section). Port `Utils/Cloud`; behind `ICloudProviderCatalog` with a fake.

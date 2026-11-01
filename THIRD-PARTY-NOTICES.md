@@ -5,6 +5,8 @@ Leviathan uses the following packages (see `Directory.Packages.props` for versio
 | Package | License |
 | --- | --- |
 | Microsoft.WindowsAppSDK, Microsoft.Windows.SDK.BuildTools | MIT |
+| Microsoft.Windows.CsWin32 (build-time source generator) | MIT |
+| CommunityToolkit.Mvvm | MIT |
 | Microsoft.Extensions.* (Hosting, Logging, DependencyInjection) | MIT |
 | Microsoft.Data.Sqlite (SQLite: public domain) | MIT |
 | StreamJsonRpc | MIT |
