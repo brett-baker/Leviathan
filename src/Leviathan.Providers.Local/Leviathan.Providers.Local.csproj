@@ -8,6 +8,9 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Providers.Local.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
   </ItemGroup>
 </Project>

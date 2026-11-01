@@ -9,6 +9,8 @@ using Microsoft.UI.Xaml.Media;
 namespace Leviathan.App;
 
 /// <summary>The Phase 0 shell window.</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The worker connection and watchdog are disposed asynchronously from the Closed event, which a Window cannot express as IDisposable.")]
 public sealed partial class MainWindow : Window
 {
     private readonly WorkerConnection _worker;

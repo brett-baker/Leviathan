@@ -54,6 +54,24 @@ The tests caught three real bugs during the build, all fixed with regression tes
 (so network errors were classified as Unknown), a cancelled listing that could look like a complete empty folder, and
 permalinks generated for files outside the repository.
 
+## Phase 0b: verified on Windows (2026-11-01)
+
+| What | Result |
+| --- | --- |
+| Restore and build, `-p:Platform=x64` | Clean, 0 warnings in `src/` (Leviathan.App builds) |
+| Tests | Core 84, Engine 48, Diagnostics 20, Data 5, Integration 3, Providers.Local 9: all pass, none skipped |
+| Enumeration gate (NTFS, Release) | 10,000 items: first rows p95 **3.1 ms** (budget 100 ms), full listing p95 18.7 ms: PASS |
+| Run the app, kill the worker mid-job | **Not yet checked by hand** |
+
+Found and fixed on Windows:
+
+- `Win32FindData` used default alignment, so the 8-byte timestamps shifted every field and real listings threw "Not a valid
+  Win32 FileTime". It now packs at 4 like `WIN32_FIND_DATAW`; `Win32FindData_Layout_MatchesWin32FindDataW` guards it.
+- NuGet audit failed the build: StreamJsonRpc 2.20.20 -> 2.26.150 (removes the vulnerable MessagePack) and OpenTelemetry
+  1.12.0 -> 1.20.1.
+- Two analyzer errors in Leviathan.App (CA1001, CA1859).
+- `Leviathan.slnx` maps every project's build type and platform explicitly, for Visual Studio's "configuration does not exist" load error.
+
 ## What to check first on Windows
 
 1. **Restore.** Package versions were chosen from known releases but could not be checked against nuget.org. If restore

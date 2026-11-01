@@ -35,8 +35,8 @@ internal static partial class NativeMethods
     public static partial bool FindClose(nint hFindFile);
 }
 
-/// <summary>WIN32_FIND_DATAW.</summary>
-[StructLayout(LayoutKind.Sequential)]
+/// <summary>WIN32_FIND_DATAW. FILETIME is two 4-byte DWORDs, so the struct packs at 4; a default-aligned <c>long</c> would shift every field after the attributes.</summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
 internal unsafe struct Win32FindData
 {
     public uint FileAttributes;

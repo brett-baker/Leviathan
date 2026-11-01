@@ -1,31 +1,123 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
     <Platform Name="x64" />
     <Platform Name="ARM64" />
   </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/Leviathan.App/Leviathan.App.csproj" />
-    <Project Path="src/Leviathan.Worker/Leviathan.Worker.csproj" />
-    <Project Path="src/Leviathan.Core/Leviathan.Core.csproj" />
-    <Project Path="src/Leviathan.Contracts/Leviathan.Contracts.csproj" />
-    <Project Path="src/Leviathan.Engine/Leviathan.Engine.csproj" />
-    <Project Path="src/Leviathan.Diagnostics/Leviathan.Diagnostics.csproj" />
-    <Project Path="src/Leviathan.Providers.Local/Leviathan.Providers.Local.csproj" />
-    <Project Path="src/Leviathan.Data/Leviathan.Data.csproj" />
-    <Project Path="src/Leviathan.Ipc/Leviathan.Ipc.csproj" />
+    <Project Path="src/Leviathan.App/Leviathan.App.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Worker/Leviathan.Worker.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Core/Leviathan.Core.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Contracts/Leviathan.Contracts.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Engine/Leviathan.Engine.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Diagnostics/Leviathan.Diagnostics.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Providers.Local/Leviathan.Providers.Local.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Data/Leviathan.Data.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Ipc/Leviathan.Ipc.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj" />
-    <Project Path="tests/Leviathan.Core.Tests/Leviathan.Core.Tests.csproj" />
-    <Project Path="tests/Leviathan.Engine.Tests/Leviathan.Engine.Tests.csproj" />
-    <Project Path="tests/Leviathan.Diagnostics.Tests/Leviathan.Diagnostics.Tests.csproj" />
-    <Project Path="tests/Leviathan.Providers.Local.Tests/Leviathan.Providers.Local.Tests.csproj" />
-    <Project Path="tests/Leviathan.Data.Tests/Leviathan.Data.Tests.csproj" />
-    <Project Path="tests/Leviathan.Integration.Tests/Leviathan.Integration.Tests.csproj" />
-    <Project Path="tests/Leviathan.Benchmarks/Leviathan.Benchmarks.csproj" />
+    <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Core.Tests/Leviathan.Core.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Engine.Tests/Leviathan.Engine.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Diagnostics.Tests/Leviathan.Diagnostics.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Providers.Local.Tests/Leviathan.Providers.Local.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Data.Tests/Leviathan.Data.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Integration.Tests/Leviathan.Integration.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Benchmarks/Leviathan.Benchmarks.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
   </Folder>
   <Folder Name="/tools/">
-    <Project Path="tools/Leviathan.Diag/Leviathan.Diag.csproj" />
+    <Project Path="tools/Leviathan.Diag/Leviathan.Diag.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

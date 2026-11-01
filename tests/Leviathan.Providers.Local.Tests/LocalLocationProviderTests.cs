@@ -1,6 +1,7 @@
 using Leviathan.Core.Model;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
+using Leviathan.Providers.Local.Win32;
 
 namespace Leviathan.Providers.Local.Tests;
 
@@ -163,6 +164,17 @@ public sealed class LocalLocationProviderTests : IDisposable
         Assert.NotEmpty(win32);
         Assert.Equal(managed, win32);
         await Task.CompletedTask;
+    }
+
+    [Fact]
+    public void Win32FindData_Layout_MatchesWin32FindDataW()
+    {
+        // WIN32_FIND_DATAW is 592 bytes and FILETIMEs are 4-byte aligned. Default 8-byte alignment of the long fields
+        // shifted every field after the attributes and produced "Not a valid Win32 FileTime" on real listings.
+        Assert.Equal(592, System.Runtime.InteropServices.Marshal.SizeOf<Win32FindData>());
+        Assert.Equal(4, (int)System.Runtime.InteropServices.Marshal.OffsetOf<Win32FindData>(nameof(Win32FindData.CreationTime)));
+        Assert.Equal(20, (int)System.Runtime.InteropServices.Marshal.OffsetOf<Win32FindData>(nameof(Win32FindData.LastWriteTime)));
+        Assert.Equal(44, (int)System.Runtime.InteropServices.Marshal.OffsetOf<Win32FindData>(nameof(Win32FindData.FileName)));
     }
 
     /// <summary>Blocks like a directory call on a dead SMB server.</summary>

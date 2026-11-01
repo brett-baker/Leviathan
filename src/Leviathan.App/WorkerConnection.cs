@@ -107,7 +107,7 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
         _closing.Dispose();
     }
 
-    private static IProcessLauncher WorkerLauncher()
+    private static ExecutableLauncher WorkerLauncher()
     {
         var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.Worker.exe");
         return File.Exists(exe)
