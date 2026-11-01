@@ -46,7 +46,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   away cancels the old listing; states Loading / Empty / AccessDenied / Offline / Error; a cancelled listing never looks empty (§8.6).
 - [x] **B4. Sort, group, filter** (§8.3, §6.3). Natural sort, secondary sort, folders first/mixed/last, group with collapsible
   groups, filter box syntax (`*.mp4`, `size:>1GB`, `tag:red`, `duration:<2m`; tag and duration parse now, match when Phase 3 data exists).
-- [ ] **B5. Selection model** (§8.4). Single, ctrl/shift range, invert, select by pattern, type-ahead jump, rubber-band hit-test
+- [x] **B5. Selection model** (§8.4). Single, ctrl/shift range, invert, select by pattern, type-ahead jump, rubber-band hit-test
   math, selection survives re-sort and batch arrival.
 - [ ] **B6. Tabs** (§4.1). `TabViewModel` (path, history, view, sort, selection), new/duplicate/close, reopen stack of 25,
   reorder, pin, lock, colour/rename, close others/right, overflow list.
