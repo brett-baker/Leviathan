@@ -38,12 +38,19 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         _viewModel = viewModel;
-        InitializeComponent();
+        using (UiTrace.Begin("MainWindow.InitializeComponent"))
+        {
+            InitializeComponent();
+        }
+
         Title = "Leviathan";
 
         // The tab strip sits in the title bar; the empty footer of the strip is the part you can drag the window by.
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(DragRegion);
+        using (UiTrace.Begin("title bar setup"))
+        {
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(DragRegion);
+        }
 
         var host = App.Host;
         _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home);
@@ -52,8 +59,13 @@ public sealed partial class MainWindow : Window, IShellActions
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
+        AppWindow.Closing += (_, _) => App.NotifyWindowClosing(_viewModel);
 
-        SyncTabs();
+        using (UiTrace.Begin("MainWindow ctor: SyncTabs"))
+        {
+            SyncTabs();
+        }
+
         ShowStalls();
         _ = LoadSidebarAsync();
     }
@@ -297,6 +309,7 @@ public sealed partial class MainWindow : Window, IShellActions
             return;
         }
 
+        using var bind = UiTrace.Begin("BindTab");
         FileList.ItemsSource = tab.Items.Rows;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;
@@ -315,6 +328,12 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         OnUi(() =>
         {
+            using var scope = UiTrace.Begin($"folder changed: {e.PropertyName}");
+            if (_bound?.Folder.State is not (FolderLoadState.Idle or FolderLoadState.Loading))
+            {
+                App.ReportReady(ReadyPart.FirstListing);
+            }
+
             UpdateState();
             UpdateStatus();
             RefreshNavigationButtons();
@@ -436,7 +455,12 @@ public sealed partial class MainWindow : Window, IShellActions
             return;
         }
 
-        Sidebar.ItemsSource = items;
+        using (UiTrace.Begin("Sidebar.ItemsSource"))
+        {
+            Sidebar.ItemsSource = items;
+        }
+
+        App.ReportReady(ReadyPart.Sidebar);
     }
 
     private void OnSidebarItemClick(object sender, ItemClickEventArgs e)

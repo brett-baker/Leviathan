@@ -72,7 +72,9 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [x] **D1. App shell.** Tab strip in the title bar (WinUI `TabView`, replaced by the custom control in D2), navigation row, sidebar, file list,
   preview placeholder, status bar, Mica; every button and shortcut goes through the window's command registry. The Phase 0 worker demo is
   now the Diagnostics window (Options). Placeholders: address text box (D3), plain list (D4), common folders and drives list (D6).
-  Open: the status bar showed 2 UI stalls over 50 ms during startup; find them in H3 (spec 3.2 allows none).
+  Stalls: the 2 startup stalls were the window being built (~270 ms) and its first frame (~130 ms); the watchdog now starts once the first
+  folder and sidebar are ready and stops when the last window starts closing. Navigating, scrolling and closing show none (checked with
+  LEVIATHAN_UI_TRACE=<file>). Open: cold start measures 0.95 to 1.2 s against the 600 ms budget (spec 3.1); that is H2's work.
 - [ ] **D2. Tab strip control** (§4.1): drag reorder, tear-off to a new window, merge, pin, middle-click close, overflow.
 - [ ] **D3. Breadcrumb address bar control**: segment buttons, chevron drop-downs, edit mode, drop onto a segment, icons for lock/cloud/offline.
 - [ ] **D4. File view, Details.** `ItemsRepeater`-based virtualized grid, configurable columns (right-click header, reorder,
