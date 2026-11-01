@@ -1,0 +1,113 @@
+# Phase 2 plan — NAS resiliency and operations engine
+
+Scope, spec sections and gate are in `docs/build-plan.md` (Phase 2). This file is the working checklist: each slice is small
+enough to write, test, commit and push in one sitting, in dependency order. Tick a slice when it is committed and pushed.
+
+Every slice follows `CLAUDE.md`: code and tests together, zero warnings in `src/`, whole suite green, app run by hand when
+the slice touches UI or process behaviour, commit, push.
+
+> Written before Phase 1 finished. At the start of Phase 2, re-read `docs/phase-1.md` and adjust slice names, projects and
+> order to what Phase 1 actually built; keep the scope and the gate.
+
+## Shape of the work
+
+| Project | Kind | Holds |
+| --- | --- | --- |
+| `Leviathan.Providers.Smb` | plain `net10.0` (+ Windows interop via `Leviathan.Interop`) | Server identity, share enumeration, discovery, credentials, change polling; the UNC listing itself stays in `Leviathan.Providers.Local`. |
+| `Leviathan.Engine` (`Operations/`) | plain `net10.0` | Copy/move planner, chunked copier, resume journal, verify policy, conflict rules, soft-delete manifest. |
+| `Leviathan.Interop` | Windows | `CopyFile2` with progress callback, alternate data streams, `WNetAddConnection2`, Credential Manager. |
+| `Leviathan.Controls` | WinUI 3 | Activity strip, Operations panel, sparkline, conflict dialog. |
+| `Leviathan.Chaos.Tests` | tests | Worker-kill and network-drop suites (nightly). |
+| `docker/` | test infra | Samba and Toxiproxy compose file for integration/chaos tests. |
+
+Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareHealthTracker`, `BackoffPolicy`,
+`LocationErrors`, `FolderSizeService`, `DeviceKeys`, Phase 1's basic copy/move (replaced here), `FaultInjectingLocationProvider`.
+
+## Slices
+
+### A. Network foundations (§3.3, §3.5, §7.1, §7.2)
+
+- [ ] **A1. Server identity.** Resolve one identity per SMB server across names and addresses (NetBIOS name, DNS name, IPs,
+  DDNS): query the server's SMB identity where available, fall back to a normalized host key. `DeviceKeys` and caches use it.
+  Unit tests with fake resolvers; manual check against the DS2419+ (two IPs, `Diskstation`, DDNS name).
+- [ ] **A2. Share health wiring.** One `ShareHealthTracker` per server, fed by every provider call's latency and errors;
+  `ShouldAttempt` gates calls (fail fast < 2 s while Unreachable); health exposed to tabs, tree and status bar.
+- [ ] **A3. Fast-fail banners and offline cache.** Last listing of each visited network folder cached (SQLite), shown greyed
+  "offline — as of 14:02" with Retry / Work offline when the share is unreachable (§3.3, §8.6).
+- [ ] **A4. Change detection.** `ReadDirectoryChangesW` for local folders; polling with back-off for network folders (folder
+  last-write time + listing diff), cancelled when the folder is no longer shown.
+- [ ] **A5. Credentials and reconnect.** Windows Credential Manager for stored credentials; reconnect disconnected mapped drives
+  on first use; Leviathan never stores passwords (§3.3).
+- [ ] **A6. Network section of the tree** (§7.1): saved servers with health dots, shares, mapped drives, Add connection dialog
+  (SMB now; SFTP/FTP/NFS fields arrive in Phase 4), "Nearby" discovery via WS-Discovery and mDNS `_smb._tcp` in the background.
+- [ ] **A7. Throughput tuning (§3.5).** Measure throughput per share, adaptive buffer size (1–4 MB at 1 Gb/s, up to 8 MB on
+  faster links), negotiated link speed in the status bar.
+
+### B. Copy/move engine (§12.1, §12.2)
+
+- [ ] **B1. Planner.** Enumerate sources into the journal before copying; free-space check at the destination; fastest path per
+  item: same-volume rename, same-server `CopyFile2` (server-side copy), otherwise chunked copier. Unit tests with fakes.
+- [ ] **B2. Chunked copier.** `IFileCopier` with adaptive buffers, unbuffered I/O for files over 256 MB, writes to
+  `*.leviathan-part`, renames when complete; preserves timestamps, attributes and alternate data streams (tags), ACLs optional.
+- [ ] **B3. Resume journal.** Per-file confirmed-bytes records; resume from the last confirmed chunk after a network drop,
+  worker restart or reboot. Torn-write tests.
+- [ ] **B4. Verify policy.** xxHash3 (`System.IO.Hashing`): full verify up to 4 GB, sampled above (first/last 64 MB + 16 random
+  4 MB blocks), full verify per job/destination option; cross-volume move deletes the source only after verify passes.
+- [ ] **B5. Failure handling.** Transient errors → Waiting with countdown, automatic resume when the share returns (default keep
+  trying 30 minutes); permanent errors → one prompt with Skip / Retry / Skip all like this; safe rename for names invalid on
+  the destination; end-of-job report.
+- [ ] **B6. Replace Phase 1's basic copy/move** with the engine; contract version bump if the request shape changes.
+
+### C. Queue and UI (§12.3, §12.6)
+
+- [ ] **C1. Scheduler features.** Live limits from the UI, bandwidth limit per job/destination with schedule, background lane
+  pauses during a copy to the same NAS (already in the scheduler; wire and test end to end), 7-day reports.
+- [ ] **C2. Activity strip control.** 1–2 px line per job under the address bar, per-job colour from the 8-colour palette,
+  states (shimmer while enumerating, dashed paused, pulse waiting, red tip on failures), tooltip, click opens the panel,
+  up to 4 lines then merged "+N".
+- [ ] **C3. Operations panel.** Running / Queued / Completed-Failed groups; row actions (pause, resume, cancel, remove, move,
+  priority, run now, retry failed, report, open source/destination); multi-select; toolbar (pause/resume all, limits, bandwidth,
+  clear completed); queue ETA.
+- [ ] **C4. Panel positions.** Minimized to footer (default) with status-bar chip, docked bottom, docked right, popped out into its
+  own window; position remembered.
+- [ ] **C5. Speed sparklines.** Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
+- [ ] **C6. Conflict dialog** (§12.4): one dialog per job, Replace / Skip / Keep both / if newer / if larger / if different
+  (checksum), Compare view with thumbnails and metadata, apply-to-all, per-file overrides.
+
+### D. Soft delete (§12.5)
+
+- [ ] **D1. Recycle-folder detection.** Per share: Synology `#recycle` (when DSM Recycle Bin is enabled for that shared folder),
+  QNAP `@Recycle`, else `.leviathan-trash` at the highest writable folder; cached per share.
+- [ ] **D2. Soft delete and manifest.** Rename into the recycle folder (instant), manifest with original path and time; Delete vs
+  Shift+Delete table per location type; Ctrl+Z restores.
+- [ ] **D3. Soft-delete bin view.** All soft-deleted items across shares, restore, purge now; automatic purge by age (30 days)
+  and size cap as background jobs with reports.
+
+### E. Folder sizes in the UI (§12.7)
+
+- [ ] **E1. Size column and summaries.** Folder sizes from the store in the Size column, drive/share summary card and preview
+  pane; "≥" for partial, italic for stale, age shown on network folders.
+- [ ] **E2. Triggers and deltas.** Lazy computation for visible/selected folders at background priority; deltas applied by every
+  engine operation (copy, move, delete, restore); staleness from folder last-write time on visit; scheduled re-validation of
+  opted-in shares.
+
+### F. Split pane (§15.1)
+
+- [ ] **F1. Split per tab.** Single / side by side / top and bottom buttons; each pane with its own path, history, layout and
+  selection; address and command bars follow the focused pane; saved with tabs and profiles.
+- [ ] **F2. Pane operations.** F5 copy / F6 move to the other pane through the queue; swap panes; "same folder in other pane".
+- [ ] **F3. Preview follows focus.** Preview pane shows the focused pane's selection with Move (F6) and Copy (F5) under it.
+
+### G. Verification and finish
+
+- [ ] **G1. Test infrastructure.** `docker/compose.yml` with Samba and Toxiproxy; integration tests use it when Docker is
+  available and skip with a reason otherwise.
+- [ ] **G2. Chaos suite** (`Leviathan.Chaos.Tests`, nightly): kill the worker at random points during 1,000 copies → no corrupt
+  or half-named files, every job resumes; Toxiproxy drops mid-copy → Waiting then resume; disk full; access denied mid-job.
+- [ ] **G3. Benchmarks:** large-file copy throughput to the NAS (manual lab run), NAS folder first rows (< 400 ms for 10,000 items).
+- [ ] **G4. Gate and wrap-up:** run the gate, write `docs/phase-2.md`, update `README.md`, tag `phase-2`, push, stop for review.
+
+## Gate (from the build plan)
+
+A 50 GB copy to the NAS survives 3 cable pulls and a killed UI with no corrupt files; sustained large-file copy ≥ 105 MB/s
+on the 1 GbE link. The cable-pull test needs Brett at the machine: write a short procedure in `docs/phase-2.md` and ask him to run it.

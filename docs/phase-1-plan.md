@@ -48,7 +48,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   groups, filter box syntax (`*.mp4`, `size:>1GB`, `tag:red`, `duration:<2m`; tag and duration parse now, match when Phase 3 data exists).
 - [x] **B5. Selection model** (§8.4). Single, ctrl/shift range, invert, select by pattern, type-ahead jump, rubber-band hit-test
   math, selection survives re-sort and batch arrival.
-- [ ] **B6. Tabs** (§4.1). `TabViewModel` (path, history, view, sort, selection), new/duplicate/close, reopen stack of 25,
+- [x] **B6. Tabs** (§4.1). `TabViewModel` (path, history, view, sort, selection), new/duplicate/close, reopen stack of 25,
   reorder, pin, lock, colour/rename, close others/right, overflow list.
 - [ ] **B7. Windows** (§4.2). `WindowViewModel`/`WindowManager`: several windows in one process, tear-off, merge, saved bounds with
   a monitor-gone fallback.
