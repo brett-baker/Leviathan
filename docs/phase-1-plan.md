@@ -44,7 +44,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   autocomplete from file system, history and favorites, overflow collapse.
 - [x] **B3. Folder view model, listing.** Streams `ListAsync` batches into a collection, marshalled every 16–50 ms; navigating
   away cancels the old listing; states Loading / Empty / AccessDenied / Offline / Error; a cancelled listing never looks empty (§8.6).
-- [ ] **B4. Sort, group, filter** (§8.3, §6.3). Natural sort, secondary sort, folders first/mixed/last, group with collapsible
+- [x] **B4. Sort, group, filter** (§8.3, §6.3). Natural sort, secondary sort, folders first/mixed/last, group with collapsible
   groups, filter box syntax (`*.mp4`, `size:>1GB`, `tag:red`, `duration:<2m`; tag and duration parse now, match when Phase 3 data exists).
 - [ ] **B5. Selection model** (§8.4). Single, ctrl/shift range, invert, select by pattern, type-ahead jump, rubber-band hit-test
   math, selection survives re-sort and batch arrival.

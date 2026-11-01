@@ -50,6 +50,21 @@ public enum FolderLoadState
 /// <typeparam name="T">Item type.</typeparam>
 public sealed class RangeObservableCollection<T> : ObservableCollection<T>
 {
+    /// <summary>Replaces the contents with <paramref name="items"/> and raises a single <see cref="NotifyCollectionChangedAction.Reset"/> event.</summary>
+    public void Reset(IReadOnlyList<T> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        Items.Clear();
+        foreach (var item in items)
+        {
+            Items.Add(item);
+        }
+
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+    }
+
     /// <summary>Appends <paramref name="items"/> and raises one <see cref="NotifyCollectionChangedAction.Add"/> event.</summary>
     public void AddRange(IReadOnlyList<T> items)
     {
