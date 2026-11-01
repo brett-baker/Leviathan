@@ -1,3 +1,8 @@
+// View models are UI-thread affine: everything a control can observe is changed on the thread that started the command, so the
+// awaits in this file deliberately resume on the caller's context (crash signature 52a0ec04c34d: RPC_E_WRONG_THREAD from a
+// continuation that ran on the thread pool). UiThreadAffinityTests guards this.
+#pragma warning disable CA2007
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
@@ -143,7 +148,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var result = History.Navigate(location);
         if (result is not null)
         {
-            await ShowAsync(result, cancellationToken).ConfigureAwait(false);
+            await ShowAsync(result, cancellationToken);
         }
     }
 
@@ -153,7 +158,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var result = History.GoBack(steps);
         if (result is not null)
         {
-            await ShowAsync(result, cancellationToken).ConfigureAwait(false);
+            await ShowAsync(result, cancellationToken);
         }
     }
 
@@ -163,7 +168,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var result = History.GoForward(steps);
         if (result is not null)
         {
-            await ShowAsync(result, cancellationToken).ConfigureAwait(false);
+            await ShowAsync(result, cancellationToken);
         }
     }
 
@@ -184,7 +189,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var result = History.GoUp();
         if (result is not null)
         {
-            await ShowAsync(result, cancellationToken).ConfigureAwait(false);
+            await ShowAsync(result, cancellationToken);
         }
     }
 
@@ -193,7 +198,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         // A refresh (F5) or the first listing of a restored tab keeps the selection.
         _pendingSelection ??= [.. Selection.SelectedEntries.Select(e => e.Location)];
-        await Folder.LoadAsync(History.Current, cancellationToken).ConfigureAwait(false);
+        await Folder.LoadAsync(History.Current, cancellationToken);
         SelectAfterLoad(null);
     }
 
@@ -287,7 +292,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Address.Show(result.Location);
         OnPropertyChanged(nameof(Title));
         ApplyView();
-        await Folder.LoadAsync(result.Location, cancellationToken).ConfigureAwait(false);
+        await Folder.LoadAsync(result.Location, cancellationToken);
         SelectAfterLoad(result.SelectOnArrival);
     }
 

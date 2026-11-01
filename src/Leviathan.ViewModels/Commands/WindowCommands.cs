@@ -1,3 +1,8 @@
+// View models are UI-thread affine: everything a control can observe is changed on the thread that started the command, so the
+// awaits in this file deliberately resume on the caller's context (crash signature 52a0ec04c34d: RPC_E_WRONG_THREAD from a
+// continuation that ran on the thread pool). UiThreadAffinityTests guards this.
+#pragma warning disable CA2007
+
 using Leviathan.Core.Model;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
@@ -111,7 +116,7 @@ public static class WindowCommands
         {
             var location = LocationPath.TryParse(c.Target, out var parsed) ? parsed : home();
             var tab = strip.NewTab(location);
-            await tab.ReloadAsync(ct).ConfigureAwait(false);
+            await tab.ReloadAsync(ct);
         }, shortcut: "Ctrl+T", icon: "Add");
 
         Add(CommandIds.TabClose, "Close tab", "Tabs", (_, _) =>
@@ -128,7 +133,7 @@ public static class WindowCommands
         {
             if (strip.Reopen() is { } tab)
             {
-                await tab.ReloadAsync(ct).ConfigureAwait(false);
+                await tab.ReloadAsync(ct);
             }
         }, _ => strip.CanReopen, shortcut: "Ctrl+Shift+T");
 
@@ -136,7 +141,7 @@ public static class WindowCommands
         {
             if (Current() is { } tab)
             {
-                await strip.Duplicate(tab).ReloadAsync(ct).ConfigureAwait(false);
+                await strip.Duplicate(tab).ReloadAsync(ct);
             }
         }, _ => Current() is not null, shortcut: "Ctrl+Shift+K");
 
@@ -162,11 +167,11 @@ public static class WindowCommands
                 return;
             }
 
-            var result = await resolver.ResolveAsync(c.Target, tab.History.Current, ct).ConfigureAwait(false);
+            var result = await resolver.ResolveAsync(c.Target, tab.History.Current, ct);
             switch (result.Outcome)
             {
                 case AddressOutcome.Navigate or AddressOutcome.NavigateAndSelect:
-                    await tab.NavigateAsync(result.Folder!, ct).ConfigureAwait(false);
+                    await tab.NavigateAsync(result.Folder!, ct);
                     if (result.SelectItem is { } item && tab.Items.Rows.FirstOrDefault(r => r.Location == item) is { } entry)
                     {
                         tab.Selection.Click(entry);
@@ -188,11 +193,11 @@ public static class WindowCommands
 
             if (Folders.FileColumns.IsFolderLike(entry))
             {
-                await tab.NavigateAsync(entry.Location, ct).ConfigureAwait(false);
+                await tab.NavigateAsync(entry.Location, ct);
                 return;
             }
 
-            var launched = await launcher.OpenAsync(entry.Location, ct).ConfigureAwait(false);
+            var launched = await launcher.OpenAsync(entry.Location, ct);
             if (!launched.Started && !launched.Cancelled)
             {
                 shell.ShowMessage(launched.Error ?? $"{entry.Name} could not be opened.");
