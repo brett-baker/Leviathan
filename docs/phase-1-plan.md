@@ -30,7 +30,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [x] **A2. Command layer** (§6, §17.3). `CommandId`, `ICommand` metadata (title, icon, default shortcut, enabled predicate),
   `CommandRegistry`, key-gesture parsing and a `KeyMap` with conflict rules (split-pane meaning wins only while split).
   Every execution is recorded in `ActionTrail`; the trail replays through `leviathan-diag replay`. Palette-ready search over titles.
-- [ ] **A3. Settings store** (§17.2). Typed JSON settings, atomic write (temp → flush → rename), daily backup, change events so
+- [x] **A3. Settings store** (§17.2). Typed JSON settings, atomic write (temp → flush → rename), daily backup, change events so
   settings apply without restart. Goes through `IFileSystem`.
 - [ ] **A4. Per-folder view settings** (§8.1). Layout, sort, group, columns stored per folder with inheritance
   ("this folder", "this folder and subfolders", "all folders of this type"); resolution order tested.
