@@ -61,7 +61,7 @@ permalinks generated for files outside the repository.
 | Restore and build, `-p:Platform=x64` | Clean, 0 warnings in `src/` (Leviathan.App builds) |
 | Tests | Core 84, Engine 48, Diagnostics 20, Data 5, Integration 3, Providers.Local 9: all pass, none skipped |
 | Enumeration gate (NTFS, Release) | 10,000 items: first rows p95 **3.1 ms** (budget 100 ms), full listing p95 18.7 ms: PASS |
-| Run the app, kill the worker mid-job | **Not yet checked by hand** |
+| Run the app, kill the worker mid-job | Checked by hand by Brett: worker restarted and the job resumed from the journal |
 
 Found and fixed on Windows:
 
