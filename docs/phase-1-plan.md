@@ -39,7 +39,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 - [x] **B1. Navigation history.** Back/forward/up stacks, history lists for the right-click menus, "select the folder you came
   from" after Back/Up (§5.1).
-- [ ] **B2. Address bar model** (§5.2). Breadcrumb segments with sibling lists, edit mode, `LocationPath.TryResolve` for typed
+- [x] **B2. Address bar model** (§5.2). Breadcrumb segments with sibling lists, edit mode, `LocationPath.TryResolve` for typed
   input (env vars, `shell:`, relative, file path → folder + select), copy-as variants (path, UNC, quoted, `file://`),
   autocomplete from file system, history and favorites, overflow collapse.
 - [ ] **B3. Folder view model, listing.** Streams `ListAsync` batches into a collection, marshalled every 16–50 ms; navigating
