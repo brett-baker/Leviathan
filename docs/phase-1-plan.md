@@ -25,8 +25,8 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### A. Foundations
 
-- [ ] **A1. Scaffolding.** Create `Leviathan.ViewModels` + `.Tests`, `Leviathan.Interop`, `Leviathan.Controls`; add to the solution;
-  CsWin32 pinned in `Directory.Packages.props`. Build and test still green.
+- [x] **A1. Scaffolding.** Create `Leviathan.ViewModels` + `.Tests` and `Leviathan.Interop`; add to the solution; CsWin32 pinned
+  in `Directory.Packages.props`. `Leviathan.Controls` is created in D2, when its first control exists (no empty WinUI library).
 - [ ] **A2. Command layer** (§6, §17.3). `CommandId`, `ICommand` metadata (title, icon, default shortcut, enabled predicate),
   `CommandRegistry`, key-gesture parsing and a `KeyMap` with conflict rules (split-pane meaning wins only while split).
   Every execution is recorded in `ActionTrail`; the trail replays through `leviathan-diag replay`. Palette-ready search over titles.

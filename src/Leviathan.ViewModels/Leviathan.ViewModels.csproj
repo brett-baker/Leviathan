@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Commands, settings and the tab, window, navigation and folder view models. No WinUI references, so all of it is unit-tested (CLAUDE.md, spec §2.3). -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.ViewModels</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="System.IO.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.ViewModels.Tests" />
+  </ItemGroup>
+</Project>
