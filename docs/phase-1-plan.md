@@ -75,7 +75,11 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   Stalls: the 2 startup stalls were the window being built (~270 ms) and its first frame (~130 ms); the watchdog now starts once the first
   folder and sidebar are ready and stops when the last window starts closing. Navigating, scrolling and closing show none (checked with
   LEVIATHAN_UI_TRACE=<file>). Open: cold start measures 0.95 to 1.2 s against the 600 ms budget (spec 3.1); that is H2's work.
-- [ ] **D2. Tab strip control** (§4.1): drag reorder, tear-off to a new window, merge, pin, middle-click close, overflow.
+- [x] **D2. Tab strip** (§4.1): drag to reorder, drag out to a new window at the drop point (same size, kept on screen), drop onto another window's
+  strip to merge, pin (icon only, left), lock, rename, colour, close others / to the right, middle-click close, lock/busy/offline marks, an
+  all-tabs list with search, Ctrl+Shift+PgUp/PgDn, middle-click a folder to open it in a background tab. Built on WinUI's `TabView`, not a
+  custom control. Not done: Ctrl+click a folder (conflicts with multi-select; decided in D8), double-click the empty strip (Windows uses it to
+  maximize), dropping files on a tab (D9). Opening or closing a window stalls the UI ~110-130 ms (second window onward); lighter XAML in H3.
 - [ ] **D3. Breadcrumb address bar control**: segment buttons, chevron drop-downs, edit mode, drop onto a segment, icons for lock/cloud/offline.
 - [ ] **D4. File view, Details.** `ItemsRepeater`-based virtualized grid, configurable columns (right-click header, reorder,
   auto-fit), skeleton rows while loading, empty/denied/offline states, folder sizes via `FolderSizeService` in the Size column.

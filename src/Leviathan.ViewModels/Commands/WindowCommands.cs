@@ -196,6 +196,7 @@ public static partial class WindowCommands
         };
 
         TabViewModel? Current() => strip.Selected;
+        TabViewModel? TabOf(CommandContext c) => c.Parameter as TabViewModel ?? Current();
 
         void Add(CommandId id, string title, string category, Func<CommandContext, CancellationToken, Task> run, Func<CommandContext, bool>? can = null, string? icon = null, string? shortcut = null) =>
             registry.Register(new AppCommand(new CommandDefinition(id, title, category, icon, shortcut), run, can));
@@ -209,15 +210,15 @@ public static partial class WindowCommands
             await tab.ReloadAsync(ct);
         }, shortcut: "Ctrl+T", icon: "Add");
 
-        Add(CommandIds.TabClose, "Close tab", "Tabs", (_, _) =>
+        Add(CommandIds.TabClose, "Close tab", "Tabs", (c, _) =>
         {
-            if (Current() is { } tab)
+            if (TabOf(c) is { } tab)
             {
                 strip.Close(tab);
             }
 
             return Task.CompletedTask;
-        }, _ => Current() is { IsPinned: false }, shortcut: "Ctrl+W");
+        }, c => TabOf(c) is { IsPinned: false }, shortcut: "Ctrl+W");
 
         Add(CommandIds.TabReopen, "Reopen closed tab", "Tabs", async (_, ct) =>
         {
@@ -227,19 +228,17 @@ public static partial class WindowCommands
             }
         }, _ => strip.CanReopen, shortcut: "Ctrl+Shift+T");
 
-        Add(CommandIds.TabDuplicate, "Duplicate tab", "Tabs", async (_, ct) =>
+        Add(CommandIds.TabDuplicate, "Duplicate tab", "Tabs", async (c, ct) =>
         {
-            if (Current() is { } tab)
+            if (TabOf(c) is { } tab)
             {
                 await strip.Duplicate(tab).ReloadAsync(ct);
             }
-        }, _ => Current() is not null, shortcut: "Ctrl+Shift+K");
+        }, c => TabOf(c) is not null, shortcut: "Ctrl+Shift+K");
 
         Add(CommandIds.TabNext, "Next tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: true)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Tab");
         Add(CommandIds.TabPrevious, "Previous tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: false)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Shift+Tab");
         Add(CommandIds.TabSelect, "Go to tab", "Tabs", (c, _) => Run(() => strip.SelectByNumber(c.Parameter is int n ? n : 0)), c => c.Parameter is int);
-
-        TabViewModel? TabOf(CommandContext c) => c.Parameter as TabViewModel ?? Current();
 
         Add(CommandIds.TabTogglePin, "Pin tab", "Tabs", (c, _) => Run(() =>
         {

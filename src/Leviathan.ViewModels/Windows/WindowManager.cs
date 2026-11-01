@@ -46,8 +46,9 @@ public static class BoundsFitter
     public static readonly (int Width, int Height) MinimumSize = (480, 320);
 
     /// <summary>
-    /// Returns <paramref name="saved"/> unchanged when a reasonable part of it (at least 100 by 50 pixels including the top edge)
-    /// is on a monitor; otherwise centers a window of the same size, shrunk to fit, on the primary monitor.
+    /// Returns <paramref name="saved"/> when a reasonable part of it (at least 100 by 50 pixels including the top edge) is on a
+    /// monitor, moved fully onto that monitor when it fits there; otherwise centers a window of the same size, shrunk to fit, on
+    /// the primary monitor.
     /// </summary>
     public static WindowBounds Fit(WindowBounds saved, IReadOnlyList<MonitorInfo> monitors)
     {
@@ -68,6 +69,17 @@ public static class BoundsFitter
         var best = monitors.OrderByDescending(m => titleStrip.OverlapArea(m.WorkArea)).First();
         if (titleStrip.OverlapArea(best.WorkArea) >= 100 * 32 && rect.OverlapArea(best.WorkArea) >= 100 * 50)
         {
+            // A window that fits on the monitor is kept entirely on it (a tab dropped near the bottom edge must not open half off screen).
+            var work = best.WorkArea;
+            if (rect.Width <= work.Width && rect.Height <= work.Height)
+            {
+                rect = rect with
+                {
+                    X = Math.Clamp(rect.X, work.X, work.Right - rect.Width),
+                    Y = Math.Clamp(rect.Y, work.Y, work.Bottom - rect.Height),
+                };
+            }
+
             return saved with { Rect = rect };
         }
 

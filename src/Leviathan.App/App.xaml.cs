@@ -47,6 +47,9 @@ public partial class App : Application
     /// <summary>Crash bundle writer.</summary>
     public static CrashHandlers Crashes { get; private set; } = null!;
 
+    /// <summary>The tab being dragged between windows, so a strip that receives the drop knows what it is (the drag stays inside this process).</summary>
+    internal static ViewModels.Tabs.TabViewModel? DraggedTab { get; set; }
+
     /// <summary>The services all windows share.</summary>
     internal static AppHost Host { get; private set; } = null!;
 
@@ -92,6 +95,13 @@ public partial class App : Application
             _windows.Remove(viewModel.Id);
             Host.Windows.Close(viewModel);
         };
+        UiTrace.Mark($"Show window; place explicitly: {viewModel.PlaceExplicitly}");
+        if (viewModel.PlaceExplicitly)
+        {
+            MainWindow.PlaceWindow(window, viewModel);
+            UiTrace.Mark("window placed");
+        }
+
         using (UiTrace.Begin("MainWindow.Activate"))
         {
             window.Activate();
@@ -100,6 +110,7 @@ public partial class App : Application
 
     private void CloseWindow(WindowViewModel viewModel)
     {
+        UiTrace.Mark("App.CloseWindow requested");
         if (_windows.Remove(viewModel.Id, out var window))
         {
             window.Close();

@@ -22,14 +22,28 @@
     <TabView x:Name="TabsView"
              Grid.Row="0"
              IsAddTabButtonVisible="True"
-             CanReorderTabs="False"
-             CanDragTabs="False"
-             TabWidthMode="Equal"
+             CanReorderTabs="True"
+             CanDragTabs="True"
+             AllowDropTabs="True"
+             TabWidthMode="SizeToContent"
              AddTabButtonClick="OnAddTabClick"
              TabCloseRequested="OnTabCloseRequested"
-             SelectionChanged="OnTabSelectionChanged">
+             SelectionChanged="OnTabSelectionChanged"
+             TabDragStarting="OnTabDragStarting"
+             TabDragCompleted="OnTabDragCompleted"
+             TabDroppedOutside="OnTabDroppedOutside"
+             TabStripDragOver="OnTabStripDragOver"
+             TabStripDrop="OnTabStripDrop"
+             TabItemsChanged="OnTabItemsChanged">
       <TabView.TabStripFooter>
-        <Grid x:Name="DragRegion" MinWidth="140" />
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="AllTabsButton" Width="32" Height="28" Padding="0" Margin="2,0"
+                  Click="OnAllTabsClick" ToolTipService.ToolTip="All tabs" AutomationProperties.Name="All tabs"
+                  Style="{StaticResource DefaultButtonStyle}" Background="Transparent" BorderThickness="0">
+            <FontIcon Glyph="&#xE70D;" FontSize="12" />
+          </Button>
+          <Grid x:Name="DragRegion" MinWidth="140" />
+        </StackPanel>
       </TabView.TabStripFooter>
     </TabView>
 
@@ -94,6 +108,7 @@
                 IsItemClickEnabled="True"
                 SelectionMode="None"
                 ItemClick="OnSidebarItemClick"
+                PointerPressed="OnSidebarPointerPressed"
                 Padding="4,0">
         <ListView.ItemTemplate>
           <DataTemplate x:DataType="local:SidebarItem">
@@ -136,7 +151,8 @@
                   SelectionMode="Extended"
                   SelectionChanged="OnFileSelectionChanged"
                   DoubleTapped="OnFileDoubleTapped"
-                  KeyDown="OnFileKeyDown">
+                  KeyDown="OnFileKeyDown"
+                  PointerPressed="OnFilePointerPressed">
           <ListView.ItemContainerStyle>
             <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
               <Setter Property="MinHeight" Value="30" />

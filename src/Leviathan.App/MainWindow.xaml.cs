@@ -29,9 +29,9 @@ public sealed partial class MainWindow : Window, IShellActions
     private readonly WindowViewModel _viewModel;
     private readonly CommandRegistry _commands;
     private readonly CancellationTokenSource _closing = new();
-    private readonly Dictionary<TabViewModel, TabViewItem> _tabItems = [];
     private TabViewModel? _bound;
     private bool _syncingTabs;
+    private bool _closed;
 
     /// <summary>Creates the window for <paramref name="viewModel"/>.</summary>
     internal MainWindow(WindowViewModel viewModel)
@@ -59,7 +59,11 @@ public sealed partial class MainWindow : Window, IShellActions
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
+        TabsView.Loaded += (_, _) => UpdateTitleBarRegions();
+        TabsView.LayoutUpdated += OnTabsLayoutUpdated;
         AppWindow.Closing += (_, _) => App.NotifyWindowClosing(_viewModel);
+        AppWindow.Changed += OnAppWindowChanged;
+        Activated += (_, _) => CaptureBounds(AppWindow);
 
         using (UiTrace.Begin("MainWindow ctor: SyncTabs"))
         {
@@ -152,6 +156,7 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void OnTabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
     {
+        UiTrace.Mark($"tab close requested: {(args.Tab.Tag as TabViewModel)?.Title}");
         if (args.Tab.Tag is TabViewModel tab)
         {
             App.Actions.Record("tab.close", tab.History.Current.Value);
@@ -220,31 +225,45 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    /// <summary>Makes the tab strip show exactly the view model's tabs, in order.</summary>
+    /// <summary>
+    /// Makes the tab strip show exactly the view model's tabs, in order, changing as little as possible: a tab being dragged
+    /// is not removed and re-added underneath its own drag (that crashed WinUI with a stowed E_NOINTERFACE).
+    /// </summary>
     private void SyncTabs()
     {
         _syncingTabs = true;
         try
         {
-            foreach (var removed in _tabItems.Keys.Except(_viewModel.Tabs.Tabs).ToList())
+            var wanted = _viewModel.Tabs.Tabs.ToList();
+            foreach (var removed in _tabUi.Keys.Except(wanted).ToList())
             {
                 removed.PropertyChanged -= OnTabPropertyChanged;
-                _tabItems.Remove(removed);
+                TabsView.TabItems.Remove(_tabUi[removed].Item);
+                _tabUi.Remove(removed);
             }
 
-            TabsView.TabItems.Clear();
-            foreach (var tab in _viewModel.Tabs.Tabs)
+            for (var i = 0; i < wanted.Count; i++)
             {
-                if (!_tabItems.TryGetValue(tab, out var item))
+                var tab = wanted[i];
+                if (!_tabUi.TryGetValue(tab, out var ui))
                 {
-                    item = new TabViewItem { Tag = tab, IconSource = new SymbolIconSource { Symbol = Symbol.Folder } };
+                    ui = new TabItemUi(tab);
+                    ui.Item.ContextFlyout = BuildTabMenu(tab);
                     tab.PropertyChanged += OnTabPropertyChanged;
-                    _tabItems[tab] = item;
+                    _tabUi[tab] = ui;
                 }
 
-                item.Header = tab.Title;
-                item.IsClosable = !tab.IsPinned;
-                TabsView.TabItems.Add(item);
+                ui.Refresh();
+                if (i >= TabsView.TabItems.Count || !ReferenceEquals(TabsView.TabItems[i], ui.Item))
+                {
+                    var existing = TabsView.TabItems.IndexOf(ui.Item);
+                    if (existing >= 0)
+                    {
+                        TabsView.TabItems.RemoveAt(existing);
+                    }
+
+                    TabsView.TabItems.Insert(Math.Min(i, TabsView.TabItems.Count), ui.Item);
+                }
             }
         }
         finally
@@ -261,7 +280,7 @@ public sealed partial class MainWindow : Window, IShellActions
         _syncingTabs = true;
         try
         {
-            TabsView.SelectedItem = selected is not null && _tabItems.TryGetValue(selected, out var item) ? item : null;
+            TabsView.SelectedItem = selected is not null && _tabUi.TryGetValue(selected, out var ui) ? ui.Item : null;
         }
         finally
         {
@@ -276,14 +295,6 @@ public sealed partial class MainWindow : Window, IShellActions
         if (!_syncingTabs && TabsView.SelectedItem is TabViewItem { Tag: TabViewModel tab })
         {
             _viewModel.Tabs.Select(tab);
-        }
-    }
-
-    private void OnTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (sender is TabViewModel tab && _tabItems.TryGetValue(tab, out var item) && e.PropertyName is nameof(TabViewModel.Title) or nameof(TabViewModel.CustomTitle))
-        {
-            OnUi(() => item.Header = tab.Title);
         }
     }
 
@@ -477,8 +488,36 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void ShowStalls() => StallText.Text = App.StallCount > 0 ? $"UI stalls: {App.StallCount}" : string.Empty;
 
+    /// <summary>Keeps the view model's bounds equal to the real window, so a tab torn out of this window opens at its size (and a saved session can restore it).</summary>
+    private void OnAppWindowChanged(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
+    {
+        if (args.DidSizeChange || args.DidPositionChange)
+        {
+            CaptureBounds(sender);
+        }
+    }
+
+    private void CaptureBounds(Microsoft.UI.Windowing.AppWindow window)
+    {
+        if (_closed)
+        {
+            return;
+        }
+
+        if (window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized or Microsoft.UI.Windowing.OverlappedPresenterState.Minimized })
+        {
+            return;
+        }
+
+        _viewModel.Bounds = new ViewModels.Windows.WindowBounds(new ViewModels.Windows.ScreenRect(window.Position.X, window.Position.Y, window.Size.Width, window.Size.Height));
+    }
+
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        UiTrace.Mark($"window closed (tabs: {_viewModel.Tabs.Tabs.Count})");
+        // A closed window throws on Content and AppWindow; layout events can still arrive during teardown.
+        _closed = true;
+        TabsView.LayoutUpdated -= OnTabsLayoutUpdated;
         App.StallsChanged -= OnStallsChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;

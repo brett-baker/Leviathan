@@ -124,6 +124,22 @@ public sealed class WindowManagerTests
     }
 
     [Fact]
+    public void Fit_AWindowHangingOffTheBottomOrRight_IsPulledFullyOntoItsMonitor()
+    {
+        var fitted = BoundsFitter.Fit(new WindowBounds(new ScreenRect(1000, 600, 1280, 800)), [Primary]);
+
+        Assert.Equal(new ScreenRect(640, 240, 1280, 800), fitted.Rect);
+    }
+
+    [Fact]
+    public void Fit_ALargerThanMonitorWindowStillVisible_IsLeftWhereItIs()
+    {
+        var saved = new WindowBounds(new ScreenRect(-200, 10, 2400, 1200));
+
+        Assert.Equal(saved, BoundsFitter.Fit(saved, [Primary]));
+    }
+
+    [Fact]
     public void Fit_MonitorGone_CentersOnThePrimary()
     {
         var saved = new WindowBounds(new ScreenRect(2400, 200, 1200, 800));
