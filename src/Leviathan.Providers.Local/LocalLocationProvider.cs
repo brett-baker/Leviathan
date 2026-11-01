@@ -67,35 +67,34 @@ public sealed class LocalLocationProvider : ILocationProvider
             .GetAsyncEnumerator(firstBatch.Token);
         try
         {
-
-        var first = true;
-        while (true)
-        {
-            bool moved;
-            try
+            var first = true;
+            while (true)
             {
-                moved = await batches.MoveNextAsync().ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (first && !cancellationToken.IsCancellationRequested)
-            {
-                throw new LocationException(LocationError.Unreachable, location, $"{location.Server} is not responding.", new TimeoutException());
-            }
+                bool moved;
+                try
+                {
+                    moved = await batches.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (first && !cancellationToken.IsCancellationRequested)
+                {
+                    throw new LocationException(LocationError.Unreachable, location, $"{location.Server} is not responding.", new TimeoutException());
+                }
 
-            if (!moved)
-            {
-                yield break;
+                if (!moved)
+                {
+                    yield break;
+                }
+
+                if (first)
+                {
+                    first = false;
+
+                    // Past the first batch the share is responding; only the caller's token applies from here on.
+                    firstBatch.CancelAfter(Timeout.InfiniteTimeSpan);
+                }
+
+                yield return batches.Current;
             }
-
-            if (first)
-            {
-                first = false;
-
-                // Past the first batch the share is responding; only the caller's token applies from here on.
-                firstBatch.CancelAfter(Timeout.InfiniteTimeSpan);
-            }
-
-            yield return batches.Current;
-        }
         }
         finally
         {

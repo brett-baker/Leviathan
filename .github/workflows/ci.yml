@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * *" # nightly: benchmarks gate
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore Leviathan.slnx -p:Platform=x64
+      - name: Build
+        run: dotnet build Leviathan.slnx -c Release -p:Platform=x64 --no-restore
+      - name: Test
+        run: dotnet test Leviathan.slnx -c Release -p:Platform=x64 --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults
+
+  gate:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Phase 0 enumeration gate
+        run: dotnet run -c Release --project tests/Leviathan.Benchmarks -p:Platform=x64 -- --gate

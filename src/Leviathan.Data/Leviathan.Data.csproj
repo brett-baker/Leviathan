@@ -11,4 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Data.Tests" />
+  </ItemGroup>
 </Project>

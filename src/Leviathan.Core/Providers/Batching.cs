@@ -56,7 +56,8 @@ public static class Batching
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
-                    channel.Writer.TryComplete();
+                    // A cancelled listing must never look like a complete (possibly empty) folder.
+                    channel.Writer.TryComplete(new OperationCanceledException(token));
                 }
                 catch (Exception ex)
                 {
@@ -117,8 +118,9 @@ public static class Batching
                 }
             }
 
-            // Surfaces a producer failure (already wrapped as LocationException).
+            // Surfaces a producer failure (already wrapped as LocationException) or cancellation.
             await reader.Completion.ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
             yield return new ListingBatch(batch, true);
         }
         finally

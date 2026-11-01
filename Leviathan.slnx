@@ -1,0 +1,38 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="ARM64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/Leviathan.App/Leviathan.App.csproj" />
+    <Project Path="src/Leviathan.Worker/Leviathan.Worker.csproj" />
+    <Project Path="src/Leviathan.Core/Leviathan.Core.csproj" />
+    <Project Path="src/Leviathan.Contracts/Leviathan.Contracts.csproj" />
+    <Project Path="src/Leviathan.Engine/Leviathan.Engine.csproj" />
+    <Project Path="src/Leviathan.Diagnostics/Leviathan.Diagnostics.csproj" />
+    <Project Path="src/Leviathan.Providers.Local/Leviathan.Providers.Local.csproj" />
+    <Project Path="src/Leviathan.Data/Leviathan.Data.csproj" />
+    <Project Path="src/Leviathan.Ipc/Leviathan.Ipc.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj" />
+    <Project Path="tests/Leviathan.Core.Tests/Leviathan.Core.Tests.csproj" />
+    <Project Path="tests/Leviathan.Engine.Tests/Leviathan.Engine.Tests.csproj" />
+    <Project Path="tests/Leviathan.Diagnostics.Tests/Leviathan.Diagnostics.Tests.csproj" />
+    <Project Path="tests/Leviathan.Providers.Local.Tests/Leviathan.Providers.Local.Tests.csproj" />
+    <Project Path="tests/Leviathan.Data.Tests/Leviathan.Data.Tests.csproj" />
+    <Project Path="tests/Leviathan.Integration.Tests/Leviathan.Integration.Tests.csproj" />
+    <Project Path="tests/Leviathan.Benchmarks/Leviathan.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Leviathan.Diag/Leviathan.Diag.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="CLAUDE.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>

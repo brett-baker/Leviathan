@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Performance budgets (spec §3.1). `dotnet run -c Release -- --gate` checks the Phase 0 enumeration gate quickly;
+       without arguments it runs the full BenchmarkDotNet suite. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.Benchmarks</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
+  </ItemGroup>
+</Project>

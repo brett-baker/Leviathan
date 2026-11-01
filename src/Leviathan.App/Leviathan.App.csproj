@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WinUI 3 UI process. Phase 0 is a shell that proves the worker connection, the job queue and diagnostics end to end. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <TargetPlatformMinVersion>$(MinimalWindowsVersion)</TargetPlatformMinVersion>
+    <RootNamespace>Leviathan.App</RootNamespace>
+    <AssemblyName>Leviathan</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+
+    <!-- Unpackaged (decision D28): runs straight from the build output, Windows App SDK bundled with the app. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+
+    <!-- The UI project awaits on the UI thread on purpose. -->
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
+    <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
+    <!-- Builds the worker and copies it next to Leviathan.exe so the UI can start it. -->
+    <ProjectReference Include="..\Leviathan.Worker\Leviathan.Worker.csproj" />
+  </ItemGroup>
+</Project>

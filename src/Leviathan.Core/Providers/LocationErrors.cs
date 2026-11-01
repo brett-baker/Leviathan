@@ -50,7 +50,7 @@ public static class LocationErrors
     };
 
     /// <summary>The Win32 error code carried in an HRESULT of the form 0x8007xxxx, or the value itself otherwise.</summary>
-    public static int Win32CodeFromHResult(int hresult) => (hresult & 0xFFFF0000) == unchecked((int)0x80070000) ? hresult & 0xFFFF : hresult;
+    public static int Win32CodeFromHResult(int hresult) => (hresult & unchecked((int)0xFFFF0000)) == unchecked((int)0x80070000) ? hresult & 0xFFFF : hresult;
 
     /// <summary>Human-readable name of a Win32 error code, for crash reports and logs.</summary>
     public static string Win32Name(int code) => code switch

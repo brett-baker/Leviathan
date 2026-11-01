@@ -88,7 +88,7 @@ public sealed class CrashReportBuilder
             RecentEvents = _recorder?.Snapshot() ?? [],
             Context = context ?? new Dictionary<string, string>(),
             Environment = CollectEnvironment(),
-            StartingPoints = [.. frames.Where(f => f.File is not null).Select(f => f.File!).Distinct().Take(5)],
+            StartingPoints = [.. frames.Where(f => f.File is not null && IsInRepository(f.File)).Select(f => f.File!).Distinct().Take(5)],
             UserNote = userNote,
         };
     }
@@ -104,7 +104,7 @@ public sealed class CrashReportBuilder
             var line = frame.GetFileLineNumber();
             int? lineNumber = line > 0 ? line : null;
             string? permalink = null;
-            if (file is not null && _build.RepositoryUrl is { } repo && _build.Commit is { } commit)
+            if (file is not null && IsInRepository(file) && _build.RepositoryUrl is { } repo && _build.Commit is { } commit)
             {
                 permalink = $"{repo.TrimEnd('/').Replace(".git", string.Empty, StringComparison.Ordinal)}/blob/{commit}/{file}{(lineNumber is null ? string.Empty : $"#L{lineNumber}")}";
             }
@@ -140,6 +140,10 @@ public sealed class CrashReportBuilder
         return normalized;
     }
 
+    /// <summary>True for paths inside the repository (<c>src/</c>, <c>tools/</c>, <c>tests/</c>).</summary>
+    public static bool IsInRepository(string relativePath) =>
+        RepoRoots.Any(root => relativePath.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase));
+
     private string BuildSummary(IncidentKind kind, Exception? exception, IReadOnlyList<FrameInfo> frames)
     {
         var process = ShortProcess();
@@ -164,7 +168,7 @@ public sealed class CrashReportBuilder
 
     private static string? Win32Of(int hresult)
     {
-        if ((hresult & 0xFFFF0000) != unchecked((int)0x80070000))
+        if ((hresult & unchecked((int)0xFFFF0000)) != unchecked((int)0x80070000))
         {
             return null;
         }
