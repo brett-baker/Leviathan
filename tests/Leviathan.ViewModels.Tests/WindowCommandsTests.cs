@@ -14,7 +14,7 @@ namespace Leviathan.ViewModels.Tests;
 
 public sealed class WindowCommandsTests
 {
-    private sealed class FakeShell : IShellActions
+    internal sealed class FakeShell : IShellActions
     {
         public int FocusCalls { get; private set; }
 
@@ -29,7 +29,7 @@ public sealed class WindowCommandsTests
         public void ShowMessage(string message) => Messages.Add(message);
     }
 
-    private sealed class FakeLauncher : IFileLauncher
+    internal sealed class FakeLauncher : IFileLauncher
     {
         public List<LocationPath> Opened { get; } = [];
 
@@ -52,7 +52,7 @@ public sealed class WindowCommandsTests
         public Task<LaunchResult> ShowPropertiesAsync(LocationPath path, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class Harness
+    internal sealed class Harness
     {
         public Harness()
         {

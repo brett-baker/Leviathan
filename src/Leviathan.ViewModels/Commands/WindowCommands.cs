@@ -3,9 +3,11 @@
 // continuation that ran on the thread pool). UiThreadAffinityTests guards this.
 #pragma warning disable CA2007
 
+using System.Text.RegularExpressions;
 using Leviathan.Core.Model;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
+using Leviathan.Core.Providers;
 using Leviathan.Diagnostics;
 using Leviathan.ViewModels.Navigation;
 using Leviathan.ViewModels.Tabs;
@@ -50,6 +52,42 @@ public static class CommandIds
     /// <summary>Go to tab N (Ctrl+1..9). Parameter: the number.</summary>
     public static readonly CommandId TabSelect = new("tab.select");
 
+    /// <summary>Pin or unpin a tab (tab menu). Parameter: the tab; default the selected one.</summary>
+    public static readonly CommandId TabTogglePin = new("tab.togglePin");
+
+    /// <summary>Lock or unlock a tab: a locked tab opens folders in a new tab instead of navigating.</summary>
+    public static readonly CommandId TabToggleLock = new("tab.toggleLock");
+
+    /// <summary>Rename a tab. Target: the new label; empty restores the folder name.</summary>
+    public static readonly CommandId TabRename = new("tab.rename");
+
+    /// <summary>Colour a tab. Target: <c>#RRGGBB</c>; empty removes the colour.</summary>
+    public static readonly CommandId TabColor = new("tab.color");
+
+    /// <summary>Close every other tab that is not pinned.</summary>
+    public static readonly CommandId TabCloseOthers = new("tab.closeOthers");
+
+    /// <summary>Close the unpinned tabs to the right.</summary>
+    public static readonly CommandId TabCloseRight = new("tab.closeRight");
+
+    /// <summary>Move the tab one place left (Ctrl+Shift+PgUp).</summary>
+    public static readonly CommandId TabMoveLeft = new("tab.moveLeft");
+
+    /// <summary>Move the tab one place right (Ctrl+Shift+PgDn).</summary>
+    public static readonly CommandId TabMoveRight = new("tab.moveRight");
+
+    /// <summary>Move a tab to an index (drag within the strip). Parameter: <see cref="TabMove"/>.</summary>
+    public static readonly CommandId TabMove = new("tab.move");
+
+    /// <summary>Drag a tab out of the strip into a new window. Parameter: <see cref="TabTearOff"/>.</summary>
+    public static readonly CommandId TabTearOff = new("tab.tearoff");
+
+    /// <summary>Drop a tab from this or another window onto this strip. Parameter: <see cref="TabDrop"/>.</summary>
+    public static readonly CommandId TabDrop = new("tab.drop");
+
+    /// <summary>Open a folder in a new tab, in the background unless the parameter is true. Target: the location.</summary>
+    public static readonly CommandId TabOpenInNewTab = new("tab.openInNewTab");
+
     /// <summary>New window (Ctrl+N).</summary>
     public static readonly CommandId WindowNew = new("window.new");
 
@@ -78,11 +116,27 @@ public static class CommandIds
     public static readonly CommandId AppDiagnostics = new("app.diagnostics");
 }
 
+/// <summary>Parameter of <see cref="CommandIds.TabMove"/>.</summary>
+/// <param name="Tab">The tab dragged.</param>
+/// <param name="Index">Where it landed.</param>
+public sealed record TabMove(TabViewModel Tab, int Index);
+
+/// <summary>Parameter of <see cref="CommandIds.TabTearOff"/>.</summary>
+/// <param name="Tab">The tab dragged out.</param>
+/// <param name="ScreenX">Drop point in screen pixels.</param>
+/// <param name="ScreenY">Drop point in screen pixels.</param>
+public sealed record TabTearOff(TabViewModel Tab, int ScreenX, int ScreenY);
+
+/// <summary>Parameter of <see cref="CommandIds.TabDrop"/>.</summary>
+/// <param name="Tab">The tab dropped.</param>
+/// <param name="Index">Where in the strip, or null for the end.</param>
+public sealed record TabDrop(TabViewModel Tab, int? Index);
+
 /// <summary>
 /// Registers the commands of one window against its tabs (build plan, Phase 1: every user action is a command). The UI
 /// buttons, menus, shortcuts and, later, the command palette all call these, so the action trail sees everything the user does.
 /// </summary>
-public static class WindowCommands
+public static partial class WindowCommands
 {
     /// <summary>Creates the registry for <paramref name="window"/>.</summary>
     public static CommandRegistry Create(
@@ -104,6 +158,42 @@ public static class WindowCommands
 
         var registry = new CommandRegistry(trail);
         var strip = window.Tabs;
+
+        // A locked tab never navigates: its folder opens in a new tab (spec 4.1). Hooks follow tabs as they enter and leave this window.
+        var hooked = new Dictionary<TabViewModel, EventHandler<LocationPath>>();
+        void Hook(TabViewModel tab)
+        {
+            if (hooked.ContainsKey(tab))
+            {
+                return;
+            }
+
+            void OnRequested(object? sender, LocationPath location) =>
+                _ = ReportFailures(registry.ExecuteAsync(CommandIds.TabNew, new CommandContext(location.Value), CancellationToken.None), shell);
+            hooked[tab] = OnRequested;
+            tab.OpenInNewTabRequested += OnRequested;
+        }
+
+        foreach (var existing in strip.Tabs)
+        {
+            Hook(existing);
+        }
+
+        strip.Tabs.CollectionChanged += (_, e) =>
+        {
+            foreach (var tab in e.NewItems?.OfType<TabViewModel>() ?? [])
+            {
+                Hook(tab);
+            }
+
+            foreach (var tab in e.OldItems?.OfType<TabViewModel>() ?? [])
+            {
+                if (hooked.Remove(tab, out var handler))
+                {
+                    tab.OpenInNewTabRequested -= handler;
+                }
+            }
+        };
 
         TabViewModel? Current() => strip.Selected;
 
@@ -148,6 +238,111 @@ public static class WindowCommands
         Add(CommandIds.TabNext, "Next tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: true)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Tab");
         Add(CommandIds.TabPrevious, "Previous tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: false)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Shift+Tab");
         Add(CommandIds.TabSelect, "Go to tab", "Tabs", (c, _) => Run(() => strip.SelectByNumber(c.Parameter is int n ? n : 0)), c => c.Parameter is int);
+
+        TabViewModel? TabOf(CommandContext c) => c.Parameter as TabViewModel ?? Current();
+
+        Add(CommandIds.TabTogglePin, "Pin tab", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is { } tab)
+            {
+                strip.SetPinned(tab, !tab.IsPinned);
+            }
+        }), c => TabOf(c) is not null);
+
+        Add(CommandIds.TabToggleLock, "Lock tab", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is { } tab)
+            {
+                tab.IsLocked = !tab.IsLocked;
+            }
+        }), c => TabOf(c) is not null);
+
+        Add(CommandIds.TabRename, "Rename tab", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is { } tab)
+            {
+                var label = c.Target?.Trim();
+                tab.CustomTitle = string.IsNullOrEmpty(label) ? null : label.Length > MaxTabLabel ? label[..MaxTabLabel] : label;
+            }
+        }), c => TabOf(c) is not null);
+
+        Add(CommandIds.TabColor, "Colour tab", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is not { } tab)
+            {
+                return;
+            }
+
+            var value = c.Target?.Trim();
+            if (string.IsNullOrEmpty(value))
+            {
+                tab.Accent = null;
+            }
+            else if (HexColor().IsMatch(value))
+            {
+                tab.Accent = value.ToUpperInvariant();
+            }
+            else
+            {
+                shell.ShowMessage($"'{value}' is not a colour. Use the form #RRGGBB.");
+            }
+        }), c => TabOf(c) is not null);
+
+        Add(CommandIds.TabCloseOthers, "Close other tabs", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is { } tab)
+            {
+                strip.CloseOthers(tab);
+            }
+        }), c => TabOf(c) is { } tab && strip.Tabs.Any(t => t != tab && !t.IsPinned));
+
+        Add(CommandIds.TabCloseRight, "Close tabs to the right", "Tabs", (c, _) => Run(() =>
+        {
+            if (TabOf(c) is { } tab)
+            {
+                strip.CloseToRight(tab);
+            }
+        }), c => TabOf(c) is { } tab && strip.Tabs.Skip(strip.Tabs.IndexOf(tab) + 1).Any(t => !t.IsPinned));
+
+        Add(CommandIds.TabMoveLeft, "Move tab left", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, -1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageUp");
+        Add(CommandIds.TabMoveRight, "Move tab right", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, 1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageDown");
+        Add(CommandIds.TabMove, "Move tab", "Tabs", (c, _) => Run(() => strip.Move(((TabMove)c.Parameter!).Tab, ((TabMove)c.Parameter!).Index)), c => c.Parameter is TabMove);
+
+        Add(CommandIds.TabTearOff, "Move tab to a new window", "Tabs", (c, _) => Run(() =>
+        {
+            var drag = (TabTearOff)c.Parameter!;
+            windows.TearOff(window, drag.Tab, drag.ScreenX, drag.ScreenY);
+        }), c => c.Parameter is TabTearOff);
+
+        Add(CommandIds.TabDrop, "Drop tab here", "Tabs", (c, _) => Run(() =>
+        {
+            var drop = (TabDrop)c.Parameter!;
+            var from = windows.FindWindowOf(drop.Tab);
+            if (from is null)
+            {
+                return;
+            }
+
+            if (from == window)
+            {
+                strip.Move(drop.Tab, drop.Index ?? strip.Tabs.Count - 1);
+            }
+            else
+            {
+                windows.Merge(from, drop.Tab, window, drop.Index);
+            }
+        }), c => c.Parameter is TabDrop);
+
+        Add(CommandIds.TabOpenInNewTab, "Open in new tab", "Tabs", async (c, ct) =>
+        {
+            if (!LocationPath.TryParse(c.Target, out var location))
+            {
+                return;
+            }
+
+            var tab = strip.NewTab(location, select: c.Parameter is true);
+            await tab.ReloadAsync(ct);
+        }, c => !string.IsNullOrWhiteSpace(c.Target));
 
         Add(CommandIds.WindowNew, "New window", "Windows", (c, _) =>
         {
@@ -230,12 +425,32 @@ public static class WindowCommands
             ("Ctrl+R", CommandIds.NavReload),
             ("Ctrl+L", CommandIds.AddressFocus),
             ("Alt+D", CommandIds.AddressFocus),
+            ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
+            ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
         })
         {
             map.TryBind(new KeyBinding(KeyGesture.Parse(gesture), command));
         }
 
         return map;
+    }
+
+    private const int MaxTabLabel = 60;
+
+    [GeneratedRegex("^#[0-9a-fA-F]{6}$", RegexOptions.CultureInvariant)]
+    private static partial Regex HexColor();
+
+    /// <summary>Runs a command nobody awaits (an event handler): expected failures reach the status bar, anything else is a bug and surfaces.</summary>
+    private static async Task ReportFailures(Task<CommandResult> task, IShellActions shell)
+    {
+        try
+        {
+            await task;
+        }
+        catch (LocationException ex)
+        {
+            shell.ShowMessage(ex.Message);
+        }
     }
 
     private static Task Run(Action action)

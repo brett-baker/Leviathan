@@ -97,6 +97,9 @@ public sealed partial class WindowViewModel : ObservableObject
 
     /// <summary>The tab strip.</summary>
     public TabStripViewModel Tabs { get; }
+
+    /// <summary>True when <see cref="Bounds"/> was chosen on purpose (a torn-off tab's drop point) and the shell must move the window there; false lets Windows place it.</summary>
+    public bool PlaceExplicitly { get; set; }
 }
 
 /// <summary>
@@ -163,7 +166,16 @@ public sealed class WindowManager
         var strip = new TabStripViewModel(_services);
         strip.Attach(tab);
         var size = source.Bounds.Rect;
-        return Register(strip, new WindowBounds(new ScreenRect(dropX, dropY, size.Width, size.Height)));
+        var torn = Register(strip, new WindowBounds(new ScreenRect(dropX, dropY, size.Width, size.Height)));
+        torn.PlaceExplicitly = true;
+        return torn;
+    }
+
+    /// <summary>The window whose strip holds <paramref name="tab"/>, or null.</summary>
+    public WindowViewModel? FindWindowOf(TabViewModel tab)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        return _windows.FirstOrDefault(w => w.Tabs.Tabs.Contains(tab));
     }
 
     /// <summary>Drops a tab onto another window's strip. The source window closes if it has no tabs left.</summary>
