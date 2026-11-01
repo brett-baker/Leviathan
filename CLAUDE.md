@@ -2,6 +2,15 @@
 
 Instructions for Claude (and anyone else) changing this repository.
 
+## Read first
+
+- `docs/spec.md` — the full specification (decisions log in section 1, roadmap and gates in section 21).
+- `docs/phase-0.md` — what Phase 0 delivered, how it was verified, deviations from the spec.
+- UI mockups: https://claude.ai/artifact/TBbfv46mBRQszt7giterdm (main window, split view with preview, triage mode,
+  operations panel, drive summary, space map).
+- Current phase: **Phase 1 — core browser** (spec section 21). Work phase by phase; commit as you go and push to
+  `origin main` at the end of each phase and after each tweak.
+
 ## Build and test
 
 ```powershell
