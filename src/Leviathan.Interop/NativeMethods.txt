@@ -35,3 +35,6 @@ BITMAP
 CoInitializeEx
 CoUninitialize
 COINIT
+AssocQueryString
+ASSOCSTR
+ASSOCF

@@ -27,3 +27,4 @@ each file is listed here with its original path and license. Files under MPL-2.0
 | — | — | — |
 | `src/Leviathan.Providers.Cloud/CloudDetectors.cs` (logic adapted, rewritten against `IRegistryView` / `IFileSystem`) | `src/Files.App/Utils/Cloud/CloudDrivesDetector.cs`, `Detector/{Box,DropBox,GoogleDrive,SynologyDrive}CloudDetector.cs` | MIT |
 | `src/Leviathan.Interop/ShellThumbnailSource.cs` (GetImage-then-copy-bitmap approach, rewritten to return BGRA) | `src/Files.App.Storage/Windows/Helpers/WindowsStorableHelpers.Icon.cs` | MPL-2.0 |
+| `src/Leviathan.Interop/WindowsFileAssociations.cs` (AssocQueryString lookup, generalized) | `src/Files.App/Utils/Shell/FileAssociationHelpers.cs` | MPL-2.0 |
