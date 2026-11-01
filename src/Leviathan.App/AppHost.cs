@@ -3,6 +3,7 @@ using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
 using Leviathan.Interop;
+using Leviathan.Providers.Cloud;
 using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
@@ -34,6 +35,10 @@ internal sealed class DispatcherQueueUiContext(DispatcherQueue queue) : IUiConte
 /// </summary>
 internal sealed class AppHost
 {
+    private readonly object _backgroundLock = new();
+    private IReadOnlyList<LocationPath> _favorites = [];
+    private IReadOnlyList<CloudProviderInfo> _cloud = [];
+
     private AppHost(
         WindowManager windows,
         AddressResolver resolver,
@@ -41,7 +46,10 @@ internal sealed class AppHost
         IKnownFolders knownFolders,
         IVolumeInfo volumes,
         KeyMap keys,
-        LocationPath home)
+        LocationPath home,
+        RecentLocations recent,
+        AddressCompleter completer,
+        SubfolderMenu subfolders)
     {
         Windows = windows;
         Resolver = resolver;
@@ -50,6 +58,8 @@ internal sealed class AppHost
         Volumes = volumes;
         Keys = keys;
         Home = home;
+        Recent = recent;
+        AddressBar = new AddressBarServices(completer, subfolders, recent.Snapshot, () => Volatile.Read(ref _favorites), IsCloudFolder);
     }
 
     public WindowManager Windows { get; }
@@ -64,6 +74,37 @@ internal sealed class AppHost
 
     public KeyMap Keys { get; }
 
+    /// <summary>Folders visited recently (shared by all tabs and windows).</summary>
+    public RecentLocations Recent { get; }
+
+    /// <summary>What the address bar needs: autocomplete, subfolder lists, recent and favorite folders.</summary>
+    internal AddressBarServices AddressBar { get; }
+
+    /// <summary>Raised on the thread pool once the cloud sync folders have been detected.</summary>
+    public event EventHandler? CloudFoldersChanged;
+
+    /// <summary>True when <paramref name="location"/> is inside a cloud sync client's folder.</summary>
+    public bool IsCloudFolder(LocationPath location) => Volatile.Read(ref _cloud).Any(c => c.SyncFolder.Contains(location));
+
+    /// <summary>
+    /// Reads the things the UI must not wait for: the favorite folders (known folders, registry) and the installed cloud sync
+    /// clients (registry and their config files). Called once at startup, off the UI thread.
+    /// </summary>
+    public async Task LoadBackgroundDataAsync(CancellationToken cancellationToken)
+    {
+        var favorites = await Task.Run(
+            () => new[] { KnownFolder.Home, KnownFolder.Desktop, KnownFolder.Documents, KnownFolder.Downloads, KnownFolder.Pictures, KnownFolder.Videos, KnownFolder.Music }
+                .Select(KnownFolders.Get)
+                .OfType<LocationPath>()
+                .ToList(),
+            cancellationToken);
+        Volatile.Write(ref _favorites, favorites);
+
+        var cloud = await CloudProviderCatalog.ForThisMachine().DetectAsync(cancellationToken);
+        Volatile.Write(ref _cloud, cloud);
+        CloudFoldersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>What a new tab opens. The user profile folder; resolved from the environment, so no disk access at startup.</summary>
     public LocationPath Home { get; }
 
@@ -72,7 +113,9 @@ internal sealed class AppHost
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var home = LocationPath.TryParse(profile, out var parsed) ? parsed : LocationPath.Parse(@"C:\");
         var providers = new LocationProviderRegistry([new LocalLocationProvider()]);
-        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home);
+        var recent = new RecentLocations();
+        var lister = new ProviderFolderLister(providers);
+        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent);
         return new AppHost(
             new WindowManager(services),
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
@@ -80,7 +123,10 @@ internal sealed class AppHost
             new WindowsKnownFolders(),
             new WindowsVolumeInfo(),
             WindowCommands.DefaultKeyMap(),
-            home);
+            home,
+            recent,
+            new AddressCompleter(lister),
+            new SubfolderMenu(lister));
     }
 }
 

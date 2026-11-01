@@ -80,7 +80,10 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   all-tabs list with search, Ctrl+Shift+PgUp/PgDn, middle-click a folder to open it in a background tab. Built on WinUI's `TabView`, not a
   custom control. Not done: Ctrl+click a folder (conflicts with multi-select; decided in D8), double-click the empty strip (Windows uses it to
   maximize), dropping files on a tab (D9). Opening or closing a window stalls the UI ~110-130 ms (second window onward); lighter XAML in H3.
-- [ ] **D3. Breadcrumb address bar control**: segment buttons, chevron drop-downs, edit mode, drop onto a segment, icons for lock/cloud/offline.
+- [x] **D3. Breadcrumb address bar** (§5.2): segment buttons (middle-click or Ctrl+click opens a new tab), a chevron after each segment with its subfolders and
+  type-to-filter, edit mode (click empty space, Ctrl+L, Alt+D) with autocomplete from the typed folder, recent folders and favorites, Tab to accept,
+  Esc to leave, a "…" menu for segments that do not fit, right-click Copy path / UNC / quoted / file:// URI, and lock / warning / cloud icons.
+  It is a `UserControl` in the app project, not yet in a separate `Leviathan.Controls` library. Not done: dropping files onto a segment (D9).
 - [ ] **D4. File view, Details.** `ItemsRepeater`-based virtualized grid, configurable columns (right-click header, reorder,
   auto-fit), skeleton rows while loading, empty/denied/offline states, folder sizes via `FolderSizeService` in the Size column.
 - [ ] **D5. List and Thumbnails layouts**, Ctrl+wheel resize 64–512 px, Tiles/Gallery deferred to Phase 3 where they need media data.

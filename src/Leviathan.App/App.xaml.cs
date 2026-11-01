@@ -73,6 +73,7 @@ public partial class App : Application
         Host.Windows.AllWindowsClosed += (_, _) => queue.TryEnqueue(Shutdown);
 
         s_queue = queue;
+        _ = Host.LoadBackgroundDataAsync(CancellationToken.None);
         using (UiTrace.Begin("Windows.OpenWindow (incl. first tab)"))
         {
             Host.Windows.OpenWindow();

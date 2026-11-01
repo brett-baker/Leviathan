@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Leviathan.App.AddressBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:paths="using:Leviathan.Core.Paths">
+
+  <UserControl.Resources>
+    <DataTemplate x:Key="FolderItemTemplate" x:DataType="paths:LocationPath">
+      <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,2">
+        <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxWidth="320" VerticalAlignment="Center" />
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- The frame looks like a text box; inside it is either the breadcrumb row or the editor (spec 5.2). -->
+  <Grid x:Name="Frame"
+        Height="32"
+        MinWidth="160"
+        CornerRadius="4"
+        Background="{ThemeResource ControlFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        Tapped="OnFrameTapped"
+        RightTapped="OnFrameRightTapped"
+        SizeChanged="OnFrameSizeChanged">
+    <StackPanel x:Name="CrumbPanel" Orientation="Horizontal" Padding="4,0" VerticalAlignment="Center" />
+    <AutoSuggestBox x:Name="Editor"
+                    Visibility="Collapsed"
+                    VerticalAlignment="Center"
+                    PlaceholderText="Type a path, \\server\share, sftp://host or shell:Downloads"
+                    AutomationProperties.Name="Address"
+                    TextChanged="OnEditorTextChanged"
+                    QuerySubmitted="OnEditorQuerySubmitted"
+                    LostFocus="OnEditorLostFocus"
+                    PreviewKeyDown="OnEditorPreviewKeyDown" />
+  </Grid>
+</UserControl>

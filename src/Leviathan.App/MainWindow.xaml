@@ -72,13 +72,7 @@
         <FontIcon Glyph="&#xE72C;" FontSize="14" />
       </Button>
 
-      <!-- A plain text box for now; the breadcrumb address bar replaces it in slice D3. -->
-      <TextBox x:Name="AddressBox"
-               Grid.Column="4"
-               PlaceholderText="Type a path, \\server\share, sftp://host or shell:Downloads"
-               AutomationProperties.Name="Address"
-               GotFocus="OnAddressGotFocus"
-               KeyDown="OnAddressKeyDown" />
+      <local:AddressBar x:Name="Address" Grid.Column="4" VerticalAlignment="Center" />
 
       <AutoSuggestBox x:Name="SearchBox" Grid.Column="5" PlaceholderText="Search (Phase 4)" IsEnabled="False" QueryIcon="Find" />
 

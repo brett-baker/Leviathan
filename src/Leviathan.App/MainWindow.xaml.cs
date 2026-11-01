@@ -59,6 +59,11 @@ public sealed partial class MainWindow : Window, IShellActions
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
+        Address.Attach(host.AddressBar);
+        Address.Submitted += OnAddressSubmitted;
+        Address.NavigationRequested += OnAddressNavigation;
+        Address.EditEnded += OnAddressEditEnded;
+        host.CloudFoldersChanged += OnCloudFoldersChanged;
         TabsView.Loaded += (_, _) => UpdateTitleBarRegions();
         TabsView.LayoutUpdated += OnTabsLayoutUpdated;
         AppWindow.Closing += (_, _) => App.NotifyWindowClosing(_viewModel);
@@ -75,11 +80,7 @@ public sealed partial class MainWindow : Window, IShellActions
     }
 
     /// <inheritdoc />
-    public void FocusAddressBar() => OnUi(() =>
-    {
-        AddressBox.Focus(FocusState.Programmatic);
-        AddressBox.SelectAll();
-    });
+    public void FocusAddressBar() => OnUi(() => Address.BeginEdit());
 
     /// <inheritdoc />
     public void OpenDiagnostics() => OnUi(() =>
@@ -187,31 +188,23 @@ public sealed partial class MainWindow : Window, IShellActions
 
     // Address bar ------------------------------------------------------------------------------------------------------
 
-    private void OnAddressGotFocus(object sender, RoutedEventArgs e) => AddressBox.SelectAll();
+    private void OnAddressSubmitted(object? sender, string text) => Run(CommandIds.NavGo, text);
 
-    private void OnAddressKeyDown(object sender, KeyRoutedEventArgs e)
+    private void OnAddressNavigation(object? sender, AddressNavigation request)
     {
-        if (e.Key == VirtualKey.Enter)
+        if (request.NewTab)
         {
-            e.Handled = true;
-            Run(CommandIds.NavGo, AddressBox.Text);
-            FileList.Focus(FocusState.Programmatic);
+            Run(CommandIds.TabOpenInNewTab, request.Location.Value, false);
         }
-        else if (e.Key == VirtualKey.Escape)
+        else
         {
-            e.Handled = true;
-            ShowAddress();
-            FileList.Focus(FocusState.Programmatic);
+            Run(CommandIds.NavGo, request.Location.Value);
         }
     }
 
-    private void ShowAddress()
-    {
-        if (_bound is not null)
-        {
-            AddressBox.Text = _bound.Address.Location.Value;
-        }
-    }
+    private void OnAddressEditEnded(object? sender, EventArgs e) => FileList.Focus(FocusState.Programmatic);
+
+    private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(Address.RefreshStatus);
 
     // Tabs -------------------------------------------------------------------------------------------------------------
 
@@ -310,13 +303,14 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             _bound.Folder.PropertyChanged -= OnFolderPropertyChanged;
             _bound.Items.PropertyChanged -= OnItemsPropertyChanged;
-            _bound.Address.PropertyChanged -= OnAddressPropertyChanged;
+            _bound.Address.PropertyChanged -= OnAddressLocationChanged;
         }
 
         _bound = tab;
         if (tab is null)
         {
             FileList.ItemsSource = null;
+            Address.Bind(null);
             return;
         }
 
@@ -324,8 +318,8 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.ItemsSource = tab.Items.Rows;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;
-        tab.Address.PropertyChanged += OnAddressPropertyChanged;
-        ShowAddress();
+        Address.Bind(tab);
+        tab.Address.PropertyChanged += OnAddressLocationChanged;
         UpdateState();
         UpdateStatus();
         RefreshNavigationButtons();
@@ -351,23 +345,19 @@ public sealed partial class MainWindow : Window, IShellActions
         });
     }
 
+    private void OnAddressLocationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewModels.Navigation.AddressBarViewModel.Location))
+        {
+            OnUi(RefreshNavigationButtons);
+        }
+    }
+
     private void OnItemsPropertyChanged(object? sender, PropertyChangedEventArgs e) => OnUi(() =>
     {
         UpdateStatus();
         UpdateState();
     });
-
-    private void OnAddressPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(ViewModels.Navigation.AddressBarViewModel.Location))
-        {
-            OnUi(() =>
-            {
-                ShowAddress();
-                RefreshNavigationButtons();
-            });
-        }
-    }
 
     // File view --------------------------------------------------------------------------------------------------------
 
@@ -519,6 +509,7 @@ public sealed partial class MainWindow : Window, IShellActions
         _closed = true;
         TabsView.LayoutUpdated -= OnTabsLayoutUpdated;
         App.StallsChanged -= OnStallsChanged;
+        App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
         _closing.Cancel();
