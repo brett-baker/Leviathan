@@ -25,3 +25,4 @@ each file is listed here with its original path and license. Files under MPL-2.0
 | Leviathan file | Original file in Files | License |
 | --- | --- | --- |
 | — | — | — |
+| `src/Leviathan.Providers.Cloud/CloudDetectors.cs` (logic adapted, rewritten against `IRegistryView` / `IFileSystem`) | `src/Files.App/Utils/Cloud/CloudDrivesDetector.cs`, `Detector/{Box,DropBox,GoogleDrive,SynologyDrive}CloudDetector.cs` | MIT |

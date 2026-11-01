@@ -58,7 +58,7 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [x] **C1. Interop base.** CsWin32 setup ported from `Files.App.CsWin32` (licence headers checked, `THIRD-PARTY-NOTICES.md` updated).
 - [x] **C2. Known folders and drives.** Known Folder IDs for Common folders (relocated Documents works), drive list with
   type/label/free space, SSD vs HDD, mapped-drive UNC; behind `IKnownFolders` / `IVolumeInfo` with fakes.
-- [ ] **C3. Cloud drive detection** (Internet section). Port `Utils/Cloud`; behind `ICloudProviderCatalog` with a fake.
+- [x] **C3. Cloud drive detection** (Internet section). Port `Utils/Cloud`; behind `ICloudProviderCatalog` with a fake.
 - [ ] **C4. Thumbnails.** `IThumbnailCache` over `IShellItemImageFactory`, off the UI thread, cancellable, size-capped LRU,
   requests for off-screen items cancelled (§3.1: < 200 ms cached, < 1 s generated).
 - [ ] **C5. Open With / launch / file associations.** Port from Files `OpenWithMenu`, `LaunchHelper`, `FileAssociationHelpers`.

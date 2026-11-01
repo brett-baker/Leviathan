@@ -72,6 +72,12 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
+    <Project Path="src/Leviathan.Providers.Cloud/Leviathan.Providers.Cloud.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj">
@@ -129,6 +135,12 @@
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
     <Project Path="tests/Leviathan.Interop.Tests/Leviathan.Interop.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Providers.Cloud.Tests/Leviathan.Providers.Cloud.Tests.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
       <Platform Solution="*|x64" Project="x64" />
