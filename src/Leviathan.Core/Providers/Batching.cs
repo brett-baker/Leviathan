@@ -124,7 +124,16 @@ public static class Batching
         finally
         {
             await linked.CancelAsync().ConfigureAwait(false);
-            await producerTask.ConfigureAwait(false);
+            if (producerTask.IsCompleted)
+            {
+                await producerTask.ConfigureAwait(false);
+            }
+            else
+            {
+                // The producer may be stuck in a blocking call on a dead share. Don't wait for it: the caller has moved on,
+                // and the thread returns to the pool when the OS call eventually fails. Observe its outcome so nothing leaks.
+                _ = producerTask.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
         }
     }
 
