@@ -23,6 +23,31 @@ public sealed partial class MainWindow
     private void OnItemsDropped(object? sender, ItemDropRequest request) =>
         Run(CommandIds.DropItems, request.Destination.Value, new ItemDrop(request.Sources, request.Modifiers));
 
+    /// <summary>A copy or move the worker was running ended: say how it went and refresh the folder if it was touched.</summary>
+    private void OnTransferFinished(object? sender, TransferFinished finished) => OnUi(() =>
+    {
+        var request = finished.Request;
+        var verb = request.Mode == ViewModels.Transfers.TransferMode.Move ? "Moved" : "Copied";
+        var what = request.Sources.Count == 1 ? request.Sources[0].Name : $"{request.Sources.Count} items";
+        var message = finished.Job.State switch
+        {
+            Contracts.JobState.Completed => $"{verb} {what} to {request.Destination.Name}",
+            Contracts.JobState.Cancelled => $"Cancelled: {verb.ToLowerInvariant()} {what}",
+            _ => finished.Job.Error ?? $"Could not finish: {what}",
+        };
+
+        if (_bound is { } tab)
+        {
+            var here = tab.History.Current;
+            if (here == request.Destination || request.Sources.Any(s => s.Parent == here))
+            {
+                Run(CommandIds.NavReload);
+            }
+        }
+
+        MessageText.Text = message;
+    });
+
     /// <summary>Starts (or keeps) the countdown for <paramref name="target"/>; <paramref name="fire"/> runs if the pointer stays there.</summary>
     private void HoverOver(object target, TimeSpan delay, Action fire)
     {

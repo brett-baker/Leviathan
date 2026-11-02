@@ -96,7 +96,7 @@ internal sealed class AppHost
     public RenameService Renamer { get; }
 
     /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
-    public Leviathan.ViewModels.Transfers.ITransferService Transfers { get; } = new Leviathan.ViewModels.Transfers.UnavailableTransferService();
+    public WorkerTransfers Transfers { get; private init; } = null!;
 
     /// <summary>Which drives have their summary card hidden (spec §8.7).</summary>
     public Leviathan.ViewModels.Drives.DriveCardPreferences DriveCards { get; } = new(new JsonDriveCardStorage());
@@ -161,7 +161,8 @@ internal sealed class AppHost
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
         var queue = DispatcherQueue.GetForCurrentThread();
-        var sizes = new WorkerFolderSizes(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
+        var worker = new Lazy<WorkerConnection>(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
+        var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes, viewOptions);
         var disk = new FileSystem();
@@ -182,7 +183,10 @@ internal sealed class AppHost
             new ProviderSubfolderSource(providers),
             newItems,
             viewOptions,
-            new RenameService(disk));
+            new RenameService(disk))
+        {
+            Transfers = new WorkerTransfers(() => worker.Value),
+        };
     }
 }
 

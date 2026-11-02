@@ -59,6 +59,7 @@ public sealed partial class MainWindow : Window, IShellActions
         var host = App.Host;
         _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards);
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
+        host.Transfers.Finished += OnTransferFinished;
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -830,6 +831,7 @@ public sealed partial class MainWindow : Window, IShellActions
         TabsView.LayoutUpdated -= OnTabsLayoutUpdated;
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
+        App.Host.Transfers.Finished -= OnTransferFinished;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
         _closing.Cancel();

@@ -62,6 +62,7 @@ builder.Services.AddSingleton<ILocationProvider, LocalLocationProvider>();
 builder.Services.AddSingleton(sp => new LocationProviderRegistry(sp.GetServices<ILocationProvider>()));
 builder.Services.AddSingleton<FolderSizeService>();
 builder.Services.AddSingleton<IJobExecutor, ComputeFolderSizeExecutor>();
+builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers.CopyMoveExecutor(sp.GetRequiredService<IFileSystem>()));
 
 builder.Services.AddSingleton(_ => new JobScheduler(new ConcurrencyLimits()));
 builder.Services.AddSingleton<IJobJournal>(sp => new FileJobJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "jobs.journal")));

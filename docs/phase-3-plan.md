@@ -28,8 +28,11 @@ Every slice follows `CLAUDE.md`.
   ffprobe is marked unreadable until it changes; Media process crash → restart, no retry loop.
 - [ ] **A4. Lazy probing.** Visible rows only, low priority, cancelled on navigate; sorting by a media column fills the whole
   folder in the background with progress in the column header (§8.2).
-- [ ] **A5. Media columns** in Details: duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages,
+- [ ] **A5. Media columns** in Details (enabled in the column chooser from Phase 1 slice I3): duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages,
   subtitles; Tiles and Gallery layouts (deferred from Phase 1).
+
+- [ ] **A6. Status hub Background tab:** metadata probing, thumbnail and contact-sheet queues with pause/priority, Media process
+  status and quarantined files (with "retry this file").
 
 ### B. Thumbnails, contact sheets, hover scrub (§10.4, §10.5)
 

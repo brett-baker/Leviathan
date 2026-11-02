@@ -29,3 +29,7 @@ One line each: the decision, then why. Newest last.
 - **E1: the default conflict policy is Keep both.** It can never overwrite or lose data; Replace and Skip are explicit. "Ask each time" arrives with the conflict dialog (Phase 2).
 - **E1: per-item results are kept in memory by the job host (`GetResultAsync`), not journaled yet.** Undo (E4) needs them to survive a restart and adds a journal record for them then.
 - **E1: the worker validates every request at the door** (`JobRequestValidator`): a copy without a destination, a folder into itself or a bad rename name is refused before it is queued.
+- **E2: copies are verified with SHA-256, not xxHash3.** Only cross-volume moves read the copy back (before the source is deleted); plain copies check the length. xxHash3 and the NAS-default verification arrive with the Phase 2 copy engine.
+- **E2: a job interrupted by a crash starts again from the beginning.** The `.leviathan-part` file is overwritten, so nothing half-done is ever taken for finished; byte-level resume needs the per-file journal (Phase 2). With Keep both a restarted job may leave "name (2)" for a file that had already finished.
+- **E2: shortcuts (Alt-drag) are not created yet.** The app says so and changes nothing; creating `.lnk` files needs the shell COM layer (F slices).
+- **E2: drop on a folder that holds the same name keeps both by default.** Replace and Skip exist in the contract but the UI has no way to choose them until the conflict dialog (Phase 2).

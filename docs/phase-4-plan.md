@@ -45,6 +45,9 @@ Every slice follows `CLAUDE.md`.
 - [ ] **B3. Space map tab**: linked tree (size, share bar, files) and treemap, zoom in/out, legend, actions (open, reveal, tag,
   soft delete, compress, find duplicates), filter by size.
 - [ ] **B4. Mini map** in the preview pane for a selected folder once its size is known.
+- [ ] **B5. Status hub Space tab** (§14, §16.1): compact treemap of the current folder with the largest items beside it, click selects
+  the item in the file view, "Open space map"; free-space status-bar part opens it.
+- [ ] **B6. Status hub Background tab:** Everything / indexer status, NAS index crawls with pause and schedule, space-map scans.
 
 ### C. More locations (§7.1, §2.4)
 

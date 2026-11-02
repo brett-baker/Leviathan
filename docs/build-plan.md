@@ -41,6 +41,9 @@ Phase 0 was written off Windows; parts have never been built or run (see `docs/p
   process (port Files' `ContextMenu`/`ContextMenuWorkerPool`).
 - Drive summary card (§8.7) on drive roots.
 - Status bar (§16) minus operations details.
+- Added 2026-11-02 (Brett's feedback, see `docs/phase-1-plan.md` group I): favorite star in the address bar (§5.2), resizable
+  sidebar, column chooser (§8.2), tab groups (§4.1, before startup profiles), colour icon set (§4.3), status hub fly-up with
+  Activity, Background and Quick settings tabs (§16.1), settings sheet from the bottom (§17.2).
 - Startup profiles with Last session saved continuously.
 - Command layer: every user action is a command (palette-ready, recorded in `ActionTrail`, replayable by `leviathan-diag replay`).
 
@@ -68,12 +71,14 @@ copy pipeline, network failures, queue, conflicts, soft delete, activity strip a
   adaptive buffers) → `*.leviathan-part` + rename → per-chunk resume journal → verify (full ≤ 4 GB, sampled above) → delete source
   only after verify. Preserve timestamps, attributes, alternate data streams.
 - Waiting state and automatic resume on network drops; permanent-error prompts; safe renames for invalid names.
-- Queue UI: activity strip (1–2 px line per job, color per job, minimizable to footer), Operations panel (dock bottom/right,
-  pop out, minimize), speed sparklines, row actions, live concurrency limits, bandwidth limit with schedule, reports.
+- Queue UI: activity strip (1–2 px line per job, color per job), Operations panel as the Operations tab of the status hub
+  fly-up built in Phase 1 (§16.1; fly-up by default, dock bottom/right, pop out), speed sparklines, row actions, live concurrency limits, bandwidth limit with schedule, reports.
 - Conflict dialog with Compare.
 - Soft delete: `#recycle` when the share's Recycle Bin is on, else `.leviathan-trash`; bin view, restore, purge, retention.
 - Folder-size service wired to the UI (Size column, drive/folder summaries) with delta updates and staleness.
 - Split pane per tab with F5/F6 and the preview pane following the focused pane.
+- Status hub additions: copy limits and bandwidth in Quick settings; share crawls, polling and offline-cache refresh in Background;
+  Activity entries link to their jobs.
 
 **Tests:** chaos suite (kill worker during 1,000 copies; Toxiproxy network drops mid-copy against a Samba container); copier
 unit tests with fault injection (drop after N bytes, disk full, access denied); verify policy; conflict rules; soft-delete
@@ -96,7 +101,8 @@ scrub, working at scale), §11 (color tags), §17.1 (profiles). Mockups: Main wi
 - Triage mode with inboxes, sessions, keys (§10.2), Keep = green tag (optional move), Discard = soft delete, undo, summary.
 - Color tags: alternate data stream + SQLite index, timestamp preservation, import of Files' `:files` stream, Tags sidebar,
   1–9 keys.
-- Media columns (duration, resolution, codecs…) filled lazily for visible rows.
+- Media columns (duration, resolution, codecs…) filled lazily for visible rows, and added to the column chooser.
+- Status hub Background tab: metadata probing, thumbnails and contact sheets with pause/priority; Media process status.
 
 **Tests:** ffprobe parsing on a fixture set including corrupt/truncated files; Media process crash isolation; tag storage
 round-trip incl. timestamp preservation and copy; triage key flows (view-model tests + FlaUI); pre-buffer logic.
@@ -110,7 +116,8 @@ query syntax, saved searches), §14 (space map), §7.1 (SFTP, FTP(S), NFS), Inte
 
 **Build:** Everything SDK integration; `Leviathan.Indexer` fallback (optional service); NAS index; query parser; saved searches;
 space map (squarified treemap, linked tree, cached scans, color by type/age); SFTP (SSH.NET), FTP(S) (FluentFTP, compare Files'
-FTP storage), NFS via Windows Client for NFS; cloud sync-client folders with status.
+FTP storage), NFS via Windows Client for NFS; cloud sync-client folders with status. Status hub: the Space tab (compact treemap of
+the current folder, §16.1) and indexer / NAS crawl status in Background.
 
 **Tests:** query parser property tests; indexer against a temp NTFS volume (VHD) where possible; providers against SFTP/FTP/NFS
 containers; space-map layout tests.
@@ -120,7 +127,7 @@ containers; space-map layout tests.
 ## Phase 5 — Power features and polish
 
 **Spec:** §15 (duplicate finder, bulk rename, archives and checksums, folder compare/sync, other features), §6 command palette,
-§17 (all settings pages, full keyboard remapping), §3.1 (performance pass on every budget).
+§17 (all settings pages in the bottom settings sheet, full keyboard remapping), §3.1 (performance pass on every budget).
 
 **Gate:** feature-complete against the spec after a month of daily use.
 

@@ -52,7 +52,7 @@ Every slice follows `CLAUDE.md`.
 
 ### F. Settings and keyboard (§17)
 
-- [ ] **F1. All Settings pages** (General, Appearance, Files and folders, Tabs and windows, Network, Operations, Delete, Media
+- [ ] **F1. All Settings pages** in the bottom settings sheet from Phase 1 slice I10 (General, Appearance, Files and folders, Tabs and windows, Network, Operations, Delete, Media
   and preview, Tags, Search and index, Keyboard, Advanced) bound to the settings store; every setting applies without restart.
 - [ ] **F2. Keyboard page**: search, rebind, reset, import/export; conflict detection.
 - [ ] **F3. Diagnostics view**: crash groups by signature, Copy for Claude, Open folder, Report a problem.

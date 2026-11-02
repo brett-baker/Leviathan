@@ -138,8 +138,12 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   Done: `JobKind.Rename` and `Link`, `ConflictPolicy` (Keep both default / Replace / Skip), `DeleteMode` (Recycle Bin / Permanent), `NewName`, per-item `ItemOutcome` and
   `GetResultAsync`, contract major 2 and pipe `v2`, `JobRequestValidator` at the worker door; the new fields survive the journal. No executor yet: a copy submitted now is queued and fails
   with "not supported yet" until E2/E3 add the executors. Not done: the UI does not submit jobs yet (E2 swaps `UnavailableTransferService` for a worker-backed one).
-- [ ] **E2. Basic copy/move for local disks** (non-journaled chunking is acceptable this phase; Phase 2 replaces it). Writes
+- [x] **E2. Basic copy/move for local disks** (non-journaled chunking is acceptable this phase; Phase 2 replaces it). Writes
   `*.leviathan-part` and renames, conflict handling limited to Replace / Skip / Keep both.
+  Done: `CopyMoveExecutor` in the worker (chunked copy to a part file then rename, timestamps and attributes kept, folder trees, free-space check up front, same-volume move = rename,
+  cross-volume move deletes the source only after the copy is read back and its SHA-256 matches, Keep both / Replace (merges folders) / Skip), `WorkerTransfers` in the app replaces
+  `UnavailableTransferService` so drops now copy and move for real, the view reloads and the status bar says how it went. Verified by dragging in the real app (move and Ctrl-copy).
+  Not done: byte-level resume after a crash (Phase 2), shortcuts, choosing the conflict policy in the UI, progress shown in the UI (Operations panel, Phase 2), cancel, Paste (E5).
 - [ ] **E3. Recycle Bin delete** via `IFileOperation` in the worker (not on the UI thread), Shift+Del permanent with confirmation.
 - [ ] **E4. Undo/redo** for rename and delete (Ctrl+Z / Ctrl+Y), journaled so undo survives a UI restart.
 - [ ] **E5. Clipboard** commands wired to E1–E4: cut, copy, paste, paste-as variants, disabled state with tooltip.
@@ -151,16 +155,57 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 - [ ] **F3. Right-click menu** (§8.5): Leviathan items first, third-party items loaded asynchronously into "More options ▸",
   Shift+right-click inline. A deliberately crashing handler must not affect the app (integration test).
 
+### I. Brett's feedback (added 2026-11-02; do after F and before G)
+
+Spec §4.1 (tab groups), §4.3 (icons), §5.2 (favorite star), §8.2 (column chooser), §16.1 (status hub), §17.2 (settings sheet);
+decisions D32–D36. I1–I5 must land before G1 so startup profiles save tab groups from the start. The letter is I so the
+existing slice names stay as they are; work order is E, F, I, G, H.
+
+- [ ] **I1. Favorite star in the address bar** (§5.2): outlined/filled star at the right end of the breadcrumb, bound to the
+  favorites store so it updates when Ctrl+D, the tree or drag-to-Favorites change it; click toggles, right-click rename/icon/colour.
+- [ ] **I2. Resizable sidebar** (§4): splitter between the tree and the file view, minimum/maximum widths, double-click to collapse
+  and restore, width remembered per window (and in session state); keyboard-accessible. The spec already required this; it was missed.
+- [ ] **I3. Column chooser** (§8.2): View → Columns… and a "More columns…" item at the bottom of the header's right-click list open
+  a dialog with grouped columns, search, tick boxes, drag to reorder, Reset to default and Apply to all folders of this type,
+  writing the existing `ColumnLayout`. Columns whose data arrives later (media, tags) are listed but greyed with "available in a later update".
+- [ ] **I4. Tab groups, model** (§4.1): `TabGroup` (id, name, colour, collapsed) on `WindowViewModel`; add/remove/move tabs and
+  groups, ungroup, close group, reopen-closed restores group membership, Ctrl+Tab and Ctrl+1–9 skip collapsed tabs, tear-off and
+  merge of a whole group between windows; included in the session state that G1 will persist. Unit-tested.
+- [ ] **I5. Tab groups, strip UI** (§4.1): label chip and coloured underline per group, collapse to the chip with a count, group
+  context menu, drag a tab into/out of a group, drag the chip to move the group (within the strip, out to a new window, onto another
+  window), groups in the all-tabs list. WinUI `TabView` has no grouping: render chips as non-selectable items in the strip, or replace
+  the strip with a custom control if that proves cleaner; record the choice in `docs/decisions.md`. No stalls over 50 ms when
+  collapsing or expanding a group of 20 tabs.
+- [ ] **I6. Colour icon set** (§4.3): pick a permissively licensed colour set (Fluent UI System Icons colour variants or similar),
+  record it in `THIRD-PARTY-NOTICES.md`, add `IconCatalog` mapping commands and node kinds to icons, and switch the command bar, tree,
+  tabs, status bar and menus over; light/dark variants, high-contrast fallback to monochrome glyphs. File-view icons stay from the shell.
+- [ ] **I7. Status hub shell** (§16.1): chevron at the right of the status bar, fly-up panel (height draggable and remembered, Esc /
+  click-outside closes, pin keeps it open), dock bottom / right and pop-out window, tabs Operations, Activity, Background, Quick
+  settings, Space. Operations shows the worker jobs that exist now (folder sizes, E2/E3 copies and deletes) in a simple list until
+  Phase 2 builds the full panel; Space says "arrives with the space map" until Phase 4. Status-bar parts open the matching tab.
+- [ ] **I8. Activity tab** (§16.1): session activity log fed by the command layer (every executed command with its arguments
+  summarised) and the diagnostics `ActionTrail`; stored in SQLite (7 days), filter, search, go to location, open the job, undo where
+  possible, copy/export. Logging must cost < 1 ms per action on the UI thread (batched writes off-thread). Unit-tested.
+- [ ] **I9. Background tab** (§16.1): folder-size queue and rate, thumbnail generation, worker / ShellHost process status and restart
+  counts, with pause / resume / priority where the task supports it.
+- [ ] **I10. Quick settings tab and settings sheet** (§16.1, §17.2): Quick settings for background threads / worker processes, running
+  jobs, folder sizes on network shares, thumbnails on network files, polling interval, each applied live through the settings store.
+  The settings sheet (Options ⚙ and Ctrl+,) rises from the bottom (about 70% of the window), page list left, search on top, expandable
+  to full window; Phase 1 fills General, Appearance (G3 builds its page here) and Files and folders; the other pages show what they
+  will hold. Options ⚙ no longer opens the Diagnostics window directly; Diagnostics moves to the Advanced page and a menu entry.
+
 ### G. Sessions and polish
 
 - [ ] **G1. Startup profiles** (§17.1): Last session saved continuously (debounced 2 s) and on exit, survives a crash; named
-  profiles; startup choice; unreachable tabs restore offline and never delay startup.
+  profiles; startup choice; unreachable tabs restore offline and never delay startup. Includes tab groups (I4) and the status hub
+  height, tab and dock position.
 - [ ] **G2. Keyboard map** (§17.3) complete for Phase 1 commands, remappable through the settings file.
-- [ ] **G3. Appearance:** theme, Compact/Comfortable density, accent, Mica on/off (§17.2 Appearance page, minimal UI).
+- [ ] **G3. Appearance:** theme, Compact/Comfortable density, accent, Mica on/off, icon size (§17.2 Appearance page in the settings sheet from I10).
 
 ### H. Verification and finish
 
-- [ ] **H1. FlaUI smoke tests** (`Leviathan.UI.Tests`): launch, tabs, navigate, tear off, rename, delete, undo; the stall
+- [ ] **H1. FlaUI smoke tests** (`Leviathan.UI.Tests`): launch, tabs, tab groups (create, collapse, drag out), favorite star,
+  sidebar resize, status hub open/close/tabs, settings sheet, navigate, tear off, rename, delete, undo; the stall
   watchdog fails the test on any stall over 50 ms.
 - [ ] **H2. Benchmarks:** cold start to first folder, new tab, 10,000-item folder first rows through the view model, added to
   `tests/Leviathan.Benchmarks` and the `--gate` mode.

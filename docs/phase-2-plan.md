@@ -65,12 +65,15 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [ ] **C2. Activity strip control.** 1–2 px line per job under the address bar, per-job colour from the 8-colour palette,
   states (shimmer while enumerating, dashed paused, pulse waiting, red tip on failures), tooltip, click opens the panel,
   up to 4 lines then merged "+N".
-- [ ] **C3. Operations panel.** Running / Queued / Completed-Failed groups; row actions (pause, resume, cancel, remove, move,
+- [ ] **C3. Operations panel** as the Operations tab of the status hub from Phase 1 slice I7 (spec §12.6, §16.1), replacing
+  its simple job list. Running / Queued / Completed-Failed groups; row actions (pause, resume, cancel, remove, move,
   priority, run now, retry failed, report, open source/destination); multi-select; toolbar (pause/resume all, limits, bandwidth,
   clear completed); queue ETA.
-- [ ] **C4. Panel positions.** Minimized to footer (default) with status-bar chip, docked bottom, docked right, popped out into its
-  own window; position remembered.
+- [ ] **C4. Hub positions and chip.** The status-bar operations chip with total sparkline opens the hub on Operations; fly-up
+  (default), docked bottom, docked right and pop-out (built in I7) checked with live jobs; position remembered.
 - [ ] **C5. Speed sparklines.** Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
+- [ ] **C5b. Status hub additions.** Quick settings: running jobs per NAS volume, bandwidth limit and schedule, verify policy;
+  Background: share crawls, change polling, offline-cache refresh; Activity: copy/move/delete entries link to their jobs and reports.
 - [ ] **C6. Conflict dialog** (§12.4): one dialog per job, Replace / Skip / Keep both / if newer / if larger / if different
   (checksum), Compare view with thumbnails and metadata, apply-to-all, per-file overrides.
 

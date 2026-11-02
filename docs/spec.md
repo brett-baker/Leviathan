@@ -58,6 +58,11 @@ Leviathan is a standalone Windows 11 file manager in WinUI 3 / .NET 10. It is bu
 | D29 | Local search backend | Everything (voidtools) via its SDK when installed; Leviathan.Indexer as fallback; NAS index stays Leviathan's own (§13) |
 | D30 | Job colors | Distinct color per job, from a palette of 8 (§12.6) |
 | D31 | Queue defaults | 3 running jobs globally, 1 per NAS volume |
+| D32 | Tab groups | Edge-style named, coloured, collapsible tab groups (§4.1) |
+| D33 | Icons | Full-colour icon set in the Windows 11 Explorer style instead of monochrome glyphs (§4.3) |
+| D34 | Status hub | A fly-up from the status bar with Operations, Activity, Background, Quick settings and Space tabs; it hosts the Operations panel (§16.1) |
+| D35 | Session activity log | Every user action in the session is logged and browsable in the status hub (§16.1) |
+| D36 | Settings surface | Settings open as a tall sheet rising from the bottom of the window, not a dialog (§17.2) |
 
 ## 2. Architecture
 
@@ -223,10 +228,23 @@ Layouts for the main window, split view with preview, triage mode, operations pa
 | Lock tab | Tab context menu | Navigating into a folder opens a new tab instead; good for a fixed "inbox" tab |
 | Color / rename tab | Tab context menu | Custom label and accent, e.g. "NAS inbox" in orange |
 | Close others / to the right | Tab context menu |  |
+| Tab groups | Tab context menu "Add tab to new group / to group ▸", or drag a tab into a group | Named, coloured, collapsible; see below |
 | Drop files on a tab | Drag files over a tab, hover 600 ms | Switches to that tab so you can drop into a subfolder; dropping on the tab itself copies/moves into its folder |
 | Offline indicator | Automatic | Tab icon shows a warning badge when its share is unreachable |
 | Busy indicator | Automatic | Thin progress line under the tab while enumerating or while an operation targets it |
 | Tab overflow | Many tabs | Scroll arrows plus a drop-down list of all tabs with search |
+
+#### Tab groups (D32)
+
+Modelled on tab groups in Microsoft Edge.
+
+- A group has a name and a colour (from the same palette as tab colours). Its tabs sit together, with a coloured bar under them and a label chip at the start of the group.
+- **Collapse:** clicking the label collapses the group down to just the label chip, showing the tab count; clicking again expands it. Ctrl+Tab and Ctrl+1–9 skip collapsed tabs.
+- **Create:** right-click a tab → Add tab to new group (name it inline), or select several tabs (Ctrl+click) and add them together. Dragging a tab between two tabs of a group adds it; dragging it out removes it.
+- **Group menu** (right-click the label): rename, change colour, new tab in group, ungroup, close group, move group to new window.
+- **Drag the label** to move the whole group within the strip, out to a new window, or onto another window's strip.
+- Pinned tabs stay outside groups. Groups, their order, colours and collapsed state are saved in startup profiles and Last session (§17.1). Reopen closed tab (Ctrl+Shift+T) puts a tab back in its group, and closing a whole group can be reopened as a group.
+- The all-tabs list shows tabs under their group headings.
 
 ### 4.2 Windows
 
@@ -234,6 +252,14 @@ Layouts for the main window, split view with preview, triage mode, operations pa
 - Ctrl+N opens a new window; closing the last window ends the UI process but not a busy Worker.
 - Window position, size and monitor are saved per window, with a safe fallback if a monitor has gone.
 - Snap layouts, Mica backdrop, and a custom title bar with the tab strip in it.
+
+### 4.3 Icons (D33)
+
+Leviathan uses a full-colour icon set in the style of Windows 11 File Explorer rather than monochrome glyphs: yellow folders, distinct coloured icons for known folders (Desktop, Documents, Downloads, Pictures, Videos, Music), drives, NAS servers, shares, cloud providers, tags and file-type groups, and colour accents on command-bar actions (e.g. red Delete, blue Copy/Paste). Rules:
+
+- Icons are vector (SVG or a colour icon font), crisp at 100–300% scaling, with light- and dark-theme variants where contrast needs it; high-contrast mode falls back to the system monochrome glyphs.
+- File and folder icons in the file view still come from the Windows shell (so app-specific file icons appear); the colour set covers Leviathan's own chrome: command bar, tree, tabs, status bar, menus, the status hub and dialogs.
+- Icons come from a permissively licensed set (e.g. Fluent UI System Icons colour variants), recorded in `THIRD-PARTY-NOTICES.md`; one `IconCatalog` maps command and node kinds to icons so a theme can swap them.
 
 ## 5. Navigation
 
@@ -261,6 +287,7 @@ Breadcrumb mode is the default. Each path segment is a button; a chevron after e
 - **Long paths** (> 260 characters) supported throughout using `\\\\?\\` prefixes internally.
 - **Overflow:** when the path is too wide, leading segments collapse into a … menu.
 - **Status:** a lock icon for paths needing elevation, a cloud icon for cloud folders, a warning icon for offline shares.
+- **Favorite star:** a star at the right end of the address bar, outlined when the current folder is not a favorite and filled when it is. Clicking it pins or unpins the folder (same as Ctrl+D); right-click offers rename, icon and colour for the favorite.
 
 ### 5.3 Other navigation
 
@@ -364,7 +391,7 @@ Layout, sort, grouping and columns are remembered per folder, with inheritance: 
 
 ### 8.2 Columns (Details view)
 
-Right-click the header to choose columns; drag to reorder; double-click a divider to auto-fit. Available columns:
+Right-click the header for a quick list of columns to show or hide; drag to reorder; double-click a divider to auto-fit. **View → Columns…** (also at the bottom of the header's right-click menu) opens a column chooser: every available column grouped as below, with a search box, tick boxes, drag to reorder, default width, and "Reset to default" / "Apply to all folders of this type". The chosen set is saved with the folder's view settings (§8.1). Available columns:
 
 - **File system:** Name, Extension, Type, Size, Size on disk, Date modified, Date created, Date accessed, Attributes, Owner, Path, Link target, Item count (folders, computed lazily)
 - **Leviathan:** Tags, Soft-deleted date, Checksum (when computed), Duplicate group
@@ -632,7 +659,7 @@ Soft delete moves the item into the share's own recycle folder when there is one
 - When nothing is running, the strip takes no space.
 - Settings choose which categories draw lines (e.g. hide metadata probing) and the color for each type.
 
-**Operations panel** (Ctrl+Shift+O, or click the strip or the status-bar operations area). It opens docked at the bottom of the window and can be torn off into its own window.
+**Operations panel** (Ctrl+Shift+O, or click the strip or the status-bar operations area). It is the Operations tab of the status hub (§16.1): by default it flies up from the status bar, and it can be docked or torn off into its own window.
 
 - **Groups:** Running, Queued (in run order), Completed and Failed (last 7 days).
 - **Each row:** color swatch, type icon, description ("Move 312 items to \\\\nas\\media\\keep"), progress bar, bytes and items done / total, speed, ETA, state. Expanding a row shows the current file, the file list with per-file status, and errors.
@@ -644,7 +671,7 @@ Soft delete moves the item into the share's own recycle folder when there is one
 
 | Position | What you see |
 | --- | --- |
-| Minimized to footer (default) | Only the thin progress lines under the address bar, plus a status-bar chip ("2 jobs · 1 queued · 112 MB/s · 2 min left") that restores the panel |
+| Fly-up from the status bar (default) | The status hub (§16.1) rises over the bottom of the file view on the Operations tab and drops back when you click away, unless pinned open. When it is closed you see only the thin progress lines under the address bar and the status-bar chip ("2 jobs · 1 queued · 112 MB/s · 2 min left") that opens it |
 | Docked bottom | Panel under the file view, height draggable |
 | Docked right | Panel beside the file view, width draggable |
 | Popped out | Its own window, which can go on another monitor; closing it docks it back |
@@ -709,6 +736,7 @@ Any search can be saved and pinned to Favorites. A saved search behaves like a f
 - **Actions** on anything in the map: open, reveal in a tab, tag, delete (soft delete on NAS), compress, find duplicates in this folder.
 - **Extras:** color by age instead of type (finds stale data); filter to files over a size; show hard links and cloud placeholders separately so space isn't double-counted.
 - **Mini map:** the preview pane shows a small treemap for a selected folder once its size is known.
+- **Status hub Space tab** (§16.1): a compact treemap of the current folder (from the folder-size store and the last scan), with the largest items listed beside it; clicking a rectangle selects that item in the file view, and "Open space map" opens the full view.
 
 ## 15. Power features
 
@@ -774,6 +802,21 @@ Left to right; each part can be hidden, and clicking a part acts on it.
 | Operations | 2 jobs · 4.3 GB of 18 GB · 112 MB/s · 2 min left | Open Operations panel |
 | Layout switcher | Details / Tiles / Thumbnails icons, thumbnail size slider |  |
 
+### 16.1 Status hub (fly-up) (D34, D35)
+
+An expand chevron at the right end of the status bar (and Ctrl+Shift+O, or clicking the operations chip or background-work part) opens the **status hub**: a panel that flies up from the status bar over the bottom of the file view, about 40% of the window high (height draggable and remembered). It closes with Esc or a click outside, or stays open with its pin. Like the Operations panel (§12.6), it can be docked bottom or right, or popped out into its own window. It has five tabs:
+
+| Tab | Contents |
+| --- | --- |
+| **Operations** | The Operations panel of §12.6: running, queued and completed jobs, row actions, speed sparklines, queue ETA |
+| **Activity** | A full log of what you did this session, newest first: navigated to, selected (count and size), opened, renamed, created, copied / moved / deleted (with item counts, linking to the job), tagged, changed a setting, errors shown. Filter by kind, search, jump to a location, open the related job, undo where undo exists, copy or export (text/JSON). Earlier sessions are kept for 7 days. Built on the diagnostics action trail (§20); file names are kept locally only and are never sent anywhere |
+| **Background** | Every background task with progress and controls: folder-size calculation (current folder, queue length, rate), indexing and NAS crawls, metadata probing, thumbnail and contact-sheet generation, offline-cache refresh. Each can be paused, resumed or given priority; worker and process status (Worker, Media, ShellHost, Indexer: running, idle, restarts) |
+| **Quick settings** | The live knobs, applied at once: background threads / worker processes, running jobs (global and per NAS volume), bandwidth limit and schedule, folder-size calculation on/off for network shares, thumbnail generation on network files, polling interval; a link to the full settings sheet |
+| **Space** | A compact treemap of the current folder (§14) |
+
+- The hub opens on the tab you used last; clicking a status-bar part opens the matching tab (operations chip → Operations, background work → Background, free space → Space).
+- A badge on the chevron shows failures waiting to be seen.
+
 ## 17. Settings, startup profiles and keyboard
 
 ### 17.1 Startup profiles (D19)
@@ -804,6 +847,8 @@ A profile is a saved set of windows, each with its tabs, split panes, layouts an
 | Advanced | Diagnostics and log level, cache locations and sizes, reset, export/import all settings |
 
 Settings are a JSON file, written atomically, with an "Open settings file" option for power users. Every setting takes effect without a restart.
+
+**Where settings open (D36):** Options ⚙ (and Ctrl+,) opens settings as a sheet that rises from the bottom of the window, about 70% of its height, over the content: the page list on the left, the page on the right, search across all settings at the top, Esc or a click outside to close. It can be expanded to the full window. The status hub's Quick settings tab (§16.1) covers the settings people change while working.
 
 ### 17.3 Core keyboard map
 
