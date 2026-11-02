@@ -144,14 +144,23 @@ public sealed partial class MainWindow
         Add(FindDescendant(TabsView, "AddButton"));
         Add(AllTabsButton);
 
-        var signature = string.Join(';', rects.Select(r => $"{r.X},{r.Y},{r.Width},{r.Height}"));
+        // The whole strip is the place to grab the window, not just the small footer element (the tabs punch holes through it).
+        var strip = new List<RectInt32>();
+        if (TabsView.ActualWidth > 0 && TabsView.ActualHeight > 0)
+        {
+            strip.Add(new RectInt32(0, 0, (int)Math.Ceiling(TabsView.ActualWidth * scale), (int)Math.Ceiling(TabsView.ActualHeight * scale)));
+        }
+
+        var signature = string.Join(';', rects.Concat(strip).Select(r => $"{r.X},{r.Y},{r.Width},{r.Height}"));
         if (signature == _titleBarRegions)
         {
             return;
         }
 
         _titleBarRegions = signature;
-        InputNonClientPointerSource.GetForWindowId(AppWindow.Id).SetRegionRects(NonClientRegionKind.Passthrough, [.. rects]);
+        var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+        source.SetRegionRects(NonClientRegionKind.Caption, [.. strip]);
+        source.SetRegionRects(NonClientRegionKind.Passthrough, [.. rects]);
     }
 
     private static FrameworkElement? FindDescendant(DependencyObject parent, string name)
