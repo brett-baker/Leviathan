@@ -39,6 +39,8 @@ internal sealed class GridRow : Grid
 
     private string _signature = string.Empty;
     private RenameBox? _editor;
+    private FontIcon? _nameIcon;
+    private TextBlock? _nameText;
     private bool _hover;
 
     /// <summary>Creates an empty row for <paramref name="owner"/>.</summary>
@@ -87,6 +89,29 @@ internal sealed class GridRow : Grid
         Fill();
         UpdateVisuals();
         UpdateEditor();
+    }
+
+    /// <summary>
+    /// True when <paramref name="point"/> (in this row's coordinates) is on the icon or the text of the name. A drag from there
+    /// is for drag and drop (D9); a drag from the rest of the row draws the rubber band (spec §8.4).
+    /// </summary>
+    public bool HitsName(Windows.Foundation.Point point)
+    {
+        if (_nameIcon is null || _nameText is null)
+        {
+            return false;
+        }
+
+        foreach (var part in new FrameworkElement[] { _nameIcon, _nameText })
+        {
+            var origin = part.TransformToVisual(this).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (point.X >= origin.X && point.X <= origin.X + part.ActualWidth && point.Y >= origin.Y && point.Y <= origin.Y + part.ActualHeight)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Releases the entry so a recycled row holds nothing.</summary>
@@ -196,6 +221,8 @@ internal sealed class GridRow : Grid
         ColumnDefinitions.Clear();
         _cells.Clear();
         _editor = null;
+        _nameIcon = null;
+        _nameText = null;
         for (var i = 0; i < slots.Count; i++)
         {
             var slot = slots[i];
@@ -220,6 +247,8 @@ internal sealed class GridRow : Grid
                 SetColumn(text, 1);
                 text.Margin = new Thickness(8, 0, 8, 0);
                 panel.Children.Add(text);
+                _nameIcon = icon;
+                _nameText = text;
                 _editor = new RenameBox { Margin = new Thickness(4, 0, 8, 0) };
                 _editor.Finished += (_, result) => _owner.RaiseRenameFinished(result);
                 SetColumn(_editor, 1);

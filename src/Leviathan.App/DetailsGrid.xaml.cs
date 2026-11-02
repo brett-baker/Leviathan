@@ -401,7 +401,14 @@ public sealed partial class DetailsGrid : UserControl
             return;
         }
 
-        _tab.Selection.Click(entry, KeyTranslator.IsDown(VirtualKey.Control), KeyTranslator.IsDown(VirtualKey.Shift));
+        var additive = KeyTranslator.IsDown(VirtualKey.Control);
+        _tab.Selection.Click(entry, additive, KeyTranslator.IsDown(VirtualKey.Shift));
+
+        // The blank part of a row (outside the name and icon) also starts the rubber band; the name is for drag and drop (D9).
+        if (point.IsLeftButtonPressed && !row.HitsName(e.GetCurrentPoint(row).Position))
+        {
+            _band.Press(e, _tab.Selection, additive);
+        }
     }
 
     private void OnBodyDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
