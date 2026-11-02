@@ -72,6 +72,9 @@ public sealed record FolderViewSettings
 
     /// <summary>Visible Details columns, in order.</summary>
     public IReadOnlyList<string> Columns { get; init; } = DefaultColumns;
+
+    /// <summary>Widths the user gave columns, by column id; columns not listed use their default width.</summary>
+    public IReadOnlyDictionary<string, double> ColumnWidths { get; init; } = new Dictionary<string, double>();
 }
 
 /// <summary>What a folder mostly contains, detected from its listing (spec §8.1).</summary>

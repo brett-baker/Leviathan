@@ -19,7 +19,8 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="Time">Clock.</param>
 /// <param name="Home">The location a new tab opens (spec §4.1).</param>
 /// <param name="Recent">Folders visited recently, shared by all tabs; every navigation is recorded there.</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null);
+/// <param name="FolderSizes">Where folder totals for the Size column come from; null shows no folder sizes.</param>
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -85,6 +86,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Selection = new SelectionModel(Items.Rows, services.Time);
         Address = new AddressBarViewModel(history.Current);
         _explicitView = explicitView ?? FolderViewSettings.Default;
+        Columns = new ColumnLayout(_explicitView.Columns, _explicitView.ColumnWidths);
+        Sizes = new FolderSizeTracker(services.FolderSizes, services.Ui);
         _useExplicitView = explicitView is not null;
         ApplyView();
 
@@ -96,6 +99,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             }
             else if (e.PropertyName == nameof(FolderViewModel.State))
             {
+                if (Folder.State is FolderLoadState.Loaded)
+                {
+                    Sizes.Begin(Items.Rows);
+                }
+
                 OnPropertyChanged(nameof(IsOffline));
                 OnPropertyChanged(nameof(IsBusy));
             }
@@ -117,6 +125,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Selection over <see cref="Items"/>.</summary>
     public SelectionModel Selection { get; }
+
+    /// <summary>The Details columns: which, in what order, how wide. They stay with the tab when it navigates.</summary>
+    public ColumnLayout Columns { get; }
+
+    /// <summary>Folder totals for the Size column.</summary>
+    public FolderSizeTracker Sizes { get; }
 
     /// <summary>The breadcrumb address bar.</summary>
     public AddressBarViewModel Address { get; }
@@ -244,7 +258,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Sort = Items.Sort,
         GroupBy = Items.GroupBy,
         Folders = Items.Folders,
-        Columns = _explicitView.Columns,
+        Columns = Columns.Ids,
+        ColumnWidths = Columns.Widths,
     };
 
     /// <summary>Captures the tab for duplicating or saving.</summary>
@@ -283,6 +298,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _services.ViewRules.Changed -= OnRulesChanged;
+        Sizes.Dispose();
         Folder.Dispose();
     }
 
