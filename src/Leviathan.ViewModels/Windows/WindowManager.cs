@@ -104,6 +104,10 @@ public sealed partial class WindowViewModel : ObservableObject
         _bounds = bounds;
     }
 
+    /// <summary>Whether the preview and details pane on the right is shown (Alt+P, spec §6.3).</summary>
+    [ObservableProperty]
+    private bool _showPreview = true;
+
     /// <summary>Stable identity.</summary>
     public Guid Id { get; } = Guid.NewGuid();
 

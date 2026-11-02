@@ -93,6 +93,10 @@ public sealed class UiThreadAffinityTests
         {
         }
 
+        public void FocusFilterBox()
+        {
+        }
+
         public void ShowMessage(string message)
         {
         }

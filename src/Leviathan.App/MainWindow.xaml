@@ -15,6 +15,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
@@ -56,8 +57,8 @@
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="220" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="220" />
       </Grid.ColumnDefinitions>
 
       <Button x:Name="BackButton" Grid.Column="0" Click="OnBackClick" ToolTipService.ToolTip="Back (Alt+Left)" AutomationProperties.Name="Back">
@@ -75,26 +76,120 @@
 
       <local:AddressBar x:Name="Address" Grid.Column="4" VerticalAlignment="Center" />
 
-      <AutoSuggestBox x:Name="SearchBox" Grid.Column="5" PlaceholderText="Search (Phase 4)" IsEnabled="False" QueryIcon="Find" />
+      <!-- Panes (spec 6.3): one pane, two side by side, two stacked; and the preview pane. Splitting arrives in Phase 2. -->
+      <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="4,0">
+        <ToggleButton x:Name="PaneSingleButton" IsChecked="True" Padding="6,5" ToolTipService.ToolTip="One pane" AutomationProperties.Name="One pane" Click="OnPaneSingleClick">
+          <Border Width="16" Height="12" BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+        </ToggleButton>
+        <ToggleButton x:Name="PaneSideButton" IsEnabled="False" Padding="6,5" ToolTipService.ToolTip="Split side by side (Phase 2)" AutomationProperties.Name="Split side by side">
+          <Grid Width="16" Height="12">
+            <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+            <Border Width="1.5" HorizontalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+          </Grid>
+        </ToggleButton>
+        <ToggleButton x:Name="PaneStackedButton" IsEnabled="False" Padding="6,5" ToolTipService.ToolTip="Split top and bottom (Phase 2)" AutomationProperties.Name="Split top and bottom">
+          <Grid Width="16" Height="12">
+            <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+            <Border Height="1.5" VerticalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+          </Grid>
+        </ToggleButton>
+        <ToggleButton x:Name="PreviewToggle" IsChecked="True" Padding="6,5" Click="OnPreviewToggleClick" ToolTipService.ToolTip="Preview pane (Alt+P)" AutomationProperties.Name="Preview pane">
+          <Grid Width="16" Height="12">
+            <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+            <Border Width="5" HorizontalAlignment="Right" Margin="0,1.5,1.5,1.5" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+          </Grid>
+        </ToggleButton>
+      </StackPanel>
 
-      <Button x:Name="OptionsButton" Grid.Column="6" ToolTipService.ToolTip="Options" AutomationProperties.Name="Options">
-        <FontIcon Glyph="&#xE713;" FontSize="14" />
-        <Button.Flyout>
-          <MenuFlyout>
-            <MenuFlyoutItem Text="New window" Click="OnNewWindowClick" />
-            <MenuFlyoutSeparator />
-            <MenuFlyoutItem Text="Diagnostics…" Click="OnDiagnosticsClick" />
-          </MenuFlyout>
-        </Button.Flyout>
-      </Button>
+      <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" PlaceholderText="Search (Phase 4)" IsEnabled="False" QueryIcon="Find" />
     </Grid>
 
-    <!-- Row 2: sidebar | file view | preview pane (spec 4). -->
-    <Grid Grid.Row="2" ColumnSpacing="1">
+    <!-- Row 2: command bar (spec 6): New and the clipboard group, context actions that follow the selection, then view controls. -->
+    <Grid Grid.Row="2" Padding="8,0,8,4" ColumnSpacing="8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <CommandBar x:Name="Bar" Grid.Column="0" HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Collapsed"
+                  IsDynamicOverflowEnabled="True" OverflowButtonVisibility="Auto">
+        <AppBarElementContainer VerticalContentAlignment="Center">
+          <DropDownButton x:Name="NewButton" AutomationProperties.Name="New" ToolTipService.ToolTip="New (Ctrl+Shift+N creates a folder)">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="&#xE710;" FontSize="14" />
+              <TextBlock Text="New" />
+            </StackPanel>
+            <DropDownButton.Flyout>
+              <MenuFlyout x:Name="NewMenu" Opening="OnNewMenuOpening" />
+            </DropDownButton.Flyout>
+          </DropDownButton>
+        </AppBarElementContainer>
+        <AppBarSeparator />
+        <AppBarButton x:Name="CutButton" Label="Cut" Icon="Cut" Click="OnBarButtonClick" />
+        <AppBarButton x:Name="CopyButton" Label="Copy" Icon="Copy" Click="OnBarButtonClick" />
+        <AppBarElementContainer VerticalContentAlignment="Center">
+          <SplitButton x:Name="PasteButton" AutomationProperties.Name="Paste" Padding="10,6" Background="Transparent" BorderThickness="0" Click="OnPasteClick">
+            <FontIcon Glyph="&#xE77F;" FontSize="16" />
+            <SplitButton.Flyout>
+              <MenuFlyout>
+                <MenuFlyoutItem Text="Paste as shortcut" IsEnabled="False" />
+                <MenuFlyoutItem Text="Paste as hard link" IsEnabled="False" />
+                <MenuFlyoutItem Text="Paste as symbolic link" IsEnabled="False" />
+                <MenuFlyoutItem Text="Paste into new folder" IsEnabled="False" />
+              </MenuFlyout>
+            </SplitButton.Flyout>
+          </SplitButton>
+        </AppBarElementContainer>
+        <AppBarButton x:Name="RenameButton" Label="Rename" Icon="Rename" Click="OnBarButtonClick" />
+        <AppBarButton x:Name="DeleteButton" Label="Delete" Icon="Delete" Click="OnBarButtonClick" />
+        <AppBarButton x:Name="UndoButton" Label="Undo" Icon="Undo" Click="OnBarButtonClick" />
+        <AppBarButton x:Name="RedoButton" Label="Redo" Icon="Redo" Click="OnBarButtonClick" />
+        <AppBarSeparator x:Name="ContextSeparator" />
+      </CommandBar>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <DropDownButton x:Name="ViewButton" Content="View" AutomationProperties.Name="View">
+          <DropDownButton.Flyout>
+            <MenuFlyout x:Name="ViewMenu" Opening="OnViewMenuOpening" />
+          </DropDownButton.Flyout>
+        </DropDownButton>
+        <DropDownButton x:Name="SortButton" Content="Sort" AutomationProperties.Name="Sort">
+          <DropDownButton.Flyout>
+            <MenuFlyout x:Name="SortMenu" Opening="OnSortMenuOpening" />
+          </DropDownButton.Flyout>
+        </DropDownButton>
+        <DropDownButton x:Name="GroupButton" Content="Group" AutomationProperties.Name="Group">
+          <DropDownButton.Flyout>
+            <MenuFlyout x:Name="GroupMenu" Opening="OnGroupMenuOpening" />
+          </DropDownButton.Flyout>
+        </DropDownButton>
+        <TextBox x:Name="FilterBox" Width="170" PlaceholderText="Filter this folder" AutomationProperties.Name="Filter this folder"
+                 ToolTipService.ToolTip="Filters as you type: *.mp4, size:&gt;1GB, tag:red, duration:&lt;2m (Ctrl+Shift+F)"
+                 TextChanged="OnFilterTextChanged" KeyDown="OnFilterKeyDown" />
+        <Button x:Name="OptionsButton" ToolTipService.ToolTip="Options" AutomationProperties.Name="Options">
+          <FontIcon Glyph="&#xE713;" FontSize="14" />
+          <Button.Flyout>
+            <MenuFlyout>
+              <MenuFlyoutItem Text="New window" Click="OnNewWindowClick" />
+              <MenuFlyoutSeparator />
+              <MenuFlyoutItem Text="Settings (slice G3)" IsEnabled="False" />
+              <MenuFlyoutItem Text="Folder options" IsEnabled="False" />
+              <MenuFlyoutItem Text="Operations queue (Phase 2)" IsEnabled="False" />
+              <MenuFlyoutItem Text="Soft-delete bin (Phase 2)" IsEnabled="False" />
+              <MenuFlyoutSeparator />
+              <MenuFlyoutItem Text="Diagnostics…" Click="OnDiagnosticsClick" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- Row 3: sidebar | file view | preview pane (spec 4). -->
+    <Grid Grid.Row="3" ColumnSpacing="1">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="220" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="280" />
+        <ColumnDefinition x:Name="PreviewColumn" Width="280" />
       </Grid.ColumnDefinitions>
 
       <!-- The sidebar tree (spec 7): one virtualized list of rows; the tree model decides which rows exist. -->
@@ -170,7 +265,7 @@
         </StackPanel>
       </Grid>
 
-      <Border Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="16">
+      <Border x:Name="PreviewPane" Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="16">
         <StackPanel Spacing="4">
           <TextBlock Text="Preview and details" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <TextBlock Text="Video preview, metadata and tags arrive in Phase 3." TextWrapping="Wrap"
@@ -179,8 +274,8 @@
       </Border>
     </Grid>
 
-    <!-- Row 3: status bar (spec 16). -->
-    <Grid Grid.Row="3" Padding="12,4" ColumnSpacing="16">
+    <!-- Row 4: status bar (spec 16). -->
+    <Grid Grid.Row="4" Padding="12,4" ColumnSpacing="16">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />

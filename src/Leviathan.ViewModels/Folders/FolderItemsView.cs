@@ -121,6 +121,16 @@ public sealed partial class FolderItemsView : ObservableObject
         OnPropertyChanged(nameof(Sort));
     }
 
+    /// <summary>Replaces the sort criteria (the Sort menu, which picks a column and a direction separately).</summary>
+    public void SetSort(IReadOnlyList<SortKey> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        _sort = keys.Count > 0 ? keys : [new SortKey("name")];
+        _comparison = BuildComparison();
+        Recompute();
+        OnPropertyChanged(nameof(Sort));
+    }
+
     /// <summary>Sets where folders sort.</summary>
     public void SetFolderPlacement(FolderPlacement placement)
     {

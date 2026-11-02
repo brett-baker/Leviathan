@@ -9,6 +9,7 @@ using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.NewMenu;
 using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Views;
@@ -54,8 +55,12 @@ internal sealed class AppHost
         SubfolderMenu subfolders,
         IThumbnailCache thumbnails,
         FavoritesList favorites,
-        ISubfolderSource sidebarSource)
+        ISubfolderSource sidebarSource,
+        NewItemService newItems,
+        ViewOptions viewOptions)
     {
+        NewItems = newItems;
+        ViewOptions = viewOptions;
         Thumbnails = thumbnails;
         Favorites = favorites;
         SidebarSource = sidebarSource;
@@ -81,6 +86,12 @@ internal sealed class AppHost
     public IVolumeInfo Volumes { get; }
 
     public KeyMap Keys { get; }
+
+    /// <summary>The New menu: built-in items, apps registered through ShellNew and the user's templates (spec §6.1).</summary>
+    public NewItemService NewItems { get; }
+
+    /// <summary>Whether hidden and system items are listed; one switch for all windows.</summary>
+    public ViewOptions ViewOptions { get; }
 
     /// <summary>The pinned folders shown under Favorites, shared by all windows.</summary>
     public FavoritesList Favorites { get; }
@@ -120,6 +131,9 @@ internal sealed class AppHost
             cancellationToken);
         Volatile.Write(ref _favorites, favorites);
 
+        // The registry scan for ShellNew entries is the slow part of the New menu; do it now so the menu opens at once.
+        NewItems.Prime();
+
         var cloud = await CloudProviderCatalog.ForThisMachine().DetectAsync(cancellationToken);
         Volatile.Write(ref _cloud, cloud);
         CloudFoldersChanged?.Invoke(this, EventArgs.Empty);
@@ -137,7 +151,10 @@ internal sealed class AppHost
         var lister = new ProviderFolderLister(providers);
         var queue = DispatcherQueue.GetForCurrentThread();
         var sizes = new WorkerFolderSizes(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
-        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes);
+        var viewOptions = new ViewOptions();
+        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes, viewOptions);
+        var disk = new FileSystem();
+        var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         return new AppHost(
             new WindowManager(services),
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
@@ -151,7 +168,9 @@ internal sealed class AppHost
             new SubfolderMenu(lister),
             new ThumbnailCache(new ShellThumbnailSource()),
             new FavoritesList(new JsonFavoritesStorage()),
-            new ProviderSubfolderSource(providers));
+            new ProviderSubfolderSource(providers),
+            newItems,
+            viewOptions);
     }
 }
 

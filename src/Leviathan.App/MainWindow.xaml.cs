@@ -55,7 +55,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions);
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -90,6 +90,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         ShowStalls();
+        InitializeCommandBar();
         _ = LoadSidebarAsync();
     }
 
@@ -153,6 +154,7 @@ public sealed partial class MainWindow : Window, IShellActions
         ForwardButton.IsEnabled = _commands.CanExecute(CommandIds.NavForward);
         UpButton.IsEnabled = _commands.CanExecute(CommandIds.NavUp);
         ReloadButton.IsEnabled = _commands.CanExecute(CommandIds.NavReload);
+        RefreshCommandBar();
     }
 
     private void OnBackClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavBack);
@@ -194,6 +196,12 @@ public sealed partial class MainWindow : Window, IShellActions
 
         if (KeyTranslator.ToGesture(e.Key) is { } gesture && App.Host.Keys.Resolve(gesture, _viewModel.Tabs.Selected?.IsSplit == true) is { } command)
         {
+            // In a text box Ctrl+A selects the text, not the rows.
+            if (command == CommandIds.SelectAll && IsEditingText())
+            {
+                return;
+            }
+
             if (_commands.CanExecute(command))
             {
                 e.Handled = true;
@@ -256,6 +264,10 @@ public sealed partial class MainWindow : Window, IShellActions
         if (e.PropertyName == nameof(TabViewModel.Layout))
         {
             OnUi(ApplyLayout);
+        }
+        else if (e.PropertyName == nameof(TabViewModel.FilterText))
+        {
+            OnUi(SyncFilterBox);
         }
     }
 
@@ -369,6 +381,8 @@ public sealed partial class MainWindow : Window, IShellActions
             FileList.Bind(null);
             FlowList.Bind(null);
             Address.Bind(null);
+            SyncFilterBox();
+            RefreshCommandBar();
             return;
         }
 
@@ -384,6 +398,7 @@ public sealed partial class MainWindow : Window, IShellActions
         tab.Address.PropertyChanged += OnAddressLocationChanged;
         UpdateState();
         UpdateStatus();
+        SyncFilterBox();
         RefreshNavigationButtons();
         SyncSidebar();
         if (tab.Folder.State == FolderLoadState.Idle)
@@ -448,7 +463,11 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    private void OnSelectionChanged(object? sender, EventArgs e) => OnUi(UpdateStatus);
+    private void OnSelectionChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        UpdateStatus();
+        RefreshContextZone();
+    });
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavReload);
 

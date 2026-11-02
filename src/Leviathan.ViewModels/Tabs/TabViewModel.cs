@@ -20,7 +20,8 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="Home">The location a new tab opens (spec §4.1).</param>
 /// <param name="Recent">Folders visited recently, shared by all tabs; every navigation is recorded there.</param>
 /// <param name="FolderSizes">Where folder totals for the Size column come from; null shows no folder sizes.</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null);
+/// <param name="Options">Whether hidden and system items are listed; null lists neither.</param>
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -72,6 +73,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private int _thumbnailSize = ItemFlow.DefaultThumbnailSize;
+
+    [ObservableProperty]
+    private string _filterText = string.Empty;
 
     /// <summary>Creates a tab at <paramref name="start"/>.</summary>
     public TabViewModel(TabServices services, LocationPath start)
@@ -216,6 +220,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         // A refresh (F5) or the first listing of a restored tab keeps the selection.
         _pendingSelection ??= [.. Selection.SelectedEntries.Select(e => e.Location)];
+        Folder.Options = ListingNow();
         await Folder.LoadAsync(History.Current, cancellationToken);
         SelectAfterLoad(null);
     }
@@ -241,11 +246,43 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         KeepCurrentView();
     }
 
+    /// <summary>
+    /// Sort menu: sorts by <paramref name="columnId"/> in <paramref name="direction"/>, or keeps the direction in use when null.
+    /// Unlike a header click, choosing the column already in use does not flip it.
+    /// </summary>
+    public void SetSort(string columnId, SortDirection? direction = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(columnId);
+        var current = Items.Sort.Count > 0 ? Items.Sort[0].Direction : SortDirection.Ascending;
+        Items.SetSort([new SortKey(columnId, direction ?? current)]);
+        KeepCurrentView();
+    }
+
+    /// <summary>Reloads the folder and selects <paramref name="location"/> once it is listed, e.g. a New menu item that was just created.</summary>
+    public async Task ReloadAndSelectAsync(LocationPath location, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        _pendingSelection = [location];
+        Folder.Options = ListingNow();
+        await Folder.LoadAsync(History.Current, cancellationToken);
+        SelectAfterLoad(null);
+    }
+
     /// <summary>Groups this tab's view by a column, or ungroups with null.</summary>
     public void SetGroupBy(string? columnId)
     {
         Items.SetGroupBy(columnId);
         KeepCurrentView();
+    }
+
+    /// <summary>
+    /// Filters the listing as the user types (spec §6.3); it is not a search. The filter belongs to the folder being shown, so
+    /// navigating clears it.
+    /// </summary>
+    public void SetFilter(string? text)
+    {
+        FilterText = text ?? string.Empty;
+        Items.SetFilter(text);
     }
 
     /// <summary>Sets where folders sort in this tab.</summary>
@@ -321,9 +358,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _services.Recent?.Add(result.Location);
         OnPropertyChanged(nameof(Title));
         ApplyView();
+        SetFilter(null);
+        Folder.Options = ListingNow();
         await Folder.LoadAsync(result.Location, cancellationToken);
         SelectAfterLoad(result.SelectOnArrival);
     }
+
+    private ListingOptions ListingNow() => _services.Options?.Listing ?? ListingOptions.Default;
 
     private void SelectAfterLoad(LocationPath? preferred)
     {

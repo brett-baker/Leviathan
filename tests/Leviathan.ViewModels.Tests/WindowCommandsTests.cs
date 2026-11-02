@@ -26,6 +26,10 @@ public sealed class WindowCommandsTests
 
         public void OpenDiagnostics() => DiagnosticsCalls++;
 
+        public int FilterFocusCalls { get; private set; }
+
+        public void FocusFilterBox() => FilterFocusCalls++;
+
         public void ShowMessage(string message) => Messages.Add(message);
     }
 
@@ -54,9 +58,9 @@ public sealed class WindowCommandsTests
 
     internal sealed class Harness
     {
-        public Harness()
+        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null)
         {
-            var services = TabTestSupport.Services();
+            var services = TabTestSupport.Services() with { Options = viewOptions };
             Windows = new WindowManager(services);
             Window = Windows.OpenWindow(TabTestSupport.P(@"C:\a"));
             Trail = new ActionTrail();
@@ -67,7 +71,7 @@ public sealed class WindowCommandsTests
             fs.AddDirectory(@"C:\a\b");
             fs.AddDirectory(@"C:\v");
             fs.AddFile(@"C:\a\1.txt", new MockFileData("x"));
-            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"));
+            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions);
             Ready = Window.Tabs.Selected!.ReloadAsync(CancellationToken.None);
         }
 

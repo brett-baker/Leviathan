@@ -24,6 +24,9 @@ public interface IShellActions
     /// <summary>Opens the diagnostics window (worker connection, job queue, crash reports).</summary>
     void OpenDiagnostics();
 
+    /// <summary>Moves keyboard focus into the filter box of the command bar (Ctrl+Shift+F).</summary>
+    void FocusFilterBox();
+
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
 }
@@ -127,6 +130,168 @@ public static class CommandIds
     /// <summary>Pin or unpin the current folder in Favorites (Ctrl+D).</summary>
     public static readonly CommandId FavoriteToggle = new("favorite.toggle");
 
+    /// <summary>Select every row (Ctrl+A).</summary>
+    public static readonly CommandId SelectAll = new("select.all");
+
+    /// <summary>Clear the selection.</summary>
+    public static readonly CommandId SelectNone = new("select.none");
+
+    /// <summary>Select what is not selected.</summary>
+    public static readonly CommandId SelectInvert = new("select.invert");
+
+    /// <summary>Select the rows matching a pattern such as <c>*.mkv</c>. Target: the pattern.</summary>
+    public static readonly CommandId SelectByPattern = new("select.pattern");
+
+    /// <summary>Create a folder in the current folder (Ctrl+Shift+N).</summary>
+    public static readonly CommandId NewFolder = new("new.folder");
+
+    /// <summary>Create the New menu item with the id in Target (spec §6.1).</summary>
+    public static readonly CommandId NewItem = new("new.item");
+
+    /// <summary>Open a terminal in the current folder.</summary>
+    public static readonly CommandId TerminalHere = new("terminal.here");
+
+    /// <summary>Pin the folder in Target, or the selected folder, to Favorites.</summary>
+    public static readonly CommandId FavoriteAdd = new("favorite.add");
+
+    /// <summary>Sort by the column in Target; sorting by the column already in use flips the direction.</summary>
+    public static readonly CommandId SortBy = new("sort.by");
+
+    /// <summary>Set the sort direction. Target: <c>asc</c> or <c>desc</c>.</summary>
+    public static readonly CommandId SortDirection = new("sort.direction");
+
+    /// <summary>Group by the column in Target; empty ungroups.</summary>
+    public static readonly CommandId GroupBy = new("group.by");
+
+    /// <summary>Where folders sort. Target: <c>First</c>, <c>Mixed</c> or <c>Last</c>.</summary>
+    public static readonly CommandId FolderPlacement = new("sort.folders");
+
+    /// <summary>Filter the folder as you type. Target: the filter text; empty clears it.</summary>
+    public static readonly CommandId FilterSet = new("filter.set");
+
+    /// <summary>Focus the filter box (Ctrl+Shift+F).</summary>
+    public static readonly CommandId FilterFocus = new("filter.focus");
+
+    /// <summary>Show or hide hidden and system items.</summary>
+    public static readonly CommandId ViewHidden = new("view.hidden");
+
+    /// <summary>Show or hide the preview pane (Alt+P).</summary>
+    public static readonly CommandId PreviewPane = new("pane.preview");
+
+    /// <summary>Run the selected program elevated. Only that program is elevated (spec §15.6).</summary>
+    public static readonly CommandId RunAsAdministrator = new("item.runAsAdmin");
+
+    /// <summary>Choose the app to open the selected file with.</summary>
+    public static readonly CommandId OpenWith = new("item.openWith");
+
+    /// <summary>Show the Windows Properties dialog for the selected item (Alt+Enter).</summary>
+    public static readonly CommandId Properties = new("item.properties");
+
+    // Ids of commands that arrive in later slices and phases. They are declared now so the context-action table of spec §6.2 and
+    // the clipboard buttons name them; a button whose command is not registered is disabled or left out.
+
+    /// <summary>Cut (Ctrl+X). Arrives with slice E5.</summary>
+    public static readonly CommandId EditCut = new("edit.cut");
+
+    /// <summary>Copy (Ctrl+C). Arrives with slice E5.</summary>
+    public static readonly CommandId EditCopy = new("edit.copy");
+
+    /// <summary>Paste (Ctrl+V). Arrives with slice E5.</summary>
+    public static readonly CommandId EditPaste = new("edit.paste");
+
+    /// <summary>Rename (F2). Arrives with slice D8.</summary>
+    public static readonly CommandId EditRename = new("edit.rename");
+
+    /// <summary>Delete (Del). Arrives with slice E3.</summary>
+    public static readonly CommandId EditDelete = new("edit.delete");
+
+    /// <summary>Undo (Ctrl+Z). Arrives with slice E4.</summary>
+    public static readonly CommandId EditUndo = new("edit.undo");
+
+    /// <summary>Redo (Ctrl+Y). Arrives with slice E4.</summary>
+    public static readonly CommandId EditRedo = new("edit.redo");
+
+    /// <summary>Space map of a folder (Phase 5).</summary>
+    public static readonly CommandId SpaceMap = new("spacemap.open");
+
+    /// <summary>Open a folder in the second pane (Phase 2).</summary>
+    public static readonly CommandId OpenInSplitPane = new("pane.openInSplit");
+
+    /// <summary>Compress to an archive (Phase 2).</summary>
+    public static readonly CommandId Compress = new("archive.compress");
+
+    /// <summary>Bulk rename (Phase 2).</summary>
+    public static readonly CommandId BulkRename = new("edit.bulkRename");
+
+    /// <summary>Compute the total size of the selection (Phase 2).</summary>
+    public static readonly CommandId ComputeSize = new("item.computeSize");
+
+    /// <summary>Compare two items (Phase 2).</summary>
+    public static readonly CommandId Compare = new("item.compare");
+
+    /// <summary>Move the selection into a new folder (Phase 2).</summary>
+    public static readonly CommandId MoveToNewFolder = new("edit.moveToNewFolder");
+
+    /// <summary>Tag the selection (Phase 3).</summary>
+    public static readonly CommandId TagSelection = new("tag.apply");
+
+    /// <summary>Triage mode starting at the selected video (Phase 3).</summary>
+    public static readonly CommandId TriageFromHere = new("triage.fromHere");
+
+    /// <summary>Contact sheet of a video (Phase 3).</summary>
+    public static readonly CommandId ContactSheet = new("media.contactSheet");
+
+    /// <summary>Extract a frame from a video (Phase 3).</summary>
+    public static readonly CommandId ExtractFrame = new("media.extractFrame");
+
+    /// <summary>Show ffprobe info or audio tags (Phase 3).</summary>
+    public static readonly CommandId ShowProbe = new("media.probe");
+
+    /// <summary>Set an image as the wallpaper (Phase 3).</summary>
+    public static readonly CommandId SetWallpaper = new("image.wallpaper");
+
+    /// <summary>Rotate an image left (Phase 3).</summary>
+    public static readonly CommandId RotateLeft = new("image.rotateLeft");
+
+    /// <summary>Rotate an image right (Phase 3).</summary>
+    public static readonly CommandId RotateRight = new("image.rotateRight");
+
+    /// <summary>Convert an image format (Phase 3).</summary>
+    public static readonly CommandId ConvertFormat = new("image.convert");
+
+    /// <summary>Print the selected document.</summary>
+    public static readonly CommandId Print = new("item.print");
+
+    /// <summary>Preview the selected item in the preview pane (Phase 3).</summary>
+    public static readonly CommandId Preview = new("item.preview");
+
+    /// <summary>Extract an archive next to itself (Phase 2).</summary>
+    public static readonly CommandId ExtractHere = new("archive.extractHere");
+
+    /// <summary>Extract an archive into a folder of its name (Phase 2).</summary>
+    public static readonly CommandId ExtractToFolder = new("archive.extractToFolder");
+
+    /// <summary>Browse an archive as a folder (Phase 2).</summary>
+    public static readonly CommandId ArchiveBrowse = new("archive.browse");
+
+    /// <summary>Test an archive (Phase 2).</summary>
+    public static readonly CommandId TestArchive = new("archive.test");
+
+    /// <summary>Show a file's checksum (Phase 2).</summary>
+    public static readonly CommandId ShowChecksum = new("item.checksum");
+
+    /// <summary>Open the folder a shortcut points to.</summary>
+    public static readonly CommandId OpenTargetLocation = new("item.openTargetLocation");
+
+    /// <summary>Edit a shortcut's target.</summary>
+    public static readonly CommandId EditTarget = new("item.editTarget");
+
+    /// <summary>Mount a disk image.</summary>
+    public static readonly CommandId Mount = new("item.mount");
+
+    /// <summary>Burn a disk image.</summary>
+    public static readonly CommandId Burn = new("item.burn");
+
     /// <summary>Focus the address bar (Ctrl+L).</summary>
     public static readonly CommandId AddressFocus = new("address.focus");
 
@@ -165,7 +330,9 @@ public static partial class WindowCommands
         IFileLauncher launcher,
         IShellActions shell,
         Func<LocationPath> home,
-        Sidebar.FavoritesList? favorites = null)
+        Sidebar.FavoritesList? favorites = null,
+        NewMenu.NewItemService? newItems = null,
+        Views.ViewOptions? viewOptions = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -430,6 +597,97 @@ public static partial class WindowCommands
         Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
             c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
 
+        // Selection (spec §6.2, nothing selected).
+        Add(CommandIds.SelectAll, "Select all", "Selection", (_, _) => Run(() => Current()!.Selection.SelectAll()), _ => Current() is not null, shortcut: "Ctrl+A");
+        Add(CommandIds.SelectNone, "Select none", "Selection", (_, _) => Run(() => Current()!.Selection.Clear()), _ => Current() is not null);
+        Add(CommandIds.SelectInvert, "Invert selection", "Selection", (_, _) => Run(() => Current()!.Selection.Invert()), _ => Current() is not null);
+        Add(CommandIds.SelectByPattern, "Select by pattern", "Selection", (c, _) => Run(() =>
+        {
+            var matched = Current()!.Selection.SelectByPattern(c.Target!);
+            shell.ShowMessage(matched == 1 ? "1 item matches" : $"{matched} items match");
+        }), c => Current() is not null && !string.IsNullOrWhiteSpace(c.Target));
+
+        // New menu (spec §6.1). Creating is file I/O, so it runs on the thread pool inside NewItemService.
+        async Task CreateNew(string templateId, CancellationToken ct)
+        {
+            var tab = Current()!;
+            try
+            {
+                var created = await newItems!.CreateAsync(templateId, tab.History.Current, ct);
+                shell.ShowMessage($"Created {created.Name}");
+                await tab.ReloadAndSelectAsync(created, ct);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or KeyNotFoundException)
+            {
+                shell.ShowMessage($"Could not create it: {ex.Message}");
+            }
+        }
+
+        bool CanCreateHere() => newItems is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc;
+
+        Add(CommandIds.NewFolder, "New folder", "New", (_, ct) => CreateNew(NewMenu.NewItemService.FolderTemplate.Id, ct), _ => CanCreateHere(), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
+        Add(CommandIds.NewItem, "New item", "New", (c, ct) => CreateNew(c.Target!, ct), c => CanCreateHere() && !string.IsNullOrEmpty(c.Target));
+
+        Add(CommandIds.TerminalHere, "Open terminal here", "Files", async (_, ct) =>
+        {
+            var launched = await launcher.OpenTerminalAsync(Current()!.History.Current, TerminalKind.WindowsTerminal, ct);
+            if (!launched.Started && !launched.Cancelled)
+            {
+                shell.ShowMessage(launched.Error ?? "The terminal could not be started.");
+            }
+        }, _ => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive);
+
+        // Commands on the selected item; the bar passes the entry as the parameter (spec §6.2).
+        async Task Launch(Task<LaunchResult> task, FileEntry entry)
+        {
+            var launched = await task;
+            if (!launched.Started && !launched.Cancelled)
+            {
+                shell.ShowMessage(launched.Error ?? $"{entry.Name} could not be started.");
+            }
+        }
+
+        Add(CommandIds.RunAsAdministrator, "Run as administrator", "Files", (c, ct) => Launch(launcher.RunAsAdministratorAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
+        Add(CommandIds.OpenWith, "Open with…", "Files", (c, ct) => Launch(launcher.ChooseAppAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
+        Add(CommandIds.Properties, "Properties", "Files", (c, ct) => Launch(launcher.ShowPropertiesAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry, shortcut: "Alt+Enter");
+
+        Add(CommandIds.FavoriteAdd, "Add to favorites", "Favorites", (c, _) => Run(() =>
+        {
+            var location = LocationPath.Parse(c.Target!);
+            if (favorites!.Contains(location))
+            {
+                shell.ShowMessage($"{location.Name} is already in Favorites");
+            }
+            else
+            {
+                favorites.Toggle(location);
+                shell.ShowMessage("Added to Favorites");
+            }
+        }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
+
+        // Sort, group, filter (spec §6.3).
+        Add(CommandIds.SortBy, "Sort by", "View", (c, _) => Run(() => Current()!.SetSort(c.Target!)),
+            c => Current() is not null && Folders.FileColumns.TryGet(c.Target ?? string.Empty, out _));
+        Add(CommandIds.SortDirection, "Sort direction", "View", (c, _) => Run(() =>
+        {
+            var tab = Current()!;
+            tab.SetSort(tab.Items.Sort[0].Column, c.Target!.Equals("desc", StringComparison.OrdinalIgnoreCase) ? Views.SortDirection.Descending : Views.SortDirection.Ascending);
+        }), c => Current() is not null && c.Target is not null && (c.Target.Equals("asc", StringComparison.OrdinalIgnoreCase) || c.Target.Equals("desc", StringComparison.OrdinalIgnoreCase)));
+        Add(CommandIds.GroupBy, "Group by", "View", (c, _) => Run(() => Current()!.SetGroupBy(string.IsNullOrEmpty(c.Target) ? null : c.Target)),
+            c => Current() is not null && (string.IsNullOrEmpty(c.Target) || Folders.FileColumns.TryGet(c.Target, out var column) && column.Group is not null));
+        Add(CommandIds.FolderPlacement, "Folders position", "View", (c, _) => Run(() => Current()!.SetFolderPlacement(Enum.Parse<Views.FolderPlacement>(c.Target!, ignoreCase: true))),
+            c => Current() is not null && Enum.TryParse<Views.FolderPlacement>(c.Target, ignoreCase: true, out _));
+        Add(CommandIds.FilterSet, "Filter this folder", "View", (c, _) => Run(() => Current()!.SetFilter(c.Target)), _ => Current() is not null);
+        Add(CommandIds.FilterFocus, "Focus filter box", "View", (_, _) => Run(shell.FocusFilterBox), shortcut: "Ctrl+Shift+F");
+
+        Add(CommandIds.ViewHidden, "Show hidden items", "View", async (_, ct) =>
+        {
+            viewOptions!.ShowHidden = !viewOptions.ShowHidden;
+            await Current()!.ReloadAsync(ct);
+        }, _ => viewOptions is not null && Current() is not null);
+
+        Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
+
         Add(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (_, _) => Run(() =>
         {
             var pinned = favorites!.Toggle(Current()!.History.Current);
@@ -465,6 +723,10 @@ public static partial class WindowCommands
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),
+            ("Ctrl+A", CommandIds.SelectAll),
+            ("Ctrl+Shift+N", CommandIds.NewFolder),
+            ("Ctrl+Shift+F", CommandIds.FilterFocus),
+            ("Alt+P", CommandIds.PreviewPane),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),
