@@ -48,6 +48,12 @@
       </muxc:ItemsRepeater>
     </ScrollViewer>
 
+    <!-- The rubber band (spec 8.4), drawn over the rows in viewport coordinates. -->
+    <Canvas x:Name="BandLayer" Grid.Row="1" IsHitTestVisible="False">
+      <Rectangle x:Name="Band" Visibility="Collapsed" StrokeThickness="1" RadiusX="2" RadiusY="2"
+                 Stroke="{ThemeResource AccentFillColorDefaultBrush}" Fill="{ThemeResource AccentFillColorSecondaryBrush}" Opacity="0.55" />
+    </Canvas>
+
     <!-- Shown instead of rows while the first rows of a folder are on their way (spec 8.6). -->
     <StackPanel x:Name="Skeleton" Grid.Row="1" Visibility="Collapsed" IsHitTestVisible="False" Margin="12,6,12,0" Spacing="0" />
   </Grid>

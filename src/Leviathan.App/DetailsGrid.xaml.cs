@@ -36,11 +36,13 @@ public sealed partial class DetailsGrid : UserControl
     private TabViewModel? _tab;
     private bool _hasFocus;
     private HeaderGesture? _gesture;
+    private readonly BandDrag _band;
 
     /// <summary>Creates the grid.</summary>
     public DetailsGrid()
     {
         InitializeComponent();
+        _band = new BandDrag(Scroller, Repeater, Band, vertical: true, RowsUnder);
         Repeater.ElementPrepared += OnElementPrepared;
         Repeater.ElementClearing += OnElementClearing;
         Repeater.ItemTemplate = new RowFactory(this);
@@ -61,6 +63,14 @@ public sealed partial class DetailsGrid : UserControl
 
     /// <summary>A row or the empty area was right-clicked; the context menu arrives with the shell integration (slice F).</summary>
     internal event EventHandler<FileEntry?>? RowContextRequested;
+
+    /// <summary>The inline rename box was closed: Enter, Tab, click-away (rename) or Esc (cancel).</summary>
+    internal event EventHandler<RenameResult>? RenameFinished;
+
+    internal void RaiseRenameFinished(RenameResult result) => RenameFinished?.Invoke(this, result);
+
+    /// <summary>The item whose rename box is showing, or null.</summary>
+    internal Core.Paths.LocationPath? Renaming => _tab?.Renaming;
 
     internal ColumnLayout? Layout => _tab?.Columns;
 
@@ -97,6 +107,7 @@ public sealed partial class DetailsGrid : UserControl
         tab.Items.PropertyChanged += OnItemsChanged;
         tab.Items.Rows.CollectionChanged += OnRowsChanged;
         tab.Folder.PropertyChanged += OnFolderChanged;
+        tab.PropertyChanged += OnTabChanged;
         BuildHeader();
         UpdateSkeleton();
         EnsureVisible();
@@ -144,6 +155,54 @@ public sealed partial class DetailsGrid : UserControl
         _tab.Items.PropertyChanged -= OnItemsChanged;
         _tab.Items.Rows.CollectionChanged -= OnRowsChanged;
         _tab.Folder.PropertyChanged -= OnFolderChanged;
+        _tab.PropertyChanged -= OnTabChanged;
+    }
+
+    /// <summary>The rename box opens on the row of <see cref="TabViewModel.Renaming"/> and closes when it is cleared.</summary>
+    private void OnTabChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Both views stay bound to the tab; the one that is not on screen leaves the rename box to the other.
+        if (e.PropertyName != nameof(TabViewModel.Renaming) || _tab is null || (Visibility != Visibility.Visible && _tab.Renaming is not null))
+        {
+            return;
+        }
+
+        var hadFocus = false;
+        foreach (var row in _realized.ToList())
+        {
+            hadFocus |= row.UpdateEditor();
+        }
+
+        if (_tab.Renaming is { } target)
+        {
+            var rows = _tab.Items.Rows;
+            for (var i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Location == target)
+                {
+                    ScrollToIndex(i);
+                    break;
+                }
+            }
+        }
+        else if (hadFocus)
+        {
+            FocusGrid();
+        }
+    }
+
+    /// <summary>The rows whose lines touch <paramref name="area"/> (in the coordinates of the row list).</summary>
+    private IEnumerable<int> RowsUnder(Windows.Foundation.Rect area)
+    {
+        if (_tab is null || area.Bottom < 0)
+        {
+            return [];
+        }
+
+        var count = _tab.Items.Rows.Count;
+        var first = Math.Max(0, (int)Math.Floor(area.Top / GridRow.RowHeight));
+        var last = Math.Min(count - 1, (int)Math.Floor(area.Bottom / GridRow.RowHeight));
+        return first > last ? [] : Enumerable.Range(first, last - first + 1);
     }
 
     // Rows -------------------------------------------------------------------------------------------------------------
@@ -279,9 +338,23 @@ public sealed partial class DetailsGrid : UserControl
         return null;
     }
 
+    /// <summary>True when the event came from inside a rename box, which handles its own mouse and keys.</summary>
+    internal static bool InEditor(object? source)
+    {
+        for (var element = source as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is RenameBox)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void OnBodyPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_tab is null)
+        if (_tab is null || InEditor(e.OriginalSource))
         {
             return;
         }
@@ -307,9 +380,16 @@ public sealed partial class DetailsGrid : UserControl
         var row = RowOf(e.OriginalSource);
         if (row?.Entry is not { } entry)
         {
-            if (point.IsLeftButtonPressed && !KeyTranslator.IsDown(VirtualKey.Control) && !KeyTranslator.IsDown(VirtualKey.Shift))
+            var ctrl = KeyTranslator.IsDown(VirtualKey.Control);
+            if (point.IsLeftButtonPressed && !ctrl && !KeyTranslator.IsDown(VirtualKey.Shift))
             {
                 _tab.Selection.Clear();
+            }
+
+            // Empty space: dragging from here draws the rubber band (spec §8.4).
+            if (point.IsLeftButtonPressed)
+            {
+                _band.Press(e, _tab.Selection, additive: ctrl);
             }
 
             return;
@@ -326,7 +406,7 @@ public sealed partial class DetailsGrid : UserControl
 
     private void OnBodyDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (RowOf(e.OriginalSource)?.Entry is { } entry)
+        if (!InEditor(e.OriginalSource) && RowOf(e.OriginalSource)?.Entry is { } entry)
         {
             e.Handled = true;
             ItemInvoked?.Invoke(this, entry);
@@ -335,6 +415,11 @@ public sealed partial class DetailsGrid : UserControl
 
     private void OnBodyRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        if (InEditor(e.OriginalSource))
+        {
+            return;
+        }
+
         e.Handled = true;
         RowContextRequested?.Invoke(this, RowOf(e.OriginalSource)?.Entry);
     }
@@ -343,7 +428,7 @@ public sealed partial class DetailsGrid : UserControl
 
     private void OnGridKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (_tab is null)
+        if (_tab is null || InEditor(e.OriginalSource))
         {
             return;
         }
@@ -379,6 +464,20 @@ public sealed partial class DetailsGrid : UserControl
                 ItemInvoked?.Invoke(this, entry);
             }
 
+            return;
+        }
+
+        if (e.Key == VirtualKey.Space && !alt)
+        {
+            // Space toggles the focused row (spec §8.4).
+            e.Handled = _tab.Selection.ToggleFocus();
+            return;
+        }
+
+        if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            _tab.Selection.Clear();
             return;
         }
 

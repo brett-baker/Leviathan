@@ -22,12 +22,14 @@ public sealed partial class FlowView : UserControl
     private readonly HashSet<FlowCell> _realized = [];
     private readonly Stack<FlowCell> _pool = new();
     private TabViewModel? _tab;
+    private readonly BandDrag _band;
     private bool _hasFocus;
 
     /// <summary>Creates the view.</summary>
     public FlowView()
     {
         InitializeComponent();
+        _band = new BandDrag(Scroller, Repeater, Band, vertical: true, ItemsUnder);
         Repeater.ElementPrepared += OnElementPrepared;
         Repeater.ElementClearing += OnElementClearing;
         Repeater.ItemTemplate = new CellFactory(this);
@@ -56,6 +58,14 @@ public sealed partial class FlowView : UserControl
 
     /// <summary>Ctrl+wheel in Thumbnails: positive notches make thumbnails bigger.</summary>
     internal event EventHandler<int>? ZoomRequested;
+
+    /// <summary>The inline rename box was closed: Enter, Tab, click-away (rename) or Esc (cancel).</summary>
+    internal event EventHandler<RenameResult>? RenameFinished;
+
+    internal void RaiseRenameFinished(RenameResult result) => RenameFinished?.Invoke(this, result);
+
+    /// <summary>The item whose rename box is showing, or null.</summary>
+    internal Core.Paths.LocationPath? Renaming => _tab?.Renaming;
 
     internal SelectionModel? Selection => _tab?.Selection;
 
@@ -88,6 +98,52 @@ public sealed partial class FlowView : UserControl
         tab.Folder.PropertyChanged += OnFolderChanged;
         Configure();
         EnsureVisible();
+    }
+
+    /// <summary>The items whose cells touch <paramref name="area"/> (in the coordinates of the item area).</summary>
+    private IEnumerable<int> ItemsUnder(Windows.Foundation.Rect area)
+    {
+        if (_tab is null)
+        {
+            return [];
+        }
+
+        var list = Mode == ViewLayout.List;
+        return ItemFlow.IndexesIn(
+            area.Left, area.Top, area.Right, area.Bottom, _tab.Items.Rows.Count,
+            list ? ItemFlow.ListItemWidth : ItemFlow.CellWidth(Size),
+            list ? ItemFlow.ListItemHeight : ItemFlow.CellHeight(Size),
+            ItemsPerLine, list);
+    }
+
+    /// <summary>The rename box opens on the cell of <see cref="TabViewModel.Renaming"/> and closes when it is cleared.</summary>
+    private void OnRenamingChanged()
+    {
+        // Both views stay bound to the tab; only the one on screen has anything to show or scroll (a collapsed repeater cannot
+        // create elements: crash signature 182fdb45375a).
+        if (_tab is null || Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var hadFocus = false;
+        foreach (var cell in _realized.ToList())
+        {
+            hadFocus |= cell.UpdateEditor();
+        }
+
+        if (_tab.Renaming is { } target)
+        {
+            var index = IndexOf(target);
+            if (index >= 0)
+            {
+                Repeater.GetOrCreateElement(index).StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
+            }
+        }
+        else if (hadFocus)
+        {
+            FocusGrid();
+        }
     }
 
     /// <summary>Puts the keyboard focus on the view.</summary>
@@ -152,6 +208,7 @@ public sealed partial class FlowView : UserControl
         }
 
         var list = Mode == ViewLayout.List;
+        _band.Vertical = !list;
         Scroller.HorizontalScrollBarVisibility = list ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
         Scroller.HorizontalScrollMode = list ? ScrollMode.Auto : ScrollMode.Disabled;
         Scroller.VerticalScrollBarVisibility = list ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
@@ -178,6 +235,10 @@ public sealed partial class FlowView : UserControl
         {
             Configure();
             EnsureVisible();
+        }
+        else if (e.PropertyName == nameof(TabViewModel.Renaming))
+        {
+            OnRenamingChanged();
         }
     }
 
@@ -257,7 +318,7 @@ public sealed partial class FlowView : UserControl
 
     private void OnBodyPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_tab is null)
+        if (_tab is null || DetailsGrid.InEditor(e.OriginalSource))
         {
             return;
         }
@@ -282,9 +343,16 @@ public sealed partial class FlowView : UserControl
 
         if (CellOf(e.OriginalSource)?.Entry is not { } entry)
         {
-            if (point.IsLeftButtonPressed && !KeyTranslator.IsDown(VirtualKey.Control) && !KeyTranslator.IsDown(VirtualKey.Shift))
+            var ctrl = KeyTranslator.IsDown(VirtualKey.Control);
+            if (point.IsLeftButtonPressed && !ctrl && !KeyTranslator.IsDown(VirtualKey.Shift))
             {
                 _tab.Selection.Clear();
+            }
+
+            // Empty space: dragging from here draws the rubber band (spec §8.4).
+            if (point.IsLeftButtonPressed)
+            {
+                _band.Press(e, _tab.Selection, additive: ctrl);
             }
 
             return;
@@ -301,7 +369,7 @@ public sealed partial class FlowView : UserControl
 
     private void OnBodyDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (CellOf(e.OriginalSource)?.Entry is { } entry)
+        if (!DetailsGrid.InEditor(e.OriginalSource) && CellOf(e.OriginalSource)?.Entry is { } entry)
         {
             e.Handled = true;
             ItemInvoked?.Invoke(this, entry);
@@ -310,6 +378,11 @@ public sealed partial class FlowView : UserControl
 
     private void OnBodyRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        if (DetailsGrid.InEditor(e.OriginalSource))
+        {
+            return;
+        }
+
         e.Handled = true;
         RowContextRequested?.Invoke(this, CellOf(e.OriginalSource)?.Entry);
     }
@@ -334,7 +407,7 @@ public sealed partial class FlowView : UserControl
 
     private void OnGridKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (_tab is null)
+        if (_tab is null || DetailsGrid.InEditor(e.OriginalSource))
         {
             return;
         }
@@ -401,6 +474,20 @@ public sealed partial class FlowView : UserControl
                 ItemInvoked?.Invoke(this, entry);
             }
 
+            return;
+        }
+
+        if (e.Key == VirtualKey.Space && !alt)
+        {
+            // Space toggles the focused item (spec §8.4).
+            e.Handled = _tab.Selection.ToggleFocus();
+            return;
+        }
+
+        if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            _tab.Selection.Clear();
             return;
         }
 

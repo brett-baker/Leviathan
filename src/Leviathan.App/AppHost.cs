@@ -57,8 +57,10 @@ internal sealed class AppHost
         FavoritesList favorites,
         ISubfolderSource sidebarSource,
         NewItemService newItems,
-        ViewOptions viewOptions)
+        ViewOptions viewOptions,
+        RenameService renamer)
     {
+        Renamer = renamer;
         NewItems = newItems;
         ViewOptions = viewOptions;
         Thumbnails = thumbnails;
@@ -89,6 +91,9 @@ internal sealed class AppHost
 
     /// <summary>The New menu: built-in items, apps registered through ShellNew and the user's templates (spec §6.1).</summary>
     public NewItemService NewItems { get; }
+
+    /// <summary>Renames files and folders for the inline rename box.</summary>
+    public RenameService Renamer { get; }
 
     /// <summary>Whether hidden and system items are listed; one switch for all windows.</summary>
     public ViewOptions ViewOptions { get; }
@@ -170,7 +175,8 @@ internal sealed class AppHost
             new FavoritesList(new JsonFavoritesStorage()),
             new ProviderSubfolderSource(providers),
             newItems,
-            viewOptions);
+            viewOptions,
+            new RenameService(disk));
     }
 }
 

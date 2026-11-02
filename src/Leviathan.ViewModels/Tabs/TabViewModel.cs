@@ -4,6 +4,7 @@
 #pragma warning disable CA2007
 
 using CommunityToolkit.Mvvm.ComponentModel;
+using Leviathan.Core.Model;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
 using Leviathan.ViewModels.Folders;
@@ -76,6 +77,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _filterText = string.Empty;
+
+    [ObservableProperty]
+    private LocationPath? _renaming;
 
     /// <summary>Creates a tab at <paramref name="start"/>.</summary>
     public TabViewModel(TabServices services, LocationPath start)
@@ -228,6 +232,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>Sets the layout and remembers it for this tab until the next navigation resolves a saved view.</summary>
     public void SetLayout(ViewLayout layout)
     {
+        // The rename box belongs to the view that showed it.
+        Renaming = null;
         Layout = layout;
         KeepCurrentView();
     }
@@ -263,6 +269,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(location);
         _pendingSelection = [location];
+        Renaming = null;
         Folder.Options = ListingNow();
         await Folder.LoadAsync(History.Current, cancellationToken);
         SelectAfterLoad(null);
@@ -284,6 +291,28 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         FilterText = text ?? string.Empty;
         Items.SetFilter(text);
     }
+
+    /// <summary>
+    /// The item the user means by "this one" for rename: the only selected item, or the focused item when it is selected. Null
+    /// when the selection is empty or has several items.
+    /// </summary>
+    public FileEntry? RenameTarget()
+    {
+        var selected = Selection.SelectedEntries;
+        return selected.Count == 1 ? selected[0] : null;
+    }
+
+    /// <summary>F2 and New: shows the rename box on <paramref name="entry"/> (the view scrolls to it and focuses the box).</summary>
+    public void BeginRename(FileEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        Selection.Click(entry);
+        Renaming = null;
+        Renaming = entry.Location;
+    }
+
+    /// <summary>Hides the rename box without renaming.</summary>
+    public void CancelRename() => Renaming = null;
 
     /// <summary>Sets where folders sort in this tab.</summary>
     public void SetFolderPlacement(FolderPlacement placement)
@@ -354,6 +383,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         // A navigation resolves the saved view for the new folder; a view set explicitly on this tab only lasts until then.
         _useExplicitView = false;
+        Renaming = null;
         Address.Show(result.Location);
         _services.Recent?.Add(result.Location);
         OnPropertyChanged(nameof(Title));

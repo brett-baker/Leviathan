@@ -199,8 +199,11 @@ public static class CommandIds
     /// <summary>Paste (Ctrl+V). Arrives with slice E5.</summary>
     public static readonly CommandId EditPaste = new("edit.paste");
 
-    /// <summary>Rename (F2). Arrives with slice D8.</summary>
+    /// <summary>Rename (F2): shows the inline rename box on the selected item.</summary>
     public static readonly CommandId EditRename = new("edit.rename");
+
+    /// <summary>Finish an inline rename. Target: the new name. Parameter: true to go on to the next item (Tab).</summary>
+    public static readonly CommandId RenameCommit = new("edit.renameCommit");
 
     /// <summary>Delete (Del). Arrives with slice E3.</summary>
     public static readonly CommandId EditDelete = new("edit.delete");
@@ -332,7 +335,8 @@ public static partial class WindowCommands
         Func<LocationPath> home,
         Sidebar.FavoritesList? favorites = null,
         NewMenu.NewItemService? newItems = null,
-        Views.ViewOptions? viewOptions = null)
+        Views.ViewOptions? viewOptions = null,
+        Folders.RenameService? renamer = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -616,6 +620,12 @@ public static partial class WindowCommands
                 var created = await newItems!.CreateAsync(templateId, tab.History.Current, ct);
                 shell.ShowMessage($"Created {created.Name}");
                 await tab.ReloadAndSelectAsync(created, ct);
+
+                // New items open with the rename box focused (spec §6.1).
+                if (renamer is not null && tab.Items.Rows.FirstOrDefault(r => r.Location == created) is { } row)
+                {
+                    tab.BeginRename(row);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or KeyNotFoundException)
             {
@@ -627,6 +637,64 @@ public static partial class WindowCommands
 
         Add(CommandIds.NewFolder, "New folder", "New", (_, ct) => CreateNew(NewMenu.NewItemService.FolderTemplate.Id, ct), _ => CanCreateHere(), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
         Add(CommandIds.NewItem, "New item", "New", (c, ct) => CreateNew(c.Target!, ct), c => CanCreateHere() && !string.IsNullOrEmpty(c.Target));
+
+        // Inline rename (spec §8.4): F2 shows the box, the box's Enter / Tab / click-away runs RenameCommit.
+        bool CanRenameHere() => renamer is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.RenameTarget() is not null;
+
+        Add(CommandIds.EditRename, "Rename", "Edit", (_, _) => Run(() => Current()!.BeginRename(Current()!.RenameTarget()!)), _ => CanRenameHere(), shortcut: "F2", icon: "Rename");
+
+        Add(CommandIds.RenameCommit, "Finish renaming", "Edit", async (c, ct) =>
+        {
+            var tab = Current()!;
+            var location = tab.Renaming!;
+            var text = c.Target?.Trim() ?? string.Empty;
+            var goNext = c.Parameter is true;
+            var renamed = location;
+            if (text != location.Name)
+            {
+                if (Folders.RenameRules.Validate(text) is { } problem)
+                {
+                    // The box stays open so the name can be fixed.
+                    shell.ShowMessage(problem);
+                    return;
+                }
+
+                try
+                {
+                    renamed = await renamer!.RenameAsync(location, text, ct);
+                    shell.ShowMessage($"Renamed to {renamed.Name}");
+                    await tab.ReloadAndSelectAsync(renamed, ct);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    tab.CancelRename();
+                    shell.ShowMessage($"Could not rename it: {ex.Message}");
+                    return;
+                }
+            }
+
+            tab.CancelRename();
+
+            // Tab goes on to rename the next item (spec §8.4).
+            if (goNext)
+            {
+                var rows = tab.Items.Rows;
+                var at = -1;
+                for (var i = 0; i < rows.Count; i++)
+                {
+                    if (rows[i].Location == renamed)
+                    {
+                        at = i;
+                        break;
+                    }
+                }
+
+                if (at >= 0 && at + 1 < rows.Count)
+                {
+                    tab.BeginRename(rows[at + 1]);
+                }
+            }
+        }, c => renamer is not null && Current()?.Renaming is not null && c.Target is not null);
 
         Add(CommandIds.TerminalHere, "Open terminal here", "Files", async (_, ct) =>
         {
@@ -727,6 +795,7 @@ public static partial class WindowCommands
             ("Ctrl+Shift+N", CommandIds.NewFolder),
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
             ("Alt+P", CommandIds.PreviewPane),
+            ("F2", CommandIds.EditRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),

@@ -37,6 +37,7 @@ internal sealed class FlowCell : Grid
         Visibility = Visibility.Collapsed,
     };
 
+    private readonly RenameBox _editor = new();
     private CancellationTokenSource? _loading;
     private ViewLayout _layout = ViewLayout.Details;
     private int _size;
@@ -46,6 +47,7 @@ internal sealed class FlowCell : Grid
     public FlowCell(FlowView owner)
     {
         _owner = owner;
+        _editor.Finished += (_, result) => _owner.RaiseRenameFinished(result);
         Background = new SolidColorBrush(Colors.Transparent);
         CornerRadius = new CornerRadius(4);
         PointerEntered += (_, _) => SetHover(true);
@@ -79,6 +81,7 @@ internal sealed class FlowCell : Grid
         _image.Visibility = Visibility.Collapsed;
         _glyph.Visibility = Visibility.Visible;
         UpdateVisuals();
+        UpdateEditor();
         if (layout == ViewLayout.Thumbnails)
         {
             _ = LoadThumbnailAsync(entry, size);
@@ -89,8 +92,33 @@ internal sealed class FlowCell : Grid
     public void Unbind()
     {
         CancelLoading();
+        _editor.Hide();
         Entry = null;
         _image.Source = null;
+    }
+
+    /// <summary>
+    /// Shows or hides the inline rename box to match the tab's rename state. Returns true when it closed a box that had the
+    /// keyboard focus, so the view can take the focus back.
+    /// </summary>
+    public bool UpdateEditor()
+    {
+        if (Entry is not { } entry)
+        {
+            return false;
+        }
+
+        var wanted = _owner.Renaming == entry.Location;
+        if (wanted && !_editor.IsOpen)
+        {
+            _editor.Begin(entry);
+        }
+        else if (!wanted && _editor.IsOpen)
+        {
+            return _editor.Hide();
+        }
+
+        return false;
     }
 
     /// <summary>Sets the background and focus outline from the selection model.</summary>
@@ -124,6 +152,7 @@ internal sealed class FlowCell : Grid
     {
         _layout = layout;
         _size = size;
+        _editor.Hide();
         // The glyph and image move between the picture holder (Thumbnails) and the cell itself (List).
         _picture.Children.Clear();
         Children.Clear();
@@ -142,6 +171,12 @@ internal sealed class FlowCell : Grid
             _name.TextAlignment = TextAlignment.Center;
             _name.VerticalAlignment = VerticalAlignment.Top;
             _name.Margin = new Thickness(0, 6, 0, 0);
+            _editor.TextWrapping = TextWrapping.Wrap;
+            _editor.TextAlignment = TextAlignment.Center;
+            _editor.VerticalAlignment = VerticalAlignment.Top;
+            _editor.Margin = new Thickness(0, 4, 0, 0);
+            SetRow(_editor, 1);
+            SetColumn(_editor, 0);
             SetRow(_name, 1);
             _picture.Children.Add(_glyph);
             _picture.Children.Add(_image);
@@ -160,12 +195,19 @@ internal sealed class FlowCell : Grid
             _name.TextAlignment = TextAlignment.Left;
             _name.VerticalAlignment = VerticalAlignment.Center;
             _name.Margin = new Thickness(0, 0, 8, 0);
+            _editor.TextWrapping = TextWrapping.NoWrap;
+            _editor.TextAlignment = TextAlignment.Left;
+            _editor.VerticalAlignment = VerticalAlignment.Center;
+            _editor.Margin = new Thickness(0, 0, 8, 0);
+            SetRow(_editor, 0);
+            SetColumn(_editor, 1);
             SetRow(_name, 0);
             SetColumn(_name, 1);
             Children.Add(_glyph);
         }
 
         Children.Add(_name);
+        Children.Add(_editor);
         SetRowSpan(_focus, Math.Max(1, RowDefinitions.Count));
         SetColumnSpan(_focus, Math.Max(1, ColumnDefinitions.Count));
         Children.Add(_focus);

@@ -267,6 +267,46 @@ public sealed class SelectionModel
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Rubber band over a set of row indexes (the views work them out from item geometry, so a drag over 100,000 rows costs
+    /// only what is under the band). With <paramref name="selectedBeforeDrag"/> (Ctrl held) the earlier selection stays.
+    /// </summary>
+    public void ApplyRubberBand(IEnumerable<int> indexes, IReadOnlySet<LocationPath>? selectedBeforeDrag = null)
+    {
+        ArgumentNullException.ThrowIfNull(indexes);
+        var next = new HashSet<LocationPath>(selectedBeforeDrag ?? new HashSet<LocationPath>());
+        foreach (var index in indexes)
+        {
+            if (index >= 0 && index < _rows.Count)
+            {
+                next.Add(_rows[index].Location);
+            }
+        }
+
+        if (next.SetEquals(_selected))
+        {
+            return;
+        }
+
+        _selected.Clear();
+        _selected.UnionWith(next);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Space in keyboard mode: toggles the item with the focus.</summary>
+    /// <returns>False when nothing has the focus.</returns>
+    public bool ToggleFocus()
+    {
+        var index = Focus is null ? -1 : IndexOf(Focus);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        Toggle(_rows[index]);
+        return true;
+    }
+
     /// <summary>A copy of the current selection, to pass as the "before drag" set for an additive rubber band.</summary>
     public IReadOnlySet<LocationPath> Snapshot() => new HashSet<LocationPath>(_selected);
 

@@ -38,6 +38,7 @@ internal sealed class GridRow : Grid
     };
 
     private string _signature = string.Empty;
+    private RenameBox? _editor;
     private bool _hover;
 
     /// <summary>Creates an empty row for <paramref name="owner"/>.</summary>
@@ -85,10 +86,39 @@ internal sealed class GridRow : Grid
         EnsureCells();
         Fill();
         UpdateVisuals();
+        UpdateEditor();
     }
 
     /// <summary>Releases the entry so a recycled row holds nothing.</summary>
-    public void Unbind() => Entry = null;
+    public void Unbind()
+    {
+        _editor?.Hide();
+        Entry = null;
+    }
+
+    /// <summary>
+    /// Shows or hides the inline rename box to match the tab's rename state. Returns true when it closed a box that had the
+    /// keyboard focus, so the grid can take the focus back.
+    /// </summary>
+    public bool UpdateEditor()
+    {
+        if (_editor is null || Entry is not { } entry)
+        {
+            return false;
+        }
+
+        var wanted = _owner.Renaming == entry.Location;
+        if (wanted && !_editor.IsOpen)
+        {
+            _editor.Begin(entry);
+        }
+        else if (!wanted && _editor.IsOpen)
+        {
+            return _editor.Hide();
+        }
+
+        return false;
+    }
 
     /// <summary>Applies the current column widths and the row width.</summary>
     public void ApplyWidths()
@@ -165,6 +195,7 @@ internal sealed class GridRow : Grid
         Children.Clear();
         ColumnDefinitions.Clear();
         _cells.Clear();
+        _editor = null;
         for (var i = 0; i < slots.Count; i++)
         {
             var slot = slots[i];
@@ -189,6 +220,11 @@ internal sealed class GridRow : Grid
                 SetColumn(text, 1);
                 text.Margin = new Thickness(8, 0, 8, 0);
                 panel.Children.Add(text);
+                _editor = new RenameBox { Margin = new Thickness(4, 0, 8, 0) };
+                _editor.Finished += (_, result) => _owner.RaiseRenameFinished(result);
+                SetColumn(_editor, 1);
+                panel.Children.Add(_editor);
+                panel.IsHitTestVisible = true;
                 element = panel;
             }
             else

@@ -9,13 +9,21 @@
     AutomationProperties.Name="Files">
 
   <!-- Spec 8.1: List (columns of names, scrolls sideways) and Thumbnails (a wrapping grid, scrolls down). -->
-  <ScrollViewer x:Name="Scroller"
-                IsTabStop="False"
-                AllowFocusOnInteraction="False"
-                ZoomMode="Disabled"
-                PointerPressed="OnBodyPointerPressed"
-                DoubleTapped="OnBodyDoubleTapped"
-                RightTapped="OnBodyRightTapped">
-    <muxc:ItemsRepeater x:Name="Repeater" Margin="4" />
-  </ScrollViewer>
+  <Grid>
+    <ScrollViewer x:Name="Scroller"
+                  IsTabStop="False"
+                  AllowFocusOnInteraction="False"
+                  ZoomMode="Disabled"
+                  PointerPressed="OnBodyPointerPressed"
+                  DoubleTapped="OnBodyDoubleTapped"
+                  RightTapped="OnBodyRightTapped">
+      <muxc:ItemsRepeater x:Name="Repeater" Margin="4" />
+    </ScrollViewer>
+
+    <!-- The rubber band (spec 8.4), drawn over the items in viewport coordinates. -->
+    <Canvas x:Name="BandLayer" IsHitTestVisible="False">
+      <Rectangle x:Name="Band" Visibility="Collapsed" StrokeThickness="1" RadiusX="2" RadiusY="2"
+                 Stroke="{ThemeResource AccentFillColorDefaultBrush}" Fill="{ThemeResource AccentFillColorSecondaryBrush}" Opacity="0.55" />
+    </Canvas>
+  </Grid>
 </UserControl>

@@ -58,7 +58,7 @@ public sealed class WindowCommandsTests
 
     internal sealed class Harness
     {
-        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null)
+        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null, Folders.RenameService? renamer = null)
         {
             var services = TabTestSupport.Services() with { Options = viewOptions };
             Windows = new WindowManager(services);
@@ -71,7 +71,7 @@ public sealed class WindowCommandsTests
             fs.AddDirectory(@"C:\a\b");
             fs.AddDirectory(@"C:\v");
             fs.AddFile(@"C:\a\1.txt", new MockFileData("x"));
-            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions);
+            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions, renamer);
             Ready = Window.Tabs.Selected!.ReloadAsync(CancellationToken.None);
         }
 

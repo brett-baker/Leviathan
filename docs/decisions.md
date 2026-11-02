@@ -9,3 +9,7 @@ One line each: the decision, then why. Newest last.
 - **D7: the context zone shows only actions whose command is registered.** The §6.2 table is encoded in full (ContextActions.Wanted) but a button that does nothing is worse than a missing one; the zone fills in as features land.
 - **D7: Ctrl+Shift+F focuses the filter box.** Ctrl+F is reserved for search (Phase 4); filtering is per tab and clears when the tab navigates.
 - **D7: Ctrl+A selects rows unless a text box has focus.** The window-level key map would otherwise swallow Ctrl+A in the address and filter boxes.
+- **D8: Ctrl+click on an item toggles its selection; it does not open a folder in a new tab.** The spec (§5.1) gives Ctrl+click both jobs; multi-select is used far more. Middle-click, the command bar and the sidebar menu open folders in new tabs.
+- **D8: rename runs straight on the thread pool for now.** `RenameService` is the seam: slice E4 routes it through the journaled worker so it can be undone.
+- **D8: a rename box that is refused (bad name) stays open; one that fails on disk (name taken, access denied) closes with the reason in the status bar.**
+- **D8: the rubber band starts only on empty space.** In Details the rows span the full width, so that means below the last row; dragging from a row will start drag and drop (D9).

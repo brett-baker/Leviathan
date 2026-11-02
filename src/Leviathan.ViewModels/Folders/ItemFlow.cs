@@ -121,6 +121,53 @@ public static class ItemFlow
         return target;
     }
 
+    /// <summary>
+    /// Indexes of the items whose cells touch a rubber band (spec §8.4). The band is in the coordinates of the item area, whose
+    /// first cell starts at 0,0. Only the cells under the band are visited, so a band over a 100,000-item folder is cheap.
+    /// </summary>
+    public static IEnumerable<int> IndexesIn(double left, double top, double right, double bottom, int count, double itemWidth, double itemHeight, int perLine, bool columnMajor)
+    {
+        var stepX = itemWidth + Spacing;
+        var stepY = itemHeight + Spacing;
+        var firstX = Math.Max(0, (int)Math.Ceiling((left - itemWidth) / stepX));
+        var lastX = (int)Math.Floor(right / stepX);
+        var firstY = Math.Max(0, (int)Math.Ceiling((top - itemHeight) / stepY));
+        var lastY = (int)Math.Floor(bottom / stepY);
+        if (right < 0 || bottom < 0)
+        {
+            yield break;
+        }
+
+        // Thumbnails fill rows left to right (perLine columns); List fills columns top to bottom (perLine rows).
+        if (columnMajor)
+        {
+            lastY = Math.Min(lastY, perLine - 1);
+        }
+        else
+        {
+            lastX = Math.Min(lastX, perLine - 1);
+        }
+
+        for (var y = firstY; y <= lastY; y++)
+        {
+            for (var x = firstX; x <= lastX; x++)
+            {
+                var index = columnMajor ? (x * perLine) + y : (y * perLine) + x;
+                if (index >= count)
+                {
+                    if (columnMajor)
+                    {
+                        break;
+                    }
+
+                    yield break;
+                }
+
+                yield return index;
+            }
+        }
+    }
+
     /// <summary>Distance for PageUp / PageDown: a screenful of lines, less one so the last line stays in view.</summary>
     public static int PageDelta(int visibleLines, int perLine) => Math.Max(1, visibleLines - 1) * perLine;
 }

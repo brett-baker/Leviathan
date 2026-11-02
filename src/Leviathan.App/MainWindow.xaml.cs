@@ -55,7 +55,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer);
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -66,6 +66,8 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
         FileList.KeyDown += OnFileKeyDown;
+        FileList.RenameFinished += OnRenameFinished;
+        FlowList.RenameFinished += OnRenameFinished;
         _sidebar = new SidebarTree(host.SidebarSource);
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
@@ -197,7 +199,7 @@ public sealed partial class MainWindow : Window, IShellActions
         if (KeyTranslator.ToGesture(e.Key) is { } gesture && App.Host.Keys.Resolve(gesture, _viewModel.Tabs.Selected?.IsSplit == true) is { } command)
         {
             // In a text box Ctrl+A selects the text, not the rows.
-            if (command == CommandIds.SelectAll && IsEditingText())
+            if ((command == CommandIds.SelectAll || command == CommandIds.EditRename) && IsEditingText())
             {
                 return;
             }
@@ -466,8 +468,27 @@ public sealed partial class MainWindow : Window, IShellActions
     private void OnSelectionChanged(object? sender, EventArgs e) => OnUi(() =>
     {
         UpdateStatus();
-        RefreshContextZone();
+        RefreshCommandBar();
     });
+
+    /// <summary>The rename box closed: rename (Enter, Tab, click away) or leave the name alone (Esc).</summary>
+    private void OnRenameFinished(object? sender, RenameResult result)
+    {
+        if (_bound is null)
+        {
+            return;
+        }
+
+        if (result.Commit)
+        {
+            Run(CommandIds.RenameCommit, result.Text, result.Next);
+        }
+        else
+        {
+            _bound.CancelRename();
+            FocusFiles();
+        }
+    }
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavReload);
 

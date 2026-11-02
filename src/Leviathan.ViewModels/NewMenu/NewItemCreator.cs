@@ -1,5 +1,4 @@
 using System.IO.Abstractions;
-using System.Text.RegularExpressions;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 
@@ -10,7 +9,7 @@ namespace Leviathan.ViewModels.NewMenu;
 /// ("New Text Document.txt", then "New Text Document (2).txt"); the caller then opens the inline rename box on the result.
 /// Creation never overwrites: a name that appears between the check and the write is skipped.
 /// </summary>
-public sealed partial class NewItemCreator
+public sealed class NewItemCreator
 {
     private const int MaxAttempts = 1000;
 
@@ -76,9 +75,9 @@ public sealed partial class NewItemCreator
 
     private static void ValidateName(string name)
     {
-        if (name.Length == 0 || name.Length > 255 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name.EndsWith('.') || ReservedName().IsMatch(name))
+        if (Folders.RenameRules.Validate(name) is { } problem)
         {
-            throw new ArgumentException($"'{name}' is not a valid file name.", nameof(name));
+            throw new ArgumentException(problem, nameof(name));
         }
     }
 
@@ -121,7 +120,4 @@ public sealed partial class NewItemCreator
                 return true;
         }
     }
-
-    [GeneratedRegex(@"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex ReservedName();
 }
