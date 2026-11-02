@@ -50,8 +50,10 @@ internal sealed class AppHost
         LocationPath home,
         RecentLocations recent,
         AddressCompleter completer,
-        SubfolderMenu subfolders)
+        SubfolderMenu subfolders,
+        IThumbnailCache thumbnails)
     {
+        Thumbnails = thumbnails;
         Windows = windows;
         Resolver = resolver;
         Launcher = launcher;
@@ -74,6 +76,9 @@ internal sealed class AppHost
     public IVolumeInfo Volumes { get; }
 
     public KeyMap Keys { get; }
+
+    /// <summary>Thumbnails and icons for the Thumbnails layout, shared by all windows (spec §3.1: size-capped, off the UI thread).</summary>
+    public IThumbnailCache Thumbnails { get; }
 
     /// <summary>Folders visited recently (shared by all tabs and windows).</summary>
     public RecentLocations Recent { get; }
@@ -129,7 +134,8 @@ internal sealed class AppHost
             home,
             recent,
             new AddressCompleter(lister),
-            new SubfolderMenu(lister));
+            new SubfolderMenu(lister),
+            new ThumbnailCache(new ShellThumbnailSource()));
     }
 }
 

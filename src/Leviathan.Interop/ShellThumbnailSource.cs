@@ -85,27 +85,49 @@ public sealed unsafe class ShellThumbnailSource : IThumbnailSource, IDisposable
         hr.Value is unchecked((int)0x80070002) or unchecked((int)0x80070003) or unchecked((int)0x8007007B);
 
     /// <summary>
-    /// Copies the 32-bit DIB section the shell returns into a tightly packed BGRA array. The shell's bitmap is already top-down,
-    /// which the upright-image test in Leviathan.Interop.Tests guards; flipping it would turn every thumbnail upside-down.
+    /// Copies the bitmap the shell returns into a tightly packed, top-down BGRA array. The shell hands back a top-down DIB for
+    /// a thumbnail it has just made and a bottom-up one when it serves it from its own cache, and <c>GetObject</c> reports the
+    /// same height for both. So the rows are not read from the bits directly: <c>GetDIBits</c> with a negative height makes GDI
+    /// deliver them top row first whatever the source order.
     /// </summary>
     private static ThumbnailImage? CopyPixels(HBITMAP bitmap)
     {
         BITMAP info = default;
-        if (PInvoke.GetObject((HGDIOBJ)bitmap, sizeof(BITMAP), &info) == 0 || info.bmBitsPixel != 32 || info.bmBits is null || info.bmWidth <= 0 || info.bmHeight <= 0)
+        if (PInvoke.GetObject((HGDIOBJ)bitmap, sizeof(BITMAP), &info) == 0 || info.bmWidth <= 0 || info.bmHeight <= 0)
         {
             return null;
         }
 
         var width = info.bmWidth;
         var height = info.bmHeight;
-        var rowBytes = width * 4;
-        var pixels = new byte[rowBytes * height];
-        var source = (byte*)info.bmBits;
-        for (var y = 0; y < height; y++)
+        var pixels = new byte[checked(width * 4 * height)];
+        var header = new BITMAPINFO
         {
-            new ReadOnlySpan<byte>(source + ((long)y * info.bmWidthBytes), rowBytes).CopyTo(pixels.AsSpan(y * rowBytes, rowBytes));
-        }
+            bmiHeader = new BITMAPINFOHEADER
+            {
+                biSize = (uint)sizeof(BITMAPINFOHEADER),
+                biWidth = width,
+                biHeight = -height,
+                biPlanes = 1,
+                biBitCount = 32,
+                biCompression = (uint)BI_COMPRESSION.BI_RGB,
+            },
+        };
 
-        return new ThumbnailImage(width, height, pixels);
+        var screen = PInvoke.GetDC(HWND.Null);
+        try
+        {
+            int copied;
+            fixed (byte* target = pixels)
+            {
+                copied = PInvoke.GetDIBits(screen, bitmap, 0, (uint)height, target, &header, DIB_USAGE.DIB_RGB_COLORS);
+            }
+
+            return copied == 0 ? null : new ThumbnailImage(width, height, pixels);
+        }
+        finally
+        {
+            _ = PInvoke.ReleaseDC(HWND.Null, screen);
+        }
     }
 }

@@ -64,6 +64,10 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
         FileList.KeyDown += OnFileKeyDown;
+        FlowList.ItemInvoked += OnFileInvoked;
+        FlowList.MiddleClicked += OnFileMiddleClicked;
+        FlowList.KeyDown += OnFileKeyDown;
+        FlowList.ZoomRequested += (_, notches) => Run(CommandIds.ViewZoom, parameter: notches);
         Address.Submitted += OnAddressSubmitted;
         Address.NavigationRequested += OnAddressNavigation;
         Address.EditEnded += OnAddressEditEnded;
@@ -173,7 +177,9 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (KeyTranslator.IsDown(VirtualKey.Control) && !KeyTranslator.IsDown(VirtualKey.Menu) && KeyTranslator.DigitOf(e.Key) is > 0 and var digit)
+        // Ctrl+Shift+digit is a layout shortcut (spec §8.1), plain Ctrl+digit selects a tab.
+        if (KeyTranslator.IsDown(VirtualKey.Control) && !KeyTranslator.IsDown(VirtualKey.Menu) && !KeyTranslator.IsDown(VirtualKey.Shift)
+            && KeyTranslator.DigitOf(e.Key) is > 0 and var digit)
         {
             e.Handled = true;
             Run(CommandIds.TabSelect, parameter: digit);
@@ -206,7 +212,46 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    private void OnAddressEditEnded(object? sender, EventArgs e) => FileList.FocusGrid();
+    private void OnAddressEditEnded(object? sender, EventArgs e) => FocusFiles();
+
+    /// <summary>Focuses whichever file view the tab's layout shows.</summary>
+    private void FocusFiles()
+    {
+        if (FlowList.Visibility == Visibility.Visible)
+        {
+            FlowList.FocusGrid();
+        }
+        else
+        {
+            FileList.FocusGrid();
+        }
+    }
+
+    /// <summary>Shows the Details grid or the List / Thumbnails view for the tab's layout, keeping the keyboard focus in the file view.</summary>
+    private void ApplyLayout()
+    {
+        var flow = _bound is { } tab && ItemFlow.IsFlow(tab.Layout);
+        if ((FlowList.Visibility == Visibility.Visible) == flow)
+        {
+            return;
+        }
+
+        var hadFocus = FileList.HasKeyboardFocus || FlowList.HasKeyboardFocus;
+        FlowList.Visibility = flow ? Visibility.Visible : Visibility.Collapsed;
+        FileList.Visibility = flow ? Visibility.Collapsed : Visibility.Visible;
+        if (hadFocus)
+        {
+            FocusFiles();
+        }
+    }
+
+    private void OnTabViewChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TabViewModel.Layout))
+        {
+            OnUi(ApplyLayout);
+        }
+    }
 
     private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(Address.RefreshStatus);
 
@@ -309,18 +354,23 @@ public sealed partial class MainWindow : Window, IShellActions
             _bound.Items.PropertyChanged -= OnItemsPropertyChanged;
             _bound.Selection.Changed -= OnSelectionChanged;
             _bound.Address.PropertyChanged -= OnAddressLocationChanged;
+            _bound.PropertyChanged -= OnTabViewChanged;
         }
 
         _bound = tab;
         if (tab is null)
         {
             FileList.Bind(null);
+            FlowList.Bind(null);
             Address.Bind(null);
             return;
         }
 
         using var bind = UiTrace.Begin("BindTab");
         FileList.Bind(tab);
+        FlowList.Bind(tab);
+        tab.PropertyChanged += OnTabViewChanged;
+        ApplyLayout();
         tab.Selection.Changed += OnSelectionChanged;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;

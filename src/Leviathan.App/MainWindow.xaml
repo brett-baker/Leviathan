@@ -126,6 +126,7 @@
       <!-- The file view (spec 8): the Details grid with its states laid over the rows (spec 8.6). -->
       <Grid Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6">
         <local:DetailsGrid x:Name="FileList" />
+        <local:FlowView x:Name="FlowList" Visibility="Collapsed" />
 
         <StackPanel x:Name="StatePanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
           <ProgressRing x:Name="StateRing" IsActive="False" Width="28" Height="28" />

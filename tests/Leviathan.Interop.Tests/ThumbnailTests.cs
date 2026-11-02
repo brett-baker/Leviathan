@@ -87,6 +87,36 @@ public sealed class ThumbnailTests : IDisposable
     }
 
     [Fact]
+    public async Task Thumbnail_AskedForAgain_StaysUpright_WhetherMadeFreshOrServedFromTheShellCache()
+    {
+        // The shell returns a bottom-up bitmap when it serves a thumbnail from its own cache; GetObject cannot tell the two apart.
+        using var source = new ShellThumbnailSource();
+        var path = WriteTwoColorBitmap("again.bmp");
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var image = await source.CreateAsync(Request(path, 128), CancellationToken.None);
+            Assert.NotNull(image);
+            AssertRedOnTop(image);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        var cached = await source.CreateAsync(Request(path, 128, ThumbnailMode.CachedOnly), CancellationToken.None);
+        if (cached is not null)
+        {
+            AssertRedOnTop(cached);
+        }
+    }
+
+    private static void AssertRedOnTop(ThumbnailImage image)
+    {
+        var top = Pixel(image, image.Width / 2, 2);
+        var bottom = Pixel(image, image.Width / 2, image.Height - 3);
+        Assert.True(top.R > 200 && top.B < 60, $"top pixel should be red, was B{top.B} G{top.G} R{top.R}");
+        Assert.True(bottom.B > 200 && bottom.R < 60, $"bottom pixel should be blue, was B{bottom.B} G{bottom.G} R{bottom.R}");
+    }
+
+    [Fact]
     public async Task IconOnly_OfATextFile_GivesTheFileTypeIcon()
     {
         using var source = new ShellThumbnailSource();

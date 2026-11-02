@@ -106,6 +106,39 @@ public sealed class WindowCommandsTests
     }
 
     [Fact]
+    public async Task ViewLayoutCommands_SwitchTheLayoutOfTheSelectedTab_AndKeysAreBound()
+    {
+        var h = new Harness();
+        await h.Ready;
+
+        await h.Run(CommandIds.ViewThumbnails);
+        Assert.Equal(Views.ViewLayout.Thumbnails, h.Tab.Layout);
+        await h.Run(CommandIds.ViewList);
+        Assert.Equal(Views.ViewLayout.List, h.Tab.Layout);
+        await h.Run(CommandIds.ViewDetails);
+        Assert.Equal(Views.ViewLayout.Details, h.Tab.Layout);
+
+        var keys = WindowCommands.DefaultKeyMap();
+        Assert.Equal(CommandIds.ViewThumbnails, keys.Resolve(KeyGesture.Parse("Ctrl+Shift+2"), isSplit: false));
+        Assert.Equal(CommandIds.ViewList, keys.Resolve(KeyGesture.Parse("Ctrl+Shift+5"), isSplit: false));
+        Assert.Equal(CommandIds.ViewDetails, keys.Resolve(KeyGesture.Parse("Ctrl+Shift+6"), isSplit: false));
+    }
+
+    [Fact]
+    public async Task ViewZoom_ResizesThumbnails_OnlyInTheThumbnailsLayout()
+    {
+        var h = new Harness();
+        await h.Ready;
+
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.ViewZoom, parameter: 1));
+
+        await h.Run(CommandIds.ViewThumbnails);
+        Assert.Equal(CommandResult.Executed, await h.Run(CommandIds.ViewZoom, parameter: 2));
+        Assert.Equal(ItemFlow.Zoom(ItemFlow.DefaultThumbnailSize, 2), h.Tab.ThumbnailSize);
+        Assert.Contains(h.Trail.Snapshot(), a => a.Command == "view.zoom");
+    }
+
+    [Fact]
     public async Task TabNew_WithATarget_OpensThatLocation()
     {
         var h = new Harness();

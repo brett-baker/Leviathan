@@ -75,6 +75,9 @@ public sealed record FolderViewSettings
 
     /// <summary>Widths the user gave columns, by column id; columns not listed use their default width.</summary>
     public IReadOnlyDictionary<string, double> ColumnWidths { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>Edge of a thumbnail in pixels for the Thumbnails layout, 64 to 512 (spec §8.1).</summary>
+    public int ThumbnailSize { get; init; } = ViewModels.Folders.ItemFlow.DefaultThumbnailSize;
 }
 
 /// <summary>What a folder mostly contains, detected from its listing (spec §8.1).</summary>

@@ -70,6 +70,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ViewLayout _layout = ViewLayout.Details;
 
+    [ObservableProperty]
+    private int _thumbnailSize = ItemFlow.DefaultThumbnailSize;
+
     /// <summary>Creates a tab at <paramref name="start"/>.</summary>
     public TabViewModel(TabServices services, LocationPath start)
         : this(services, new NavigationHistory(start), null)
@@ -224,6 +227,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         KeepCurrentView();
     }
 
+    /// <summary>Ctrl+mouse wheel in Thumbnails: makes the thumbnails bigger (positive) or smaller, between 64 and 512 px (spec §8.1).</summary>
+    public void ZoomThumbnails(int notches)
+    {
+        ThumbnailSize = ItemFlow.Zoom(ThumbnailSize, notches);
+        KeepCurrentView();
+    }
+
     /// <summary>Header click: sorts this tab's view. The choice holds until the tab navigates to a folder with a saved view.</summary>
     public void SortBy(string columnId, bool additive = false)
     {
@@ -260,6 +270,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Folders = Items.Folders,
         Columns = Columns.Ids,
         ColumnWidths = Columns.Widths,
+        ThumbnailSize = ThumbnailSize,
     };
 
     /// <summary>Captures the tab for duplicating or saving.</summary>
@@ -351,6 +362,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
 
         Layout = settings.Layout;
+        ThumbnailSize = ItemFlow.ClampThumbnailSize(settings.ThumbnailSize);
         Items.Apply(settings);
     }
 }

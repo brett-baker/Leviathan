@@ -109,6 +109,21 @@ public static class CommandIds
     /// <summary>Open an item: folders navigate, files open with their default app. Parameter: the entry.</summary>
     public static readonly CommandId ItemOpen = new("item.open");
 
+    /// <summary>Switch the file view layout. Parameter: a <see cref="ViewLayout"/>.</summary>
+    public static readonly CommandId ViewLayout = new("view.layout");
+
+    /// <summary>Details layout (Ctrl+Shift+6).</summary>
+    public static readonly CommandId ViewDetails = new("view.details");
+
+    /// <summary>List layout (Ctrl+Shift+5).</summary>
+    public static readonly CommandId ViewList = new("view.list");
+
+    /// <summary>Thumbnails layout (Ctrl+Shift+2).</summary>
+    public static readonly CommandId ViewThumbnails = new("view.thumbnails");
+
+    /// <summary>Resize thumbnails (Ctrl+mouse wheel). Parameter: wheel notches, positive = bigger.</summary>
+    public static readonly CommandId ViewZoom = new("view.zoom");
+
     /// <summary>Focus the address bar (Ctrl+L).</summary>
     public static readonly CommandId AddressFocus = new("address.focus");
 
@@ -398,6 +413,19 @@ public static partial class WindowCommands
             }
         }, c => c.Parameter is FileEntry, shortcut: "Enter");
 
+        // Tiles and Gallery need media data and arrive in Phase 3 (build plan, D5); until then they are not offered.
+        Add(CommandIds.ViewLayout, "Change layout", "View", (c, _) => Run(() =>
+        {
+            Current()!.SetLayout((Views.ViewLayout)c.Parameter!);
+        }), c => Current() is not null && c.Parameter is Views.ViewLayout.Details or Views.ViewLayout.List or Views.ViewLayout.Thumbnails);
+
+        Add(CommandIds.ViewDetails, "Details layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Details)), _ => Current() is not null, shortcut: "Ctrl+Shift+6");
+        Add(CommandIds.ViewList, "List layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.List)), _ => Current() is not null, shortcut: "Ctrl+Shift+5");
+        Add(CommandIds.ViewThumbnails, "Thumbnails layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Thumbnails)), _ => Current() is not null, shortcut: "Ctrl+Shift+2");
+
+        Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
+            c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
+
         Add(CommandIds.AddressFocus, "Focus address bar", "Navigation", (_, _) => Run(shell.FocusAddressBar), shortcut: "Ctrl+L");
         Add(CommandIds.AppDiagnostics, "Diagnostics", "App", (_, _) => Run(shell.OpenDiagnostics));
 
@@ -426,6 +454,9 @@ public static partial class WindowCommands
             ("Alt+D", CommandIds.AddressFocus),
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
+            ("Ctrl+Shift+6", CommandIds.ViewDetails),
+            ("Ctrl+Shift+5", CommandIds.ViewList),
+            ("Ctrl+Shift+2", CommandIds.ViewThumbnails),
         })
         {
             map.TryBind(new KeyBinding(KeyGesture.Parse(gesture), command));

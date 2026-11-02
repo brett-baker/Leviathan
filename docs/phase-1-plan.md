@@ -92,7 +92,15 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   stale ones in italic. Found on the way: `LocationPath.Parse` expanded `%VARS%` in listed paths, so System32's folder `%userprofile%` could not be opened or sized; only typed
   addresses expand now. Not done: sorting by folder size (folders sort as 0 bytes), rubber-band and inline rename (D8), context menu (F), skeleton rows not seen on screen
   (local folders load too fast), Size column for network folders (not counted unasked).
-- [ ] **D5. List and Thumbnails layouts**, Ctrl+wheel resize 64–512 px, Tiles/Gallery deferred to Phase 3 where they need media data.
+- [x] **D5. List and Thumbnails layouts** (§8.1). `FlowView` (virtualizing `UniformGridLayout` of recycled `FlowCell`s) shows List (columns of names, top to bottom, scrolls sideways)
+  and Thumbnails (wrapping grid, scrolls down) over the same rows and `SelectionModel` as the Details grid. Ctrl+Shift+6 / 5 / 2 switch layout (commands `view.details`, `view.list`,
+  `view.thumbnails`; `Ctrl+Shift+digit` no longer selects a tab), Ctrl+wheel resizes thumbnails 64–512 px (`view.zoom`, saved with the tab's view, and in session state). Arrow keys, Page Up/Down,
+  Home/End follow the layout's direction (`ItemFlow`, unit-tested: moving across a short last line lands on the last item). Thumbnails come from the shared `ThumbnailCache` over
+  `ShellThumbnailSource` (request sizes bucketed so zooming does not regenerate; cancelled when a cell is recycled; network files get icons only). Found on the way: the shell serves
+  cached thumbnails as bottom-up bitmaps, so they showed upside-down on the second run: `CopyPixels` now reads rows through `GetDIBits` with a negative height; and a click left the focus
+  on the window's root scroll viewer, so arrow keys never reached the view (it takes the focus back after the click). Tiles and Gallery stay for Phase 3 (they need media data).
+  Not done: thumbnails run in the UI process on two STA threads (the Media process is Phase 3), no layout switcher or size slider until D7/D10, folder thumbnails are the folder glyph,
+  Shift+F5 does not yet invalidate the cache, type-ahead and rubber-band in the flow layouts follow in D8.
 - [ ] **D6. Sidebar tree** (§7, §7.2): Favorites (pin, drag, Ctrl+D), Common folders, Tags placeholder, Local drives with usage
   bars, Network placeholder, Internet; spinner child + 5 s timeout, optimistic expand arrows, one-level look-ahead at low priority, sync with view.
 - [ ] **D7. Command bar** (§6): New menu, clipboard icon group with tooltips, context actions by selection type, overflow,
