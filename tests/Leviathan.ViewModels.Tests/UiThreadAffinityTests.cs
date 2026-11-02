@@ -100,6 +100,8 @@ public sealed class UiThreadAffinityTests
         public void ShowMessage(string message)
         {
         }
+
+        public Task<bool> ConfirmAsync(string title, string message, string confirmText) => Task.FromResult(true);
     }
 
     private sealed class NoLauncher : IFileLauncher

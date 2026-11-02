@@ -144,8 +144,9 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   cross-volume move deletes the source only after the copy is read back and its SHA-256 matches, Keep both / Replace (merges folders) / Skip), `WorkerTransfers` in the app replaces
   `UnavailableTransferService` so drops now copy and move for real, the view reloads and the status bar says how it went. Verified by dragging in the real app (move and Ctrl-copy).
   Not done: byte-level resume after a crash (Phase 2), shortcuts, choosing the conflict policy in the UI, progress shown in the UI (Operations panel, Phase 2), cancel, Paste (E5).
-- [ ] **E3. Recycle Bin delete** via `IFileOperation` in the worker (not on the UI thread), Shift+Del permanent with confirmation.
+- [x] **E3. Recycle Bin delete** via `IFileOperation` in the worker (not on the UI thread), Shift+Del permanent with confirmation.
 - [ ] **E4. Undo/redo** for rename and delete (Ctrl+Z / Ctrl+Y), journaled so undo survives a UI restart.
+  Done: `DeleteExecutor` (Recycle Bin via `IFileOperation` on an STA thread in the worker; soft delete into `#recycle` / `@Recycle` or a hidden `.leviathan-trash` with a manifest on shares; permanent delete clears read-only and never follows a junction), `edit.delete` (Del) and `edit.deletePermanent` (Shift+Del, confirmation dialog), `IShellActions.ConfirmAsync`, `IDeleteService` + `WorkerTransfers`. Verified in the real app: Del put a file in the Recycle Bin, a declined Shift+Del kept it, a confirmed one deleted it, and Del on a `\localhostD$` path soft-deleted into `.leviathan-trash`. Not done: restore (E4), restore path for Recycle Bin items, Empty Recycle Bin, drives without a Recycle Bin get Windows' error message rather than a permanent-delete prompt.
 - [ ] **E5. Clipboard** commands wired to E1–E4: cut, copy, paste, paste-as variants, disabled state with tooltip.
 
 ### F. ShellHost and the right-click menu

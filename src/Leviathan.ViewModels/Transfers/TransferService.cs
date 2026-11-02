@@ -43,3 +43,13 @@ public sealed class UnavailableTransferService : ITransferService
         return Task.FromResult(new TransferOutcome(false, $"{verb} files arrives with the next update. Nothing was changed."));
     }
 }
+
+/// <summary>
+/// Deletes items (spec §12.5). The seam to the worker's delete job: the user interface decides <em>what</em> and whether it was
+/// confirmed; the worker moves items to the Recycle Bin or a share's recycle folder, or deletes them for good.
+/// </summary>
+public interface IDeleteService
+{
+    /// <summary>Starts the delete and returns once it is queued.</summary>
+    Task<TransferOutcome> DeleteAsync(IReadOnlyList<LocationPath> items, bool permanent, CancellationToken cancellationToken);
+}

@@ -29,6 +29,9 @@ public interface IShellActions
 
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
+
+    /// <summary>Asks a yes/no question (for example before deleting for good) and returns true when the user confirmed.</summary>
+    Task<bool> ConfirmAsync(string title, string message, string confirmText);
 }
 
 /// <summary>Stable ids of the window-level commands (spec §6, §17.3).</summary>
@@ -214,8 +217,11 @@ public static class CommandIds
     /// <summary>Finish an inline rename. Target: the new name. Parameter: true to go on to the next item (Tab).</summary>
     public static readonly CommandId RenameCommit = new("edit.renameCommit");
 
-    /// <summary>Delete (Del). Arrives with slice E3.</summary>
+    /// <summary>Delete (Del): the selection goes to the Recycle Bin, or to the share's recycle folder on a network share.</summary>
     public static readonly CommandId EditDelete = new("edit.delete");
+
+    /// <summary>Delete permanently (Shift+Del), after the user confirms.</summary>
+    public static readonly CommandId EditDeletePermanent = new("edit.deletePermanent");
 
     /// <summary>Undo (Ctrl+Z). Arrives with slice E4.</summary>
     public static readonly CommandId EditUndo = new("edit.undo");
@@ -352,7 +358,8 @@ public static partial class WindowCommands
         Views.ViewOptions? viewOptions = null,
         Folders.RenameService? renamer = null,
         Transfers.ITransferService? transfers = null,
-        Drives.DriveCardPreferences? driveCards = null)
+        Drives.DriveCardPreferences? driveCards = null,
+        Transfers.IDeleteService? deleter = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -752,6 +759,28 @@ public static partial class WindowCommands
             }
         }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
 
+        // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
+        bool CanDeleteHere() => deleter is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.Count > 0;
+
+        async Task DeleteSelection(bool permanent, CancellationToken ct)
+        {
+            var tab = Current()!;
+            var items = tab.Selection.SelectedEntries.Select(e => e.Location).ToList();
+            if (permanent)
+            {
+                var what = items.Count == 1 ? items[0].Name : $"these {items.Count} items";
+                if (!await shell.ConfirmAsync("Delete permanently?", $"{what} will be deleted for good and cannot be restored.", "Delete"))
+                {
+                    return;
+                }
+            }
+
+            shell.ShowMessage((await deleter!.DeleteAsync(items, permanent, ct)).Message);
+        }
+
+        Add(CommandIds.EditDelete, "Delete", "Edit", (_, ct) => DeleteSelection(false, ct), _ => CanDeleteHere(), shortcut: "Del", icon: "Delete");
+        Add(CommandIds.EditDeletePermanent, "Delete permanently", "Edit", (_, ct) => DeleteSelection(true, ct), _ => CanDeleteHere(), shortcut: "Shift+Del");
+
         // Show or hide the summary card of the drive in Target (spec §8.7); remembered per drive.
         Add(CommandIds.DriveCardToggle, "Show or hide the drive summary", "View", (c, _) => Run(() =>
         {
@@ -837,6 +866,8 @@ public static partial class WindowCommands
             ("Ctrl+A", CommandIds.SelectAll),
             ("Ctrl+Shift+N", CommandIds.NewFolder),
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
+            ("Del", CommandIds.EditDelete),
+            ("Shift+Del", CommandIds.EditDeletePermanent),
             ("Alt+P", CommandIds.PreviewPane),
             ("F2", CommandIds.EditRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),

@@ -57,7 +57,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers);
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
         host.Transfers.Finished += OnTransferFinished;
 

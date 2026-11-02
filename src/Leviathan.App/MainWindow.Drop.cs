@@ -26,20 +26,25 @@ public sealed partial class MainWindow
     /// <summary>A copy or move the worker was running ended: say how it went and refresh the folder if it was touched.</summary>
     private void OnTransferFinished(object? sender, TransferFinished finished) => OnUi(() =>
     {
-        var request = finished.Request;
-        var verb = request.Mode == ViewModels.Transfers.TransferMode.Move ? "Moved" : "Copied";
-        var what = request.Sources.Count == 1 ? request.Sources[0].Name : $"{request.Sources.Count} items";
+        var what = finished.Sources.Count == 1 ? finished.Sources[0].Name : $"{finished.Sources.Count} items";
+        var done = finished.Kind switch
+        {
+            Contracts.JobKind.Move => $"Moved {what} to {finished.Destination?.Name}",
+            Contracts.JobKind.Delete when finished.Permanent => $"Deleted {what}",
+            Contracts.JobKind.Delete => $"Moved {what} to the Recycle Bin",
+            _ => $"Copied {what} to {finished.Destination?.Name}",
+        };
         var message = finished.Job.State switch
         {
-            Contracts.JobState.Completed => $"{verb} {what} to {request.Destination.Name}",
-            Contracts.JobState.Cancelled => $"Cancelled: {verb.ToLowerInvariant()} {what}",
+            Contracts.JobState.Completed => done,
+            Contracts.JobState.Cancelled => $"Cancelled: {what}",
             _ => finished.Job.Error ?? $"Could not finish: {what}",
         };
 
         if (_bound is { } tab)
         {
             var here = tab.History.Current;
-            if (here == request.Destination || request.Sources.Any(s => s.Parent == here))
+            if (here == finished.Destination || finished.Sources.Any(s => s.Parent == here))
             {
                 Run(CommandIds.NavReload);
             }
@@ -47,6 +52,26 @@ public sealed partial class MainWindow
 
         MessageText.Text = message;
     });
+
+    /// <inheritdoc />
+    public async Task<bool> ConfirmAsync(string title, string message, string confirmText)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        OnUi(async () =>
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                PrimaryButtonText = confirmText,
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot,
+            };
+            tcs.SetResult(await dialog.ShowAsync() == ContentDialogResult.Primary);
+        });
+        return await tcs.Task;
+    }
 
     /// <summary>Starts (or keeps) the countdown for <paramref name="target"/>; <paramref name="fire"/> runs if the pointer stays there.</summary>
     private void HoverOver(object target, TimeSpan delay, Action fire)
