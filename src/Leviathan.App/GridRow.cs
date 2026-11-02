@@ -23,6 +23,7 @@ internal sealed class GridRow : Grid
 
     private static Brush? s_selected;
     private static Brush? s_hover;
+    private static Brush? s_drop;
     private static Brush? s_secondary;
 
     private readonly DetailsGrid _owner;
@@ -42,6 +43,7 @@ internal sealed class GridRow : Grid
     private FontIcon? _nameIcon;
     private TextBlock? _nameText;
     private bool _hover;
+    private bool _dropTarget;
 
     /// <summary>Creates an empty row for <paramref name="owner"/>.</summary>
     public GridRow(DetailsGrid owner)
@@ -52,12 +54,25 @@ internal sealed class GridRow : Grid
         CornerRadius = new CornerRadius(4);
         PointerEntered += (_, _) => SetHover(true);
         PointerExited += (_, _) => SetHover(false);
+        FileDragSource.Attach(this);
+    }
+
+    /// <summary>Marks the row as the folder a drag would drop into (spec §8.4).</summary>
+    public void SetDropTarget(bool on)
+    {
+        if (_dropTarget != on)
+        {
+            _dropTarget = on;
+            UpdateVisuals();
+        }
     }
 
     /// <summary>The entry shown, or null while the row sits in the recycle pool.</summary>
     public FileEntry? Entry { get; private set; }
 
     private static Brush SelectedBrush => s_selected ??= new SolidColorBrush(Color.FromArgb(0x3A, Accent.R, Accent.G, Accent.B));
+
+    private static Brush DropBrush => s_drop ??= new SolidColorBrush(Color.FromArgb(0x70, Accent.R, Accent.G, Accent.B));
 
     private static Brush HoverBrush => s_hover ??= (Application.Current.Resources["SubtleFillColorSecondaryBrush"] as Brush) ?? new SolidColorBrush(Color.FromArgb(0x10, 0x80, 0x80, 0x80));
 
@@ -118,6 +133,7 @@ internal sealed class GridRow : Grid
     public void Unbind()
     {
         _editor?.Hide();
+        _dropTarget = false;
         Entry = null;
     }
 
@@ -171,7 +187,7 @@ internal sealed class GridRow : Grid
         }
 
         var selected = selection.IsSelected(entry);
-        Background = selected ? SelectedBrush : _hover ? HoverBrush : new SolidColorBrush(Colors.Transparent);
+        Background = _dropTarget ? DropBrush : selected ? SelectedBrush : _hover ? HoverBrush : new SolidColorBrush(Colors.Transparent);
         var focused = selection.Focus == entry.Location && _owner.HasKeyboardFocus;
         _focus.Visibility = focused ? Visibility.Visible : Visibility.Collapsed;
         ((SolidColorBrush)_focus.Stroke).Color = focused ? Accent : Colors.Transparent;

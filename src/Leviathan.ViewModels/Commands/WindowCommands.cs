@@ -154,6 +154,9 @@ public static class CommandIds
     /// <summary>Pin the folder in Target, or the selected folder, to Favorites.</summary>
     public static readonly CommandId FavoriteAdd = new("favorite.add");
 
+    /// <summary>Drop items on a folder. Target: the folder; parameter: <see cref="ItemDrop"/>.</summary>
+    public static readonly CommandId DropItems = new("item.drop");
+
     /// <summary>Sort by the column in Target; sorting by the column already in use flips the direction.</summary>
     public static readonly CommandId SortBy = new("sort.by");
 
@@ -313,6 +316,11 @@ public sealed record TabMove(TabViewModel Tab, int Index);
 /// <param name="ScreenY">Drop point in screen pixels.</param>
 public sealed record TabTearOff(TabViewModel Tab, int ScreenX, int ScreenY);
 
+/// <summary>Parameter of <see cref="CommandIds.DropItems"/>.</summary>
+/// <param name="Sources">The items dropped.</param>
+/// <param name="Modifiers">The modifier keys held at the drop.</param>
+public sealed record ItemDrop(IReadOnlyList<LocationPath> Sources, Transfers.DropModifiers Modifiers);
+
 /// <summary>Parameter of <see cref="CommandIds.TabDrop"/>.</summary>
 /// <param name="Tab">The tab dropped.</param>
 /// <param name="Index">Where in the strip, or null for the end.</param>
@@ -336,7 +344,8 @@ public static partial class WindowCommands
         Sidebar.FavoritesList? favorites = null,
         NewMenu.NewItemService? newItems = null,
         Views.ViewOptions? viewOptions = null,
-        Folders.RenameService? renamer = null)
+        Folders.RenameService? renamer = null,
+        Transfers.ITransferService? transfers = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -732,6 +741,23 @@ public static partial class WindowCommands
                 shell.ShowMessage("Added to Favorites");
             }
         }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
+
+        // Dropped items (spec §8.4): the rules decide, the transfer service does the work. A refused drop says why.
+        Add(CommandIds.DropItems, "Drop items here", "Files", async (c, ct) =>
+        {
+            var drop = (ItemDrop)c.Parameter!;
+            var destination = LocationPath.Parse(c.Target!);
+            var decision = Transfers.DropRules.Decide(drop.Sources, destination, drop.Modifiers);
+            if (!decision.Allowed)
+            {
+                shell.ShowMessage(decision.Tooltip);
+                return;
+            }
+
+            var outcome = await (transfers ?? new Transfers.UnavailableTransferService())
+                .StartAsync(new Transfers.TransferRequest(drop.Sources, destination, decision.Mode), ct);
+            shell.ShowMessage(outcome.Message);
+        }, c => c.Parameter is ItemDrop { Sources.Count: > 0 } && LocationPath.TryParse(c.Target, out _));
 
         // Sort, group, filter (spec §6.3).
         Add(CommandIds.SortBy, "Sort by", "View", (c, _) => Run(() => Current()!.SetSort(c.Target!)),

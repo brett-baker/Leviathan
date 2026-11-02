@@ -38,6 +38,10 @@
                   ZoomMode="Disabled"
                   ViewChanged="OnScrollerViewChanged"
                   SizeChanged="OnScrollerSizeChanged"
+                  AllowDrop="True"
+                  DragOver="OnBodyDragOver"
+                  DragLeave="OnBodyDragLeave"
+                  Drop="OnBodyDrop"
                   PointerPressed="OnBodyPointerPressed"
                   DoubleTapped="OnBodyDoubleTapped"
                   RightTapped="OnBodyRightTapped">

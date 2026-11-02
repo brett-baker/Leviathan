@@ -55,7 +55,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers);
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -68,6 +68,8 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.KeyDown += OnFileKeyDown;
         FileList.RenameFinished += OnRenameFinished;
         FlowList.RenameFinished += OnRenameFinished;
+        FileList.DropRequested += OnItemsDropped;
+        FlowList.DropRequested += OnItemsDropped;
         _sidebar = new SidebarTree(host.SidebarSource);
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
@@ -78,6 +80,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FlowList.ZoomRequested += (_, notches) => Run(CommandIds.ViewZoom, parameter: notches);
         Address.Submitted += OnAddressSubmitted;
         Address.NavigationRequested += OnAddressNavigation;
+        Address.DropRequested += OnItemsDropped;
         Address.EditEnded += OnAddressEditEnded;
         host.CloudFoldersChanged += OnCloudFoldersChanged;
         TabsView.Loaded += (_, _) => UpdateTitleBarRegions();
@@ -311,6 +314,7 @@ public sealed partial class MainWindow : Window, IShellActions
                 {
                     ui = new TabItemUi(tab);
                     ui.Item.ContextFlyout = BuildTabMenu(tab);
+                    MakeTabAFileDropTarget(ui.Item);
                     tab.PropertyChanged += OnTabPropertyChanged;
                     _tabUi[tab] = ui;
                 }

@@ -13,3 +13,9 @@ One line each: the decision, then why. Newest last.
 - **D8: rename runs straight on the thread pool for now.** `RenameService` is the seam: slice E4 routes it through the journaled worker so it can be undone.
 - **D8: a rename box that is refused (bad name) stays open; one that fails on disk (name taken, access denied) closes with the reason in the status bar.**
 - **D8: the rubber band starts on empty space, and in Details also on the blank part of a row.** Rows span the full width, so only the name and icon are reserved for drag and drop (D9).
+- **D9: a drop with no copy/move engine yet is refused with a message, not done.** `UnavailableTransferService` changes nothing until E2 provides the journaled, verified implementation (spec §12.1); doing a quick unjournaled copy now would be the one path that could lose data.
+- **D9: a move into the folder the items are already in is refused; a copy there is allowed.** Matches Explorer; E2 will name the duplicate with "keep both".
+- **D9: a drop from another application is treated as a copy by default.** Its source volume is unknown until the drop, and copying never loses anything.
+- **D9: dropping on the Favorites header pins the items instead of copying them.** The spec (§7) says any folder or file can be pinned by dragging it there.
+- **D9: a plain press on an item inside a larger selection keeps the selection until the button comes up,** so the whole selection can be dragged; without a drag it then selects just that item (as Explorer does).
+- **D9: mouse input in the drive scripts uses `MOUSEEVENTF_VIRTUALDESK` (0xC001).** Without it absolute moves map onto the primary monitor only, so earlier scripts relied on offsets that compensated for that.

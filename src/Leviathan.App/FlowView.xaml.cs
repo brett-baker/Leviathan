@@ -23,6 +23,8 @@ public sealed partial class FlowView : UserControl
     private readonly Stack<FlowCell> _pool = new();
     private TabViewModel? _tab;
     private readonly BandDrag _band;
+    private readonly ItemDragSource _dragSource;
+    private Core.Paths.LocationPath? _dropFolder;
     private bool _hasFocus;
 
     /// <summary>Creates the view.</summary>
@@ -30,6 +32,7 @@ public sealed partial class FlowView : UserControl
     {
         InitializeComponent();
         _band = new BandDrag(Scroller, Repeater, Band, vertical: true, ItemsUnder);
+        _dragSource = new ItemDragSource(Scroller, () => _tab?.Selection);
         Repeater.ElementPrepared += OnElementPrepared;
         Repeater.ElementClearing += OnElementClearing;
         Repeater.ItemTemplate = new CellFactory(this);
@@ -58,6 +61,9 @@ public sealed partial class FlowView : UserControl
 
     /// <summary>Ctrl+wheel in Thumbnails: positive notches make thumbnails bigger.</summary>
     internal event EventHandler<int>? ZoomRequested;
+
+    /// <summary>Items were dropped on a folder or on the empty area (the folder shown).</summary>
+    internal event EventHandler<ItemDropRequest>? DropRequested;
 
     /// <summary>The inline rename box was closed: Enter, Tab, click-away (rename) or Esc (cancel).</summary>
     internal event EventHandler<RenameResult>? RenameFinished;
@@ -364,7 +370,85 @@ public sealed partial class FlowView : UserControl
             return;
         }
 
-        _tab.Selection.Click(entry, KeyTranslator.IsDown(VirtualKey.Control), KeyTranslator.IsDown(VirtualKey.Shift));
+        var additive = KeyTranslator.IsDown(VirtualKey.Control);
+        var range = KeyTranslator.IsDown(VirtualKey.Shift);
+
+        // Dragging from an item that is part of a larger selection takes the whole selection along.
+        var cell = CellOf(e.OriginalSource)!;
+        if (!(point.IsLeftButtonPressed && _dragSource.Arm(e, cell, entry, plain: !additive && !range)))
+        {
+            _tab.Selection.Click(entry, additive, range);
+        }
+    }
+
+    // Drop target ------------------------------------------------------------------------------------------------------
+
+    /// <summary>The folder under <paramref name="position"/> (in the coordinates of the item area), or null for a file or empty space.</summary>
+    private FileEntry? FolderAt(Windows.Foundation.Point position)
+    {
+        if (_tab is null)
+        {
+            return null;
+        }
+
+        var index = ItemsUnder(new Windows.Foundation.Rect(position.X, position.Y, 1, 1)).DefaultIfEmpty(-1).First();
+        var rows = _tab.Items.Rows;
+        return index >= 0 && index < rows.Count && rows[index].Kind == FileEntryKind.Folder ? rows[index] : null;
+    }
+
+    private void MarkDropFolder(Core.Paths.LocationPath? folder)
+    {
+        if (_dropFolder == folder)
+        {
+            return;
+        }
+
+        _dropFolder = folder;
+        foreach (var cell in _realized)
+        {
+            cell.SetDropTarget(folder is not null && cell.Entry?.Location == folder);
+        }
+    }
+
+    private void OnBodyDragOver(object sender, DragEventArgs e)
+    {
+        if (_tab is null || !FileDrag.Accepts(e))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var folder = FolderAt(e.GetPosition(Repeater));
+        var decision = FileDrag.Over(e, folder?.Location ?? _tab.History.Current);
+        MarkDropFolder(decision.Allowed ? folder?.Location : null);
+    }
+
+    private void OnBodyDragLeave(object sender, DragEventArgs e) => MarkDropFolder(null);
+
+    private async void OnBodyDrop(object sender, DragEventArgs e)
+    {
+        if (_tab is null || !FileDrag.Accepts(e))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var destination = FolderAt(e.GetPosition(Repeater))?.Location ?? _tab.History.Current;
+        var modifiers = FileDrag.ModifiersOf(e);
+        MarkDropFolder(null);
+        var deferral = e.GetDeferral();
+        try
+        {
+            var sources = await FileDrag.SourcesAsync(e);
+            if (sources.Count > 0)
+            {
+                DropRequested?.Invoke(this, new ItemDropRequest(destination, sources, modifiers));
+            }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
     }
 
     private void OnBodyDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

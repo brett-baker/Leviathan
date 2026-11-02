@@ -70,6 +70,9 @@ public sealed partial class AddressBar : UserControl
     /// <summary>Raised when a breadcrumb or subfolder is chosen.</summary>
     internal event EventHandler<AddressNavigation>? NavigationRequested;
 
+    /// <summary>Raised when items are dropped on a breadcrumb segment.</summary>
+    internal event EventHandler<ItemDropRequest>? DropRequested;
+
     /// <summary>Raised when the editor closes (Enter, Esc or focus lost), so the host can move focus to the file list.</summary>
     internal event EventHandler? EditEnded;
 
@@ -278,8 +281,51 @@ public sealed partial class AddressBar : UserControl
                 NavigationRequested?.Invoke(this, new AddressNavigation(crumb.Location, NewTab: true));
             }
         };
+
+        // Drag files onto a segment to copy or move them there (spec §5.2).
+        var normal = button.Background;
+        button.AllowDrop = true;
+        button.DragOver += (_, e) =>
+        {
+            if (FileDrag.Accepts(e))
+            {
+                e.Handled = true;
+                var decision = FileDrag.Over(e, crumb.Location);
+                button.Background = decision.Allowed ? DropHighlight : normal;
+            }
+        };
+        button.DragLeave += (_, _) => button.Background = normal;
+        button.Drop += async (_, e) =>
+        {
+            if (!FileDrag.Accepts(e))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            button.Background = normal;
+            var modifiers = FileDrag.ModifiersOf(e);
+            var deferral = e.GetDeferral();
+            try
+            {
+                var sources = await FileDrag.SourcesAsync(e);
+                if (sources.Count > 0)
+                {
+                    DropRequested?.Invoke(this, new ItemDropRequest(crumb.Location, sources, modifiers));
+                }
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
         return button;
     }
+
+    private static Brush DropHighlight =>
+        Application.Current.Resources.TryGetValue("SystemAccentColor", out var value) && value is Windows.UI.Color accent
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x70, accent.R, accent.G, accent.B))
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(0x70, 0x00, 0x78, 0xD4));
 
     private Button ChevronButton(Breadcrumb crumb)
     {

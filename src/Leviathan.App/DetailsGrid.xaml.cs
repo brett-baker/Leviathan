@@ -37,12 +37,15 @@ public sealed partial class DetailsGrid : UserControl
     private bool _hasFocus;
     private HeaderGesture? _gesture;
     private readonly BandDrag _band;
+    private readonly ItemDragSource _dragSource;
+    private Core.Paths.LocationPath? _dropFolder;
 
     /// <summary>Creates the grid.</summary>
     public DetailsGrid()
     {
         InitializeComponent();
         _band = new BandDrag(Scroller, Repeater, Band, vertical: true, RowsUnder);
+        _dragSource = new ItemDragSource(Scroller, () => _tab?.Selection);
         Repeater.ElementPrepared += OnElementPrepared;
         Repeater.ElementClearing += OnElementClearing;
         Repeater.ItemTemplate = new RowFactory(this);
@@ -63,6 +66,9 @@ public sealed partial class DetailsGrid : UserControl
 
     /// <summary>A row or the empty area was right-clicked; the context menu arrives with the shell integration (slice F).</summary>
     internal event EventHandler<FileEntry?>? RowContextRequested;
+
+    /// <summary>Items were dropped on a folder row or on the empty area (the folder shown).</summary>
+    internal event EventHandler<ItemDropRequest>? DropRequested;
 
     /// <summary>The inline rename box was closed: Enter, Tab, click-away (rename) or Esc (cancel).</summary>
     internal event EventHandler<RenameResult>? RenameFinished;
@@ -402,12 +408,89 @@ public sealed partial class DetailsGrid : UserControl
         }
 
         var additive = KeyTranslator.IsDown(VirtualKey.Control);
-        _tab.Selection.Click(entry, additive, KeyTranslator.IsDown(VirtualKey.Shift));
+        var range = KeyTranslator.IsDown(VirtualKey.Shift);
 
-        // The blank part of a row (outside the name and icon) also starts the rubber band; the name is for drag and drop (D9).
-        if (point.IsLeftButtonPressed && !row.HitsName(e.GetCurrentPoint(row).Position))
+        // The name and icon are for drag and drop; the blank part of a row starts the rubber band (spec §8.4).
+        var onName = point.IsLeftButtonPressed && row.HitsName(e.GetCurrentPoint(row).Position);
+        var keepSelection = onName && _dragSource.Arm(e, row, entry, plain: !additive && !range);
+        if (!keepSelection)
+        {
+            _tab.Selection.Click(entry, additive, range);
+        }
+
+        if (point.IsLeftButtonPressed && !onName)
         {
             _band.Press(e, _tab.Selection, additive);
+        }
+    }
+
+    // Drop target ------------------------------------------------------------------------------------------------------
+
+    /// <summary>The folder row under <paramref name="position"/> (in the coordinates of the row list), or null for a file or empty space.</summary>
+    private FileEntry? FolderAt(Windows.Foundation.Point position)
+    {
+        if (_tab is null || position.Y < 0)
+        {
+            return null;
+        }
+
+        var index = (int)Math.Floor(position.Y / GridRow.RowHeight);
+        var rows = _tab.Items.Rows;
+        return index < rows.Count && rows[index].Kind == FileEntryKind.Folder ? rows[index] : null;
+    }
+
+    private void MarkDropFolder(Core.Paths.LocationPath? folder)
+    {
+        if (_dropFolder == folder)
+        {
+            return;
+        }
+
+        _dropFolder = folder;
+        foreach (var row in _realized)
+        {
+            row.SetDropTarget(folder is not null && row.Entry?.Location == folder);
+        }
+    }
+
+    private void OnBodyDragOver(object sender, DragEventArgs e)
+    {
+        if (_tab is null || !FileDrag.Accepts(e))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var folder = FolderAt(e.GetPosition(Repeater));
+        var decision = FileDrag.Over(e, folder?.Location ?? _tab.History.Current);
+        MarkDropFolder(decision.Allowed ? folder?.Location : null);
+    }
+
+    private void OnBodyDragLeave(object sender, DragEventArgs e) => MarkDropFolder(null);
+
+    private async void OnBodyDrop(object sender, DragEventArgs e)
+    {
+        if (_tab is null || !FileDrag.Accepts(e))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var destination = FolderAt(e.GetPosition(Repeater))?.Location ?? _tab.History.Current;
+        var modifiers = FileDrag.ModifiersOf(e);
+        MarkDropFolder(null);
+        var deferral = e.GetDeferral();
+        try
+        {
+            var sources = await FileDrag.SourcesAsync(e);
+            if (sources.Count > 0)
+            {
+                DropRequested?.Invoke(this, new ItemDropRequest(destination, sources, modifiers));
+            }
+        }
+        finally
+        {
+            deferral.Complete();
         }
     }
 

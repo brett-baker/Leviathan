@@ -95,6 +95,9 @@ internal sealed class AppHost
     /// <summary>Renames files and folders for the inline rename box.</summary>
     public RenameService Renamer { get; }
 
+    /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
+    public Leviathan.ViewModels.Transfers.ITransferService Transfers { get; } = new Leviathan.ViewModels.Transfers.UnavailableTransferService();
+
     /// <summary>Whether hidden and system items are listed; one switch for all windows.</summary>
     public ViewOptions ViewOptions { get; }
 

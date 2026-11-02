@@ -215,6 +215,8 @@
         <ListView.ItemTemplate>
           <DataTemplate x:DataType="sidebar:SidebarNode">
             <Grid Background="{x:Bind local:SidebarFormat.Background(IsSelected), Mode=OneWay}" CornerRadius="4" Padding="2,3"
+                  BorderThickness="1" BorderBrush="Transparent"
+                  AllowDrop="True" DragOver="OnSidebarDragOver" DragLeave="OnSidebarDragLeave" Drop="OnSidebarDrop"
                   ToolTipService.ToolTip="{x:Bind Detail}">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
