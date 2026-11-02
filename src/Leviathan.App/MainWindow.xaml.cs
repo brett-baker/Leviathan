@@ -5,6 +5,7 @@ using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
+using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
@@ -30,6 +31,7 @@ public sealed partial class MainWindow : Window, IShellActions
     private readonly CommandRegistry _commands;
     private readonly CancellationTokenSource _closing = new();
     private TabViewModel? _bound;
+    private readonly SidebarTree _sidebar;
     private bool _syncingTabs;
     private bool _closed;
 
@@ -53,7 +55,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites);
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -64,6 +66,10 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
         FileList.KeyDown += OnFileKeyDown;
+        _sidebar = new SidebarTree(host.SidebarSource);
+        Sidebar.ItemsSource = _sidebar.Rows;
+        _sidebar.SelectionChanged += OnSidebarSelectionChanged;
+        host.Favorites.Changed += OnFavoritesChanged;
         FlowList.ItemInvoked += OnFileInvoked;
         FlowList.MiddleClicked += OnFileMiddleClicked;
         FlowList.KeyDown += OnFileKeyDown;
@@ -379,6 +385,7 @@ public sealed partial class MainWindow : Window, IShellActions
         UpdateState();
         UpdateStatus();
         RefreshNavigationButtons();
+        SyncSidebar();
         if (tab.Folder.State == FolderLoadState.Idle)
         {
             Run(CommandIds.NavReload);
@@ -405,7 +412,11 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         if (e.PropertyName == nameof(ViewModels.Navigation.AddressBarViewModel.Location))
         {
-            OnUi(RefreshNavigationButtons);
+            OnUi(() =>
+            {
+                RefreshNavigationButtons();
+                SyncSidebar();
+            });
         }
     }
 
@@ -480,52 +491,183 @@ public sealed partial class MainWindow : Window, IShellActions
         StatusText.Text = DisplayFormat.StatusText(_bound.Items.TotalCount, _bound.Items.ShownCount, _bound.Selection.Count, _bound.Selection.SelectedBytes);
     }
 
-    // Sidebar (placeholder) --------------------------------------------------------------------------------------------
+    // Sidebar ----------------------------------------------------------------------------------------------------------
+
+    private IReadOnlyList<SidebarPlace> _commonPlaces = [];
+    private IReadOnlyList<DriveDetails> _drives = [];
 
     private async Task LoadSidebarAsync()
     {
         var host = App.Host;
-        var items = new List<SidebarItem>();
         try
         {
             // Known folders and drive details read the registry and the disks: never on the UI thread.
-            var known = await Task.Run(() => new[]
-            {
-                (KnownFolder.Home, "Home", ""),
-                (KnownFolder.Desktop, "Desktop", ""),
-                (KnownFolder.Documents, "Documents", ""),
-                (KnownFolder.Downloads, "Downloads", ""),
-                (KnownFolder.Pictures, "Pictures", ""),
-                (KnownFolder.Videos, "Videos", ""),
-                (KnownFolder.Music, "Music", ""),
-            }.Select(k => (Location: host.KnownFolders.Get(k.Item1), k.Item2, k.Item3)).ToList(), _closing.Token);
-            items.AddRange(known.Where(k => k.Location is not null).Select(k => new SidebarItem(k.Item2, string.Empty, k.Item3, k.Location!.Value)));
-
-            var drives = await host.Volumes.GetDrivesAsync(_closing.Token);
-            items.AddRange(drives.Select(d => new SidebarItem(
-                d.DisplayName,
-                !d.IsResponsive ? "Not responding" : d.NetworkPath ?? (d.HasSizes ? $"{DisplayFormat.Size(d.FreeBytes)} free of {DisplayFormat.Size(d.TotalBytes)}" : string.Empty),
-                d.Kind == DriveKind.Network ? "" : "",
-                d.Root.Value)));
+            _commonPlaces = await Task.Run(
+                () => new[]
+                {
+                    (KnownFolder.Home, "Home", SidebarIcon.Home),
+                    (KnownFolder.Desktop, "Desktop", SidebarIcon.Desktop),
+                    (KnownFolder.Documents, "Documents", SidebarIcon.Documents),
+                    (KnownFolder.Downloads, "Downloads", SidebarIcon.Downloads),
+                    (KnownFolder.Pictures, "Pictures", SidebarIcon.Pictures),
+                    (KnownFolder.Videos, "Videos", SidebarIcon.Videos),
+                    (KnownFolder.Music, "Music", SidebarIcon.Music),
+                }
+                .Select(k => (Location: host.KnownFolders.Get(k.Item1), k.Item2, k.Item3))
+                .Where(k => k.Location is not null)
+                .Select(k => new SidebarPlace(k.Item2, k.Location!, k.Item3))
+                .ToList(),
+                _closing.Token);
+            _drives = await host.Volumes.GetDrivesAsync(_closing.Token);
         }
         catch (OperationCanceledException)
         {
             return;
         }
 
-        using (UiTrace.Begin("Sidebar.ItemsSource"))
+        using (UiTrace.Begin("Sidebar.Build"))
         {
-            Sidebar.ItemsSource = items;
+            RebuildSidebar();
         }
 
         App.ReportReady(ReadyPart.Sidebar);
     }
 
-    private void OnSidebarItemClick(object sender, ItemClickEventArgs e)
+    /// <summary>Builds the tree from the data read at startup and the current favorites; expanded folders are not kept, the tree follows the current folder again.</summary>
+    private void RebuildSidebar()
     {
-        if (e.ClickedItem is SidebarItem item)
+        var host = App.Host;
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders));
+        SyncSidebar();
+    }
+
+    private void OnFavoritesChanged(object? sender, EventArgs e) => OnUi(RebuildSidebar);
+
+    private void SyncSidebar()
+    {
+        if (_bound is { } tab && _sidebar.Rows.Count > 0)
         {
-            Run(CommandIds.NavGo, item.Path);
+            _ = SyncSidebarAsync(tab.History.Current);
+        }
+    }
+
+    private async Task SyncSidebarAsync(Core.Paths.LocationPath location)
+    {
+        try
+        {
+            using var scope = UiTrace.Begin("Sidebar.Sync");
+            await _sidebar.SyncAsync(location, _closing.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
+    }
+
+    private void OnSidebarSelectionChanged(object? sender, EventArgs e)
+    {
+        if (_sidebar.Selected is { } node && _sidebar.Rows.Contains(node))
+        {
+            using var scope = UiTrace.Begin("Sidebar.ScrollIntoView");
+            Sidebar.ScrollIntoView(node);
+        }
+    }
+
+    private async void OnSidebarItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not SidebarNode node)
+        {
+            return;
+        }
+
+        switch (node.Kind)
+        {
+            case SidebarNodeKind.Section:
+                await _sidebar.ToggleAsync(node, _closing.Token);
+                break;
+            case SidebarNodeKind.Message when node.IsRetry:
+                await _sidebar.RetryAsync(node, _closing.Token);
+                break;
+            case SidebarNodeKind.Place or SidebarNodeKind.Folder when node.Location is { } where:
+                App.Actions.Record("sidebar.open", where.Value);
+                Run(CommandIds.NavGo, where.Value);
+                break;
+        }
+    }
+
+    private async void OnSidebarChevronClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is SidebarNode node)
+        {
+            await _sidebar.ToggleAsync(node, _closing.Token);
+        }
+    }
+
+    private async void OnSidebarKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if ((e.OriginalSource as ListViewItem)?.Content is not SidebarNode node)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case VirtualKey.Right when node.CanExpand && !node.IsExpanded:
+                e.Handled = true;
+                await _sidebar.ExpandAsync(node, _closing.Token);
+                break;
+            case VirtualKey.Left when node.IsExpanded:
+                e.Handled = true;
+                _sidebar.Collapse(node);
+                break;
+            case VirtualKey.Left when node.Parent is { } parent && Sidebar.ContainerFromItem(parent) is ListViewItem container:
+                e.Handled = true;
+                container.Focus(FocusState.Keyboard);
+                break;
+        }
+    }
+
+    private void OnSidebarRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if ((e.OriginalSource as FrameworkElement)?.DataContext is not SidebarNode { Location: { } where } node)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var menu = new MenuFlyout();
+        var open = new MenuFlyoutItem { Text = "Open in new tab" };
+        open.Click += (_, _) => Run(CommandIds.TabOpenInNewTab, where.Value, true);
+        menu.Items.Add(open);
+        var pinned = App.Host.Favorites.Contains(where);
+        var pin = new MenuFlyoutItem { Text = pinned ? "Remove from Favorites" : "Add to Favorites" };
+        pin.Click += (_, _) => App.Host.Favorites.Toggle(where);
+        menu.Items.Add(pin);
+        if (node.Parent?.Title == "Favorites")
+        {
+            var rename = new MenuFlyoutItem { Text = "Rename…" };
+            rename.Click += async (_, _) => await RenameFavoriteAsync(where, node.Title);
+            menu.Items.Add(rename);
+        }
+
+        menu.ShowAt((FrameworkElement)e.OriginalSource, e.GetPosition((FrameworkElement)e.OriginalSource));
+    }
+
+    private async Task RenameFavoriteAsync(Core.Paths.LocationPath where, string current)
+    {
+        var box = new TextBox { Text = current, SelectionStart = 0, SelectionLength = current.Length };
+        var dialog = new ContentDialog
+        {
+            Title = "Rename favorite",
+            Content = box,
+            PrimaryButtonText = "Rename",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            App.Host.Favorites.Rename(where, box.Text);
         }
     }
 

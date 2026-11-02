@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Leviathan.App"
+    xmlns:sidebar="using:Leviathan.ViewModels.Sidebar"
     xmlns:model="using:Leviathan.Core.Model">
 
   <Window.SystemBackdrop>
@@ -96,27 +97,58 @@
         <ColumnDefinition Width="280" />
       </Grid.ColumnDefinitions>
 
-      <!-- Placeholder list of common folders and drives; the virtualized tree replaces it in slice D6. -->
+      <!-- The sidebar tree (spec 7): one virtualized list of rows; the tree model decides which rows exist. -->
       <ListView x:Name="Sidebar"
                 Grid.Column="0"
                 IsItemClickEnabled="True"
                 SelectionMode="None"
                 ItemClick="OnSidebarItemClick"
                 PointerPressed="OnSidebarPointerPressed"
+                RightTapped="OnSidebarRightTapped"
+                KeyDown="OnSidebarKeyDown"
                 Padding="4,0">
+        <!-- No add / remove / reposition animations: expanding a folder with hundreds of subfolders must not animate them all. -->
+        <ListView.ItemContainerTransitions>
+          <TransitionCollection />
+        </ListView.ItemContainerTransitions>
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+          </Style>
+        </ListView.ItemContainerStyle>
         <ListView.ItemTemplate>
-          <DataTemplate x:DataType="local:SidebarItem">
-            <Grid ColumnSpacing="10" Padding="4,6">
+          <DataTemplate x:DataType="sidebar:SidebarNode">
+            <Grid Background="{x:Bind local:SidebarFormat.Background(IsSelected), Mode=OneWay}" CornerRadius="4" Padding="2,3"
+                  ToolTipService.ToolTip="{x:Bind Detail}">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="22" />
+                <ColumnDefinition Width="22" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <FontIcon Glyph="{x:Bind Glyph}" FontSize="14" />
-              <StackPanel Grid.Column="1">
-                <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+              <Border Width="{x:Bind local:SidebarFormat.IndentWidth(Depth)}" />
+              <Button Grid.Column="1" Width="22" Height="22" Padding="0" Background="Transparent" BorderThickness="0"
+                      Click="OnSidebarChevronClick" Tag="{x:Bind}"
+                      Visibility="{x:Bind local:SidebarFormat.Visible(CanExpand), Mode=OneWay}"
+                      AutomationProperties.Name="Expand or collapse">
+                <FontIcon FontSize="10" Glyph="{x:Bind local:SidebarFormat.Chevron(IsExpanded), Mode=OneWay}" />
+              </Button>
+              <FontIcon Grid.Column="2" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0"
+                        Glyph="{x:Bind local:SidebarFormat.Glyph(Icon)}"
+                        Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
+              <ProgressRing Grid.Column="2" Width="14" Height="14" IsActive="True" HorizontalAlignment="Center"
+                            Visibility="{x:Bind local:SidebarFormat.IsLoading(Kind)}" />
+              <StackPanel Grid.Column="3" Margin="6,0,0,0" Spacing="2">
+                <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis"
+                           FontWeight="{x:Bind local:SidebarFormat.Weight(Kind)}"
+                           Foreground="{x:Bind local:SidebarFormat.Foreground(Kind)}" />
                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
-                           Visibility="{x:Bind local:Formatters.VisibleWhenNotEmpty(Detail)}" />
+                           Visibility="{x:Bind local:SidebarFormat.HasDetail(Kind, Detail)}" />
+                <ProgressBar Maximum="100" Height="3" Value="{x:Bind local:SidebarFormat.Percent(UsedFraction)}"
+                             Foreground="{x:Bind local:SidebarFormat.BarBrush(IsLowOnSpace)}"
+                             Visibility="{x:Bind local:SidebarFormat.HasBar(UsedFraction)}" />
               </StackPanel>
             </Grid>
           </DataTemplate>

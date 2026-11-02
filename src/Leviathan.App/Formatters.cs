@@ -4,13 +4,6 @@ using Microsoft.UI.Xaml;
 
 namespace Leviathan.App;
 
-/// <summary>An entry of the placeholder sidebar list (replaced by the sidebar tree in slice D6).</summary>
-/// <param name="Title">Main text.</param>
-/// <param name="Detail">Second line: path or free space.</param>
-/// <param name="Glyph">Segoe Fluent Icons glyph.</param>
-/// <param name="Path">Where clicking goes.</param>
-internal sealed record SidebarItem(string Title, string Detail, string Glyph, string Path);
-
 /// <summary>Thin static wrappers so x:Bind in templates can call the tested formatting functions.</summary>
 internal static class Formatters
 {

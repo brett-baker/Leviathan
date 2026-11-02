@@ -124,6 +124,9 @@ public static class CommandIds
     /// <summary>Resize thumbnails (Ctrl+mouse wheel). Parameter: wheel notches, positive = bigger.</summary>
     public static readonly CommandId ViewZoom = new("view.zoom");
 
+    /// <summary>Pin or unpin the current folder in Favorites (Ctrl+D).</summary>
+    public static readonly CommandId FavoriteToggle = new("favorite.toggle");
+
     /// <summary>Focus the address bar (Ctrl+L).</summary>
     public static readonly CommandId AddressFocus = new("address.focus");
 
@@ -161,7 +164,8 @@ public static partial class WindowCommands
         AddressResolver resolver,
         IFileLauncher launcher,
         IShellActions shell,
-        Func<LocationPath> home)
+        Func<LocationPath> home,
+        Sidebar.FavoritesList? favorites = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -426,6 +430,12 @@ public static partial class WindowCommands
         Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
             c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
 
+        Add(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (_, _) => Run(() =>
+        {
+            var pinned = favorites!.Toggle(Current()!.History.Current);
+            shell.ShowMessage(pinned ? "Added to Favorites" : "Removed from Favorites");
+        }), _ => favorites is not null && Current() is not null, shortcut: "Ctrl+D");
+
         Add(CommandIds.AddressFocus, "Focus address bar", "Navigation", (_, _) => Run(shell.FocusAddressBar), shortcut: "Ctrl+L");
         Add(CommandIds.AppDiagnostics, "Diagnostics", "App", (_, _) => Run(shell.OpenDiagnostics));
 
@@ -454,6 +464,7 @@ public static partial class WindowCommands
             ("Alt+D", CommandIds.AddressFocus),
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
+            ("Ctrl+D", CommandIds.FavoriteToggle),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),

@@ -101,8 +101,13 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   on the window's root scroll viewer, so arrow keys never reached the view (it takes the focus back after the click). Tiles and Gallery stay for Phase 3 (they need media data).
   Not done: thumbnails run in the UI process on two STA threads (the Media process is Phase 3), no layout switcher or size slider until D7/D10, folder thumbnails are the folder glyph,
   Shift+F5 does not yet invalidate the cache, type-ahead and rubber-band in the flow layouts follow in D8.
-- [ ] **D6. Sidebar tree** (§7, §7.2): Favorites (pin, drag, Ctrl+D), Common folders, Tags placeholder, Local drives with usage
-  bars, Network placeholder, Internet; spinner child + 5 s timeout, optimistic expand arrows, one-level look-ahead at low priority, sync with view.
+- [x] **D6. Sidebar tree** (§7, §7.2): `SidebarTree` (one flat list of rows built from sections, in the view-model project, unit-tested with a fake lister and `ManualTimeProvider`):
+  Favorites (Ctrl+D pins or unpins the current folder, kept in `%LOCALAPPDATA%\Leviathan\favorites.json`, right-click to add, remove or rename), Common folders, Tags placeholder,
+  Local drives with usage bars (red when low on space), Network (mapped drives), Internet (detected sync clients). Expanding shows a spinner row at once, lists with a 5 s timeout
+  ("Not responding — Retry" or "Access denied — Retry"), shows arrows without checking and removes one that proves empty, and follows the current folder (local folders expand on
+  the way down, network paths are never listed to follow the view). Left/Right expand and collapse, middle-click and the context menu open in a new tab. Found on the way: bulk row
+  inserts stalled the list for 350 to 420 ms, so rows go in 40 at a time. Not done: one-level look-ahead (arrows are optimistic instead), drag onto the tree and onto Favorites (D9),
+  Recycle Bin and Settings entries, saved servers and discovery (Phase 2), per-folder icons and colors for favorites, remembered expanded state, Ctrl+Alt+1–9 jumps.
 - [ ] **D7. Command bar** (§6): New menu, clipboard icon group with tooltips, context actions by selection type, overflow,
   View/Sort/Group, filter box, pane toggles (split deferred to Phase 2; the buttons exist and are disabled).
 - [ ] **D8. Interaction:** inline rename (F2, name without extension), rubber-band, keyboard selection, type-ahead.

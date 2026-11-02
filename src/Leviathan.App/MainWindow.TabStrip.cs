@@ -401,10 +401,10 @@ public sealed partial class MainWindow
 
     private void OnSidebarPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        if (e.GetCurrentPoint((UIElement)sender).Properties.IsMiddleButtonPressed && (e.OriginalSource as FrameworkElement)?.DataContext is SidebarItem item)
+        if (e.GetCurrentPoint((UIElement)sender).Properties.IsMiddleButtonPressed && (e.OriginalSource as FrameworkElement)?.DataContext is ViewModels.Sidebar.SidebarNode { Location: { } where })
         {
             e.Handled = true;
-            Run(CommandIds.TabOpenInNewTab, item.Path, false);
+            Run(CommandIds.TabOpenInNewTab, where.Value, false);
         }
     }
 

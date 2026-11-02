@@ -9,6 +9,7 @@ using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Views;
 using Leviathan.ViewModels.Windows;
@@ -51,9 +52,13 @@ internal sealed class AppHost
         RecentLocations recent,
         AddressCompleter completer,
         SubfolderMenu subfolders,
-        IThumbnailCache thumbnails)
+        IThumbnailCache thumbnails,
+        FavoritesList favorites,
+        ISubfolderSource sidebarSource)
     {
         Thumbnails = thumbnails;
+        Favorites = favorites;
+        SidebarSource = sidebarSource;
         Windows = windows;
         Resolver = resolver;
         Launcher = launcher;
@@ -77,6 +82,12 @@ internal sealed class AppHost
 
     public KeyMap Keys { get; }
 
+    /// <summary>The pinned folders shown under Favorites, shared by all windows.</summary>
+    public FavoritesList Favorites { get; }
+
+    /// <summary>Lists the folders below a sidebar node.</summary>
+    public ISubfolderSource SidebarSource { get; }
+
     /// <summary>Thumbnails and icons for the Thumbnails layout, shared by all windows (spec §3.1: size-capped, off the UI thread).</summary>
     public IThumbnailCache Thumbnails { get; }
 
@@ -88,6 +99,9 @@ internal sealed class AppHost
 
     /// <summary>Raised on the thread pool once the cloud sync folders have been detected.</summary>
     public event EventHandler? CloudFoldersChanged;
+
+    /// <summary>The cloud sync clients found so far (empty until detection finishes).</summary>
+    public IReadOnlyList<CloudProviderInfo> CloudProviders => Volatile.Read(ref _cloud);
 
     /// <summary>True when <paramref name="location"/> is inside a cloud sync client's folder.</summary>
     public bool IsCloudFolder(LocationPath location) => Volatile.Read(ref _cloud).Any(c => c.SyncFolder.Contains(location));
@@ -135,7 +149,9 @@ internal sealed class AppHost
             recent,
             new AddressCompleter(lister),
             new SubfolderMenu(lister),
-            new ThumbnailCache(new ShellThumbnailSource()));
+            new ThumbnailCache(new ShellThumbnailSource()),
+            new FavoritesList(new JsonFavoritesStorage()),
+            new ProviderSubfolderSource(providers));
     }
 }
 
