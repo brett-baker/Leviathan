@@ -84,8 +84,14 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   type-to-filter, edit mode (click empty space, Ctrl+L, Alt+D) with autocomplete from the typed folder, recent folders and favorites, Tab to accept,
   Esc to leave, a "…" menu for segments that do not fit, right-click Copy path / UNC / quoted / file:// URI, and lock / warning / cloud icons.
   It is a `UserControl` in the app project, not yet in a separate `Leviathan.Controls` library. Not done: dropping files onto a segment (D9).
-- [ ] **D4. File view, Details.** `ItemsRepeater`-based virtualized grid, configurable columns (right-click header, reorder,
-  auto-fit), skeleton rows while loading, empty/denied/offline states, folder sizes via `FolderSizeService` in the Size column.
+- [x] **D4. File view, Details.** `DetailsGrid` (`ItemsRepeater` over fixed-height `GridRow`s, recycled): header click sorts (Shift adds a secondary sort, arrow shows direction),
+  drag a header edge to resize, double-click it to auto-fit, drag a header to reorder, right-click for the column list (Name cannot be hidden); widths, order and visible
+  columns live in `ColumnLayout` and stay with the tab. Selection is the `SelectionModel` (click, Ctrl, Shift, arrows, Home/End, PageUp/PageDown, type-ahead, Enter opens).
+  Skeleton rows while the first rows load; empty / denied / not found / offline states with a Try again button. Folder sizes: `FolderSizeTracker` asks `WorkerFolderSizes`,
+  which reads the shared SQLite store and submits low-priority `ComputeFolderSize` jobs to the worker (so counting never runs in the UI process); values arrive as they finish,
+  stale ones in italic. Found on the way: `LocationPath.Parse` expanded `%VARS%` in listed paths, so System32's folder `%userprofile%` could not be opened or sized; only typed
+  addresses expand now. Not done: sorting by folder size (folders sort as 0 bytes), rubber-band and inline rename (D8), context menu (F), skeleton rows not seen on screen
+  (local folders load too fast), Size column for network folders (not counted unasked).
 - [ ] **D5. List and Thumbnails layouts**, Ctrl+wheel resize 64–512 px, Tiles/Gallery deferred to Phase 3 where they need media data.
 - [ ] **D6. Sidebar tree** (§7, §7.2): Favorites (pin, drag, Ctrl+D), Common folders, Tags placeholder, Local drives with usage
   bars, Network placeholder, Internet; spinner child + 5 s timeout, optimistic expand arrows, one-level look-ahead at low priority, sync with view.

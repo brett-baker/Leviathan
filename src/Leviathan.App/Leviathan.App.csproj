@@ -30,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
     <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\Leviathan.Data\Leviathan.Data.csproj" />
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
     <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />

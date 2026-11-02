@@ -391,13 +391,10 @@ public sealed partial class MainWindow
 
     // Middle-click opens a folder in a new background tab (spec 4.1) -----------------------------------------------------
 
-    private void OnFilePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void OnFileMiddleClicked(object? sender, Core.Model.FileEntry entry)
     {
-        if (e.GetCurrentPoint((UIElement)sender).Properties.IsMiddleButtonPressed
-            && (e.OriginalSource as FrameworkElement)?.DataContext is Core.Model.FileEntry entry
-            && ViewModels.Folders.FileColumns.IsFolderLike(entry))
+        if (ViewModels.Folders.FileColumns.IsFolderLike(entry))
         {
-            e.Handled = true;
             Run(CommandIds.TabOpenInNewTab, entry.Location.Value, KeyTranslator.IsDown(Windows.System.VirtualKey.Shift));
         }
     }

@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
@@ -115,7 +116,9 @@ internal sealed class AppHost
         var providers = new LocationProviderRegistry([new LocalLocationProvider()]);
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
-        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent);
+        var queue = DispatcherQueue.GetForCurrentThread();
+        var sizes = new WorkerFolderSizes(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
+        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes);
         return new AppHost(
             new WindowManager(services),
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),

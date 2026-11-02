@@ -181,7 +181,13 @@ public sealed class SelectionModel
         }
 
         var current = Focus is null ? -1 : IndexOf(Focus);
-        var target = current < 0 ? (delta >= 0 ? 0 : _rows.Count - 1) : (int)Math.Clamp((long)current + delta, 0, _rows.Count - 1);
+        var target = delta switch
+        {
+            int.MinValue => 0,
+            int.MaxValue => _rows.Count - 1,
+            _ when current < 0 => delta >= 0 ? 0 : _rows.Count - 1,
+            _ => (int)Math.Clamp((long)current + delta, 0, _rows.Count - 1),
+        };
         var entry = _rows[target];
         if (ctrl && !shift)
         {

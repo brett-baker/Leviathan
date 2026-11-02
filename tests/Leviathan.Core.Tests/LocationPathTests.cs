@@ -212,10 +212,21 @@ public class LocationPathTests
     }
 
     [Fact]
-    public void Parse_ExpandsEnvironmentVariables()
+    public void TryResolve_ExpandsEnvironmentVariables_InTypedText()
     {
         Environment.SetEnvironmentVariable("LEVIATHAN_TEST_ROOT", @"C:\Data");
 
-        Assert.Equal(@"C:\Data\x", LocationPath.Parse(@"%LEVIATHAN_TEST_ROOT%\x").Value);
+        Assert.True(LocationPath.TryResolve(@"%LEVIATHAN_TEST_ROOT%\x", null, out var path, out _));
+        Assert.Equal(@"C:\Data\x", path!.Value);
+    }
+
+    [Fact]
+    public void Parse_FolderNamedLikeAVariable_KeepsItsName()
+    {
+        // C:\Windows\System32 really contains a folder called %userprofile%; a listing hands its path back to Parse.
+        var path = LocationPath.Parse(@"C:\Windows\System32\%userprofile%");
+
+        Assert.Equal(@"C:\Windows\System32\%userprofile%", path.Value);
+        Assert.Equal("%userprofile%", path.Name);
     }
 }

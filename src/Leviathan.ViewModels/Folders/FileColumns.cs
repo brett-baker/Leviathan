@@ -70,7 +70,8 @@ public static class FileColumns
     public static bool IsFolderLike(FileEntry entry) =>
         entry.Kind == FileEntryKind.Folder || (entry.Kind == FileEntryKind.Link && entry.Attributes.HasFlag(FileAttributes.Directory));
 
-    private static string TypeName(FileEntry entry) =>
+    /// <summary>"Folder", "File" or "MKV file": what the Type column shows.</summary>
+    public static string TypeName(FileEntry entry) =>
         IsFolderLike(entry) ? "Folder" : entry.Extension.Length == 0 ? "File" : entry.Extension.TrimStart('.').ToUpperInvariant() + " file";
 
     private static GroupBucket NameBucket(FileEntry entry)

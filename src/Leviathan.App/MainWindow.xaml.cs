@@ -60,6 +60,10 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
         Address.Attach(host.AddressBar);
+        FileList.ItemInvoked += OnFileInvoked;
+        FileList.SortRequested += OnSortRequested;
+        FileList.MiddleClicked += OnFileMiddleClicked;
+        FileList.KeyDown += OnFileKeyDown;
         Address.Submitted += OnAddressSubmitted;
         Address.NavigationRequested += OnAddressNavigation;
         Address.EditEnded += OnAddressEditEnded;
@@ -202,7 +206,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    private void OnAddressEditEnded(object? sender, EventArgs e) => FileList.Focus(FocusState.Programmatic);
+    private void OnAddressEditEnded(object? sender, EventArgs e) => FileList.FocusGrid();
 
     private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(Address.RefreshStatus);
 
@@ -303,19 +307,21 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             _bound.Folder.PropertyChanged -= OnFolderPropertyChanged;
             _bound.Items.PropertyChanged -= OnItemsPropertyChanged;
+            _bound.Selection.Changed -= OnSelectionChanged;
             _bound.Address.PropertyChanged -= OnAddressLocationChanged;
         }
 
         _bound = tab;
         if (tab is null)
         {
-            FileList.ItemsSource = null;
+            FileList.Bind(null);
             Address.Bind(null);
             return;
         }
 
         using var bind = UiTrace.Begin("BindTab");
-        FileList.ItemsSource = tab.Items.Rows;
+        FileList.Bind(tab);
+        tab.Selection.Changed += OnSelectionChanged;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;
         Address.Bind(tab);
@@ -361,53 +367,56 @@ public sealed partial class MainWindow : Window, IShellActions
 
     // File view --------------------------------------------------------------------------------------------------------
 
-    private void OnFileDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private void OnFileInvoked(object? sender, FileEntry entry) => Run(CommandIds.ItemOpen, entry.Location.Value, entry);
+
+    private void OnSortRequested(object? sender, DetailsGrid.SortRequest request)
     {
-        if ((e.OriginalSource as FrameworkElement)?.DataContext is FileEntry entry)
+        if (_bound is { } tab)
         {
-            Run(CommandIds.ItemOpen, entry.Location.Value, entry);
+            App.Actions.Record("view.sort", request.ColumnId);
+            tab.SortBy(request.ColumnId, request.Additive);
         }
     }
 
     private void OnFileKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Enter && FileList.SelectedItem is FileEntry entry)
-        {
-            e.Handled = true;
-            Run(CommandIds.ItemOpen, entry.Location.Value, entry);
-        }
-        else if (e.Key == VirtualKey.Back && !KeyTranslator.IsDown(VirtualKey.Control))
+        if (e.Key == VirtualKey.Back && !KeyTranslator.IsDown(VirtualKey.Control))
         {
             e.Handled = true;
             Run(CommandIds.NavBack);
         }
     }
 
-    // The ListView keeps its own selection until the column grid (slice D4) is driven by the SelectionModel.
-    private void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateStatus();
+    private void OnSelectionChanged(object? sender, EventArgs e) => OnUi(UpdateStatus);
+
+    private void OnRetryClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavReload);
 
     private void UpdateState()
     {
         var tab = _bound;
         var state = tab?.Folder.State ?? FolderLoadState.Idle;
         var hasRows = tab?.Items.ShownCount > 0;
-        var (title, detail, busy) = state switch
+        var (title, detail, busy, glyph, retry) = state switch
         {
-            FolderLoadState.Loading when !hasRows => ("Loading…", string.Empty, true),
-            FolderLoadState.Empty => ("This folder is empty", string.Empty, false),
-            FolderLoadState.NotFound => ("Folder not found", tab?.Folder.Message ?? string.Empty, false),
-            FolderLoadState.AccessDenied => ("Access denied", tab?.Folder.Message ?? string.Empty, false),
-            FolderLoadState.Offline => ("Not responding", $"{tab?.Folder.Message} Press F5 to try again.", false),
-            FolderLoadState.Error => ("This folder could not be opened", tab?.Folder.Message ?? string.Empty, false),
-            FolderLoadState.Cancelled when !hasRows => ("Listing cancelled", "Press F5 to list this folder again.", false),
-            _ => (string.Empty, string.Empty, false),
+            FolderLoadState.Loading when !hasRows => (string.Empty, string.Empty, false, string.Empty, false),
+            FolderLoadState.Empty => ("This folder is empty", string.Empty, false, "", false),
+            FolderLoadState.NotFound => ("Folder not found", tab?.Folder.Message ?? string.Empty, false, "", false),
+            FolderLoadState.AccessDenied => ("Access denied", tab?.Folder.Message ?? string.Empty, false, "", false),
+            FolderLoadState.Offline => ("Not responding", tab?.Folder.Message ?? string.Empty, false, "", true),
+            FolderLoadState.Error => ("This folder could not be opened", tab?.Folder.Message ?? string.Empty, false, "", tab?.Folder.IsRetryable == true),
+            FolderLoadState.Cancelled when !hasRows => ("Listing cancelled", "Press F5 to list this folder again.", false, "", true),
+            _ => (string.Empty, string.Empty, false, string.Empty, false),
         };
 
         StatePanel.Visibility = title.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         StateTitle.Text = title;
         StateDetail.Text = detail;
+        StateDetail.Visibility = detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         StateRing.IsActive = busy;
         StateRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        StateIcon.Glyph = glyph;
+        StateIcon.Visibility = glyph.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        RetryButton.Visibility = retry ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void UpdateStatus()
@@ -418,9 +427,7 @@ public sealed partial class MainWindow : Window, IShellActions
             return;
         }
 
-        var selected = FileList.SelectedItems.OfType<FileEntry>().ToList();
-        var bytes = selected.Where(e => e.Kind == FileEntryKind.File).Sum(e => e.Size);
-        StatusText.Text = DisplayFormat.StatusText(_bound.Items.TotalCount, _bound.Items.ShownCount, selected.Count, bytes);
+        StatusText.Text = DisplayFormat.StatusText(_bound.Items.TotalCount, _bound.Items.ShownCount, _bound.Selection.Count, _bound.Selection.SelectedBytes);
     }
 
     // Sidebar (placeholder) --------------------------------------------------------------------------------------------

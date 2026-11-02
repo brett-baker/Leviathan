@@ -116,7 +116,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
         path = null;
         error = string.Empty;
 
-        var text = Clean(input);
+        var text = Clean(input, expandEnvironment: false);
         if (text.Length == 0)
         {
             error = "The path is empty.";
@@ -223,7 +223,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
     /// </summary>
     public static bool TryResolve(string? input, LocationPath? current, [NotNullWhen(true)] out LocationPath? path, out string error)
     {
-        var text = Clean(input);
+        var text = Clean(input, expandEnvironment: true);
         if (TryParse(text, out path, out error))
         {
             return true;
@@ -456,7 +456,12 @@ public sealed class LocationPath : IEquatable<LocationPath>
         return true;
     }
 
-    private static string Clean(string? input)
+    /// <summary>
+    /// Trims and unquotes <paramref name="input"/>. Environment variables are expanded only for text a person typed
+    /// (<see cref="TryResolve"/>): a location that came from a listing can contain a literal '%', and System32 has a folder
+    /// named <c>%userprofile%</c>.
+    /// </summary>
+    private static string Clean(string? input, bool expandEnvironment)
     {
         var text = (input ?? string.Empty).Trim();
         if (text.Length >= 2 && text[0] == '"' && text[^1] == '"')
@@ -464,7 +469,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
             text = text[1..^1].Trim();
         }
 
-        if (text.Contains('%', StringComparison.Ordinal))
+        if (expandEnvironment && text.Contains('%', StringComparison.Ordinal))
         {
             text = Environment.ExpandEnvironmentVariables(text);
         }

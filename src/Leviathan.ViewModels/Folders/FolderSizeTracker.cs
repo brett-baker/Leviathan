@@ -21,8 +21,11 @@ public interface IFolderSizeSource
     /// <summary>The stored size of a folder, or null when it was never counted. Cheap; called for visible rows.</summary>
     FolderSizeInfo? TryGet(LocationPath folder);
 
-    /// <summary>Asks for the folders to be counted in the background, at low priority. Returns without waiting.</summary>
-    void Request(IReadOnlyList<LocationPath> folders);
+    /// <summary>
+    /// Asks for the folders to be counted in the background, at low priority. Returns without waiting. The entries carry the
+    /// folders' last-write times, so a stored size that no longer matches can be recounted.
+    /// </summary>
+    void Request(IReadOnlyList<FileEntry> folders);
 }
 
 /// <summary>
@@ -89,7 +92,7 @@ public sealed class FolderSizeTracker : IDisposable
             return;
         }
 
-        var wanted = new List<LocationPath>();
+        var wanted = new List<FileEntry>();
         foreach (var row in rows)
         {
             if (wanted.Count >= MaxRequested)
@@ -100,7 +103,7 @@ public sealed class FolderSizeTracker : IDisposable
             if (FileColumns.IsFolderLike(row) && row.Kind == FileEntryKind.Folder && _source.CanCompute(row.Location)
                 && _source.TryGet(row.Location) is not { IsStale: false, IsLowerBound: false })
             {
-                wanted.Add(row.Location);
+                wanted.Add(row);
                 _requested.Add(row.Location);
             }
         }

@@ -152,7 +152,7 @@ public sealed class FolderSizeTrackerTests
     {
         public Dictionary<LocationPath, FolderSizeInfo> Known { get; } = [];
 
-        public List<IReadOnlyList<LocationPath>> Requests { get; } = [];
+        public List<IReadOnlyList<Leviathan.Core.Model.FileEntry>> Requests { get; } = [];
 
         public bool Local { get; set; } = true;
 
@@ -162,7 +162,7 @@ public sealed class FolderSizeTrackerTests
 
         public FolderSizeInfo? TryGet(LocationPath folder) => Known.TryGetValue(folder, out var info) ? info : null;
 
-        public void Request(IReadOnlyList<LocationPath> folders) => Requests.Add(folders);
+        public void Request(IReadOnlyList<Leviathan.Core.Model.FileEntry> folders) => Requests.Add(folders);
 
         public void Raise(params LocationPath[] folders) => Computed?.Invoke(this, folders);
     }
@@ -185,7 +185,7 @@ public sealed class FolderSizeTrackerTests
         var (_, source) = await OpenAsync();
 
         var request = Assert.Single(source.Requests);
-        Assert.Equal([P(@"C:\a\b\c")], request);
+        Assert.Equal([P(@"C:\a\b\c")], request.Select(e => e.Location));
     }
 
     [Fact]

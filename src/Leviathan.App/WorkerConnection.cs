@@ -15,7 +15,11 @@ namespace Leviathan.App;
 /// <summary>Adapts WinUI's dispatcher for the stall watchdog and for marshalling worker callbacks.</summary>
 internal sealed class DispatcherQueueUiDispatcher(DispatcherQueue queue) : IUiDispatcher
 {
-    public bool TryEnqueue(Action callback) => queue.TryEnqueue(() => callback());
+    public bool TryEnqueue(Action callback) => queue.TryEnqueue(() =>
+    {
+        using var scope = UiTrace.Begin($"worker UI callback {callback.Method.Name}", thresholdMs: 5);
+        callback();
+    });
 }
 
 /// <summary>What the status line shows.</summary>
@@ -49,13 +53,16 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
 
     public event EventHandler<WorkerStatus>? StatusChanged;
 
+    /// <summary>Raised on the calling thread (not the UI thread) whenever the worker reports a job's state.</summary>
+    public event EventHandler<JobSnapshot>? JobChanged;
+
     public async Task StartAsync()
     {
         _supervisor.EnsureRunning();
         await ConnectWithRetryAsync();
     }
 
-    public async Task SubmitAsync(JobRequest request)
+    public async Task<JobSnapshot> SubmitAsync(JobRequest request)
     {
         if (!_client.IsConnected)
         {
@@ -64,10 +71,12 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
 
         var snapshot = await _client.Service.SubmitAsync(request, _closing.Token);
         await OnJobChangedAsync(snapshot);
+        return snapshot;
     }
 
     public Task OnJobChangedAsync(JobSnapshot snapshot)
     {
+        JobChanged?.Invoke(this, snapshot);
         _ui.TryEnqueue(() =>
         {
             var row = _jobs.FirstOrDefault(j => j.Id == snapshot.Id);

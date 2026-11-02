@@ -154,6 +154,20 @@ public sealed class SelectionModelTests
     }
 
     [Fact]
+    public void Move_EndWithNoFocus_SelectsTheLastRow_HomeTheFirst()
+    {
+        var (_, _, model) = Make("a", "b", "c");
+
+        model.Move(int.MaxValue);
+        Assert.Equal(["c"], Selected(model));
+
+        model.Clear();
+        var (_, _, fresh) = Make("a", "b", "c");
+        fresh.Move(int.MinValue);
+        Assert.Equal(["a"], Selected(fresh));
+    }
+
+    [Fact]
     public void Move_HomeAndEnd_UseExtremeDeltas()
     {
         var (_, _, model) = Make("a", "b", "c", "d");
