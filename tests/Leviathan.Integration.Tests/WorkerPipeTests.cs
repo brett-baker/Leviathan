@@ -105,6 +105,42 @@ public sealed class WorkerPipeTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Client_SubmitsACopy_WorkerRefusesBadRequests_AndKnowsNoExecutorYet()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Locations are Windows paths; runs on Windows CI.");
+        await using var client = new WorkerClient(new RecordingCallbacks(), _pipe);
+        await client.ConnectAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+
+        // A copy with no destination never reaches the queue.
+        await Assert.ThrowsAnyAsync<Exception>(() => client.Service.SubmitAsync(new JobRequest(JobKind.Copy, [_root], null), CancellationToken.None));
+
+        // A valid one is queued with the new fields intact; this worker has no copy executor yet (slice E2), so it fails with a message.
+        var submitted = await client.Service.SubmitAsync(
+            new JobRequest(JobKind.Copy, [Path.Combine(_root, "a.bin")], Path.Combine(_root, "sub")) { Conflict = ConflictPolicy.Skip },
+            CancellationToken.None);
+        Assert.Equal(JobLane.Operations, submitted.Lane);
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        JobSnapshot? job = null;
+        while (DateTime.UtcNow < deadline)
+        {
+            job = (await client.Service.GetJobsAsync(CancellationToken.None)).Single(j => j.Id == submitted.Id);
+            if (job.State == JobState.Failed)
+            {
+                break;
+            }
+
+            await Task.Delay(20);
+        }
+
+        Assert.Equal(JobState.Failed, job!.State);
+        var result = await client.Service.GetResultAsync(submitted.Id, CancellationToken.None);
+        Assert.NotNull(result);
+        Assert.Empty(result!.Items);
+        Assert.Null(await client.Service.GetResultAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Client_ConnectTimesOut_WhenNoWorker()
     {
         await using var client = new WorkerClient(new RecordingCallbacks(), "Leviathan.Tests.NoSuchPipe." + Guid.NewGuid().ToString("N"));

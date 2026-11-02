@@ -4,7 +4,7 @@ namespace Leviathan.Contracts;
 public static class ContractVersion
 {
     /// <summary>Major version. Must match between client and worker.</summary>
-    public const int Major = 1;
+    public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
     public const int Minor = 0;
@@ -32,6 +32,9 @@ public interface IWorkerService
 
     /// <summary>All jobs: running, queued, and finished in the last 7 days.</summary>
     Task<IReadOnlyList<JobSnapshot>> GetJobsAsync(CancellationToken cancellationToken);
+
+    /// <summary>What happened to each item of a job so far, or null when the job is unknown (undo is built from this).</summary>
+    Task<JobResult?> GetResultAsync(Guid jobId, CancellationToken cancellationToken);
 
     /// <summary>Pauses a queued or running job.</summary>
     Task PauseAsync(Guid jobId, CancellationToken cancellationToken);
@@ -84,5 +87,5 @@ public static class PipeNames
     /// Prefix of the worker pipe. The full name adds a hash of the user's SID so each Windows user gets their own worker;
     /// the pipe is also created with current-user-only access.
     /// </summary>
-    public const string WorkerPrefix = "Leviathan.Worker.v1.";
+    public const string WorkerPrefix = "Leviathan.Worker.v2.";
 }

@@ -120,6 +120,10 @@ public sealed class JobHost : IAsyncDisposable
         return Snapshot(job);
     }
 
+    /// <summary>What happened to each item of a job so far, or null when the job is unknown or has no results yet.</summary>
+    public JobResult? GetResult(Guid jobId) =>
+        _scheduler.Find(jobId) is null ? null : new JobResult(jobId, _progress.TryGetValue(jobId, out var context) ? context.Results : []);
+
     /// <summary>Pauses a job; a running job's executor is stopped and can resume later.</summary>
     public void Pause(Guid jobId)
     {

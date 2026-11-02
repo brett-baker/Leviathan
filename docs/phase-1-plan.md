@@ -133,8 +133,11 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### E. Operations (basic, local)
 
-- [ ] **E1. Worker contract for simple operations.** Copy, move, rename, delete-to-Recycle-Bin requests in
+- [x] **E1. Worker contract for simple operations.** Copy, move, rename, delete-to-Recycle-Bin requests in
   `Leviathan.Contracts`; bump `ContractVersion.Major`. Journaled through the existing job host.
+  Done: `JobKind.Rename` and `Link`, `ConflictPolicy` (Keep both default / Replace / Skip), `DeleteMode` (Recycle Bin / Permanent), `NewName`, per-item `ItemOutcome` and
+  `GetResultAsync`, contract major 2 and pipe `v2`, `JobRequestValidator` at the worker door; the new fields survive the journal. No executor yet: a copy submitted now is queued and fails
+  with "not supported yet" until E2/E3 add the executors. Not done: the UI does not submit jobs yet (E2 swaps `UnavailableTransferService` for a worker-backed one).
 - [ ] **E2. Basic copy/move for local disks** (non-journaled chunking is acceptable this phase; Phase 2 replaces it). Writes
   `*.leviathan-part` and renames, conflict handling limited to Replace / Skip / Keep both.
 - [ ] **E3. Recycle Bin delete** via `IFileOperation` in the worker (not on the UI thread), Shift+Del permanent with confirmation.

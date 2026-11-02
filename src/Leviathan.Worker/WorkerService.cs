@@ -77,9 +77,9 @@ public sealed class WorkerService : IWorkerService
         using var activity = Activities.StartActivity("SubmitJob");
         activity?.SetTag("job.kind", request.Kind.ToString());
 
-        if (request.Sources.Count == 0)
+        if (JobRequestValidator.Validate(request) is { } problem)
         {
-            throw new ArgumentException("A job needs at least one source.", nameof(request));
+            throw new ArgumentException(problem, nameof(request));
         }
 
         var sources = request.Sources.Select(LocationPath.Parse).ToList();
@@ -92,6 +92,9 @@ public sealed class WorkerService : IWorkerService
 
     /// <inheritdoc />
     public Task<IReadOnlyList<JobSnapshot>> GetJobsAsync(CancellationToken cancellationToken) => Task.FromResult(_host.GetSnapshots());
+
+    /// <inheritdoc />
+    public Task<JobResult?> GetResultAsync(Guid jobId, CancellationToken cancellationToken) => Task.FromResult(_host.GetResult(jobId));
 
     /// <inheritdoc />
     public Task PauseAsync(Guid jobId, CancellationToken cancellationToken) => Run(() => _host.Pause(jobId));
@@ -157,6 +160,8 @@ public static class JobTitles
             JobKind.Compress => $"Compress {what}",
             JobKind.Sync => $"Sync {what} → {destination}",
             JobKind.BulkRename => $"Rename {what}",
+            JobKind.Rename => $"Rename {what}",
+            JobKind.Link => $"Create shortcut to {what} in {destination}",
             JobKind.ComputeFolderSize => $"Folder sizes: {(sources.Count == 1 ? sources[0].Value : what)}",
             _ => $"{kind} {what}",
         };

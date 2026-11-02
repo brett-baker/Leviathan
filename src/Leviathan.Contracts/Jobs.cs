@@ -29,7 +29,61 @@ public enum JobKind
 
     /// <summary>Compute folder sizes (background lane).</summary>
     ComputeFolderSize,
+
+    /// <summary>Rename one item in place (<see cref="JobRequest.NewName"/>). Made a job so it is journaled and can be undone (spec §12.5).</summary>
+    Rename,
+
+    /// <summary>Create shortcuts to the sources in the destination folder (drag with Alt, spec §8.4).</summary>
+    Link,
 }
+
+/// <summary>What to do when an item with the same name is already in the destination (spec §12.2). Asking is a later slice; until then the choice is made up front.</summary>
+public enum ConflictPolicy
+{
+    /// <summary>Keep both: the new item gets a free name such as "report (2).pdf". Never overwrites, so it is the default.</summary>
+    KeepBoth,
+
+    /// <summary>Replace the existing item.</summary>
+    Replace,
+
+    /// <summary>Leave the existing item and skip the new one.</summary>
+    Skip,
+}
+
+/// <summary>Where deleted items go (spec §12.5).</summary>
+public enum DeleteMode
+{
+    /// <summary>The Recycle Bin on local disks, the share's <c>#recycle</c> folder on shares that have one. Undoable.</summary>
+    RecycleBin,
+
+    /// <summary>Gone for good. Only after the user confirmed.</summary>
+    Permanent,
+}
+
+/// <summary>What happened to one item of a job.</summary>
+public enum ItemStatus
+{
+    /// <summary>Done.</summary>
+    Done,
+
+    /// <summary>Left alone, for example because of <see cref="ConflictPolicy.Skip"/>.</summary>
+    Skipped,
+
+    /// <summary>Could not be done; see <see cref="ItemOutcome.Error"/>.</summary>
+    Failed,
+}
+
+/// <summary>The result for one source of a job. Undo (Ctrl+Z) is built from these (spec §12.5).</summary>
+/// <param name="Source">The item as it was before the job.</param>
+/// <param name="Result">Where it is now (the copy, the new name, the Recycle Bin entry), or null when it is gone or nothing was made.</param>
+/// <param name="Status">Done, skipped or failed.</param>
+/// <param name="Error">Why it failed.</param>
+public sealed record ItemOutcome(string Source, string? Result, ItemStatus Status, string? Error = null);
+
+/// <summary>The per-item results of a finished (or running) job.</summary>
+/// <param name="JobId">The job.</param>
+/// <param name="Items">One entry per source handled so far.</param>
+public sealed record JobResult(Guid JobId, IReadOnlyList<ItemOutcome> Items);
 
 /// <summary>Job lifecycle (spec §12.3).</summary>
 public enum JobState
@@ -93,6 +147,15 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>Optional title; the worker composes one when null.</summary>
     public string? Title { get; init; }
+
+    /// <summary>What to do with a name that is already taken (copy, move, link).</summary>
+    public ConflictPolicy Conflict { get; init; } = ConflictPolicy.KeepBoth;
+
+    /// <summary>Where deleted items go (delete only).</summary>
+    public DeleteMode DeleteMode { get; init; } = DeleteMode.RecycleBin;
+
+    /// <summary>The new name (rename only): a name, not a path.</summary>
+    public string? NewName { get; init; }
 }
 
 /// <summary>A point-in-time view of a job, as shown in the Operations panel.</summary>

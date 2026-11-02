@@ -30,6 +30,7 @@ public sealed record JobOutcome(JobState State, string? Error = null)
 public sealed class JobContext
 {
     private readonly Lock _lock = new();
+    private readonly List<ItemOutcome> _results = [];
     private readonly Action<JobContext> _onProgress;
 
     internal JobContext(ScheduledJob job, SpeedMeter speed, Action<JobContext> onProgress)
@@ -59,6 +60,28 @@ public sealed class JobContext
 
     /// <summary>Item currently being processed.</summary>
     public string? CurrentItem { get; private set; }
+
+    /// <summary>The per-item results recorded so far.</summary>
+    public IReadOnlyList<ItemOutcome> Results
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _results];
+            }
+        }
+    }
+
+    /// <summary>Records what happened to one source. Undo and the job report are built from these (spec §12.5).</summary>
+    public void AddResult(ItemOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        lock (_lock)
+        {
+            _results.Add(outcome);
+        }
+    }
 
     /// <summary>Reports progress. Cheap; the host throttles what it forwards to the UI.</summary>
     public void Report(long bytesDone, long bytesTotal, int itemsDone, int itemsTotal, string? currentItem = null)

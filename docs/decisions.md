@@ -25,3 +25,7 @@ One line each: the decision, then why. Newest last.
 - **D11: the usage bar is one colour (used / free), not split by file type.** The per-type breakdown needs the space map's scan data (Phase 5); the folder-size store only has folder totals.
 - **D11: the card shows only actions that work today:** Open terminal here and Properties. Open space map, Find duplicates and Empty Recycle Bin appear when their features land (same rule as the command bar).
 - **D11: a hidden card is brought back from View > Drive summary.** The hide choice is stored per drive root in `hidden-drive-cards.json`.
+- **E1: contract major bumped to 2 and the pipe name to `Leviathan.Worker.v2.`** The request gained fields and `JobKind` gained Rename and Link; a new UI must never talk to a stale v1 worker still running from before an update.
+- **E1: the default conflict policy is Keep both.** It can never overwrite or lose data; Replace and Skip are explicit. "Ask each time" arrives with the conflict dialog (Phase 2).
+- **E1: per-item results are kept in memory by the job host (`GetResultAsync`), not journaled yet.** Undo (E4) needs them to survive a restart and adds a journal record for them then.
+- **E1: the worker validates every request at the door** (`JobRequestValidator`): a copy without a destination, a folder into itself or a bad rename name is refused before it is queued.
