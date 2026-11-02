@@ -157,6 +157,9 @@ public static class CommandIds
     /// <summary>Pin the folder in Target, or the selected folder, to Favorites.</summary>
     public static readonly CommandId FavoriteAdd = new("favorite.add");
 
+    /// <summary>Hide or show the drive summary card of the drive root in Target.</summary>
+    public static readonly CommandId DriveCardToggle = new("drive.card");
+
     /// <summary>Drop items on a folder. Target: the folder; parameter: <see cref="ItemDrop"/>.</summary>
     public static readonly CommandId DropItems = new("item.drop");
 
@@ -348,7 +351,8 @@ public static partial class WindowCommands
         NewMenu.NewItemService? newItems = null,
         Views.ViewOptions? viewOptions = null,
         Folders.RenameService? renamer = null,
-        Transfers.ITransferService? transfers = null)
+        Transfers.ITransferService? transfers = null,
+        Drives.DriveCardPreferences? driveCards = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -747,6 +751,13 @@ public static partial class WindowCommands
                 shell.ShowMessage("Added to Favorites");
             }
         }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
+
+        // Show or hide the summary card of the drive in Target (spec §8.7); remembered per drive.
+        Add(CommandIds.DriveCardToggle, "Show or hide the drive summary", "View", (c, _) => Run(() =>
+        {
+            var root = LocationPath.Parse(c.Target!);
+            driveCards!.SetHidden(root, !driveCards.IsHidden(root));
+        }), c => driveCards is not null && LocationPath.TryParse(c.Target, out var root) && Drives.DriveSummary.IsDriveRoot(root));
 
         // Dropped items (spec §8.4): the rules decide, the transfer service does the work. A refused drop says why.
         Add(CommandIds.DropItems, "Drop items here", "Files", async (c, ct) =>

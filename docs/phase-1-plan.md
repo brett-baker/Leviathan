@@ -126,7 +126,10 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   free space with a bar, layout switcher and thumbnail slider (new `view.thumbnailSize` command). Parts with nothing to say are collapsed. Not done: tag summary and
   background work (nothing to report until Phase 3 and the worker jobs), per-part hiding (settings, G3), latency in health (Phase 2), media total (Phase 3). One "UI stalls: 1"
   showed up while switching layouts in the drive test; to look at in H3.
-- [ ] **D11. Drive summary card** (§8.7): usage bar by file type from the folder-size store, facts, actions, hide per drive.
+- [x] **D11. Drive summary card** (§8.7): usage bar by file type from the folder-size store, facts, actions, hide per drive.
+  Card above the list at the top of a drive or share: name, type, file system, SSD/HDD, usage bar with used / free / total (warning colour under 15% free), Open terminal here, Properties,
+  and a hide button remembered per drive (View > Drive summary shows it again). Not done: split by file type, SMART / share health, search status, Recycle Bin size, tagged count,
+  "share of drive" bar on folders, space map / duplicates / empty Recycle Bin actions (later phases).
 
 ### E. Operations (basic, local)
 

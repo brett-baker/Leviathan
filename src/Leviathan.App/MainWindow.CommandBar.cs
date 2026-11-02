@@ -300,6 +300,13 @@ public sealed partial class MainWindow
         preview.Click += (_, _) => Run(CommandIds.PreviewPane);
         ViewMenu.Items.Add(hidden);
         ViewMenu.Items.Add(preview);
+        if (_bound?.History.Current is { } here && _commands.CanExecute(CommandIds.DriveCardToggle, new CommandContext(here.Value)))
+        {
+            var card = new ToggleMenuFlyoutItem { Text = "Drive summary", IsChecked = !App.Host.DriveCards.IsHidden(here) };
+            card.Click += (_, _) => Run(CommandIds.DriveCardToggle, here.Value);
+            ViewMenu.Items.Add(card);
+        }
+
         ViewMenu.Items.Add(new MenuFlyoutItem { Text = "Split pane (Phase 2)", IsEnabled = false });
     }
 

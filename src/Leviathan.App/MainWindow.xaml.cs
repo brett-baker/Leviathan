@@ -57,7 +57,8 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards);
+        host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -539,7 +540,7 @@ public sealed partial class MainWindow : Window, IShellActions
         if (_bound is null)
         {
             StatusText.Text = string.Empty;
-            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = Visibility.Collapsed;
+            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = DriveCard.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -565,6 +566,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FreeBar.Foreground = SidebarFormat.BarBrush(drive?.IsLowOnSpace == true);
         FreePart.Visibility = free.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateLayoutSwitch();
+        UpdateDriveCard();
     }
 
     private bool _syncingSlider;

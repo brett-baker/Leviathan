@@ -22,3 +22,6 @@ One line each: the decision, then why. Newest last.
 - **D10: the hidden-item count only appears when hidden items are listed.** The listing leaves hidden items out unless asked, so they cannot be counted without a second scan; showing "· 12 hidden" for the common case would need one.
 - **D10: location health shows the share and "not responding" for now.** Protocol version and round-trip time need the share health measurements (Phase 2).
 - **D10: the layout switcher has Details / List / Thumbnails** (the layouts that exist) rather than the spec's Tiles; the thumbnail slider shows only in Thumbnails.
+- **D11: the usage bar is one colour (used / free), not split by file type.** The per-type breakdown needs the space map's scan data (Phase 5); the folder-size store only has folder totals.
+- **D11: the card shows only actions that work today:** Open terminal here and Properties. Open space map, Find duplicates and Empty Recycle Bin appear when their features land (same rule as the command bar).
+- **D11: a hidden card is brought back from View > Drive summary.** The hide choice is stored per drive root in `hidden-drive-cards.json`.

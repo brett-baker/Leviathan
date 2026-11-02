@@ -254,10 +254,39 @@
 
       <!-- The file view (spec 8): the Details grid with its states laid over the rows (spec 8.6). -->
       <Grid Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6">
-        <local:DetailsGrid x:Name="FileList" />
-        <local:FlowView x:Name="FlowList" Visibility="Collapsed" />
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-        <StackPanel x:Name="StatePanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
+        <!-- Drive and share summary (spec 8.7), above the normal list at the top of a drive or share. -->
+        <Border x:Name="DriveCard" Visibility="Collapsed" Margin="8,8,8,0" Padding="16,12" CornerRadius="6"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+          <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="4">
+              <TextBlock x:Name="CardTitle" Style="{StaticResource BodyStrongTextBlockStyle}" />
+              <TextBlock x:Name="CardType" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <ProgressBar x:Name="CardBar" Maximum="100" Height="6" Margin="0,6,0,2" />
+              <TextBlock x:Name="CardUsage" Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
+              <Button Content="Open terminal here" Click="OnCardTerminalClick" />
+              <Button Content="Properties" Click="OnCardPropertiesClick" />
+              <Button Click="OnCardHideClick" ToolTipService.ToolTip="Hide this card for this drive (View menu brings it back)" AutomationProperties.Name="Hide drive summary">
+                <FontIcon Glyph="&#xE711;" FontSize="12" />
+              </Button>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <local:DetailsGrid x:Name="FileList" Grid.Row="1" />
+        <local:FlowView x:Name="FlowList" Grid.Row="1" Visibility="Collapsed" />
+
+        <StackPanel x:Name="StatePanel" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
           <ProgressRing x:Name="StateRing" IsActive="False" Width="28" Height="28" />
           <FontIcon x:Name="StateIcon" FontSize="32" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock x:Name="StateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
