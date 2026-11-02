@@ -277,17 +277,59 @@
     </Grid>
 
     <!-- Row 4: status bar (spec 16). -->
-    <Grid Grid.Row="4" Padding="12,4" ColumnSpacing="16">
+    <!-- Parts with nothing to say are collapsed; clicking a part acts on it. -->
+    <Grid Grid.Row="4" Padding="8,2" ColumnSpacing="4">
+      <Grid.Resources>
+        <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderThickness" Value="0" />
+          <Setter Property="Padding" Value="6,2" />
+          <Setter Property="MinHeight" Value="0" />
+          <Setter Property="MinWidth" Value="0" />
+        </Style>
+      </Grid.Resources>
       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
-      <TextBlock x:Name="MessageText" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
+      <Button x:Name="ItemsPart" Style="{StaticResource StatusPart}" Click="OnStatusItemsClick" ToolTipService.ToolTip="Show or hide hidden items">
+        <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}" />
+      </Button>
+      <Button x:Name="SelectionPart" Grid.Column="1" Style="{StaticResource StatusPart}" Click="OnStatusSelectionClick" ToolTipService.ToolTip="Select none" Visibility="Collapsed">
+        <TextBlock x:Name="SelectionText" Style="{StaticResource CaptionTextBlockStyle}" />
+      </Button>
+      <Button x:Name="FilterPart" Grid.Column="2" Style="{StaticResource StatusPart}" Click="OnStatusFilterClick" ToolTipService.ToolTip="Clear the filter" Visibility="Collapsed">
+        <TextBlock x:Name="FilterText" Style="{StaticResource CaptionTextBlockStyle}" />
+      </Button>
+      <TextBlock x:Name="HealthText" Grid.Column="3" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+      <TextBlock x:Name="MessageText" Grid.Column="4" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="StallText" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
+      <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">
+        <TextBlock x:Name="FreeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <ProgressBar x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock x:Name="StallText" Grid.Column="6" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+        <Slider x:Name="SizeSlider" Width="90" Minimum="64" Maximum="512" StepFrequency="16" SmallChange="16" LargeChange="64" Visibility="Collapsed"
+                VerticalAlignment="Center" ValueChanged="OnSizeSliderChanged" AutomationProperties.Name="Thumbnail size" />
+        <Button x:Name="DetailsSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="details" ToolTipService.ToolTip="Details (Ctrl+Shift+6)" AutomationProperties.Name="Details">
+          <FontIcon Glyph="&#xE8FD;" FontSize="14" />
+        </Button>
+        <Button x:Name="ListSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="list" ToolTipService.ToolTip="List (Ctrl+Shift+5)" AutomationProperties.Name="List">
+          <FontIcon Glyph="&#xE8A9;" FontSize="14" />
+        </Button>
+        <Button x:Name="ThumbsSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="thumbnails" ToolTipService.ToolTip="Thumbnails (Ctrl+Shift+2)" AutomationProperties.Name="Thumbnails">
+          <FontIcon Glyph="&#xE80A;" FontSize="14" />
+        </Button>
+      </StackPanel>
     </Grid>
   </Grid>
 </Window>

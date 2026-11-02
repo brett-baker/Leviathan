@@ -245,6 +245,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         KeepCurrentView();
     }
 
+    /// <summary>The thumbnail size slider in the status bar: sets the size directly, clamped to 64–512 px.</summary>
+    public void SetThumbnailSize(int size)
+    {
+        ThumbnailSize = ItemFlow.ClampThumbnailSize(size);
+        KeepCurrentView();
+    }
+
     /// <summary>Header click: sorts this tab's view. The choice holds until the tab navigates to a folder with a saved view.</summary>
     public void SortBy(string columnId, bool additive = false)
     {

@@ -143,6 +143,22 @@ public sealed class WindowCommandsTests
     }
 
     [Fact]
+    public async Task ViewThumbnailSize_SetsTheSize_ClampedToTheRange_OnlyInThumbnails()
+    {
+        var h = new Harness();
+        await h.Ready;
+
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.ViewThumbnailSize, parameter: 200));
+
+        await h.Run(CommandIds.ViewThumbnails);
+        await h.Run(CommandIds.ViewThumbnailSize, parameter: 200);
+        Assert.Equal(200, h.Tab.ThumbnailSize);
+
+        await h.Run(CommandIds.ViewThumbnailSize, parameter: 9999);
+        Assert.Equal(ItemFlow.ClampThumbnailSize(9999), h.Tab.ThumbnailSize);
+    }
+
+    [Fact]
     public async Task TabNew_WithATarget_OpensThatLocation()
     {
         var h = new Harness();

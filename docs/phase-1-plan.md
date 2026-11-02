@@ -120,8 +120,12 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
   **Not done:** the copy / move itself. `UnavailableTransferService` says "Copying files arrives with the next update. Nothing was changed." until E2 supplies the journaled
   implementation, so a drop never half-copies outside the journal. Also not done: dragging onto another window's tab strip for files (tabs between windows already worked), dropping
   from another app was not tried (only in-app drags were driven), reordering favorites by drag, drag-hover on folder rows in the file view (no spring-loading there, not in the spec).
-- [ ] **D10. Status bar** (§16) minus operations details: item count, selection size, filter state, tag summary placeholder,
+- [x] **D10. Status bar** (§16) minus operations details: item count, selection size, filter state, tag summary placeholder,
   location health, free space, background work, layout switcher.
+  Parts: item count (folders, files; click toggles hidden), selection and size (click selects none), filter state (click clears), location health for network folders,
+  free space with a bar, layout switcher and thumbnail slider (new `view.thumbnailSize` command). Parts with nothing to say are collapsed. Not done: tag summary and
+  background work (nothing to report until Phase 3 and the worker jobs), per-part hiding (settings, G3), latency in health (Phase 2), media total (Phase 3). One "UI stalls: 1"
+  showed up while switching layouts in the drive test; to look at in H3.
 - [ ] **D11. Drive summary card** (§8.7): usage bar by file type from the folder-size store, facts, actions, hide per drive.
 
 ### E. Operations (basic, local)

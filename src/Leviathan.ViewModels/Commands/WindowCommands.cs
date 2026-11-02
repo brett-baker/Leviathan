@@ -127,6 +127,9 @@ public static class CommandIds
     /// <summary>Resize thumbnails (Ctrl+mouse wheel). Parameter: wheel notches, positive = bigger.</summary>
     public static readonly CommandId ViewZoom = new("view.zoom");
 
+    /// <summary>Set the thumbnail edge in pixels (the status bar slider). Parameter: the size.</summary>
+    public static readonly CommandId ViewThumbnailSize = new("view.thumbnailSize");
+
     /// <summary>Pin or unpin the current folder in Favorites (Ctrl+D).</summary>
     public static readonly CommandId FavoriteToggle = new("favorite.toggle");
 
@@ -608,6 +611,9 @@ public static partial class WindowCommands
         Add(CommandIds.ViewThumbnails, "Thumbnails layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Thumbnails)), _ => Current() is not null, shortcut: "Ctrl+Shift+2");
 
         Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
+            c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
+
+        Add(CommandIds.ViewThumbnailSize, "Set thumbnail size", "View", (c, _) => Run(() => Current()!.SetThumbnailSize((int)c.Parameter!)),
             c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
 
         // Selection (spec §6.2, nothing selected).

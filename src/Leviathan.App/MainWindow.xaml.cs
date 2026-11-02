@@ -6,11 +6,13 @@ using Leviathan.Core.Providers;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Sidebar;
+using Leviathan.ViewModels.StatusBar;
 using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.System;
 
 namespace Leviathan.App;
@@ -268,7 +270,15 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         if (e.PropertyName == nameof(TabViewModel.Layout))
         {
-            OnUi(ApplyLayout);
+            OnUi(() =>
+            {
+                ApplyLayout();
+                UpdateLayoutSwitch();
+            });
+        }
+        else if (e.PropertyName == nameof(TabViewModel.ThumbnailSize))
+        {
+            OnUi(UpdateLayoutSwitch);
         }
         else if (e.PropertyName == nameof(TabViewModel.FilterText))
         {
@@ -529,10 +539,74 @@ public sealed partial class MainWindow : Window, IShellActions
         if (_bound is null)
         {
             StatusText.Text = string.Empty;
+            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = Visibility.Collapsed;
             return;
         }
 
-        StatusText.Text = DisplayFormat.StatusText(_bound.Items.TotalCount, _bound.Items.ShownCount, _bound.Selection.Count, _bound.Selection.SelectedBytes);
+        var items = _bound.Items;
+        StatusText.Text = StatusBarText.Items(items.TotalCount, items.FolderCount, items.HiddenCount);
+
+        var selection = StatusBarText.Selection(_bound.Selection.Count, _bound.Selection.SelectedBytes);
+        SelectionText.Text = selection;
+        SelectionPart.Visibility = selection.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        var filter = StatusBarText.Filter(_bound.FilterText, items.ShownCount, items.TotalCount);
+        FilterText.Text = filter;
+        FilterPart.Visibility = filter.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        var health = StatusBarText.Health(_bound.History.Current, _bound.IsOffline);
+        HealthText.Text = health;
+        HealthText.Visibility = health.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        var drive = StatusBarText.DriveOf(_bound.History.Current, _drives);
+        var free = StatusBarText.FreeSpace(drive);
+        FreeText.Text = free;
+        FreeBar.Value = (drive?.UsedFraction ?? 0) * 100;
+        FreeBar.Foreground = SidebarFormat.BarBrush(drive?.IsLowOnSpace == true);
+        FreePart.Visibility = free.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateLayoutSwitch();
+    }
+
+    private bool _syncingSlider;
+
+    /// <summary>Highlights the active layout and shows the size slider in Thumbnails.</summary>
+    private void UpdateLayoutSwitch()
+    {
+        var layout = _bound?.Layout;
+        void Mark(Button button, bool on) => button.Background = on
+            ? (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"]
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        Mark(DetailsSwitch, layout == ViewModels.Views.ViewLayout.Details);
+        Mark(ListSwitch, layout == ViewModels.Views.ViewLayout.List);
+        Mark(ThumbsSwitch, layout == ViewModels.Views.ViewLayout.Thumbnails);
+        SizeSlider.Visibility = layout == ViewModels.Views.ViewLayout.Thumbnails ? Visibility.Visible : Visibility.Collapsed;
+        if (_bound is { } tab && Math.Abs(SizeSlider.Value - tab.ThumbnailSize) > 0.5)
+        {
+            _syncingSlider = true;
+            SizeSlider.Value = tab.ThumbnailSize;
+            _syncingSlider = false;
+        }
+    }
+
+    private void OnStatusItemsClick(object sender, RoutedEventArgs e) => Run(CommandIds.ViewHidden);
+
+    private void OnStatusSelectionClick(object sender, RoutedEventArgs e) => Run(CommandIds.SelectNone);
+
+    private void OnStatusFilterClick(object sender, RoutedEventArgs e) => Run(CommandIds.FilterSet, string.Empty);
+
+    private void OnLayoutSwitchClick(object sender, RoutedEventArgs e) => Run(((string)((FrameworkElement)sender).Tag) switch
+    {
+        "list" => CommandIds.ViewList,
+        "thumbnails" => CommandIds.ViewThumbnails,
+        _ => CommandIds.ViewDetails,
+    });
+
+    private void OnSizeSliderChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (!_syncingSlider && _bound is { Layout: ViewModels.Views.ViewLayout.Thumbnails })
+        {
+            Run(CommandIds.ViewThumbnailSize, parameter: (int)e.NewValue);
+        }
     }
 
     // Sidebar ----------------------------------------------------------------------------------------------------------
@@ -583,6 +657,7 @@ public sealed partial class MainWindow : Window, IShellActions
         var host = App.Host;
         _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders));
         SyncSidebar();
+        UpdateStatus();
     }
 
     private void OnFavoritesChanged(object? sender, EventArgs e) => OnUi(RebuildSidebar);

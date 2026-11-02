@@ -19,3 +19,6 @@ One line each: the decision, then why. Newest last.
 - **D9: dropping on the Favorites header pins the items instead of copying them.** The spec (§7) says any folder or file can be pinned by dragging it there.
 - **D9: a plain press on an item inside a larger selection keeps the selection until the button comes up,** so the whole selection can be dragged; without a drag it then selects just that item (as Explorer does).
 - **D9: mouse input in the drive scripts uses `MOUSEEVENTF_VIRTUALDESK` (0xC001).** Without it absolute moves map onto the primary monitor only, so earlier scripts relied on offsets that compensated for that.
+- **D10: the hidden-item count only appears when hidden items are listed.** The listing leaves hidden items out unless asked, so they cannot be counted without a second scan; showing "· 12 hidden" for the common case would need one.
+- **D10: location health shows the share and "not responding" for now.** Protocol version and round-trip time need the share health measurements (Phase 2).
+- **D10: the layout switcher has Details / List / Thumbnails** (the layouts that exist) rather than the spec's Tiles; the thumbnail slider shows only in Thumbnails.

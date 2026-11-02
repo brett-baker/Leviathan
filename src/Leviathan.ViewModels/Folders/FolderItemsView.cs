@@ -58,6 +58,7 @@ public sealed partial class FolderItemsView : ObservableObject
         if (source.Count > 0)
         {
             _all.AddRange(source);
+            Count(_all, 1);
             Recompute();
         }
     }
@@ -70,6 +71,12 @@ public sealed partial class FolderItemsView : ObservableObject
 
     /// <summary>Entries in the folder before filtering.</summary>
     public int TotalCount => _all.Count;
+
+    /// <summary>How many of <see cref="TotalCount"/> are folders (status bar, spec §16).</summary>
+    public int FolderCount { get; private set; }
+
+    /// <summary>How many of <see cref="TotalCount"/> are hidden. Hidden items the listing left out are not counted.</summary>
+    public int HiddenCount { get; private set; }
 
     /// <summary>Entries after filtering ("312 of 1,284" in the status bar, spec §16).</summary>
     public int ShownCount => _sorted.Count;
@@ -187,18 +194,33 @@ public sealed partial class FolderItemsView : ObservableObject
             case NotifyCollectionChangedAction.Add when e.NewItems is not null:
                 var added = e.NewItems.Cast<FileEntry>().ToList();
                 _all.AddRange(added);
+                Count(added, 1);
                 MergeBatch(added);
                 break;
             case NotifyCollectionChangedAction.Reset:
                 _all.Clear();
+                FolderCount = 0;
+                HiddenCount = 0;
                 _sorted = [];
                 Publish();
                 break;
             default:
                 _all.Clear();
                 _all.AddRange(((RangeObservableCollection<FileEntry>)sender!));
+                FolderCount = 0;
+                HiddenCount = 0;
+                Count(_all, 1);
                 Recompute();
                 break;
+        }
+    }
+
+    private void Count(IEnumerable<FileEntry> entries, int sign)
+    {
+        foreach (var entry in entries)
+        {
+            FolderCount += entry.Kind == FileEntryKind.Folder ? sign : 0;
+            HiddenCount += entry.IsHidden ? sign : 0;
         }
     }
 
