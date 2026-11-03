@@ -33,6 +33,7 @@ public sealed record TabServices(LocationProviderRegistry Providers, IUiContext 
 /// <param name="IsLocked">Navigating opens a new tab instead.</param>
 /// <param name="IsSplit">Two panes (Phase 2 fills in the second pane).</param>
 /// <param name="Selection">Selected items.</param>
+/// <param name="GroupId">The group the tab is in (spec §4.1), or null.</param>
 public sealed record TabState(
     NavigationSnapshot History,
     FolderViewSettings View,
@@ -41,7 +42,8 @@ public sealed record TabState(
     bool IsPinned,
     bool IsLocked,
     bool IsSplit,
-    IReadOnlyList<LocationPath> Selection);
+    IReadOnlyList<LocationPath> Selection,
+    Guid? GroupId = null);
 
 /// <summary>
 /// One tab: its history, folder listing, sorted view, selection, address bar and the tab-level options (pin, lock, label,
@@ -68,6 +70,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isSplit;
+
+    /// <summary>The group this tab belongs to (spec §4.1), or null. Set by <see cref="TabStripViewModel"/>, which keeps the tabs of a group together.</summary>
+    [ObservableProperty]
+    private Guid? _groupId;
 
     [ObservableProperty]
     private ViewLayout _layout = ViewLayout.Details;
@@ -369,7 +375,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         IsPinned,
         IsLocked,
         IsSplit,
-        [.. Selection.SelectedEntries.Select(e => e.Location)]);
+        [.. Selection.SelectedEntries.Select(e => e.Location)],
+        GroupId);
 
     /// <summary>
     /// Rebuilds a tab from <paramref name="state"/>. The folder is not listed until <see cref="ReloadAsync"/> is called, so
@@ -385,6 +392,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             IsPinned = state.IsPinned,
             IsLocked = state.IsLocked,
             IsSplit = state.IsSplit,
+            GroupId = state.GroupId,
         };
         tab._pendingSelection = state.Selection;
         return tab;

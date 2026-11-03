@@ -7,7 +7,9 @@ namespace Leviathan.ViewModels.Tabs;
 /// <summary>A closed tab kept so Ctrl+Shift+T can bring it back (spec §4.1).</summary>
 /// <param name="State">The tab as it was, including history.</param>
 /// <param name="Index">Where it sat in the strip.</param>
-public sealed record ClosedTab(TabState State, int Index);
+/// <param name="Group">The group it was in, so reopening puts it back there (spec §4.1), or null.</param>
+/// <param name="Batch">Set for every tab of a group closed together; reopening brings the whole batch back as a group.</param>
+public sealed record ClosedTab(TabState State, int Index, TabGroupInfo? Group = null, Guid? Batch = null);
 
 /// <summary>
 /// The tabs of one window (spec §4.1): open, duplicate, close, reopen the last 25 closed, reorder, pin, lock, switch by number
@@ -77,14 +79,24 @@ public sealed partial class TabStripViewModel : ObservableObject
     /// </summary>
     /// <param name="states">The tabs in strip order.</param>
     /// <param name="selected">Index of the tab to show; clamped into range.</param>
-    public void RestoreTabs(IReadOnlyList<TabState> states, int selected)
+    /// <param name="groups">The tab groups the states refer to; groups no tab belongs to are dropped, tabs naming a missing group are ungrouped.</param>
+    public void RestoreTabs(IReadOnlyList<TabState> states, int selected, IReadOnlyList<TabGroupInfo>? groups = null)
     {
         ArgumentNullException.ThrowIfNull(states);
-        foreach (var state in states)
+        foreach (var info in groups ?? [])
         {
-            Insert(TabViewModel.Restore(state, _services), Tabs.Count);
+            if (Groups.All(g => g.Id != info.Id))
+            {
+                Groups.Add(TabGroup.FromInfo(info));
+            }
         }
 
+        foreach (var state in states)
+        {
+            Tabs.Add(TabViewModel.Restore(state, _services));
+        }
+
+        NormalizeGroups();
         if (Tabs.Count > 0)
         {
             Select(Tabs[Math.Clamp(selected, 0, Tabs.Count - 1)]);
@@ -110,11 +122,16 @@ public sealed partial class TabStripViewModel : ObservableObject
         }
 
         Remove(tab, index);
+
+        // The tab leaves for another window, where it starts ungrouped (a whole group moves with DetachGroup).
+        tab.GroupId = null;
         return true;
     }
 
     /// <summary>Closes a tab and remembers it for reopening. A pinned tab is closed only when <paramref name="force"/> is set (its × button).</summary>
-    public bool Close(TabViewModel tab, bool force = false)
+    public bool Close(TabViewModel tab, bool force = false) => Close(tab, force, batch: null);
+
+    private bool Close(TabViewModel tab, bool force, Guid? batch)
     {
         ArgumentNullException.ThrowIfNull(tab);
         var index = Tabs.IndexOf(tab);
@@ -125,13 +142,14 @@ public sealed partial class TabStripViewModel : ObservableObject
 
         if (Tabs.Count == 1 && LastTabResetsToHome)
         {
-            _closed.Add(new ClosedTab(tab.CaptureState(), index));
+            _closed.Add(new ClosedTab(tab.CaptureState(), index, GroupInfoOf(tab), batch));
             TrimClosed();
+            RemoveFromGroup(tab);
             _ = tab.NavigateAsync(_services.Home(), CancellationToken.None);
             return true;
         }
 
-        _closed.Add(new ClosedTab(tab.CaptureState(), index));
+        _closed.Add(new ClosedTab(tab.CaptureState(), index, GroupInfoOf(tab), batch));
         TrimClosed();
         Remove(tab, index);
         tab.Dispose();
@@ -167,13 +185,27 @@ public sealed partial class TabStripViewModel : ObservableObject
             return null;
         }
 
-        var closed = _closed[^1];
-        _closed.RemoveAt(_closed.Count - 1);
-        var tab = TabViewModel.Restore(closed.State, _services);
-        Insert(tab, closed.Index);
-        Select(tab);
+        // A group closed as a whole comes back as a whole, in its old order (spec §4.1).
+        var batch = _closed[^1].Batch is { } id ? _closed.Where(c => c.Batch == id).ToList() : [_closed[^1]];
+        foreach (var entry in batch)
+        {
+            _closed.Remove(entry);
+        }
+
+        // Tabs closed together were closed in strip order, so each one noted the place the previous one left; they go back one
+        // after another from the first place.
+        TabViewModel? first = null;
+        for (var i = 0; i < batch.Count; i++)
+        {
+            var tab = TabViewModel.Restore(batch[i].State, _services);
+            ReattachToGroup(tab, batch[i].Group);
+            Insert(tab, batch[0].Index + i);
+            first ??= tab;
+        }
+
+        Select(first!);
         OnPropertyChanged(nameof(CanReopen));
-        return tab;
+        return first;
     }
 
     /// <summary>Makes <paramref name="tab"/> the selected tab.</summary>
@@ -185,6 +217,12 @@ public sealed partial class TabStripViewModel : ObservableObject
             return;
         }
 
+        // Showing a tab of a collapsed group opens the group (it could not be shown otherwise).
+        if (GroupOf(tab) is { IsCollapsed: true } collapsed)
+        {
+            collapsed.IsCollapsed = false;
+        }
+
         _recent.Remove(tab);
         _recent.Insert(0, tab);
         Selected = tab;
@@ -193,32 +231,35 @@ public sealed partial class TabStripViewModel : ObservableObject
     /// <summary>Ctrl+Tab (<paramref name="forward"/>) or Ctrl+Shift+Tab. Honors <see cref="UseMruOrder"/>.</summary>
     public void Cycle(bool forward)
     {
-        if (Tabs.Count < 2 || Selected is null)
+        // Tabs folded into a collapsed group are skipped (spec §4.1).
+        var visible = VisibleTabs;
+        if (visible.Count < 2 || Selected is null || !visible.Contains(Selected))
         {
             return;
         }
 
         if (UseMruOrder)
         {
-            var mru = _recent.Where(Tabs.Contains).ToList();
+            var mru = _recent.Where(visible.Contains).ToList();
             var position = mru.IndexOf(Selected);
             Select(mru[forward ? (position + 1) % mru.Count : (position - 1 + mru.Count) % mru.Count]);
             return;
         }
 
-        var index = Tabs.IndexOf(Selected);
-        Select(Tabs[forward ? (index + 1) % Tabs.Count : (index - 1 + Tabs.Count) % Tabs.Count]);
+        var index = visible.ToList().IndexOf(Selected);
+        Select(visible[forward ? (index + 1) % visible.Count : (index - 1 + visible.Count) % visible.Count]);
     }
 
     /// <summary>Ctrl+1 to Ctrl+8 go to that tab; Ctrl+9 goes to the last tab.</summary>
     public void SelectByNumber(int number)
     {
-        if (Tabs.Count == 0 || number is < 1 or > 9)
+        var visible = VisibleTabs;
+        if (visible.Count == 0 || number is < 1 or > 9)
         {
             return;
         }
 
-        Select(number == 9 ? Tabs[^1] : Tabs[Math.Min(number, Tabs.Count) - 1]);
+        Select(number == 9 ? visible[^1] : visible[Math.Min(number, visible.Count) - 1]);
     }
 
     /// <summary>Pins or unpins a tab. Pinned tabs move to the end of the pinned group; unpinned ones to its start.</summary>
@@ -229,6 +270,13 @@ public sealed partial class TabStripViewModel : ObservableObject
         if (index < 0 || tab.IsPinned == pinned)
         {
             return;
+        }
+
+        if (pinned && tab.GroupId is not null)
+        {
+            // Pinned tabs stay outside groups (spec §4.1).
+            RemoveFromGroup(tab);
+            index = Tabs.IndexOf(tab);
         }
 
         tab.IsPinned = pinned;
@@ -248,7 +296,19 @@ public sealed partial class TabStripViewModel : ObservableObject
 
         var pinnedCount = Tabs.Count(t => t.IsPinned);
         var (low, high) = tab.IsPinned ? (0, pinnedCount - 1) : (pinnedCount, Tabs.Count - 1);
+
+        // A grouped tab moves within its group; leaving it is RemoveFromGroup. An ungrouped tab hops over a group, not into it.
+        if (GroupRange(tab.GroupId) is { } own)
+        {
+            (low, high) = own;
+        }
+
         var target = Math.Clamp(newIndex, low, high);
+        if (tab.GroupId is null && GroupRangeAt(target) is { } inside && target != index)
+        {
+            target = target > index ? inside.End : inside.Start;
+        }
+
         if (target != index)
         {
             Tabs.Move(index, target);
@@ -287,17 +347,43 @@ public sealed partial class TabStripViewModel : ObservableObject
         // Unpinned tabs never land among pinned ones.
         var pinnedCount = Tabs.Count(t => t.IsPinned);
         var clamped = tab.IsPinned ? Math.Clamp(index, 0, pinnedCount) : Math.Clamp(index, pinnedCount, Tabs.Count);
+
+        // A tab naming a group that is not here is ungrouped.
+        if (tab.GroupId is { } wanted && FindGroup(wanted) is null)
+        {
+            tab.GroupId = null;
+        }
+
+        if (GroupRange(tab.GroupId) is { } own)
+        {
+            // A grouped tab goes into its group's block or right at its edges.
+            clamped = Math.Clamp(clamped, own.Start, own.End + 1);
+        }
+        else if (GroupRangeAt(clamped) is { } inside && clamped > inside.Start)
+        {
+            // Never inside somebody else's block (the first member of a group still starting there is fine): after it.
+            clamped = inside.End + 1;
+        }
+
         Tabs.Insert(clamped, tab);
     }
 
     private void Remove(TabViewModel tab, int index)
     {
+        var group = tab.GroupId;
         Tabs.RemoveAt(index);
         _recent.Remove(tab);
+        PruneIfEmpty(group);
         if (Selected == tab)
         {
-            // The tab last used, else the neighbour that slid into its place.
-            Selected = _recent.FirstOrDefault(Tabs.Contains) ?? (Tabs.Count == 0 ? null : Tabs[Math.Min(index, Tabs.Count - 1)]);
+            // The tab last used, else the neighbour that slid into its place; tabs folded into a collapsed group are not candidates.
+            var visible = VisibleTabs;
+            Selected = _recent.FirstOrDefault(visible.Contains)
+                ?? (visible.Count == 0 ? (Tabs.Count == 0 ? null : Tabs[Math.Min(index, Tabs.Count - 1)]) : visible[Math.Min(index, visible.Count - 1)]);
+            if (Selected is { } shown && GroupOf(shown) is { IsCollapsed: true } folded)
+            {
+                folded.IsCollapsed = false;
+            }
         }
     }
 

@@ -10,7 +10,8 @@ namespace Leviathan.ViewModels.Sessions;
 /// <param name="Tabs">The tabs in strip order, with history, view, pin, lock, label, colour, split state and selection.</param>
 /// <param name="SidebarWidth">Width of the sidebar in pixels.</param>
 /// <param name="SidebarCollapsed">Whether the sidebar was collapsed.</param>
-public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs, double SidebarWidth = SidebarLayout.DefaultWidth, bool SidebarCollapsed = false);
+/// <param name="Groups">The tab groups (spec §4.1): name, colour and collapsed state; each tab names its group. Null in files saved before groups existed.</param>
+public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs, double SidebarWidth = SidebarLayout.DefaultWidth, bool SidebarCollapsed = false, IReadOnlyList<TabGroupInfo>? Groups = null);
 
 /// <summary>A set of windows: the content of Last session and of every named profile.</summary>
 /// <param name="Windows">The windows, oldest first.</param>

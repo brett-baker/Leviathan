@@ -82,6 +82,45 @@ public static class CommandIds
     /// <summary>Move the tab one place right (Ctrl+Shift+PgDn).</summary>
     public static readonly CommandId TabMoveRight = new("tab.moveRight");
 
+    /// <summary>Put a tab (Parameter, default the current one) in a new group; Target: the group's name (spec §4.1).</summary>
+    public static readonly CommandId TabGroupNew = new("tab.group.new");
+
+    /// <summary>Add a tab to a group. Parameter: <see cref="TabGroupAdd"/>.</summary>
+    public static readonly CommandId TabGroupAdd = new("tab.group.add");
+
+    /// <summary>Take a tab out of its group. Parameter: the tab, default the current one.</summary>
+    public static readonly CommandId TabGroupRemove = new("tab.group.remove");
+
+    /// <summary>Rename a group. Parameter: the <see cref="TabGroup"/>. Target: the name.</summary>
+    public static readonly CommandId TabGroupRename = new("tab.group.rename");
+
+    /// <summary>Change a group's colour. Parameter: the <see cref="TabGroup"/>. Target: <c>#RRGGBB</c>.</summary>
+    public static readonly CommandId TabGroupColor = new("tab.group.color");
+
+    /// <summary>Fold a group to its chip or open it. Parameter: the <see cref="TabGroup"/>. Target: "true", "false", or nothing to toggle.</summary>
+    public static readonly CommandId TabGroupCollapse = new("tab.group.collapse");
+
+    /// <summary>Dissolve a group, keeping its tabs. Parameter: the <see cref="TabGroup"/>.</summary>
+    public static readonly CommandId TabGroupUngroup = new("tab.group.ungroup");
+
+    /// <summary>Close every tab of a group. Parameter: the <see cref="TabGroup"/>.</summary>
+    public static readonly CommandId TabGroupClose = new("tab.group.close");
+
+    /// <summary>Open a new tab at the end of a group. Parameter: the <see cref="TabGroup"/>. Target: the location, default Home.</summary>
+    public static readonly CommandId TabGroupNewTab = new("tab.group.newTab");
+
+    /// <summary>Move a group's tabs to a new window. Parameter: the <see cref="TabGroup"/>.</summary>
+    public static readonly CommandId TabGroupToWindow = new("tab.group.toWindow");
+
+    /// <summary>Move a whole group within the strip (drag its chip). Parameter: <see cref="TabGroupMove"/>.</summary>
+    public static readonly CommandId TabGroupMove = new("tab.group.move");
+
+    /// <summary>Drag a group out of the strip into a new window. Parameter: <see cref="TabGroupTearOff"/>.</summary>
+    public static readonly CommandId TabGroupTearOff = new("tab.group.tearoff");
+
+    /// <summary>Drop a group from this or another window onto this strip. Parameter: <see cref="TabGroupDrop"/>.</summary>
+    public static readonly CommandId TabGroupDrop = new("tab.group.drop");
+
     /// <summary>Move a tab to an index (drag within the strip). Parameter: <see cref="TabMove"/>.</summary>
     public static readonly CommandId TabMove = new("tab.move");
 
@@ -352,6 +391,28 @@ public sealed record TabMove(TabViewModel Tab, int Index);
 /// <param name="ScreenY">Drop point in screen pixels.</param>
 public sealed record TabTearOff(TabViewModel Tab, int ScreenX, int ScreenY);
 
+/// <summary>Parameter of <see cref="CommandIds.TabGroupAdd"/>.</summary>
+/// <param name="Tab">The tab to add.</param>
+/// <param name="Group">The group to add it to.</param>
+/// <param name="Position">Where among the group's tabs, or null for the end.</param>
+public sealed record TabGroupAdd(TabViewModel Tab, TabGroup Group, int? Position = null);
+
+/// <summary>Parameter of <see cref="CommandIds.TabGroupMove"/>.</summary>
+/// <param name="Group">The group dragged.</param>
+/// <param name="Index">Where its first tab should land among the other tabs.</param>
+public sealed record TabGroupMove(TabGroup Group, int Index);
+
+/// <summary>Parameter of <see cref="CommandIds.TabGroupTearOff"/>.</summary>
+/// <param name="Group">The group dragged out.</param>
+/// <param name="ScreenX">Drop point in screen pixels.</param>
+/// <param name="ScreenY">Drop point in screen pixels.</param>
+public sealed record TabGroupTearOff(TabGroup Group, int ScreenX, int ScreenY);
+
+/// <summary>Parameter of <see cref="CommandIds.TabGroupDrop"/>.</summary>
+/// <param name="Group">The group dropped, from this or another window.</param>
+/// <param name="Index">Where in the strip, or null for the end.</param>
+public sealed record TabGroupDrop(TabGroup Group, int? Index);
+
 /// <summary>Parameter of <see cref="CommandIds.DropItems"/>.</summary>
 /// <param name="Sources">The items dropped.</param>
 /// <param name="Modifiers">The modifier keys held at the drop.</param>
@@ -546,6 +607,70 @@ public static partial class WindowCommands
         Add(CommandIds.TabMoveLeft, "Move tab left", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, -1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageUp");
         Add(CommandIds.TabMoveRight, "Move tab right", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, 1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageDown");
         Add(CommandIds.TabMove, "Move tab", "Tabs", (c, _) => Run(() => strip.Move(((TabMove)c.Parameter!).Tab, ((TabMove)c.Parameter!).Index)), c => c.Parameter is TabMove);
+
+        // Tab groups (spec §4.1, D32). Parameters are the strip's own objects, so a group menu or a drag hands them straight over.
+        TabGroup? GroupOfParameter(CommandContext c) => c.Parameter is TabGroup g && strip.Groups.Contains(g) ? g : null;
+
+        Add(CommandIds.TabGroupNew, "Add tab to new group", "Tabs", (c, _) => Run(() => strip.CreateGroup([TabOf(c)!], c.Target)), c => TabOf(c) is { IsPinned: false });
+        Add(CommandIds.TabGroupAdd, "Add tab to group", "Tabs", (c, _) => Run(() =>
+        {
+            var add = (TabGroupAdd)c.Parameter!;
+            strip.AddToGroup(add.Tab, add.Group, add.Position);
+        }), c => c.Parameter is TabGroupAdd { Tab.IsPinned: false } add && strip.Groups.Contains(add.Group) && strip.Tabs.Contains(add.Tab));
+        Add(CommandIds.TabGroupRemove, "Remove tab from group", "Tabs", (c, _) => Run(() => strip.RemoveFromGroup(TabOf(c)!)), c => TabOf(c)?.GroupId is not null);
+        Add(CommandIds.TabGroupRename, "Rename group", "Tabs", (c, _) => Run(() => GroupOfParameter(c)!.Name = (c.Target ?? string.Empty).Trim()), c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupColor, "Change group colour", "Tabs", (c, _) => Run(() => GroupOfParameter(c)!.Color = c.Target!.ToUpperInvariant()),
+            c => GroupOfParameter(c) is not null && TabGroupColors.IsColor(c.Target));
+        Add(CommandIds.TabGroupCollapse, "Collapse or expand group", "Tabs", (c, _) => Run(() =>
+        {
+            var group = GroupOfParameter(c)!;
+            var collapse = c.Target is null ? !group.IsCollapsed : !c.Target.Equals("false", StringComparison.OrdinalIgnoreCase);
+            if (!strip.SetCollapsed(group, collapse))
+            {
+                shell.ShowMessage("The group holds every tab in this window, so it cannot be folded away.");
+            }
+        }), c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupUngroup, "Ungroup", "Tabs", (c, _) => Run(() => strip.Ungroup(GroupOfParameter(c)!)), c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupClose, "Close group", "Tabs", (c, _) => Run(() => strip.CloseGroup(GroupOfParameter(c)!)), c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupNewTab, "New tab in group", "Tabs", async (c, ct) =>
+        {
+            var tab = strip.NewTabInGroup(GroupOfParameter(c)!, LocationPath.TryParse(c.Target, out var parsed) ? parsed : null);
+            if (tab is not null)
+            {
+                await tab.ReloadAsync(ct);
+            }
+        }, c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupToWindow, "Move group to new window", "Tabs", (c, _) => Run(() =>
+        {
+            var bounds = window.Bounds.Rect;
+            if (windows.TearOffGroup(window, GroupOfParameter(c)!, bounds.X + 48, bounds.Y + 48) is null)
+            {
+                shell.ShowMessage("The group holds every tab in this window, so there is nothing to move.");
+            }
+        }), c => GroupOfParameter(c) is not null);
+        Add(CommandIds.TabGroupMove, "Move group", "Tabs", (c, _) => Run(() =>
+        {
+            var move = (TabGroupMove)c.Parameter!;
+            strip.MoveGroup(move.Group, move.Index);
+        }), c => c.Parameter is TabGroupMove move && strip.Groups.Contains(move.Group));
+        Add(CommandIds.TabGroupTearOff, "Move group to a new window", "Tabs", (c, _) => Run(() =>
+        {
+            var drag = (TabGroupTearOff)c.Parameter!;
+            windows.TearOffGroup(window, drag.Group, drag.ScreenX, drag.ScreenY);
+        }), c => c.Parameter is TabGroupTearOff);
+        Add(CommandIds.TabGroupDrop, "Drop group here", "Tabs", (c, _) => Run(() =>
+        {
+            var drop = (TabGroupDrop)c.Parameter!;
+            var from = windows.Windows.FirstOrDefault(w => w.Tabs.Groups.Contains(drop.Group));
+            if (from == window)
+            {
+                strip.MoveGroup(drop.Group, drop.Index ?? strip.Tabs.Count);
+            }
+            else if (from is not null)
+            {
+                windows.MergeGroup(from, drop.Group, window, drop.Index);
+            }
+        }), c => c.Parameter is TabGroupDrop);
 
         Add(CommandIds.TabTearOff, "Move tab to a new window", "Tabs", (c, _) => Run(() =>
         {

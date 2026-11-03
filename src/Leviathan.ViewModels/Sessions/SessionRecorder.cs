@@ -26,6 +26,7 @@ public sealed class SessionRecorder : IDisposable
     private readonly Lock _gate = new();
     private readonly HashSet<WindowViewModel> _hookedWindows = [];
     private readonly HashSet<TabViewModel> _hookedTabs = [];
+    private readonly HashSet<TabGroup> _hookedGroups = [];
     private Task _write = Task.CompletedTask;
     private bool _frozen;
     private bool _disposed;
@@ -161,9 +162,15 @@ public sealed class SessionRecorder : IDisposable
         window.PropertyChanged += OnChanged;
         window.Tabs.PropertyChanged += OnChanged;
         window.Tabs.Tabs.CollectionChanged += OnTabsChanged;
+        window.Tabs.Groups.CollectionChanged += OnGroupsChanged;
         foreach (var tab in window.Tabs.Tabs)
         {
             Hook(tab);
+        }
+
+        foreach (var group in window.Tabs.Groups)
+        {
+            Hook(group);
         }
     }
 
@@ -177,10 +184,47 @@ public sealed class SessionRecorder : IDisposable
         window.PropertyChanged -= OnChanged;
         window.Tabs.PropertyChanged -= OnChanged;
         window.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
+        window.Tabs.Groups.CollectionChanged -= OnGroupsChanged;
         foreach (var tab in window.Tabs.Tabs)
         {
             Unhook(tab);
         }
+
+        foreach (var group in window.Tabs.Groups)
+        {
+            Unhook(group);
+        }
+    }
+
+    private void Hook(TabGroup group)
+    {
+        if (_hookedGroups.Add(group))
+        {
+            group.PropertyChanged += OnChanged;
+        }
+    }
+
+    private void Unhook(TabGroup group)
+    {
+        if (_hookedGroups.Remove(group))
+        {
+            group.PropertyChanged -= OnChanged;
+        }
+    }
+
+    private void OnGroupsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var group in e.NewItems?.OfType<TabGroup>() ?? [])
+        {
+            Hook(group);
+        }
+
+        foreach (var group in e.OldItems?.OfType<TabGroup>() ?? [])
+        {
+            Unhook(group);
+        }
+
+        MarkDirty();
     }
 
     private void Hook(TabViewModel tab)

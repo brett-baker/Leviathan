@@ -187,7 +187,7 @@ public sealed class WindowManager
         }
         else
         {
-            strip.RestoreTabs(saved.Tabs, saved.SelectedTab);
+            strip.RestoreTabs(saved.Tabs, saved.SelectedTab, saved.Groups);
         }
 
         var window = Register(strip, saved.Bounds, open: false);
@@ -219,6 +219,49 @@ public sealed class WindowManager
         var torn = Register(strip, new WindowBounds(new ScreenRect(dropX, dropY, size.Width, size.Height)));
         torn.PlaceExplicitly = true;
         return torn;
+    }
+
+    /// <summary>
+    /// Drags a whole tab group out into a new window (spec §4.1). The group keeps its name, colour and collapsed state. Nothing
+    /// happens (null) when the group holds every tab of the window: that would only be a move of the window.
+    /// </summary>
+    public WindowViewModel? TearOffGroup(WindowViewModel source, TabGroup group, int dropX, int dropY)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(group);
+        var count = source.Tabs.TabsOf(group).Count;
+        if (count == 0 || count >= source.Tabs.Tabs.Count)
+        {
+            return null;
+        }
+
+        var transfer = source.Tabs.DetachGroup(group)!;
+        var strip = new TabStripViewModel(_services);
+        strip.AttachGroup(transfer);
+        var size = source.Bounds.Rect;
+        var torn = Register(strip, new WindowBounds(new ScreenRect(dropX, dropY, size.Width, size.Height)));
+        torn.PlaceExplicitly = true;
+        return torn;
+    }
+
+    /// <summary>Drops a whole group onto another window's strip. The source window closes if it has no tabs left.</summary>
+    public bool MergeGroup(WindowViewModel from, TabGroup group, WindowViewModel to, int? index = null)
+    {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(group);
+        ArgumentNullException.ThrowIfNull(to);
+        if (from == to || from.Tabs.DetachGroup(group) is not { } transfer)
+        {
+            return false;
+        }
+
+        to.Tabs.AttachGroup(transfer, index);
+        if (from.Tabs.Tabs.Count == 0)
+        {
+            Close(from);
+        }
+
+        return true;
     }
 
     /// <summary>The window whose strip holds <paramref name="tab"/>, or null.</summary>
