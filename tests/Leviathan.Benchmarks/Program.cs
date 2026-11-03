@@ -5,10 +5,23 @@ using BenchmarkDotNet.Running;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
 using Leviathan.Providers.Local;
+using Leviathan.ViewModels.Folders;
+using Leviathan.ViewModels.Tabs;
+using Leviathan.ViewModels.Views;
+using Leviathan.ViewModels.Windows;
 
 if (args.Contains("--gate"))
 {
-    return EnumerationGate.Run(args);
+    // The listing gate of Phase 0, then the view-model gates of Phase 1 (spec 3.1); --cold-start <Leviathan.exe> adds the real app's start.
+    var exit = EnumerationGate.Run(args);
+    exit |= ViewModelGate.Run();
+    var at = Array.IndexOf(args, "--cold-start");
+    if (at >= 0 && at + 1 < args.Length)
+    {
+        exit |= ColdStartGate.Run(args[at + 1]);
+    }
+
+    return exit;
 }
 
 BenchmarkSwitcher.FromAssembly(typeof(EnumerationBenchmarks).Assembly).Run(args);
@@ -138,5 +151,200 @@ public class EnumerationBenchmarks
         }
 
         return count;
+    }
+}
+
+
+/// <summary>Runs queued work at once, on the calling thread: the numbers are those of the view model, not of a dispatcher.</summary>
+internal sealed class ImmediateUi : IUiContext
+{
+    public void Post(Action action) => action();
+}
+
+/// <summary>
+/// Phase 1 budgets through the view model (spec 3.1, build plan H2): the first rows of a 10,000-item local folder reach the UI queue in
+/// under 100 ms, also when they come from the listing cache; a new tab shows its first rows in under 150 ms. Exit code 0 = all pass.
+/// </summary>
+internal static class ViewModelGate
+{
+    private const int Runs = 40;
+    private const int Warmup = 5;
+
+    public static int Run()
+    {
+        var folder = Fixture.CreateFolder(10_000);
+        var small = Fixture.CreateFolder(1_000);
+        var failed = 0;
+        failed += Report("10,000 items, first rows through the view model", 100, FirstRows(folder, useCache: false));
+        failed += Report("10,000 items, first rows from the listing cache", 100, FirstRows(folder, useCache: true));
+        failed += Report("new tab with 1,000 items, first rows", 150, NewTab(small));
+        return failed == 0 ? 0 : 1;
+    }
+
+    private static List<double> FirstRows(string folder, bool useCache)
+    {
+        var (provider, location) = Fixture.Provider(folder);
+        var providers = new LocationProviderRegistry([provider]);
+        var cache = useCache ? new ListingCache() : null;
+        var times = new List<double>();
+        for (var run = 0; run < Runs; run++)
+        {
+            using var view = new FolderViewModel(providers, new ImmediateUi(), TimeProvider.System, cache);
+            view.LoadAsync(location, CancellationToken.None).GetAwaiter().GetResult();
+            view.Revalidation.GetAwaiter().GetResult();
+
+            // With a cache the first visit fills it (and lists afresh); the visits after it start from the cached rows, which is what is measured.
+            if (useCache && run == 0)
+            {
+                continue;
+            }
+
+            times.Add(view.FirstRowsElapsed?.TotalMilliseconds ?? double.NaN);
+        }
+
+        return times;
+    }
+
+    private static List<double> NewTab(string folder)
+    {
+        var (provider, location) = Fixture.Provider(folder);
+        var services = new TabServices(new LocationProviderRegistry([provider]), new ImmediateUi(), new FolderViewRules(), TimeProvider.System, () => location);
+        var window = new WindowManager(services).OpenWindow(location);
+        var times = new List<double>();
+        for (var run = 0; run < Runs; run++)
+        {
+            var started = Stopwatch.GetTimestamp();
+            var tab = window.Tabs.NewTab(location);
+            tab.ReloadAsync(CancellationToken.None).GetAwaiter().GetResult();
+            times.Add(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            window.Tabs.Close(tab);
+        }
+
+        return times;
+    }
+
+    private static int Report(string what, double budgetMs, List<double> times)
+    {
+        var p95 = Percentile([.. times.Skip(Warmup)], 0.95);
+        var pass = p95 <= budgetMs;
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{what} · p95 {p95:0.0} ms (budget {budgetMs} ms) · {(pass ? "PASS" : "FAIL")}"));
+        return pass ? 0 : 1;
+    }
+
+    private static double Percentile(List<double> values, double p)
+    {
+        values.Sort();
+        return values[Math.Clamp((int)Math.Ceiling(p * values.Count) - 1, 0, values.Count - 1)];
+    }
+}
+
+/// <summary>
+/// Cold start of the real app (spec 3.1: under 600 ms to the first folder): starts Leviathan.exe several times with an empty data
+/// folder and reads the "READY: cold start N ms" line of its UI trace. Needs a desktop (a window opens); run it on a quiet machine
+/// with a Release build. Exit code 0 = pass.
+/// </summary>
+internal static class ColdStartGate
+{
+    private const int Runs = 6;
+
+    public static int Run(string exe)
+    {
+        var times = new List<double>();
+        for (var run = 0; run < Runs; run++)
+        {
+            var data = Path.Combine(Path.GetTempPath(), "leviathan-coldstart-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(data);
+            var trace = Path.Combine(data, "ui-trace.txt");
+            var info = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
+            info.Environment["LEVIATHAN_DATA_DIR"] = data;
+            info.Environment["LEVIATHAN_UI_TRACE"] = trace;
+            using var process = Process.Start(info)!;
+            var ready = WaitForReady(trace, TimeSpan.FromSeconds(30));
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Gone already.
+            }
+
+            foreach (var helper in new[] { "Leviathan.Worker", "Leviathan.ShellHost" })
+            {
+                foreach (var other in Process.GetProcessesByName(helper).Where(p => IsUnder(p, Path.GetDirectoryName(exe)!)))
+                {
+                    other.Kill();
+                }
+            }
+
+            try
+            {
+                Directory.Delete(data, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best effort.
+            }
+
+            if (ready is null)
+            {
+                Console.Error.WriteLine("The app did not report READY within 30 s.");
+                return 1;
+            }
+
+            times.Add(ready.Value);
+        }
+
+        times.Sort();
+        var median = times[times.Count / 2];
+        var worst = times[^1];
+        var pass = median <= 600;
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"cold start to the first folder · median {median:0} ms · worst {worst:0} ms (budget 600 ms) · {(pass ? "PASS" : "FAIL")}"));
+        return pass ? 0 : 1;
+    }
+
+    private static bool IsUnder(Process process, string folder)
+    {
+        try
+        {
+            return process.MainModule?.FileName.StartsWith(folder, StringComparison.OrdinalIgnoreCase) == true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    private static double? WaitForReady(string trace, TimeSpan timeout)
+    {
+        var deadline = Stopwatch.GetTimestamp() + (long)(timeout.TotalSeconds * Stopwatch.Frequency);
+        while (Stopwatch.GetTimestamp() < deadline)
+        {
+            try
+            {
+                using var stream = new FileStream(trace, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                foreach (var line in reader.ReadToEnd().Split((char)10))
+                {
+                    var at = line.IndexOf("READY: cold start ", StringComparison.Ordinal);
+                    if (at >= 0)
+                    {
+                        var digits = new string([.. line[(at + 18)..].TakeWhile(char.IsDigit)]);
+                        if (double.TryParse(digits, CultureInfo.InvariantCulture, out var ms))
+                        {
+                            return ms;
+                        }
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                // Not written yet.
+            }
+
+            Thread.Sleep(100);
+        }
+
+        return null;
     }
 }

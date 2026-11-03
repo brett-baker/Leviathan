@@ -30,7 +30,8 @@ From a terminal:
 ```powershell
 dotnet build Leviathan.slnx -p:Platform=x64
 dotnet test Leviathan.slnx -p:Platform=x64
-dotnet run -c Release --project tests/Leviathan.Benchmarks -- --gate   # Phase 0 gate
+dotnet run -c Release --project tests/Leviathan.Benchmarks -- --gate   # listing, view-model and new-tab budgets
+dotnet run -c Release --project tests/Leviathan.Benchmarks -- --gate --cold-start <path to Leviathan.exe>   # adds the real app's cold start (opens windows)
 dotnet run --project tools/Leviathan.Diag -- last                      # latest crash report
 ```
 

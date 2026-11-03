@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
   </ItemGroup>
 </Project>
