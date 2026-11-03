@@ -170,4 +170,52 @@ public sealed class ShellHostProcessTests
             Directory.Delete(folder, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task AHandlerThatKillsTheHost_FailsOnlyThatMenu_AndTheNextRightClickWorks()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "leviathan-host-crash-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var file = Path.Combine(folder, "note.txt");
+        await File.WriteAllTextAsync(file, "x", TestContext.Current.CancellationToken);
+        var marker = Path.Combine(folder, "crashed.marker");
+        var pipe = "Leviathan.Tests.ShellHost." + Guid.NewGuid().ToString("N");
+        await using var connection = new ShellHostConnection(new ExecutableLauncher(HostExe, $"--pipe {pipe} --fault-crash-once \"{marker}\""), pipe, FastPolicy());
+        var first = await (await connection.GetServiceAsync(Wait, TestContext.Current.CancellationToken)).PingAsync(TestContext.Current.CancellationToken);
+        int? secondPid = null;
+        try
+        {
+            var request = new Leviathan.Contracts.ShellMenuRequest([file], false, false);
+
+            // The handler "crashes": this menu is lost and says so, nothing else happens to the caller.
+            var service = await connection.GetServiceAsync(Wait, TestContext.Current.CancellationToken);
+            await Assert.ThrowsAnyAsync<Exception>(() => service.OpenContextMenuAsync(request, TestContext.Current.CancellationToken));
+            Assert.True(File.Exists(marker));
+
+            // The supervisor restarts the host; the next right-click gets a full menu from the new process.
+            var deadline = DateTime.UtcNow.Add(Wait);
+            while (connection.IsConnected && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+
+            var again = await connection.GetServiceAsync(Wait, TestContext.Current.CancellationToken);
+            secondPid = (await again.PingAsync(TestContext.Current.CancellationToken)).ProcessId;
+            var menu = await again.OpenContextMenuAsync(request, TestContext.Current.CancellationToken);
+
+            Assert.NotEqual(first.ProcessId, secondPid);
+            Assert.Contains(menu.Items, i => i.Verb == "properties");
+            Assert.Equal(SupervisedState.Running, connection.State);
+        }
+        finally
+        {
+            KillHost(first.ProcessId);
+            if (secondPid is { } pid)
+            {
+                KillHost(pid);
+            }
+
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 }

@@ -65,7 +65,7 @@ public sealed partial class DetailsGrid : UserControl
     internal event EventHandler<FileEntry>? MiddleClicked;
 
     /// <summary>A row or the empty area was right-clicked; the context menu arrives with the shell integration (slice F).</summary>
-    internal event EventHandler<FileEntry?>? RowContextRequested;
+    internal event EventHandler<RowContextRequest>? RowContextRequested;
 
     /// <summary>Items were dropped on a folder row or on the empty area (the folder shown).</summary>
     internal event EventHandler<ItemDropRequest>? DropRequested;
@@ -387,7 +387,8 @@ public sealed partial class DetailsGrid : UserControl
         if (row?.Entry is not { } entry)
         {
             var ctrl = KeyTranslator.IsDown(VirtualKey.Control);
-            if (point.IsLeftButtonPressed && !ctrl && !KeyTranslator.IsDown(VirtualKey.Shift))
+            // A right-click on empty space also clears it: the menu is then the folder's, as in Explorer (spec §8.5).
+            if ((point.IsLeftButtonPressed || point.IsRightButtonPressed) && !ctrl && !KeyTranslator.IsDown(VirtualKey.Shift))
             {
                 _tab.Selection.Clear();
             }
@@ -503,15 +504,19 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
-    private void OnBodyRightTapped(object sender, RightTappedRoutedEventArgs e)
+    // Mouse, touch, pen, the menu key and Shift+F10 all arrive here; the keyboard has no pointer position, so the menu opens near the top of the list.
+    private void OnBodyContextRequested(UIElement sender, ContextRequestedEventArgs e)
     {
-        if (InEditor(e.OriginalSource))
+        // The rename box has its own menu (cut, copy, paste text).
+        if (FocusManager.GetFocusedElement(XamlRoot) is TextBox)
         {
             return;
         }
 
         e.Handled = true;
-        RowContextRequested?.Invoke(this, RowOf(e.OriginalSource)?.Entry);
+        var target = (FrameworkElement)sender;
+        var position = e.TryGetPosition(target, out var point) ? point : new Windows.Foundation.Point(48, 48);
+        RowContextRequested?.Invoke(this, new RowContextRequest(null, target, position));
     }
 
     // Keyboard ---------------------------------------------------------------------------------------------------------

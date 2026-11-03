@@ -54,6 +54,9 @@ public sealed class ShellHostConnection : IAsyncDisposable
     /// <summary>True while a connection to a running host is open.</summary>
     public bool IsConnected => _client.IsConnected;
 
+    /// <summary>Process id of the host this connection is talking to, or null when not connected.</summary>
+    public int? ProcessId => _client.IsConnected ? _client.Info?.ProcessId : null;
+
     /// <summary>Re-enables a disabled host (the user asked, spec §3.4) and starts it.</summary>
     public void Reenable() => _supervisor.Reenable();
 
@@ -94,9 +97,10 @@ public sealed class ShellHostConnection : IAsyncDisposable
                         await _client.ConnectAsync(ConnectAttempt, limit.Token).ConfigureAwait(false);
                         return _client.Service;
                     }
-                    catch (Exception ex) when (ex is TimeoutException or IOException)
+                    catch (Exception ex) when (ex is TimeoutException or IOException or StreamJsonRpc.ConnectionLostException or ObjectDisposedException)
                     {
-                        // Not up yet (starting, or restarting after a crash). Try again until the limit.
+                        // Not up yet (starting, or restarting after a crash), or we reached the old host while it was still dying.
+                        // Try again until the limit.
                         last = ex;
                         await Task.Delay(TimeSpan.FromMilliseconds(100), limit.Token).ConfigureAwait(false);
                     }

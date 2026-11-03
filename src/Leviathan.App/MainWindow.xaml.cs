@@ -75,6 +75,8 @@ public sealed partial class MainWindow : Window, IShellActions
         FileList.RenameFinished += OnRenameFinished;
         FlowList.RenameFinished += OnRenameFinished;
         FileList.DropRequested += OnItemsDropped;
+        FileList.RowContextRequested += OnRowContextRequested;
+        FlowList.RowContextRequested += OnRowContextRequested;
         FlowList.DropRequested += OnItemsDropped;
         _sidebar = new SidebarTree(host.SidebarSource);
         Sidebar.ItemsSource = _sidebar.Rows;

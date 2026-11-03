@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
   </ItemGroup>
   <ItemGroup>

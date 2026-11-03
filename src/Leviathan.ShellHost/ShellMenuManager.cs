@@ -40,6 +40,25 @@ internal sealed class WindowsShellMenuSource : IShellMenuSource
 }
 
 /// <summary>
+/// Test switch (<c>--fault-crash-once &lt;marker file&gt;</c>): the first time a menu is opened the host ends the way a crashing
+/// shell extension would end it, abruptly and with a failure code; the marker file stops the restarted host doing it again. It lets
+/// the integration test prove that a handler's crash costs a restart of this process and nothing else (spec §2.2, §3.4).
+/// </summary>
+internal sealed class CrashOnceMenuSource(IShellMenuSource inner, string marker) : IShellMenuSource
+{
+    public IShellMenuInstance Open(ShellMenuRequest request)
+    {
+        if (!File.Exists(marker))
+        {
+            File.WriteAllText(marker, "crashed");
+            Environment.Exit(99);
+        }
+
+        return inner.Open(request);
+    }
+}
+
+/// <summary>
 /// Keeps the open context menus of the host. Each menu lives on a thread of its own with a message loop, because the COM objects
 /// the shell extensions made must be used where they were made, and is closed after <see cref="IdleTimeout"/> if nobody uses it
 /// (a menu the user dismissed without telling us). A request that outlives its limit means a handler is stuck: the menu is

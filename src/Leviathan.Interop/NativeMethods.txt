@@ -81,3 +81,4 @@ CreateEvent
 SetEvent
 CloseHandle
 SHOW_WINDOW_CMD
+AllowSetForegroundWindow

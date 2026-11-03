@@ -44,7 +44,7 @@
                   Drop="OnBodyDrop"
                   PointerPressed="OnBodyPointerPressed"
                   DoubleTapped="OnBodyDoubleTapped"
-                  RightTapped="OnBodyRightTapped">
+                  ContextRequested="OnBodyContextRequested">
       <muxc:ItemsRepeater x:Name="Repeater" Margin="4,2,4,2">
         <muxc:ItemsRepeater.Layout>
           <muxc:StackLayout Orientation="Vertical" Spacing="0" />

@@ -9,7 +9,7 @@ namespace Leviathan.ViewModels.Tests;
 
 public sealed class ClipboardCommandTests
 {
-    private sealed class FakeClipboard : IFileClipboard
+    internal sealed class FakeClipboard : IFileClipboard
     {
         private ClipboardItems? _held;
 
