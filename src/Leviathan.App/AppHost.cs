@@ -223,7 +223,7 @@ internal sealed class AppHost
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
         var listings = new ListingCache();
-        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions, listings);
+        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         var transfers = new WorkerTransfers(() => worker.Value);

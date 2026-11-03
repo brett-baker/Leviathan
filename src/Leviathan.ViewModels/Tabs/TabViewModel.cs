@@ -23,7 +23,8 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="FolderSizes">Where folder totals for the Size column come from; null shows no folder sizes.</param>
 /// <param name="Options">Whether hidden and system items are listed; null lists neither.</param>
 /// <param name="Cache">Remembered folder listings shown at once and checked in the background; null lists every folder afresh.</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null);
+/// <param name="Watcher">Reports changes to the folder on screen so its rows follow the disk; null leaves them as listed.</param>
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null, IFolderWatcher? Watcher = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -99,7 +100,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(services);
         _services = services;
         History = history;
-        Folder = new FolderViewModel(services.Providers, services.Ui, services.Time, services.Cache);
+        Folder = new FolderViewModel(services.Providers, services.Ui, services.Time, services.Cache, services.Watcher);
         Items = new FolderItemsView(Folder.Entries, time: services.Time);
         Selection = new SelectionModel(Items.Rows, services.Time);
         Address = new AddressBarViewModel(history.Current);

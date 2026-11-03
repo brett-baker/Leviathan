@@ -127,8 +127,17 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     private readonly LocationProviderRegistry _providers;
     private readonly IUiContext _ui;
     private readonly TimeProvider _time;
+    private readonly IFolderWatcher? _watcher;
+    private readonly Lock _watchGate = new();
     private CancellationTokenSource? _current;
     private int _generation;
+    private IDisposable? _watch;
+    private LocationPath? _wantedWatch;
+    private bool _disposed;
+
+    // UI-thread state of the live refresh (see RequestRefresh): a check of the folder is under way, and the disk changed meanwhile.
+    private bool _busy;
+    private bool _dirty;
 
     [ObservableProperty]
     private LocationPath? _location;
@@ -157,7 +166,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     /// <param name="ui">The UI thread.</param>
     /// <param name="time">Clock.</param>
     /// <param name="cache">Remembered listings, or null to always list afresh.</param>
-    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null, ListingCache? cache = null)
+    /// <param name="watcher">Reports changes to the folder on screen so the rows follow the disk, or null to leave them as listed.</param>
+    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null, ListingCache? cache = null, IFolderWatcher? watcher = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(ui);
@@ -165,6 +175,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         _ui = ui;
         _time = time ?? TimeProvider.System;
         Cache = cache;
+        _watcher = watcher;
     }
 
     /// <summary>The remembered listings this folder view shows first, or null.</summary>
@@ -230,6 +241,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             previous.Dispose();
         }
 
+        StartWatching(location);
         var options = Options;
         var key = new ListingKey(location, options.IncludeHidden, options.IncludeSystem);
         var started = _time.GetTimestamp();
@@ -265,6 +277,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             Message = null;
             IsRetryable = false;
             Notice = null;
+            _busy = false;
             Kind = FolderKind.General;
             State = FolderLoadState.Loading;
         });
@@ -323,6 +336,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             IsRetryable = false;
             Kind = cached.Kind;
             State = FolderLoadState.Loading;
+            _busy = !trusted;
             Notice = trusted ? null : ListingNotice.Checking(cached.Source, age);
         });
         FirstRowsElapsed = _time.GetElapsedTime(started);
@@ -381,6 +395,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
                     {
                         _ = ClearNoticeLaterAsync(generation, updated, source.Token);
                     }
+
+                    Settled();
                 });
             });
         }
@@ -392,7 +408,156 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         {
             var failure = ex as LocationException ?? LocationErrors.Wrap(ex, location);
             var age = _time.GetUtcNow() - cached.ListedAt;
-            PostIfCurrent(generation, () => Notice = ListingNotice.RefreshFailed(failure.Message, age));
+            PostIfCurrent(generation, () =>
+            {
+                Notice = ListingNotice.RefreshFailed(failure.Message, age);
+                Settled();
+            });
+        }
+    }
+
+    partial void OnStateChanged(FolderLoadState value)
+    {
+        if (_dirty && !_busy && value is FolderLoadState.Loaded or FolderLoadState.Empty)
+        {
+            RequestRefresh();
+        }
+    }
+
+    private void StartWatching(LocationPath location)
+    {
+        if (_watcher is null)
+        {
+            return;
+        }
+
+        lock (_watchGate)
+        {
+            if (_disposed || _wantedWatch == location)
+            {
+                return;
+            }
+
+            _wantedWatch = location;
+        }
+
+        // Starting a watch opens the folder, which can be slow on a bad drive: never on the UI thread.
+        _ = Task.Run(() =>
+        {
+            IDisposable? stale;
+            lock (_watchGate)
+            {
+                if (_disposed || _wantedWatch != location)
+                {
+                    return;
+                }
+
+                stale = _watch;
+                _watch = null;
+            }
+
+            stale?.Dispose();
+            var subscription = _watcher.Watch(location, () => OnWatchedChange(location));
+            lock (_watchGate)
+            {
+                if (!_disposed && _wantedWatch == location)
+                {
+                    _watch = subscription;
+                    return;
+                }
+            }
+
+            subscription.Dispose();
+        });
+    }
+
+    // On a watcher thread: the cached listing is out of date now; the view refreshes itself on the UI thread.
+    private void OnWatchedChange(LocationPath location)
+    {
+        Cache?.Invalidate(location);
+        _ui.Post(() =>
+        {
+            if (!_disposed && Location == location)
+            {
+                RequestRefresh();
+            }
+        });
+    }
+
+    // On the UI thread. The folder changed on disk: list it again behind the rows and apply only the difference (the same way a
+    // cached listing is checked), so scrolling, selection and renaming stay put. One check at a time; a change that arrives
+    // while the folder is loading or being checked is picked up when that ends.
+    private void RequestRefresh()
+    {
+        if (Location is not { } location || State is not (FolderLoadState.Loading or FolderLoadState.Loaded or FolderLoadState.Empty))
+        {
+            return;
+        }
+
+        if (State is FolderLoadState.Loading || _busy)
+        {
+            _dirty = true;
+            return;
+        }
+
+        _dirty = false;
+        _busy = true;
+        _ = RefreshInPlaceAsync(location, Options, Entries.ToArray(), Volatile.Read(ref _generation), _current?.Token ?? CancellationToken.None);
+    }
+
+    private void Settled()
+    {
+        _busy = false;
+        if (_dirty)
+        {
+            RequestRefresh();
+        }
+    }
+
+    private async Task RefreshInPlaceAsync(LocationPath location, ListingOptions options, FileEntry[] shown, int generation, CancellationToken token)
+    {
+        try
+        {
+            var (fresh, diff) = await Task.Run(async () =>
+            {
+                var list = new List<FileEntry>(shown.Length);
+                await foreach (var batch in _providers.Resolve(location).ListAsync(location, options, token).ConfigureAwait(false))
+                {
+                    list.AddRange(batch.Items);
+                }
+
+                return (list, ListingDiff.Compute(shown, list));
+            }, token).ConfigureAwait(false);
+
+            var kind = FolderKindDetector.Detect(fresh);
+            Cache?.Put(new ListingKey(location, options.IncludeHidden, options.IncludeSystem), fresh.ToArray(), _time.GetUtcNow(), kind);
+            if (diff.IsEmpty)
+            {
+                PostIfCurrent(generation, Settled);
+                return;
+            }
+
+            var pump = new UpdatePump(this, generation, token);
+            PostIfCurrent(generation, () =>
+            {
+                Entries.RemoveRange(diff.Remove);
+                pump.Add(diff.Add);
+                pump.Drain(() =>
+                {
+                    Kind = kind;
+                    State = fresh.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+                    Settled();
+                });
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Another load replaced this one and reset the refresh state itself.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The rows stay as they are; the next change or navigation looks again.
+            PostIfCurrent(generation, Settled);
         }
     }
 
@@ -520,6 +685,15 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        IDisposable? watch;
+        lock (_watchGate)
+        {
+            _disposed = true;
+            watch = _watch;
+            _watch = null;
+        }
+
+        watch?.Dispose();
         Interlocked.Increment(ref _generation);
         var source = Interlocked.Exchange(ref _current, null);
         source?.Cancel();

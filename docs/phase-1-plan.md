@@ -262,3 +262,9 @@ Defaults I will take unless Brett says otherwise; none blocks the first slices.
 - Basic copy/paste in this phase is local-disk only and not resumable; the full engine is Phase 2.
 - Third-party shell items in ShellHost need Brett's real machine to verify (7-Zip, Git, VS Code entries); I can only test crash
   isolation with a fake handler.
+
+## Listing cache (added after Brett's large-folder report; slice ids are separate from the list above)
+
+- [x] **Cache-1/2.** In-memory listing cache, show-then-check with footer notice, invalidation on our own operations (6240a49).
+- [x] **Cache-3.** Folder watcher for local drives: the folder on screen follows the disk (`IFolderWatcher`, `LocalFolderWatcher`). Checked live: create, delete and rename showed within about 0.9 s.
+- [ ] **Cache-4.** SQLite persistent tier for restarts and offline.
