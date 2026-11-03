@@ -18,16 +18,15 @@ namespace Leviathan.App;
 internal sealed class TabItemUi
 {
     private readonly TextBlock _title = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 180, VerticalAlignment = VerticalAlignment.Center };
-    private readonly FontIcon _lock = new() { Glyph = "", FontSize = 11, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
+    private readonly ContentControl _lock = new() { Content = Icons.Of("lock", 12), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ProgressRing _busy = new() { Width = 12, Height = 12, IsActive = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
-    private readonly FontIcon _offline = new() { Glyph = "", FontSize = 12, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
+    private readonly ContentControl _offline = new() { Content = Icons.Of("warning", 14, OfflineColor), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _accent = new() { Height = 2, CornerRadius = new CornerRadius(1), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 2, 0, 0) };
     private readonly Border _groupBar = new() { Height = 3, CornerRadius = new CornerRadius(1.5), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 1, 0, 0) };
 
     public TabItemUi(TabViewModel tab)
     {
         Tab = tab;
-        _offline.Foreground = new SolidColorBrush(Colors.DarkOrange);
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         content.Children.Add(_lock);
         content.Children.Add(_title);
@@ -42,8 +41,19 @@ internal sealed class TabItemUi
         header.Children.Add(_accent);
         Grid.SetRow(_groupBar, 2);
         header.Children.Add(_groupBar);
-        Item = new TabViewItem { Tag = tab, Header = header, IconSource = new SymbolIconSource { Symbol = Symbol.Folder } };
+        Item = new TabViewItem { Tag = tab, Header = header, IconSource = Icons.SourceOf("folder") };
         Refresh();
+    }
+
+    // The warning mark of a tab whose location does not answer: dark orange on both themes.
+    private const string OfflineColor = "#D9730D";
+
+    /// <summary>Draws the tab's icons again after the icon pack or the theme changed.</summary>
+    public void RefreshIcons()
+    {
+        _lock.Content = Icons.Of("lock", 12);
+        _offline.Content = Icons.Of("warning", 14, OfflineColor);
+        Item.IconSource = Icons.SourceOf("folder");
     }
 
     public TabViewModel Tab { get; }
@@ -369,7 +379,7 @@ public sealed partial class MainWindow
                 var item = new MenuFlyoutItem { Text = name };
                 if (hex is not null && TabItemUi.TryParseColor(hex, out var color))
                 {
-                    item.Icon = new FontIcon { Glyph = "", Foreground = new SolidColorBrush(color) };
+                    item.Icon = Icons.Of("swatch", 16, hex);
                 }
 
                 item.Click += (_, _) => Run(CommandIds.TabColor, value, tab);

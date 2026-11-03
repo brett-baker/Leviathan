@@ -16,6 +16,7 @@ public sealed partial class MainWindow
     private void OnOptionsMenuOpening(object? sender, object e)
     {
         var catalog = App.Host.Profiles.Catalog;
+        FillIconPackMenu();
         ProfilesMenu.Items.Clear();
 
         var save = new MenuFlyoutItem { Text = "Save current windows as profile…" };

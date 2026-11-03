@@ -69,6 +69,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
         Address.Attach(host.AddressBar);
+        BindChromeIcons();
         FileList.ItemInvoked += OnFileInvoked;
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
@@ -578,7 +579,7 @@ public sealed partial class MainWindow : Window, IShellActions
         StateDetail.Visibility = detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         StateRing.IsActive = busy;
         StateRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        StateIcon.Glyph = glyph;
+        StateIcon.Content = glyph.Length == 0 ? null : Icons.OfGlyph(glyph, 32);
         StateIcon.Visibility = glyph.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         RetryButton.Visibility = retry ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -900,6 +901,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
+        App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Undo.Changed -= OnUndoChanged;
         App.Host.FileClipboard.Changed -= OnClipboardChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;

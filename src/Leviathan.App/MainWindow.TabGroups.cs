@@ -122,7 +122,7 @@ public sealed partial class MainWindow
                 {
                     Text = title,
                     IsChecked = string.Equals(group.Color, hex, StringComparison.OrdinalIgnoreCase),
-                    Icon = new FontIcon { Glyph = "", Foreground = TabItemUi.TryParseColor(hex, out var c) ? new SolidColorBrush(c) : null },
+                    Icon = Icons.Of("swatch", 16, hex),
                 };
                 item.Click += (_, _) => Run(CommandIds.TabGroupColor, hex, group);
                 colour.Items.Add(item);
@@ -176,7 +176,7 @@ public sealed partial class MainWindow
                 var item = new MenuFlyoutItem
                 {
                     Text = group.Name.Length == 0 ? "Unnamed group" : group.Name,
-                    Icon = new FontIcon { Glyph = "", Foreground = TabItemUi.TryParseColor(group.Color, out var c) ? new SolidColorBrush(c) : null },
+                    Icon = Icons.Of("swatch", 16, group.Color),
                 };
                 var target = group;
                 item.Click += (_, _) => Run(CommandIds.TabGroupAdd, null, new TabGroupAdd(tab, target));

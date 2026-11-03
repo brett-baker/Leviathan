@@ -22,6 +22,11 @@
     <NoWarn>$(NoWarn);CA2007</NoWarn>
   </PropertyGroup>
 
+  <!-- Icon packs (spec 4.3): plain folders of SVGs plus a pack.json, copied next to Leviathan.exe so a pack can be added or replaced without a rebuild. -->
+  <ItemGroup>
+    <Content Include="Assets\Icons\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />

@@ -1,0 +1,415 @@
+{
+    "id":  "fluent",
+    "name":  "Fluent UI System Icons",
+    "description":  "Microsoft\u0027s Windows 11 icon family. Its own colour variants are used where they exist; the rest are tinted by role.",
+    "license":  "MIT",
+    "attribution":  "Copyright (c) Microsoft Corporation. https://github.com/microsoft/fluentui-system-icons",
+    "version":  "9bfae3d782fda4c8764f2128cec4d0dda160b283",
+    "icons":  {
+                  "back":  {
+                               "file":  "back.svg",
+                               "color":  false,
+                               "source":  "Arrow Left"
+                           },
+                  "forward":  {
+                                  "file":  "forward.svg",
+                                  "color":  false,
+                                  "source":  "Arrow Right"
+                              },
+                  "up":  {
+                             "file":  "up.svg",
+                             "color":  false,
+                             "source":  "Arrow Up"
+                         },
+                  "reload":  {
+                                 "file":  "reload.svg",
+                                 "color":  false,
+                                 "source":  "Arrow Clockwise"
+                             },
+                  "chevron-down":  {
+                                       "file":  "chevron-down.svg",
+                                       "color":  false,
+                                       "source":  "Chevron Down"
+                                   },
+                  "chevron-up":  {
+                                     "file":  "chevron-up.svg",
+                                     "color":  false,
+                                     "source":  "Chevron Up"
+                                 },
+                  "chevron-right":  {
+                                        "file":  "chevron-right.svg",
+                                        "color":  false,
+                                        "source":  "Chevron Right"
+                                    },
+                  "add":  {
+                              "file":  "add.svg",
+                              "color":  false,
+                              "source":  "Add"
+                          },
+                  "cut":  {
+                              "file":  "cut.svg",
+                              "color":  false,
+                              "source":  "Cut"
+                          },
+                  "copy":  {
+                               "file":  "copy.svg",
+                               "color":  false,
+                               "source":  "Copy"
+                           },
+                  "paste":  {
+                                "file":  "paste.svg",
+                                "color":  false,
+                                "source":  "Clipboard Paste"
+                            },
+                  "rename":  {
+                                 "file":  "rename.svg",
+                                 "color":  false,
+                                 "source":  "Rename"
+                             },
+                  "delete":  {
+                                 "file":  "delete.svg",
+                                 "color":  false,
+                                 "source":  "Delete"
+                             },
+                  "undo":  {
+                               "file":  "undo.svg",
+                               "color":  false,
+                               "source":  "Arrow Undo"
+                           },
+                  "redo":  {
+                               "file":  "redo.svg",
+                               "color":  false,
+                               "source":  "Arrow Redo"
+                           },
+                  "settings":  {
+                                   "file":  "settings.svg",
+                                   "color":  false,
+                                   "source":  "Settings"
+                               },
+                  "close":  {
+                                "file":  "close.svg",
+                                "color":  false,
+                                "source":  "Dismiss"
+                            },
+                  "folder":  {
+                                 "file":  "folder.svg",
+                                 "color":  false,
+                                 "source":  "Folder:filled"
+                             },
+                  "folder-open":  {
+                                      "file":  "folder-open.svg",
+                                      "color":  false,
+                                      "source":  "Folder Open:filled"
+                                  },
+                  "file":  {
+                               "file":  "file.svg",
+                               "color":  true,
+                               "source":  "Document:color"
+                           },
+                  "link":  {
+                               "file":  "link.svg",
+                               "color":  false,
+                               "source":  "Link"
+                           },
+                  "lock":  {
+                               "file":  "lock.svg",
+                               "color":  false,
+                               "source":  "Lock Closed"
+                           },
+                  "warning":  {
+                                  "file":  "warning.svg",
+                                  "color":  false,
+                                  "source":  "Warning:filled"
+                              },
+                  "check":  {
+                                "file":  "check.svg",
+                                "color":  false,
+                                "source":  "Checkmark"
+                            },
+                  "not-found":  {
+                                    "file":  "not-found.svg",
+                                    "color":  false,
+                                    "source":  "Folder Prohibited"
+                                },
+                  "cloud":  {
+                                "file":  "cloud.svg",
+                                "color":  true,
+                                "source":  "Cloud:color"
+                            },
+                  "home":  {
+                               "file":  "home.svg",
+                               "color":  true,
+                               "source":  "Home:color"
+                           },
+                  "desktop":  {
+                                  "file":  "desktop.svg",
+                                  "color":  false,
+                                  "source":  "Desktop"
+                              },
+                  "downloads":  {
+                                    "file":  "downloads.svg",
+                                    "color":  false,
+                                    "source":  "Arrow Download"
+                                },
+                  "pictures":  {
+                                   "file":  "pictures.svg",
+                                   "color":  false,
+                                   "source":  "Image"
+                               },
+                  "videos":  {
+                                 "file":  "videos.svg",
+                                 "color":  false,
+                                 "source":  "Video"
+                             },
+                  "music":  {
+                                "file":  "music.svg",
+                                "color":  false,
+                                "source":  "Music Note 1"
+                            },
+                  "drive":  {
+                                "file":  "drive.svg",
+                                "color":  false,
+                                "source":  "Hard Drive"
+                            },
+                  "removable":  {
+                                    "file":  "removable.svg",
+                                    "color":  false,
+                                    "source":  "Usb Stick"
+                                },
+                  "network":  {
+                                  "file":  "network.svg",
+                                  "color":  false,
+                                  "source":  "Server"
+                              },
+                  "star":  {
+                               "file":  "star.svg",
+                               "color":  false,
+                               "source":  "Star"
+                           },
+                  "star-filled":  {
+                                      "file":  "star-filled.svg",
+                                      "color":  false,
+                                      "source":  "Star:filled"
+                                  },
+                  "heart":  {
+                                "file":  "heart.svg",
+                                "color":  false,
+                                "source":  "Heart"
+                            },
+                  "flag":  {
+                               "file":  "flag.svg",
+                               "color":  false,
+                               "source":  "Flag"
+                           },
+                  "pin":  {
+                              "file":  "pin.svg",
+                              "color":  false,
+                              "source":  "Pin"
+                          },
+                  "work":  {
+                               "file":  "work.svg",
+                               "color":  false,
+                               "source":  "Briefcase"
+                           },
+                  "code":  {
+                               "file":  "code.svg",
+                               "color":  false,
+                               "source":  "Code"
+                           },
+                  "video":  {
+                                "file":  "video.svg",
+                                "color":  false,
+                                "source":  "Video"
+                            },
+                  "photo":  {
+                                "file":  "photo.svg",
+                                "color":  false,
+                                "source":  "Image"
+                            },
+                  "tag":  {
+                              "file":  "tag.svg",
+                              "color":  false,
+                              "source":  "Tag"
+                          },
+                  "swatch":  {
+                                 "file":  "swatch.svg",
+                                 "color":  false,
+                                 "source":  "Circle:filled"
+                             },
+                  "layout-details":  {
+                                         "file":  "layout-details.svg",
+                                         "color":  false,
+                                         "source":  "Table"
+                                     },
+                  "layout-list":  {
+                                      "file":  "layout-list.svg",
+                                      "color":  false,
+                                      "source":  "Text Bullet List"
+                                  },
+                  "layout-tiles":  {
+                                       "file":  "layout-tiles.svg",
+                                       "color":  false,
+                                       "source":  "Apps List"
+                                   },
+                  "layout-thumbnails":  {
+                                            "file":  "layout-thumbnails.svg",
+                                            "color":  false,
+                                            "source":  "Grid"
+                                        },
+                  "layout-gallery":  {
+                                         "file":  "layout-gallery.svg",
+                                         "color":  false,
+                                         "source":  "Image Multiple"
+                                     },
+                  "zoom-in":  {
+                                  "file":  "zoom-in.svg",
+                                  "color":  false,
+                                  "source":  "Zoom In"
+                              },
+                  "zoom-out":  {
+                                   "file":  "zoom-out.svg",
+                                   "color":  false,
+                                   "source":  "Zoom Out"
+                               },
+                  "columns":  {
+                                  "file":  "columns.svg",
+                                  "color":  false,
+                                  "source":  "Column"
+                              },
+                  "select-all":  {
+                                     "file":  "select-all.svg",
+                                     "color":  false,
+                                     "source":  "Select All On"
+                                 },
+                  "select-none":  {
+                                      "file":  "select-none.svg",
+                                      "color":  false,
+                                      "source":  "Select All Off"
+                                  },
+                  "select-invert":  {
+                                        "file":  "select-invert.svg",
+                                        "color":  false,
+                                        "source":  "Arrow Swap"
+                                    },
+                  "select-pattern":  {
+                                         "file":  "select-pattern.svg",
+                                         "color":  false,
+                                         "source":  "Text Asterisk"
+                                     },
+                  "terminal":  {
+                                   "file":  "terminal.svg",
+                                   "color":  false,
+                                   "source":  "Window Console"
+                               },
+                  "space-map":  {
+                                    "file":  "space-map.svg",
+                                    "color":  false,
+                                    "source":  "Chart Multiple"
+                                },
+                  "archive":  {
+                                  "file":  "archive.svg",
+                                  "color":  false,
+                                  "source":  "Folder Zip"
+                              },
+                  "split":  {
+                                "file":  "split.svg",
+                                "color":  false,
+                                "source":  "Split Vertical"
+                            },
+                  "open-new-tab":  {
+                                       "file":  "open-new-tab.svg",
+                                       "color":  false,
+                                       "source":  "Open"
+                                   },
+                  "properties":  {
+                                     "file":  "properties.svg",
+                                     "color":  false,
+                                     "source":  "Info"
+                                 },
+                  "compare":  {
+                                  "file":  "compare.svg",
+                                  "color":  false,
+                                  "source":  "Branch Compare"
+                              },
+                  "move-to-folder":  {
+                                         "file":  "move-to-folder.svg",
+                                         "color":  false,
+                                         "source":  "Folder Arrow Right"
+                                     },
+                  "play":  {
+                               "file":  "play.svg",
+                               "color":  false,
+                               "source":  "Play:filled"
+                           },
+                  "frame":  {
+                                "file":  "frame.svg",
+                                "color":  false,
+                                "source":  "Camera"
+                            },
+                  "rotate-left":  {
+                                      "file":  "rotate-left.svg",
+                                      "color":  false,
+                                      "source":  "Rotate Left"
+                                  },
+                  "rotate-right":  {
+                                       "file":  "rotate-right.svg",
+                                       "color":  false,
+                                       "source":  "Rotate Right"
+                                   },
+                  "convert":  {
+                                  "file":  "convert.svg",
+                                  "color":  false,
+                                  "source":  "Arrow Sync"
+                              },
+                  "print":  {
+                                "file":  "print.svg",
+                                "color":  false,
+                                "source":  "Print"
+                            },
+                  "preview":  {
+                                  "file":  "preview.svg",
+                                  "color":  false,
+                                  "source":  "Eye"
+                              },
+                  "open":  {
+                               "file":  "open.svg",
+                               "color":  false,
+                               "source":  "Open Folder"
+                           },
+                  "admin":  {
+                                "file":  "admin.svg",
+                                "color":  false,
+                                "source":  "Shield"
+                            },
+                  "checksum":  {
+                                   "file":  "checksum.svg",
+                                   "color":  false,
+                                   "source":  "Fingerprint"
+                               },
+                  "target":  {
+                                 "file":  "target.svg",
+                                 "color":  false,
+                                 "source":  "Folder Link"
+                             },
+                  "edit":  {
+                               "file":  "edit.svg",
+                               "color":  false,
+                               "source":  "Link Edit"
+                           },
+                  "burn":  {
+                               "file":  "burn.svg",
+                               "color":  false,
+                               "source":  "Save"
+                           },
+                  "tab":  {
+                              "file":  "tab.svg",
+                              "color":  false,
+                              "source":  "Tab"
+                          },
+                  "wallpaper":  {
+                                    "file":  "wallpaper.svg",
+                                    "color":  false,
+                                    "source":  "Wallpaper"
+                                }
+              }
+}

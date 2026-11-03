@@ -3,12 +3,13 @@
     x:Class="Leviathan.App.AddressBar"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:paths="using:Leviathan.Core.Paths">
+    xmlns:paths="using:Leviathan.Core.Paths"
+    xmlns:local="using:Leviathan.App">
 
   <UserControl.Resources>
     <DataTemplate x:Key="FolderItemTemplate" x:DataType="paths:LocationPath">
       <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,2">
-        <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+        <ContentControl IsTabStop="False" Content="{x:Bind local:SidebarFormat.FolderIcon()}" />
         <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxWidth="320" VerticalAlignment="Center" />
       </StackPanel>
     </DataTemplate>
@@ -34,7 +35,7 @@
     <Button x:Name="StarButton" Grid.Column="1" Width="30" Height="30" Padding="0" Margin="0,0,1,0" Background="Transparent" BorderThickness="0"
             VerticalAlignment="Center" Click="OnStarClick" RightTapped="OnStarRightTapped"
             AutomationProperties.Name="Favorite">
-      <FontIcon x:Name="StarIcon" Glyph="&#xE734;" FontSize="14" />
+      <ContentControl x:Name="StarIcon" IsTabStop="False" />
     </Button>
     <AutoSuggestBox x:Name="Editor"
                     Visibility="Collapsed"

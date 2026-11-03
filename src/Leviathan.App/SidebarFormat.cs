@@ -37,6 +37,16 @@ internal static class SidebarFormat
             ? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, Convert.ToByte(accent![1..3], 16), Convert.ToByte(accent[3..5], 16), Convert.ToByte(accent[5..7], 16)))
             : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
+    /// <summary>The row's icon from the chosen icon pack: the user's pick and colour for a favorite, else the standard one for its kind (spec §4.3).</summary>
+    public static Microsoft.UI.Xaml.Controls.IconElement IconOf(SidebarIcon icon, string? custom, string? accent) =>
+        Icons.OfGlyph(Glyph(icon, custom), 16, FavoriteStyles.IsColor(accent) ? accent : null);
+
+    /// <summary>The folder icon of a breadcrumb drop-down row.</summary>
+    public static Microsoft.UI.Xaml.Controls.IconElement FolderIcon() => Icons.Of("folder");
+
+    /// <summary>The expand/collapse chevron of a row.</summary>
+    public static Microsoft.UI.Xaml.Controls.IconElement ChevronOf(bool expanded) => Icons.Of(expanded ? "chevron-down" : "chevron-right", 10);
+
     public static string Chevron(bool expanded) => expanded ? "" : "";
 
     public static double IndentWidth(int depth) => Math.Max(0, depth - 1) * 14;

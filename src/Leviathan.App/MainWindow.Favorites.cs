@@ -50,7 +50,7 @@ public sealed partial class MainWindow
             var icon = new MenuFlyoutSubItem { Text = "Icon" };
             foreach (var (key, title, glyph) in FavoriteStyles.Icons)
             {
-                var item = new ToggleMenuFlyoutItem { Text = title, IsChecked = (favorite.Icon ?? "star") == key, Icon = new FontIcon { Glyph = glyph } };
+                var item = new ToggleMenuFlyoutItem { Text = title, IsChecked = (favorite.Icon ?? "star") == key, Icon = Icons.OfGlyph(glyph) };
                 item.Click += (_, _) => Run(CommandIds.FavoriteStyle, here.Value, new FavoriteStyleChange(key == "star" ? null : key, favorite.Color));
                 icon.Items.Add(item);
             }
@@ -65,7 +65,7 @@ public sealed partial class MainWindow
                 {
                     Text = title,
                     IsChecked = string.Equals(favorite.Color, hex, StringComparison.OrdinalIgnoreCase),
-                    Icon = new FontIcon { Glyph = "", Foreground = SidebarFormat.IconBrush(hex) },
+                    Icon = Icons.OfGlyph("", 16, hex),
                 };
                 item.Click += (_, _) => Run(CommandIds.FavoriteStyle, here.Value, new FavoriteStyleChange(favorite.Icon, hex));
                 color.Items.Add(item);

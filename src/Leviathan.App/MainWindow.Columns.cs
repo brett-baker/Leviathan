@@ -26,8 +26,8 @@ public sealed partial class MainWindow
         var list = new StackPanel { Spacing = 0 };
         var scroll = new ScrollViewer { Content = list, Height = 340, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var order = new ListView { SelectionMode = ListViewSelectionMode.Single, CanReorderItems = true, AllowDrop = true, Height = 300 };
-        var up = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 }, Padding = new Thickness(8, 4, 8, 4) };
-        var down = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 }, Padding = new Thickness(8, 4, 8, 4) };
+        var up = new Button { Content = Icons.OfGlyph("", 12), Padding = new Thickness(8, 4, 8, 4) };
+        var down = new Button { Content = Icons.OfGlyph("", 12), Padding = new Thickness(8, 4, 8, 4) };
         ToolTipService.SetToolTip(up, "Move left");
         ToolTipService.SetToolTip(down, "Move right");
         var reset = new Button { Content = "Reset to default" };

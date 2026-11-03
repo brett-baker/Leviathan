@@ -148,7 +148,7 @@ public sealed partial class MainWindow
         _contextButtons.Clear();
         foreach (var model in wanted)
         {
-            var button = new AppBarButton { Label = model.Title, Icon = new FontIcon { Glyph = model.Glyph } };
+            var button = new AppBarButton { Label = model.Title, Icon = Icons.OfGlyph(model.Glyph, 20) };
             ToolTipService.SetToolTip(button, model.Tooltip);
             AutomationProperties.SetName(button, model.Title);
             button.Click += OnBarButtonClick;
@@ -244,7 +244,7 @@ public sealed partial class MainWindow
         }
 
         NewMenu.Items.Add(new MenuFlyoutSeparator());
-        var manage = new MenuFlyoutItem { Text = "Manage templates…", Icon = new FontIcon { Glyph = "" } };
+        var manage = new MenuFlyoutItem { Text = "Manage templates…", Icon = Icons.OfGlyph("") };
         manage.Click += OnManageTemplatesClick;
         NewMenu.Items.Add(manage);
     }
@@ -254,7 +254,7 @@ public sealed partial class MainWindow
         var item = new MenuFlyoutItem
         {
             Text = template.DisplayName,
-            Icon = new FontIcon { Glyph = template.Content is FolderContent ? "" : "" },
+            Icon = Icons.OfGlyph(template.Content is FolderContent ? "" : ""),
             IsEnabled = _commands.CanExecute(CommandIds.NewItem, new CommandContext(template.Id)),
         };
         if (template.Content is FolderContent)
@@ -301,17 +301,17 @@ public sealed partial class MainWindow
             (ViewLayout.Gallery, "Gallery (Phase 3)", "", false),
         })
         {
-            var item = new RadioMenuFlyoutItem { Text = title, GroupName = "layout", IsChecked = tab.Layout == layout, IsEnabled = available, Icon = new FontIcon { Glyph = glyph } };
+            var item = new RadioMenuFlyoutItem { Text = title, GroupName = "layout", IsChecked = tab.Layout == layout, IsEnabled = available, Icon = Icons.OfGlyph(glyph) };
             item.Click += (_, _) => Run(CommandIds.ViewLayout, parameter: layout);
             ViewMenu.Items.Add(item);
         }
 
-        var bigger = new MenuFlyoutItem { Text = "Larger thumbnails", Icon = new FontIcon { Glyph = "" }, IsEnabled = _commands.CanExecute(CommandIds.ViewZoom, new CommandContext(null, 1)) };
+        var bigger = new MenuFlyoutItem { Text = "Larger thumbnails", Icon = Icons.OfGlyph(""), IsEnabled = _commands.CanExecute(CommandIds.ViewZoom, new CommandContext(null, 1)) };
         bigger.Click += (_, _) => Run(CommandIds.ViewZoom, parameter: 1);
-        var smaller = new MenuFlyoutItem { Text = "Smaller thumbnails", Icon = new FontIcon { Glyph = "" }, IsEnabled = _commands.CanExecute(CommandIds.ViewZoom, new CommandContext(null, -1)) };
+        var smaller = new MenuFlyoutItem { Text = "Smaller thumbnails", Icon = Icons.OfGlyph(""), IsEnabled = _commands.CanExecute(CommandIds.ViewZoom, new CommandContext(null, -1)) };
         smaller.Click += (_, _) => Run(CommandIds.ViewZoom, parameter: -1);
         ViewMenu.Items.Add(new MenuFlyoutSeparator());
-        var columns = new MenuFlyoutItem { Text = "Columns…", Icon = new FontIcon { Glyph = "\uE9D5" }, IsEnabled = tab.Layout == ViewLayout.Details };
+        var columns = new MenuFlyoutItem { Text = "Columns…", Icon = Icons.OfGlyph("\uE9D5"), IsEnabled = tab.Layout == ViewLayout.Details };
         columns.Click += async (_, _) => await ShowColumnChooserAsync();
         ViewMenu.Items.Add(columns);
         ViewMenu.Items.Add(new MenuFlyoutSeparator());

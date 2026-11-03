@@ -9,6 +9,7 @@ using Leviathan.Providers.Cloud;
 using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
+using Leviathan.ViewModels.Icons;
 using Leviathan.ViewModels.Navigation;
 using Leviathan.ViewModels.Sessions;
 using Leviathan.ViewModels.Settings;
@@ -134,6 +135,9 @@ internal sealed class AppHost
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
 
+    /// <summary>Draws the app's own icons from the chosen icon pack (spec §4.3).</summary>
+    internal IconService Icons { get; private init; } = null!;
+
     /// <summary>Keeps the saved folder views (columns, sort, layout) between runs.</summary>
     private ViewRulesPersistence ViewRulesStore { get; init; } = null!;
 
@@ -256,11 +260,12 @@ internal sealed class AppHost
             }
         };
         var windows = new WindowManager(services);
+        var icons = new IconService(IconPacks.Discover(disk, Path.Combine(AppContext.BaseDirectory, "Assets", "Icons")), queue);
 
         var sessionStore = new JsonFileStore<SessionFile>(disk, Path.Combine(data, "session.json"));
         var catalog = new ProfileCatalog(new JsonFileStore<ProfilesFile>(disk, Path.Combine(data, "profiles.json")));
         var recorder = new SessionRecorder(windows, sessionStore, ui);
-        return new AppHost(
+        var host = new AppHost(
             windows,
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
             new WindowsFileLauncher(),
@@ -281,12 +286,17 @@ internal sealed class AppHost
             Transfers = transfers,
             Undo = undo,
             Listings = listings,
+            Icons = icons,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
             SessionStore = sessionStore,
             Recorder = recorder,
             Profiles = new ProfileService(windows, catalog, recorder),
         };
+
+        // The icon pack is a setting that applies without a restart (spec §17).
+        host.Settings.Changed += (_, changed) => ui.Post(() => icons.UsePack(changed.Appearance.IconPack));
+        return host;
     }
 }
 

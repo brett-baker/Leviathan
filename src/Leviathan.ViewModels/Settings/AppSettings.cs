@@ -66,6 +66,12 @@ public sealed record AppearanceSettings
 
     /// <summary>Accent colour as <c>#RRGGBB</c>, or empty to use the system accent.</summary>
     public string Accent { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The id of the icon pack that draws the app's own icons (spec §4.3), e.g. <c>fluent</c> or <c>fontawesome</c>. An id that is
+    /// not installed falls back to the default pack. Applies without a restart.
+    /// </summary>
+    public string IconPack { get; init; } = "fluent";
 }
 
 /// <summary>Files and folders page (spec §17.2).</summary>

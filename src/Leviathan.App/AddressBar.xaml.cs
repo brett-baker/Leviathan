@@ -83,13 +83,21 @@ public sealed partial class AddressBar : UserControl
     /// <summary>The star was right-clicked: show the rename / icon / colour menu at <see cref="RightTappedRoutedEventArgs"/>'s position.</summary>
     internal event EventHandler<RightTappedRoutedEventArgs>? FavoriteMenuRequested;
 
+    // Outline star of a folder that is not a favorite: neutral grey, readable on both themes.
+    private const string UnpinnedStarColor = "#8A8A8A";
+
+    private (bool Pinned, string? Glyph, string? Color) _star;
+
+    /// <summary>Draws the star again after the icon pack changed.</summary>
+    internal void RefreshIcons() => SetFavorite(_star.Pinned, _star.Glyph, _star.Color);
+
     /// <summary>Draws the star outlined or filled (in the favorite's own colour and icon when it has them) and sets its tooltip.</summary>
     internal void SetFavorite(bool pinned, string? glyph = null, string? colorHex = null)
     {
-        StarIcon.Glyph = pinned ? (glyph ?? "\uE735") : "\uE734";
-        StarIcon.Foreground = pinned && FavoriteStyles.IsColor(colorHex)
-            ? SidebarFormat.IconBrush(colorHex)
-            : (Brush)Application.Current.Resources[pinned ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush"];
+        _star = (pinned, glyph, colorHex);
+        StarIcon.Content = pinned
+            ? Icons.OfGlyph(glyph ?? "", 16, FavoriteStyles.IsColor(colorHex) ? colorHex : null)
+            : Icons.Of("star", 16, UnpinnedStarColor);
         ToolTipService.SetToolTip(StarButton, pinned ? "Remove from Favorites (Ctrl+D)" : "Add to Favorites (Ctrl+D)");
         AutomationProperties.SetName(StarButton, pinned ? "Remove from Favorites" : "Add to Favorites");
     }
@@ -269,7 +277,7 @@ public sealed partial class AddressBar : UserControl
         }
     }
 
-    private FontIcon? BuildStatusIcon()
+    private Microsoft.UI.Xaml.Controls.IconElement? BuildStatusIcon()
     {
         if (_tab is null)
         {
@@ -289,7 +297,9 @@ public sealed partial class AddressBar : UserControl
             return null;
         }
 
-        var glyph = new FontIcon { Glyph = shown.Glyph, FontSize = 14, Margin = new Thickness(6, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+        var glyph = Icons.OfGlyph(shown.Glyph, 16);
+        glyph.Margin = new Thickness(6, 0, 4, 0);
+        glyph.VerticalAlignment = VerticalAlignment.Center;
         ToolTipService.SetToolTip(glyph, shown.Tip);
         return glyph;
     }
@@ -355,7 +365,7 @@ public sealed partial class AddressBar : UserControl
 
     private Button ChevronButton(Breadcrumb crumb)
     {
-        var button = SubtleButton(new FontIcon { Glyph = "", FontSize = 9 }, new Thickness(5, 0, 5, 0));
+        var button = SubtleButton(Icons.OfGlyph("", 9), new Thickness(5, 0, 5, 0));
         ToolTipService.SetToolTip(button, "Folders in " + crumb.Label.TrimEnd('\\'));
         AutomationProperties.SetName(button, "Folders in " + crumb.Label.TrimEnd('\\'));
         button.Click += (_, _) => ShowSubfolders(crumb.Location, button);
@@ -376,13 +386,13 @@ public sealed partial class AddressBar : UserControl
 
     private Button OverflowButton(IReadOnlyList<Breadcrumb> hidden)
     {
-        var button = SubtleButton(new FontIcon { Glyph = "", FontSize = 12 }, new Thickness(8, 0, 8, 0));
+        var button = SubtleButton(Icons.OfGlyph("", 12), new Thickness(8, 0, 8, 0));
         ToolTipService.SetToolTip(button, "Earlier folders");
         AutomationProperties.SetName(button, "Earlier folders");
         var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };
         foreach (var crumb in hidden)
         {
-            var item = new MenuFlyoutItem { Text = crumb.Label.TrimEnd('\\'), Icon = new FontIcon { Glyph = "" } };
+            var item = new MenuFlyoutItem { Text = crumb.Label.TrimEnd('\\'), Icon = Icons.OfGlyph("") };
             item.Click += (_, _) => NavigationRequested?.Invoke(this, new AddressNavigation(crumb.Location, NewTab: false));
             menu.Items.Add(item);
         }

@@ -115,7 +115,7 @@
                   IsDynamicOverflowEnabled="True" OverflowButtonVisibility="Auto">
         <AppBarElementContainer VerticalContentAlignment="Center">
           <DropDownButton x:Name="NewButton" AutomationProperties.Name="New" ToolTipService.ToolTip="New (Ctrl+Shift+N creates a folder)">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <StackPanel x:Name="NewContent" Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE710;" FontSize="14" />
               <TextBlock Text="New" />
             </StackPanel>
@@ -173,6 +173,7 @@
               <MenuFlyoutItem Text="New window" Click="OnNewWindowClick" />
               <MenuFlyoutSubItem x:Name="ProfilesMenu" Text="Profiles" />
               <MenuFlyoutSubItem x:Name="StartupMenu" Text="At startup" />
+              <MenuFlyoutSubItem x:Name="IconPackMenu" Text="Icon set" />
               <MenuFlyoutSeparator />
               <MenuFlyoutItem Text="Settings (slice G3)" IsEnabled="False" />
               <MenuFlyoutItem Text="Folder options" IsEnabled="False" />
@@ -235,12 +236,11 @@
                       Click="OnSidebarChevronClick" Tag="{x:Bind}"
                       Visibility="{x:Bind local:SidebarFormat.Visible(CanExpand), Mode=OneWay}"
                       AutomationProperties.Name="Expand or collapse">
-                <FontIcon FontSize="10" Glyph="{x:Bind local:SidebarFormat.Chevron(IsExpanded), Mode=OneWay}" />
+                <ContentControl IsTabStop="False" Content="{x:Bind local:SidebarFormat.ChevronOf(IsExpanded), Mode=OneWay}" />
               </Button>
-              <FontIcon Grid.Column="2" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0"
-                        Glyph="{x:Bind local:SidebarFormat.Glyph(Icon, Glyph)}"
-                        Foreground="{x:Bind local:SidebarFormat.IconBrush(Accent)}"
-                        Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
+              <ContentControl Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" IsTabStop="False"
+                              Content="{x:Bind local:SidebarFormat.IconOf(Icon, Glyph, Accent)}"
+                              Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
               <ProgressRing Grid.Column="2" Width="14" Height="14" IsActive="True" HorizontalAlignment="Center"
                             Visibility="{x:Bind local:SidebarFormat.IsLoading(Kind)}" />
               <StackPanel Grid.Column="3" Margin="6,0,0,0" Spacing="2">
@@ -283,7 +283,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
               <Button Content="Open terminal here" Click="OnCardTerminalClick" />
               <Button Content="Properties" Click="OnCardPropertiesClick" />
-              <Button Click="OnCardHideClick" ToolTipService.ToolTip="Hide this card for this drive (View menu brings it back)" AutomationProperties.Name="Hide drive summary">
+              <Button x:Name="CardHideButton" Click="OnCardHideClick" ToolTipService.ToolTip="Hide this card for this drive (View menu brings it back)" AutomationProperties.Name="Hide drive summary">
                 <FontIcon Glyph="&#xE711;" FontSize="12" />
               </Button>
             </StackPanel>
@@ -295,7 +295,7 @@
 
         <StackPanel x:Name="StatePanel" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
           <ProgressRing x:Name="StateRing" IsActive="False" Width="28" Height="28" />
-          <FontIcon x:Name="StateIcon" FontSize="32" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <ContentControl x:Name="StateIcon" HorizontalAlignment="Center" IsTabStop="False" />
           <TextBlock x:Name="StateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
           <TextBlock x:Name="StateDetail" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -351,7 +351,7 @@
         <StackPanel x:Name="NoticePart" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
                     AutomationProperties.LiveSetting="Polite">
           <ProgressRing x:Name="NoticeRing" Width="12" Height="12" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
-          <FontIcon x:Name="NoticeIcon" Glyph="&#xE7BA;" FontSize="12" Visibility="Collapsed" VerticalAlignment="Center" />
+          <ContentControl x:Name="NoticeIcon" Visibility="Collapsed" VerticalAlignment="Center" IsTabStop="False" />
           <TextBlock x:Name="NoticeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </StackPanel>

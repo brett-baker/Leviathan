@@ -1,0 +1,415 @@
+{
+    "id":  "fontawesome",
+    "name":  "Font Awesome Free",
+    "description":  "Font Awesome Free 6 (solid and regular). Single colour; tinted by role.",
+    "license":  "CC BY 4.0",
+    "attribution":  "Font Awesome Free 6.7.2 by @fontawesome (https://fontawesome.com), icons licensed CC BY 4.0, https://creativecommons.org/licenses/by/4.0/",
+    "version":  "6.7.2",
+    "icons":  {
+                  "back":  {
+                               "file":  "back.svg",
+                               "color":  false,
+                               "source":  "solid/arrow-left"
+                           },
+                  "forward":  {
+                                  "file":  "forward.svg",
+                                  "color":  false,
+                                  "source":  "solid/arrow-right"
+                              },
+                  "up":  {
+                             "file":  "up.svg",
+                             "color":  false,
+                             "source":  "solid/arrow-up"
+                         },
+                  "reload":  {
+                                 "file":  "reload.svg",
+                                 "color":  false,
+                                 "source":  "solid/arrows-rotate"
+                             },
+                  "chevron-down":  {
+                                       "file":  "chevron-down.svg",
+                                       "color":  false,
+                                       "source":  "solid/chevron-down"
+                                   },
+                  "chevron-up":  {
+                                     "file":  "chevron-up.svg",
+                                     "color":  false,
+                                     "source":  "solid/chevron-up"
+                                 },
+                  "chevron-right":  {
+                                        "file":  "chevron-right.svg",
+                                        "color":  false,
+                                        "source":  "solid/chevron-right"
+                                    },
+                  "add":  {
+                              "file":  "add.svg",
+                              "color":  false,
+                              "source":  "solid/plus"
+                          },
+                  "cut":  {
+                              "file":  "cut.svg",
+                              "color":  false,
+                              "source":  "solid/scissors"
+                          },
+                  "copy":  {
+                               "file":  "copy.svg",
+                               "color":  false,
+                               "source":  "regular/copy"
+                           },
+                  "paste":  {
+                                "file":  "paste.svg",
+                                "color":  false,
+                                "source":  "solid/paste"
+                            },
+                  "rename":  {
+                                 "file":  "rename.svg",
+                                 "color":  false,
+                                 "source":  "solid/i-cursor"
+                             },
+                  "delete":  {
+                                 "file":  "delete.svg",
+                                 "color":  false,
+                                 "source":  "solid/trash-can"
+                             },
+                  "undo":  {
+                               "file":  "undo.svg",
+                               "color":  false,
+                               "source":  "solid/rotate-left"
+                           },
+                  "redo":  {
+                               "file":  "redo.svg",
+                               "color":  false,
+                               "source":  "solid/rotate-right"
+                           },
+                  "settings":  {
+                                   "file":  "settings.svg",
+                                   "color":  false,
+                                   "source":  "solid/gear"
+                               },
+                  "close":  {
+                                "file":  "close.svg",
+                                "color":  false,
+                                "source":  "solid/xmark"
+                            },
+                  "folder":  {
+                                 "file":  "folder.svg",
+                                 "color":  false,
+                                 "source":  "solid/folder"
+                             },
+                  "folder-open":  {
+                                      "file":  "folder-open.svg",
+                                      "color":  false,
+                                      "source":  "solid/folder-open"
+                                  },
+                  "file":  {
+                               "file":  "file.svg",
+                               "color":  false,
+                               "source":  "regular/file"
+                           },
+                  "link":  {
+                               "file":  "link.svg",
+                               "color":  false,
+                               "source":  "solid/link"
+                           },
+                  "lock":  {
+                               "file":  "lock.svg",
+                               "color":  false,
+                               "source":  "solid/lock"
+                           },
+                  "warning":  {
+                                  "file":  "warning.svg",
+                                  "color":  false,
+                                  "source":  "solid/triangle-exclamation"
+                              },
+                  "check":  {
+                                "file":  "check.svg",
+                                "color":  false,
+                                "source":  "solid/check"
+                            },
+                  "not-found":  {
+                                    "file":  "not-found.svg",
+                                    "color":  false,
+                                    "source":  "solid/circle-question"
+                                },
+                  "cloud":  {
+                                "file":  "cloud.svg",
+                                "color":  false,
+                                "source":  "solid/cloud"
+                            },
+                  "home":  {
+                               "file":  "home.svg",
+                               "color":  false,
+                               "source":  "solid/house"
+                           },
+                  "desktop":  {
+                                  "file":  "desktop.svg",
+                                  "color":  false,
+                                  "source":  "solid/desktop"
+                              },
+                  "downloads":  {
+                                    "file":  "downloads.svg",
+                                    "color":  false,
+                                    "source":  "solid/download"
+                                },
+                  "pictures":  {
+                                   "file":  "pictures.svg",
+                                   "color":  false,
+                                   "source":  "solid/image"
+                               },
+                  "videos":  {
+                                 "file":  "videos.svg",
+                                 "color":  false,
+                                 "source":  "solid/film"
+                             },
+                  "music":  {
+                                "file":  "music.svg",
+                                "color":  false,
+                                "source":  "solid/music"
+                            },
+                  "drive":  {
+                                "file":  "drive.svg",
+                                "color":  false,
+                                "source":  "solid/hard-drive"
+                            },
+                  "removable":  {
+                                    "file":  "removable.svg",
+                                    "color":  false,
+                                    "source":  "brands/usb"
+                                },
+                  "network":  {
+                                  "file":  "network.svg",
+                                  "color":  false,
+                                  "source":  "solid/server"
+                              },
+                  "star":  {
+                               "file":  "star.svg",
+                               "color":  false,
+                               "source":  "regular/star"
+                           },
+                  "star-filled":  {
+                                      "file":  "star-filled.svg",
+                                      "color":  false,
+                                      "source":  "solid/star"
+                                  },
+                  "heart":  {
+                                "file":  "heart.svg",
+                                "color":  false,
+                                "source":  "solid/heart"
+                            },
+                  "flag":  {
+                               "file":  "flag.svg",
+                               "color":  false,
+                               "source":  "solid/flag"
+                           },
+                  "pin":  {
+                              "file":  "pin.svg",
+                              "color":  false,
+                              "source":  "solid/thumbtack"
+                          },
+                  "work":  {
+                               "file":  "work.svg",
+                               "color":  false,
+                               "source":  "solid/briefcase"
+                           },
+                  "code":  {
+                               "file":  "code.svg",
+                               "color":  false,
+                               "source":  "solid/code"
+                           },
+                  "video":  {
+                                "file":  "video.svg",
+                                "color":  false,
+                                "source":  "solid/video"
+                            },
+                  "photo":  {
+                                "file":  "photo.svg",
+                                "color":  false,
+                                "source":  "solid/camera"
+                            },
+                  "tag":  {
+                              "file":  "tag.svg",
+                              "color":  false,
+                              "source":  "solid/tag"
+                          },
+                  "swatch":  {
+                                 "file":  "swatch.svg",
+                                 "color":  false,
+                                 "source":  "solid/circle"
+                             },
+                  "layout-details":  {
+                                         "file":  "layout-details.svg",
+                                         "color":  false,
+                                         "source":  "solid/table-list"
+                                     },
+                  "layout-list":  {
+                                      "file":  "layout-list.svg",
+                                      "color":  false,
+                                      "source":  "solid/list"
+                                  },
+                  "layout-tiles":  {
+                                       "file":  "layout-tiles.svg",
+                                       "color":  false,
+                                       "source":  "solid/table-cells-large"
+                                   },
+                  "layout-thumbnails":  {
+                                            "file":  "layout-thumbnails.svg",
+                                            "color":  false,
+                                            "source":  "solid/table-cells"
+                                        },
+                  "layout-gallery":  {
+                                         "file":  "layout-gallery.svg",
+                                         "color":  false,
+                                         "source":  "solid/images"
+                                     },
+                  "zoom-in":  {
+                                  "file":  "zoom-in.svg",
+                                  "color":  false,
+                                  "source":  "solid/magnifying-glass-plus"
+                              },
+                  "zoom-out":  {
+                                   "file":  "zoom-out.svg",
+                                   "color":  false,
+                                   "source":  "solid/magnifying-glass-minus"
+                               },
+                  "columns":  {
+                                  "file":  "columns.svg",
+                                  "color":  false,
+                                  "source":  "solid/table-columns"
+                              },
+                  "select-all":  {
+                                     "file":  "select-all.svg",
+                                     "color":  false,
+                                     "source":  "regular/square-check"
+                                 },
+                  "select-none":  {
+                                      "file":  "select-none.svg",
+                                      "color":  false,
+                                      "source":  "regular/square"
+                                  },
+                  "select-invert":  {
+                                        "file":  "select-invert.svg",
+                                        "color":  false,
+                                        "source":  "solid/right-left"
+                                    },
+                  "select-pattern":  {
+                                         "file":  "select-pattern.svg",
+                                         "color":  false,
+                                         "source":  "solid/asterisk"
+                                     },
+                  "terminal":  {
+                                   "file":  "terminal.svg",
+                                   "color":  false,
+                                   "source":  "solid/terminal"
+                               },
+                  "space-map":  {
+                                    "file":  "space-map.svg",
+                                    "color":  false,
+                                    "source":  "solid/chart-pie"
+                                },
+                  "archive":  {
+                                  "file":  "archive.svg",
+                                  "color":  false,
+                                  "source":  "solid/file-zipper"
+                              },
+                  "split":  {
+                                "file":  "split.svg",
+                                "color":  false,
+                                "source":  "solid/table-columns"
+                            },
+                  "open-new-tab":  {
+                                       "file":  "open-new-tab.svg",
+                                       "color":  false,
+                                       "source":  "solid/arrow-up-right-from-square"
+                                   },
+                  "properties":  {
+                                     "file":  "properties.svg",
+                                     "color":  false,
+                                     "source":  "solid/circle-info"
+                                 },
+                  "compare":  {
+                                  "file":  "compare.svg",
+                                  "color":  false,
+                                  "source":  "solid/code-compare"
+                              },
+                  "move-to-folder":  {
+                                         "file":  "move-to-folder.svg",
+                                         "color":  false,
+                                         "source":  "solid/file-export"
+                                     },
+                  "play":  {
+                               "file":  "play.svg",
+                               "color":  false,
+                               "source":  "solid/play"
+                           },
+                  "frame":  {
+                                "file":  "frame.svg",
+                                "color":  false,
+                                "source":  "solid/camera"
+                            },
+                  "rotate-left":  {
+                                      "file":  "rotate-left.svg",
+                                      "color":  false,
+                                      "source":  "solid/arrow-rotate-left"
+                                  },
+                  "rotate-right":  {
+                                       "file":  "rotate-right.svg",
+                                       "color":  false,
+                                       "source":  "solid/arrow-rotate-right"
+                                   },
+                  "convert":  {
+                                  "file":  "convert.svg",
+                                  "color":  false,
+                                  "source":  "solid/shuffle"
+                              },
+                  "print":  {
+                                "file":  "print.svg",
+                                "color":  false,
+                                "source":  "solid/print"
+                            },
+                  "preview":  {
+                                  "file":  "preview.svg",
+                                  "color":  false,
+                                  "source":  "solid/eye"
+                              },
+                  "open":  {
+                               "file":  "open.svg",
+                               "color":  false,
+                               "source":  "regular/folder-open"
+                           },
+                  "admin":  {
+                                "file":  "admin.svg",
+                                "color":  false,
+                                "source":  "solid/shield-halved"
+                            },
+                  "checksum":  {
+                                   "file":  "checksum.svg",
+                                   "color":  false,
+                                   "source":  "solid/fingerprint"
+                               },
+                  "target":  {
+                                 "file":  "target.svg",
+                                 "color":  false,
+                                 "source":  "solid/location-dot"
+                             },
+                  "edit":  {
+                               "file":  "edit.svg",
+                               "color":  false,
+                               "source":  "solid/pen"
+                           },
+                  "burn":  {
+                               "file":  "burn.svg",
+                               "color":  false,
+                               "source":  "solid/compact-disc"
+                           },
+                  "tab":  {
+                              "file":  "tab.svg",
+                              "color":  false,
+                              "source":  "regular/window-maximize"
+                          },
+                  "wallpaper":  {
+                                    "file":  "wallpaper.svg",
+                                    "color":  false,
+                                    "source":  "solid/panorama"
+                                }
+              }
+}

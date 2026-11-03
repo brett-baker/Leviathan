@@ -26,10 +26,10 @@ public sealed partial class MainWindow
         NoticeRing.IsActive = checking;
         NoticeRing.Visibility = checking ? Visibility.Visible : Visibility.Collapsed;
         NoticeIcon.Visibility = checking ? Visibility.Collapsed : Visibility.Visible;
-        NoticeIcon.Glyph = notice.Kind == ListingNoticeKind.RefreshFailed ? "\uE7BA" : "\uE73E";
-        var brush = (Brush)Application.Current.Resources[notice.Kind == ListingNoticeKind.RefreshFailed ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
+        var failed = notice.Kind == ListingNoticeKind.RefreshFailed;
+        NoticeIcon.Content = checking ? null : Icons.Of(failed ? "warning" : "check", 14);
+        var brush = (Brush)Application.Current.Resources[failed ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
         NoticeText.Foreground = brush;
-        NoticeIcon.Foreground = brush;
         NoticeText.Text = notice.Text;
         ToolTipService.SetToolTip(NoticePart, notice.Text);
     }
