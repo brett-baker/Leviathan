@@ -236,7 +236,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
 
 ### H. Verification and finish
 
-- [ ] **H1. FlaUI smoke tests** (`Leviathan.UI.Tests`): launch, tabs, tab groups (create, collapse, drag out), favorite star,
+- [ ] **H1. FlaUI smoke tests** (harness and 12 tests written, 6 pass, 6 open: see docs/decisions.md "H1 status") (`Leviathan.UI.Tests`): launch, tabs, tab groups (create, collapse, drag out), favorite star,
   sidebar resize, status hub open/close/tabs, settings sheet, navigate, tear off, rename, delete, undo; the stall
   watchdog fails the test on any stall over 50 ms.
 - [ ] **H2. Benchmarks:** cold start to first folder, new tab, 10,000-item folder first rows through the view model, added to

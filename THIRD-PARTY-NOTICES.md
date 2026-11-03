@@ -42,3 +42,9 @@ a `pack.json` naming the upstream icon behind every file. The user chooses the p
 | --- | --- | --- | --- |
 | Fluent UI System Icons (`fluent`) | commit `9bfae3d` | MIT | Copyright (c) Microsoft Corporation. https://github.com/microsoft/fluentui-system-icons |
 | Font Awesome Free (`fontawesome`) | 6.7.2 | Icons CC BY 4.0 | Font Awesome Free 6.7.2 by @fontawesome (https://fontawesome.com), icons licensed CC BY 4.0, https://creativecommons.org/licenses/by/4.0/. Changes: single-colour icons are recoloured at run time. |
+
+## Test tooling
+
+| Package | Licence | Used for |
+| --- | --- | --- |
+| FlaUI.Core, FlaUI.UIA3 5.0.0 | MIT | `tests/Leviathan.UI.Tests`: drives the running app through UI Automation |

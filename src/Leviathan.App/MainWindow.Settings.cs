@@ -19,6 +19,27 @@ public sealed partial class MainWindow
     {
         _viewModel.SettingsSheet.PropertyChanged += (_, _) => ApplySettingsPlacement();
         Root.SizeChanged += (_, _) => ApplySettingsPlacement();
+
+        // Building the sheet takes about 60 ms, which would be a stall at the moment the user asks for settings. It is built a moment
+        // after the window is up, while nothing is happening (the one stall moves to idle time).
+        Root.Loaded += async (_, _) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1200));
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnsureSettingsSheet());
+        };
+    }
+
+    private SettingsSheet? EnsureSettingsSheet()
+    {
+        if (_settingsSheet is null && !_closed)
+        {
+            _settingsSheet = new SettingsSheet(_viewModel.SettingsSheet) { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch };
+            _settingsSheet.KeyRows = () => Leviathan.ViewModels.Commands.KeyMapBuilder.Rows(_commands.Commands, App.Host.Keys);
+            _settingsSheet.DiagnosticsRequested += (_, _) => Run(CommandIds.AppDiagnostics);
+            SettingsLayer.Children.Add(_settingsSheet);
+        }
+
+        return _settingsSheet;
     }
 
     private void OnOptionsClick(object sender, object e) => Run(CommandIds.SettingsOpen);
@@ -39,24 +60,21 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_settingsSheet is null)
+        if (EnsureSettingsSheet() is not { } sheet)
         {
-            _settingsSheet = new SettingsSheet(model) { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch };
-            _settingsSheet.KeyRows = () => Leviathan.ViewModels.Commands.KeyMapBuilder.Rows(_commands.Commands, App.Host.Keys);
-            _settingsSheet.DiagnosticsRequested += (_, _) => Run(CommandIds.AppDiagnostics);
-            SettingsLayer.Children.Add(_settingsSheet);
+            return;
         }
 
         SettingsLayer.Visibility = Visibility.Visible;
         if (model.IsExpanded)
         {
-            _settingsSheet.VerticalAlignment = VerticalAlignment.Stretch;
-            _settingsSheet.Height = double.NaN;
+            sheet.VerticalAlignment = VerticalAlignment.Stretch;
+            sheet.Height = double.NaN;
         }
         else
         {
-            _settingsSheet.VerticalAlignment = VerticalAlignment.Bottom;
-            _settingsSheet.Height = Math.Max(240, Root.ActualHeight * SettingsSheetModel.HeightFraction);
+            sheet.VerticalAlignment = VerticalAlignment.Bottom;
+            sheet.Height = Math.Max(240, Root.ActualHeight * SettingsSheetModel.HeightFraction);
         }
 
         DispatcherQueue.TryEnqueue(() => _settingsSheet?.FocusSearch());
