@@ -57,7 +57,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles);
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
         host.Undo.Changed += OnUndoChanged;
         host.FileClipboard.Changed += OnClipboardChanged;
@@ -821,6 +821,8 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
+    private bool _maximized;
+
     private void CaptureBounds(Microsoft.UI.Windowing.AppWindow window)
     {
         if (_closed)
@@ -828,12 +830,25 @@ public sealed partial class MainWindow : Window, IShellActions
             return;
         }
 
-        if (window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized or Microsoft.UI.Windowing.OverlappedPresenterState.Minimized })
+        if (window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized })
+        {
+            // Keep the restored rectangle and remember the window was maximized (spec §17.1).
+            if (!_maximized)
+            {
+                _maximized = true;
+                _viewModel.Bounds = _viewModel.Bounds with { IsMaximized = true };
+            }
+
+            return;
+        }
+
+        if (window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized })
         {
             return;
         }
 
         _viewModel.Bounds = new ViewModels.Windows.WindowBounds(new ViewModels.Windows.ScreenRect(window.Position.X, window.Position.Y, window.Size.Width, window.Size.Height));
+        _maximized = false;
     }
 
     private void OnClosed(object sender, WindowEventArgs args)

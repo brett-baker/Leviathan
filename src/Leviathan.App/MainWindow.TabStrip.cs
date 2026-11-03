@@ -435,6 +435,11 @@ public sealed partial class MainWindow
         var fitted = ViewModels.Windows.BoundsFitter.Fit(viewModel.Bounds, monitors).Rect;
         UiTrace.Mark($"PlaceWindow: moving to {fitted.X},{fitted.Y} {fitted.Width}x{fitted.Height}");
         window.AppWindow.MoveAndResize(new RectInt32(fitted.X, fitted.Y, fitted.Width, fitted.Height));
+        if (viewModel.Bounds.IsMaximized && window.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
+
         UiTrace.Mark("PlaceWindow: moved");
     }
 }

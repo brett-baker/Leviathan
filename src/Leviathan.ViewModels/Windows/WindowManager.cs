@@ -166,6 +166,30 @@ public sealed class WindowManager
     }
 
     /// <summary>
+    /// Opens a window from a saved session (spec §17.1). The shell places it where it was, moved onto a monitor that still exists
+    /// (<see cref="BoundsFitter"/>). A saved window without tabs gets one at Home rather than opening empty.
+    /// </summary>
+    public WindowViewModel OpenWindow(Sessions.SessionWindow saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        var strip = new TabStripViewModel(_services);
+        if (saved.Tabs.Count == 0)
+        {
+            strip.NewTab();
+        }
+        else
+        {
+            strip.RestoreTabs(saved.Tabs, saved.SelectedTab);
+        }
+
+        var window = Register(strip, saved.Bounds, open: false);
+        window.ShowPreview = saved.ShowPreview;
+        window.PlaceExplicitly = true;
+        WindowOpened?.Invoke(this, window);
+        return window;
+    }
+
+    /// <summary>
     /// Drags a tab out of the strip: it becomes the only tab of a new window whose top-left corner is the drop point. Tearing
     /// off the only tab of a window is not a move and does nothing (returns null).
     /// </summary>
@@ -235,12 +259,16 @@ public sealed class WindowManager
         }
     }
 
-    private WindowViewModel Register(TabStripViewModel strip, WindowBounds bounds)
+    private WindowViewModel Register(TabStripViewModel strip, WindowBounds bounds, bool open = true)
     {
         var window = new WindowViewModel(strip, bounds);
         strip.LastTabClosed += (_, _) => Close(window);
         _windows.Add(window);
-        WindowOpened?.Invoke(this, window);
+        if (open)
+        {
+            WindowOpened?.Invoke(this, window);
+        }
+
         return window;
     }
 

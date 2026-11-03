@@ -232,6 +232,15 @@ public static class CommandIds
     /// <summary>Redo (Ctrl+Y or Ctrl+Shift+Z): what was undone.</summary>
     public static readonly CommandId EditRedo = new("edit.redo");
 
+    /// <summary>Save the open windows as a named profile. Target: the name (spec §17.1).</summary>
+    public static readonly CommandId ProfileSave = new("profile.save");
+
+    /// <summary>Open a named profile. Target: the name. Parameter: false to add its windows to the open ones instead of replacing them.</summary>
+    public static readonly CommandId ProfileOpen = new("profile.open");
+
+    /// <summary>Delete a named profile. Target: the name.</summary>
+    public static readonly CommandId ProfileDelete = new("profile.delete");
+
     /// <summary>Space map of a folder (Phase 5).</summary>
     public static readonly CommandId SpaceMap = new("spacemap.open");
 
@@ -364,7 +373,8 @@ public static partial class WindowCommands
         Drives.DriveCardPreferences? driveCards = null,
         Transfers.IDeleteService? deleter = null,
         Undo.UndoService? undo = null,
-        Transfers.IFileClipboard? clipboard = null)
+        Transfers.IFileClipboard? clipboard = null,
+        Sessions.ProfileService? profiles = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -566,6 +576,33 @@ public static partial class WindowCommands
             windows.OpenWindow(LocationPath.TryParse(c.Target, out var parsed) ? parsed : home());
             return Task.CompletedTask;
         }, shortcut: "Ctrl+N", icon: "NewWindow");
+
+        // Startup profiles (spec §17.1). Saving and opening are the user's own actions, so a refusal says why in the status bar.
+        async Task ReportProfile(Func<Task<string>> action)
+        {
+            try
+            {
+                shell.ShowMessage(await action());
+            }
+            catch (Sessions.ProfileException ex)
+            {
+                shell.ShowMessage(ex.Message);
+            }
+        }
+
+        Add(CommandIds.ProfileSave, "Save current windows as profile", "Profiles", (c, ct) => ReportProfile(async () =>
+        {
+            await profiles!.SaveCurrentAsync(c.Target!, ct);
+            return $"Saved the open windows as the profile \"{c.Target!.Trim()}\".";
+        }), c => profiles is not null && !string.IsNullOrWhiteSpace(c.Target));
+        Add(CommandIds.ProfileOpen, "Open profile", "Profiles", (c, _) => ReportProfile(() =>
+        {
+            var opened = profiles!.Open(c.Target!, replace: c.Parameter is not false);
+            return Task.FromResult($"Opened the profile \"{c.Target!.Trim()}\" ({opened} window{(opened == 1 ? string.Empty : "s")}).");
+        }), c => profiles is not null && profiles.Catalog.Find(c.Target) is not null);
+        Add(CommandIds.ProfileDelete, "Delete profile", "Profiles", (c, ct) => ReportProfile(async () =>
+            await profiles!.DeleteAsync(c.Target!, ct) ? $"Deleted the profile \"{c.Target!.Trim()}\"." : "There is no such profile."),
+            c => profiles is not null && profiles.Catalog.Find(c.Target) is not null);
 
         Add(CommandIds.NavBack, "Back", "Navigation", (c, ct) => Current()!.GoBackAsync(ct, Steps(c)), _ => Current()?.History.CanGoBack == true, "Back", "Alt+Left");
         Add(CommandIds.NavForward, "Forward", "Navigation", (c, ct) => Current()!.GoForwardAsync(ct, Steps(c)), _ => Current()?.History.CanGoForward == true, "Forward", "Alt+Right");

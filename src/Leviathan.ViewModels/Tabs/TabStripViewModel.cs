@@ -71,6 +71,26 @@ public sealed partial class TabStripViewModel : ObservableObject
         return copy;
     }
 
+    /// <summary>
+    /// Rebuilds the strip from saved tabs (startup profiles, spec §17.1). The folders are not listed here: each tab lists its folder
+    /// when it is first shown, so a dead share in a background tab never delays startup.
+    /// </summary>
+    /// <param name="states">The tabs in strip order.</param>
+    /// <param name="selected">Index of the tab to show; clamped into range.</param>
+    public void RestoreTabs(IReadOnlyList<TabState> states, int selected)
+    {
+        ArgumentNullException.ThrowIfNull(states);
+        foreach (var state in states)
+        {
+            Insert(TabViewModel.Restore(state, _services), Tabs.Count);
+        }
+
+        if (Tabs.Count > 0)
+        {
+            Select(Tabs[Math.Clamp(selected, 0, Tabs.Count - 1)]);
+        }
+    }
+
     /// <summary>Adds an existing tab, e.g. one dropped from another window or torn off (spec §4.1 merge).</summary>
     public void Attach(TabViewModel tab, int? index = null)
     {

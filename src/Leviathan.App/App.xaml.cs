@@ -74,12 +74,77 @@ public partial class App : Application
 
         s_queue = queue;
         _ = Host.LoadBackgroundDataAsync(CancellationToken.None);
-        using (UiTrace.Begin("Windows.OpenWindow (incl. first tab)"))
+        _ = StartAsync();
+        UiTrace.Mark("OnLaunched end");
+    }
+
+    /// <summary>
+    /// Opens the first windows (spec §17.1): the settings, Last session and the profiles are read off the UI thread, then Last
+    /// session or the chosen profile opens, or a fresh window when there is nothing to restore. Restored tabs list their folders
+    /// only when shown, so a dead share in a background tab costs nothing at startup. Whatever goes wrong while reading, a window
+    /// still opens.
+    /// </summary>
+    private async Task StartAsync()
+    {
+        ViewModels.Sessions.StartupPlan plan;
+        using (UiTrace.Begin("PlanStartup"))
         {
-            Host.Windows.OpenWindow();
+            try
+            {
+                plan = await Task.Run(() => Host.PlanStartupAsync(CancellationToken.None));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+            {
+                UiTrace.Mark($"startup plan failed: {ex.Message}");
+                plan = new ViewModels.Sessions.StartupPlan(ViewModels.Sessions.StartupAction.Fresh, null, null, "Your saved session could not be read; started fresh.");
+            }
         }
 
-        UiTrace.Mark("OnLaunched end");
+        // Last session is only recorded once the first windows exist and, when the user is asked, once they have chosen, so a window
+        // opened just to show the question never replaces the session they are about to pick. Subscribe before the window opens.
+        if (plan.Action == ViewModels.Sessions.StartupAction.Ask)
+        {
+            _pendingPick = plan;
+            Host.Windows.WindowOpened += OnFirstWindowForPicker;
+        }
+
+        using (UiTrace.Begin("Open first windows"))
+        {
+            var opened = plan.Action is ViewModels.Sessions.StartupAction.LastSession or ViewModels.Sessions.StartupAction.Profile && plan.State is { } state
+                ? ViewModels.Sessions.SessionCapture.Restore(Host.Windows, state)
+                : 0;
+            if (opened == 0)
+            {
+                Host.Windows.OpenWindow();
+            }
+        }
+
+        if (plan.Action != ViewModels.Sessions.StartupAction.Ask)
+        {
+            Host.Recorder.Start();
+        }
+
+        if (plan.Note is { } note)
+        {
+            // The window is shown from a queued callback; say it once that has happened.
+            s_queue!.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => _windows.Values.FirstOrDefault()?.ShowMessage(note));
+        }
+    }
+
+    private ViewModels.Sessions.StartupPlan? _pendingPick;
+
+    private void OnFirstWindowForPicker(object? sender, WindowViewModel viewModel)
+    {
+        Host.Windows.WindowOpened -= OnFirstWindowForPicker;
+        s_queue!.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
+        {
+            if (_windows.TryGetValue(viewModel.Id, out var window) && _pendingPick is { } plan)
+            {
+                _pendingPick = null;
+                await window.AskStartupAsync(plan);
+                Host.Recorder.Start();
+            }
+        });
     }
 
     private void Show(WindowViewModel viewModel)
@@ -121,7 +186,9 @@ public partial class App : Application
     private void Shutdown()
     {
         // Closing the last window ends the UI process; a busy worker keeps running on its own (spec 4.2). The stall watchdog was
-        // already stopped when that window began to close.
+        // already stopped when that window began to close. The session was queued for writing when that window began to close; the
+        // process must not end before the write does, so wait for it, briefly (a few kilobytes; the limit is for a stuck disk).
+        Host.Recorder.Saved.Wait(TimeSpan.FromSeconds(2));
         Exit();
     }
 
@@ -151,6 +218,9 @@ public partial class App : Application
         if (Host.Windows.Windows.Count <= 1 && Host.Windows.Windows.Contains(window))
         {
             _ = s_watchdog?.DisposeAsync().AsTask();
+
+            // The last window is going: its tabs are still there now, so this is the session to keep (spec §17.1).
+            _ = Host.Recorder.SaveFinalAsync();
         }
     }
 

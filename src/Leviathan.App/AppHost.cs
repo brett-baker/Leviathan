@@ -9,6 +9,8 @@ using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Sessions;
+using Leviathan.ViewModels.Settings;
 using Leviathan.ViewModels.NewMenu;
 using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Tabs;
@@ -117,6 +119,29 @@ internal sealed class AppHost
             : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.dll")}\"");
     }
 
+    /// <summary>The user's settings (<c>settings.json</c>); loaded by <see cref="PlanStartupAsync"/>.</summary>
+    public SettingsStore Settings { get; private init; } = null!;
+
+    /// <summary>Keeps Last session current (spec §17.1).</summary>
+    public SessionRecorder Recorder { get; private init; } = null!;
+
+    /// <summary>Saves and opens named startup profiles (spec §17.1).</summary>
+    public ProfileService Profiles { get; private init; } = null!;
+
+    private JsonFileStore<SessionFile> SessionStore { get; init; } = null!;
+
+    /// <summary>
+    /// Reads the settings, the profiles and Last session off the UI thread and decides what to open (spec §17.1). Reading
+    /// problems never stop startup: a missing or damaged file means defaults and a fresh window.
+    /// </summary>
+    public async Task<StartupPlan> PlanStartupAsync(CancellationToken cancellationToken)
+    {
+        var settings = await Settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        await Profiles.Catalog.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var last = await SessionStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return StartupPlanner.Decide(settings.General, last, Profiles.Catalog);
+    }
+
     private WindowsFileClipboard? _clipboard;
 
     /// <summary>Cut, copy and paste of files through the Windows clipboard (spec §6.1). Made on first use, on the UI thread, which the WinRT clipboard requires.</summary>
@@ -194,8 +219,18 @@ internal sealed class AppHost
         var transfers = new WorkerTransfers(() => worker.Value);
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
+        var windows = new WindowManager(services);
+
+        // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
+        // touch the real ones.
+        var data = Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
+        var sessionStore = new JsonFileStore<SessionFile>(disk, Path.Combine(data, "session.json"));
+        var catalog = new ProfileCatalog(new JsonFileStore<ProfilesFile>(disk, Path.Combine(data, "profiles.json")));
+        var recorder = new SessionRecorder(windows, sessionStore, ui);
         return new AppHost(
-            new WindowManager(services),
+            windows,
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
             new WindowsFileLauncher(),
             new WindowsKnownFolders(),
@@ -214,6 +249,10 @@ internal sealed class AppHost
         {
             Transfers = transfers,
             Undo = undo,
+            Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
+            SessionStore = sessionStore,
+            Recorder = recorder,
+            Profiles = new ProfileService(windows, catalog, recorder),
         };
     }
 }

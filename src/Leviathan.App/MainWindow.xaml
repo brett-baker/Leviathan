@@ -169,8 +169,10 @@
         <Button x:Name="OptionsButton" ToolTipService.ToolTip="Options" AutomationProperties.Name="Options">
           <FontIcon Glyph="&#xE713;" FontSize="14" />
           <Button.Flyout>
-            <MenuFlyout>
+            <MenuFlyout Opening="OnOptionsMenuOpening">
               <MenuFlyoutItem Text="New window" Click="OnNewWindowClick" />
+              <MenuFlyoutSubItem x:Name="ProfilesMenu" Text="Profiles" />
+              <MenuFlyoutSubItem x:Name="StartupMenu" Text="At startup" />
               <MenuFlyoutSeparator />
               <MenuFlyoutItem Text="Settings (slice G3)" IsEnabled="False" />
               <MenuFlyoutItem Text="Folder options" IsEnabled="False" />
