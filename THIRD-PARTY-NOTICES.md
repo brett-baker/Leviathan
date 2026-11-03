@@ -29,3 +29,5 @@ each file is listed here with its original path and license. Files under MPL-2.0
 | `src/Leviathan.Interop/ShellThumbnailSource.cs` (GetImage-then-copy-bitmap approach, rewritten to return BGRA) | `src/Files.App.Storage/Windows/Helpers/WindowsStorableHelpers.Icon.cs` | MPL-2.0 |
 | `src/Leviathan.Interop/WindowsFileAssociations.cs` (AssocQueryString lookup, generalized) | `src/Files.App/Utils/Shell/FileAssociationHelpers.cs` | MPL-2.0 |
 | `src/Leviathan.ViewModels/NewMenu/ShellNewCatalog.cs` (ShellNew scan, rewritten against `IRegistryView` / `IFileSystem`) | `src/Files.App/Utils/Shell/ShellNewMenuHelper.cs` | MIT |
+| `src/Leviathan.Interop/ShellContextMenu.cs` (menu build and read, submenu loading, command-string guard, invoke; rewritten against pointer-style bindings and contract types) | `src/Files.App/Utils/Shell/ContextMenu.cs` | MIT |
+| `src/Leviathan.Interop/StaMessageThread.cs` (idea of an STA thread with a message loop, new code) | `src/Files.App/Utils/Shell/ContextMenuWorkerPool.cs` / `ThreadWithMessageQueue` (design only, no code copied) | MPL-2.0 |

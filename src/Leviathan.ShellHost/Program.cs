@@ -40,10 +40,13 @@ builder.Services.AddSingleton(crashHandlers);
 
 // Two STA threads are enough for menus and previews, which come one at a time from a person; more would only multiply stuck ones.
 builder.Services.AddSingleton(sp => new StaPool(2, sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton<IShellMenuSource, WindowsShellMenuSource>();
+builder.Services.AddSingleton(sp => new ShellMenuManager(sp.GetRequiredService<IShellMenuSource>(), sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<ShellHostService>();
 builder.Services.AddSingleton(sp => new ShellPipeService(sp.GetRequiredService<ShellHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ShellPipeService>());
 builder.Services.AddHostedService<ShellIdleShutdownService>();
+builder.Services.AddHostedService<MenuSweeperService>();
 builder.Services.AddHostedService<PoolHealthService>();
 
 using var host = builder.Build();

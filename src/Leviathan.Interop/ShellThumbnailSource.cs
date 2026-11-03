@@ -90,7 +90,7 @@ public sealed unsafe class ShellThumbnailSource : IThumbnailSource, IDisposable
     /// same height for both. So the rows are not read from the bits directly: <c>GetDIBits</c> with a negative height makes GDI
     /// deliver them top row first whatever the source order.
     /// </summary>
-    private static ThumbnailImage? CopyPixels(HBITMAP bitmap)
+    internal static ThumbnailImage? CopyPixels(HBITMAP bitmap)
     {
         BITMAP info = default;
         if (PInvoke.GetObject((HGDIOBJ)bitmap, sizeof(BITMAP), &info) == 0 || info.bmWidth <= 0 || info.bmHeight <= 0)

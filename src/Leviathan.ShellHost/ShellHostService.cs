@@ -12,8 +12,13 @@ internal sealed class ShellHostService : IShellHostService
         typeof(ShellHostService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
 
     private readonly StaPool _pool;
+    private readonly ShellMenuManager _menus;
 
-    public ShellHostService(StaPool pool) => _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+    public ShellHostService(StaPool pool, ShellMenuManager menus)
+    {
+        _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+        _menus = menus ?? throw new ArgumentNullException(nameof(menus));
+    }
 
     /// <inheritdoc />
     public Task<ShellHostInfo> PingAsync(CancellationToken cancellationToken) =>
@@ -26,4 +31,18 @@ internal sealed class ShellHostService : IShellHostService
         var status = _pool.Status;
         return new ShellHostStatus(status.Size, status.Busy, status.Queued, status.Completed, status.Failed, status.TimedOut, status.Abandoned, apartment);
     }
+
+    /// <inheritdoc />
+    public Task<ShellMenu> OpenContextMenuAsync(ShellMenuRequest request, CancellationToken cancellationToken) => _menus.OpenAsync(request, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ShellMenuItem>> LoadSubMenuAsync(Guid menuId, IReadOnlyList<int> path, CancellationToken cancellationToken) =>
+        _menus.LoadSubMenuAsync(menuId, path, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<ShellInvokeResult> InvokeAsync(Guid menuId, ShellInvokeRequest request, CancellationToken cancellationToken) =>
+        _menus.InvokeAsync(menuId, request, cancellationToken);
+
+    /// <inheritdoc />
+    public Task CloseContextMenuAsync(Guid menuId, CancellationToken cancellationToken) => _menus.CloseAsync(menuId);
 }

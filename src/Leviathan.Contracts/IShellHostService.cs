@@ -31,4 +31,85 @@ public interface IShellHostService
 
     /// <summary>Runs a trivial request on the STA pool, so a healthy answer proves the pool still takes work, and reports its counters.</summary>
     Task<ShellHostStatus> GetStatusAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asks the shell for the context menu of <see cref="ShellMenuRequest.Paths"/> and returns its top-level items, third-party
+    /// handlers included. The menu stays open in the host until <see cref="CloseContextMenuAsync"/> or two idle minutes, because
+    /// invoking an item must reach the same COM objects that built it.
+    /// </summary>
+    Task<ShellMenu> OpenContextMenuAsync(ShellMenuRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Loads the items of a submenu ("Send to", "Open with") that the shell fills only when it is about to be shown.</summary>
+    Task<IReadOnlyList<ShellMenuItem>> LoadSubMenuAsync(Guid menuId, IReadOnlyList<int> path, CancellationToken cancellationToken);
+
+    /// <summary>Runs an item of an open menu.</summary>
+    Task<ShellInvokeResult> InvokeAsync(Guid menuId, ShellInvokeRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Releases an open menu. Closing a menu that is already gone is not an error.</summary>
+    Task CloseContextMenuAsync(Guid menuId, CancellationToken cancellationToken);
 }
+
+/// <summary>What a context menu is for.</summary>
+/// <param name="Paths">The selected items (all on the same machine; Windows paths).</param>
+/// <param name="Background">True to build the menu of the empty space inside the single folder in <paramref name="Paths"/> (New, View, Git Bash here), not of the folder as an item.</param>
+/// <param name="Extended">True for the Shift menu: the shell adds its extended verbs ("Open command window here", "Copy as path").</param>
+public sealed record ShellMenuRequest(IReadOnlyList<string> Paths, bool Background, bool Extended);
+
+/// <summary>An open context menu.</summary>
+/// <param name="Id">Names the menu in later calls.</param>
+/// <param name="Items">Top-level items in the order the shell gave them.</param>
+public sealed record ShellMenu(Guid Id, IReadOnlyList<ShellMenuItem> Items);
+
+/// <summary>What a menu entry is.</summary>
+public enum ShellMenuItemKind
+{
+    /// <summary>A command.</summary>
+    Item,
+
+    /// <summary>A divider line.</summary>
+    Separator,
+
+    /// <summary>An entry that opens a submenu.</summary>
+    SubMenu,
+}
+
+/// <summary>A menu bitmap as tightly packed, top-down BGRA pixels.</summary>
+/// <param name="Width">Width in pixels.</param>
+/// <param name="Height">Height in pixels.</param>
+/// <param name="Bgra">Four bytes per pixel.</param>
+public sealed record ShellMenuIcon(int Width, int Height, byte[] Bgra);
+
+/// <summary>One entry of a shell context menu.</summary>
+/// <param name="Position">Where the entry sits in its menu; a submenu is addressed by the positions of the entries leading to it.</param>
+/// <param name="Id">The command id to invoke, or -1 for a separator.</param>
+/// <param name="Kind">Command, separator or submenu.</param>
+/// <param name="Label">Text as the shell gives it: <c>&amp;</c> marks the mnemonic and a tab splits off the shortcut text.</param>
+/// <param name="Verb">The canonical verb ("open", "properties", "copy") when the handler has one, else null.</param>
+/// <param name="Enabled">False when the entry is greyed.</param>
+/// <param name="Checked">True when the entry is ticked.</param>
+/// <param name="IsDefault">True for the bold default entry.</param>
+/// <param name="Icon">The entry's bitmap, when it has one.</param>
+/// <param name="Children">The submenu's entries once loaded; null before <see cref="IShellHostService.LoadSubMenuAsync"/>.</param>
+public sealed record ShellMenuItem(
+    int Position,
+    int Id,
+    ShellMenuItemKind Kind,
+    string Label,
+    string? Verb,
+    bool Enabled,
+    bool Checked,
+    bool IsDefault,
+    ShellMenuIcon? Icon,
+    IReadOnlyList<ShellMenuItem>? Children);
+
+/// <summary>Which item to run and how.</summary>
+/// <param name="ItemId">The <see cref="ShellMenuItem.Id"/>, or -1 to run <paramref name="Verb"/> instead.</param>
+/// <param name="Verb">A canonical verb to run when <paramref name="ItemId"/> is -1.</param>
+/// <param name="WorkingDirectory">Folder the command runs in; null for the shell's choice.</param>
+/// <param name="OwnerWindow">Handle of the window dialogs should belong to, or 0.</param>
+public sealed record ShellInvokeRequest(int ItemId, string? Verb, string? WorkingDirectory, long OwnerWindow);
+
+/// <summary>What became of an invoke.</summary>
+/// <param name="Succeeded">True when the shell accepted the command. A command that opens a dialog counts as accepted while the dialog is still open.</param>
+/// <param name="Error">Why not, when it did not succeed.</param>
+public sealed record ShellInvokeResult(bool Succeeded, string? Error);

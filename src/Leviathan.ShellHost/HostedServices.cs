@@ -52,27 +52,42 @@ internal sealed class ShellIdleShutdownService(ShellPipeService pipe, IHostAppli
     }
 }
 
+/// <summary>Closes context menus nobody has used for a while: the user dismissed the popup and the UI never said so.</summary>
+internal sealed class MenuSweeperService(ShellMenuManager menus) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+        {
+            menus.SweepIdle();
+        }
+    }
+}
+
 /// <summary>
-/// Ends the process with a failure code when the STA pool has too many threads stuck inside shell extensions, so the supervisor
-/// starts a clean host instead of the UI waiting on a pool that can no longer answer (spec §3.4).
+/// Ends the process with a failure code when the STA pool or the menus have too many threads stuck inside shell extensions, so
+/// the supervisor starts a clean host instead of the UI waiting on one that can no longer answer (spec §3.4).
 /// </summary>
-internal sealed class PoolHealthService(StaPool pool, IHostApplicationLifetime lifetime, ILogger<PoolHealthService> logger) : IHostedService
+internal sealed class PoolHealthService(StaPool pool, ShellMenuManager menus, IHostApplicationLifetime lifetime, ILogger<PoolHealthService> logger) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
         pool.Unhealthy += OnUnhealthy;
+        menus.Unhealthy += OnUnhealthy;
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
         pool.Unhealthy -= OnUnhealthy;
+        menus.Unhealthy -= OnUnhealthy;
         return Task.CompletedTask;
     }
 
     private void OnUnhealthy(object? sender, EventArgs e)
     {
-        logger.LogError("Too many shell threads are stuck ({Abandoned}); exiting to be restarted", pool.Status.Abandoned);
+        logger.LogError("Too many shell threads are stuck ({Pool} in the pool, {Menus} menus); exiting to be restarted", pool.Status.Abandoned, menus.Abandoned);
         Environment.ExitCode = 2;
         lifetime.StopApplication();
     }

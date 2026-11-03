@@ -131,4 +131,43 @@ public sealed class ShellHostProcessTests
             pids.ForEach(KillHost);
         }
     }
+
+    [Fact]
+    public async Task ARealContextMenu_IsBuiltInTheHost_ReadOverThePipe_AndClosed()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "leviathan-host-menu-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var file = Path.Combine(folder, "note.txt");
+        await File.WriteAllTextAsync(file, "x", TestContext.Current.CancellationToken);
+        var pipe = "Leviathan.Tests.ShellHost." + Guid.NewGuid().ToString("N");
+        await using var connection = Connection(pipe);
+        var service = await connection.GetServiceAsync(Wait, TestContext.Current.CancellationToken);
+        var info = await service.PingAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var menu = await service.OpenContextMenuAsync(new Leviathan.Contracts.ShellMenuRequest([file], false, false), TestContext.Current.CancellationToken);
+
+            Assert.Contains(menu.Items, i => i.Verb == "properties");
+            var withSub = menu.Items.FirstOrDefault(i => i.Kind == Leviathan.Contracts.ShellMenuItemKind.SubMenu);
+            if (withSub is not null)
+            {
+                var children = await service.LoadSubMenuAsync(menu.Id, [withSub.Position], TestContext.Current.CancellationToken);
+                Assert.NotNull(children);
+            }
+
+            var refused = await service.InvokeAsync(menu.Id, new Leviathan.Contracts.ShellInvokeRequest(-1, "no-such-verb-leviathan", null, 0), TestContext.Current.CancellationToken);
+            Assert.False(refused.Succeeded);
+
+            TestContext.Current.SendDiagnosticMessage("Menu on this machine: " + string.Join(" | ", menu.Items.Select(i => i.Kind == Leviathan.Contracts.ShellMenuItemKind.Separator ? "-" : $"{i.Label}[{i.Verb}]{(i.Icon is null ? string.Empty : "*")}")));
+
+            await service.CloseContextMenuAsync(menu.Id, TestContext.Current.CancellationToken);
+            await Assert.ThrowsAnyAsync<Exception>(() => service.LoadSubMenuAsync(menu.Id, [0], TestContext.Current.CancellationToken));
+            Assert.Equal("STA", (await service.GetStatusAsync(TestContext.Current.CancellationToken)).Apartment);
+        }
+        finally
+        {
+            KillHost(info.ProcessId);
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 }
