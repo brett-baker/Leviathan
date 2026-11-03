@@ -108,6 +108,14 @@ public sealed partial class WindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _showPreview = true;
 
+    /// <summary>Width of the sidebar in pixels, within <see cref="SidebarLayout"/>'s limits (spec §4).</summary>
+    [ObservableProperty]
+    private double _sidebarWidth = SidebarLayout.DefaultWidth;
+
+    /// <summary>True when the sidebar is collapsed; its width is kept for when it comes back.</summary>
+    [ObservableProperty]
+    private bool _sidebarCollapsed;
+
     /// <summary>Stable identity.</summary>
     public Guid Id { get; } = Guid.NewGuid();
 
@@ -184,6 +192,8 @@ public sealed class WindowManager
 
         var window = Register(strip, saved.Bounds, open: false);
         window.ShowPreview = saved.ShowPreview;
+        window.SidebarWidth = double.IsNaN(saved.SidebarWidth) ? SidebarLayout.DefaultWidth : Math.Clamp(saved.SidebarWidth, SidebarLayout.MinWidth, SidebarLayout.MaxWidth);
+        window.SidebarCollapsed = saved.SidebarCollapsed;
         window.PlaceExplicitly = true;
         WindowOpened?.Invoke(this, window);
         return window;

@@ -106,6 +106,7 @@ public sealed partial class MainWindow : Window, IShellActions
 
         ShowStalls();
         InitializeCommandBar();
+        InitializeSidebarSplitter();
         _ = LoadSidebarAsync();
     }
 

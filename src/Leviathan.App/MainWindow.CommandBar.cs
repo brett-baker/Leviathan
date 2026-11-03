@@ -317,6 +317,9 @@ public sealed partial class MainWindow
 
         var hidden = new ToggleMenuFlyoutItem { Text = "Show hidden items", IsChecked = App.Host.ViewOptions.ShowHidden };
         hidden.Click += (_, _) => Run(CommandIds.ViewHidden);
+        var sidebar = new ToggleMenuFlyoutItem { Text = "Sidebar", IsChecked = !_viewModel.SidebarCollapsed, KeyboardAcceleratorTextOverride = "Ctrl+B" };
+        sidebar.Click += (_, _) => Run(CommandIds.ViewSidebar);
+        ViewMenu.Items.Add(sidebar);
         var preview = new ToggleMenuFlyoutItem { Text = "Preview pane", IsChecked = _viewModel.ShowPreview, KeyboardAcceleratorTextOverride = "Alt+P" };
         preview.Click += (_, _) => Run(CommandIds.PreviewPane);
         ViewMenu.Items.Add(hidden);

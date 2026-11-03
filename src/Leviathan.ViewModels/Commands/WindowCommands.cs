@@ -193,6 +193,9 @@ public static class CommandIds
     /// <summary>Change a favorite's icon and colour. Target: the folder. Parameter: a <see cref="Sidebar.FavoriteStyleChange"/> (spec §5.2).</summary>
     public static readonly CommandId FavoriteStyle = new("favorite.style");
 
+    /// <summary>Collapse or restore the sidebar (Ctrl+B).</summary>
+    public static readonly CommandId ViewSidebar = new("pane.sidebar");
+
     /// <summary>Show or hide the preview pane (Alt+P).</summary>
     public static readonly CommandId PreviewPane = new("pane.preview");
 
@@ -959,6 +962,7 @@ public static partial class WindowCommands
             await Current()!.ReloadAsync(ct);
         }, _ => viewOptions is not null && Current() is not null);
 
+        Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
 
         Add(CommandIds.FavoriteRename, "Rename favorite", "Favorites", (c, _) => Run(() => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string)),
@@ -1015,6 +1019,7 @@ public static partial class WindowCommands
             ("Ctrl+Y", CommandIds.EditRedo),
             ("Ctrl+Shift+Z", CommandIds.EditRedo),
             ("Alt+P", CommandIds.PreviewPane),
+            ("Ctrl+B", CommandIds.ViewSidebar),
             ("F2", CommandIds.EditRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),

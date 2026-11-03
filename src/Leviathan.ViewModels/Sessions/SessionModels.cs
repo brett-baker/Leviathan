@@ -8,7 +8,9 @@ namespace Leviathan.ViewModels.Sessions;
 /// <param name="ShowPreview">Whether the preview pane was open.</param>
 /// <param name="SelectedTab">Index of the selected tab.</param>
 /// <param name="Tabs">The tabs in strip order, with history, view, pin, lock, label, colour, split state and selection.</param>
-public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs);
+/// <param name="SidebarWidth">Width of the sidebar in pixels.</param>
+/// <param name="SidebarCollapsed">Whether the sidebar was collapsed.</param>
+public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs, double SidebarWidth = SidebarLayout.DefaultWidth, bool SidebarCollapsed = false);
 
 /// <summary>A set of windows: the content of Last session and of every named profile.</summary>
 /// <param name="Windows">The windows, oldest first.</param>
