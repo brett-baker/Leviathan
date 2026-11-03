@@ -47,6 +47,23 @@ public sealed class KeyMap
         return null;
     }
 
+    /// <summary>
+    /// Adds a binding, taking the gesture from whichever command held it in the same scope. Returns that command, or null when the
+    /// gesture was free.
+    /// </summary>
+    public CommandId? Replace(KeyBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+        var existing = _bindings.FirstOrDefault(b => b.Gesture == binding.Gesture && b.Scope == binding.Scope);
+        if (existing is not null)
+        {
+            _bindings.Remove(existing);
+        }
+
+        _bindings.Add(binding);
+        return existing?.Command;
+    }
+
     /// <summary>Removes every binding of <paramref name="command"/> (used before a rebind).</summary>
     public int Unbind(CommandId command) => _bindings.RemoveAll(b => b.Command == command);
 

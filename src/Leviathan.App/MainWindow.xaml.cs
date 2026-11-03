@@ -235,7 +235,8 @@ public sealed partial class MainWindow : Window, IShellActions
             // never reach the files behind it.
             if (IsEditingText() && (command == CommandIds.SelectAll || command == CommandIds.EditRename || command == CommandIds.EditDelete
                 || command == CommandIds.EditDeletePermanent || command == CommandIds.EditUndo || command == CommandIds.EditRedo
-                || command == CommandIds.EditCut || command == CommandIds.EditCopy || command == CommandIds.EditPaste))
+                || command == CommandIds.EditCut || command == CommandIds.EditCopy || command == CommandIds.EditPaste
+                || command == CommandIds.SelectInvert || command == CommandIds.SelectNone))
             {
                 return;
             }

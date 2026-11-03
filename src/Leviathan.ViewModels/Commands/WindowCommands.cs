@@ -37,6 +37,15 @@ public interface IShellActions
 /// <summary>Stable ids of the window-level commands (spec §6, §17.3).</summary>
 public static class CommandIds
 {
+    private static readonly Lazy<IReadOnlySet<CommandId>> AllIds = new(() => typeof(CommandIds)
+        .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+        .Where(f => f.FieldType == typeof(CommandId))
+        .Select(f => (CommandId)f.GetValue(null)!)
+        .ToHashSet());
+
+    /// <summary>Every id declared here, so a settings file can be checked without a window (the Keyboard page, spec 17.3).</summary>
+    public static IReadOnlySet<CommandId> All => AllIds.Value;
+
     /// <summary>New tab (Ctrl+T). Target: a location; default Home.</summary>
     public static readonly CommandId TabNew = new("tab.new");
 
@@ -815,8 +824,8 @@ public static partial class WindowCommands
 
         // Selection (spec §6.2, nothing selected).
         Add(CommandIds.SelectAll, "Select all", "Selection", (_, _) => Run(() => Current()!.Selection.SelectAll()), _ => Current() is not null, shortcut: "Ctrl+A");
-        Add(CommandIds.SelectNone, "Select none", "Selection", (_, _) => Run(() => Current()!.Selection.Clear()), _ => Current() is not null);
-        Add(CommandIds.SelectInvert, "Invert selection", "Selection", (_, _) => Run(() => Current()!.Selection.Invert()), _ => Current() is not null);
+        Add(CommandIds.SelectNone, "Select none", "Selection", (_, _) => Run(() => Current()!.Selection.Clear()), _ => Current() is not null, shortcut: "Ctrl+Shift+A");
+        Add(CommandIds.SelectInvert, "Invert selection", "Selection", (_, _) => Run(() => Current()!.Selection.Invert()), _ => Current() is not null, shortcut: "Ctrl+I");
         Add(CommandIds.SelectByPattern, "Select by pattern", "Selection", (c, _) => Run(() =>
         {
             var matched = Current()!.Selection.SelectByPattern(c.Target!);
@@ -930,7 +939,13 @@ public static partial class WindowCommands
 
         Add(CommandIds.RunAsAdministrator, "Run as administrator", "Files", (c, ct) => Launch(launcher.RunAsAdministratorAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
         Add(CommandIds.OpenWith, "Open with…", "Files", (c, ct) => Launch(launcher.ChooseAppAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
-        Add(CommandIds.Properties, "Properties", "Files", (c, ct) => Launch(launcher.ShowPropertiesAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry, shortcut: "Alt+Enter");
+
+        // From a menu or button the item comes with the call; from the keyboard it is the one selected item.
+        Add(CommandIds.Properties, "Properties", "Files", (c, ct) =>
+        {
+            var entry = c.Parameter as FileEntry ?? Current()!.RenameTarget()!;
+            return Launch(launcher.ShowPropertiesAsync(entry.Location, ct), entry);
+        }, c => c.Parameter is FileEntry || Current()?.RenameTarget() is not null, shortcut: "Alt+Enter");
 
         Add(CommandIds.FavoriteAdd, "Add to favorites", "Favorites", (c, _) => Run(() =>
         {
@@ -1108,7 +1123,7 @@ public static partial class WindowCommands
         {
             viewOptions!.ShowHidden = !viewOptions.ShowHidden;
             await Current()!.ReloadAsync(ct);
-        }, _ => viewOptions is not null && Current() is not null);
+        }, _ => viewOptions is not null && Current() is not null, shortcut: "Ctrl+H");
 
         Add(CommandIds.ViewColumns, "Choose columns", "View", (c, _) => Run(() =>
         {
@@ -1163,6 +1178,10 @@ public static partial class WindowCommands
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),
             ("Ctrl+A", CommandIds.SelectAll),
+            ("Ctrl+I", CommandIds.SelectInvert),
+            ("Ctrl+Shift+A", CommandIds.SelectNone),
+            ("Ctrl+H", CommandIds.ViewHidden),
+            ("Alt+Enter", CommandIds.Properties),
             ("Ctrl+Shift+N", CommandIds.NewFolder),
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
             ("Del", CommandIds.EditDelete),

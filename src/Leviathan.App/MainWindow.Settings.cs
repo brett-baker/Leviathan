@@ -42,6 +42,7 @@ public sealed partial class MainWindow
         if (_settingsSheet is null)
         {
             _settingsSheet = new SettingsSheet(model) { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch };
+            _settingsSheet.KeyRows = () => Leviathan.ViewModels.Commands.KeyMapBuilder.Rows(_commands.Commands, App.Host.Keys);
             _settingsSheet.DiagnosticsRequested += (_, _) => Run(CommandIds.AppDiagnostics);
             SettingsLayer.Children.Add(_settingsSheet);
         }

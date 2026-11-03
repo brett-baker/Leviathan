@@ -93,7 +93,15 @@ internal sealed class AppHost
 
     public IVolumeInfo Volumes { get; }
 
-    public KeyMap Keys { get; }
+    public KeyMap Keys { get; private set; }
+
+    /// <summary>Entries of the settings file's <c>KeyBindings</c> that could not be used, for the Keyboard page.</summary>
+    public IReadOnlyList<string> KeyProblems { get; private set; } = [];
+
+    /// <summary>Keys the settings file took from one command and gave to another.</summary>
+    public IReadOnlyList<string> KeyNotes { get; private set; } = [];
+
+    private string _appliedKeys = string.Empty;
 
     /// <summary>The New menu: built-in items, apps registered through ShellNew and the user's templates (spec §6.1).</summary>
     public NewItemService NewItems { get; }
@@ -180,6 +188,7 @@ internal sealed class AppHost
             ViewOptions.ShowSystem = settings.Files.ShowSystem;
         }
 
+        ApplyKeyBindings(settings.KeyBindings);
         Sizes.Enabled = settings.Files.ShowFolderSizes;
         Sizes.NetworkEnabled = settings.Performance.FolderSizesOnNetwork;
         ThumbnailGate.AllowNetwork = settings.Performance.ThumbnailsOnNetwork;
@@ -192,6 +201,22 @@ internal sealed class AppHost
         {
             _ = ApplyLimitsAsync(WorkerLazy.Value);
         }
+    }
+
+    // The default keys with the user's changes from the settings file (spec 17.3). Only rebuilt when the file's KeyBindings changed.
+    private void ApplyKeyBindings(IReadOnlyDictionary<string, string> bindings)
+    {
+        var signature = string.Join('\n', bindings.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}={b.Value}"));
+        if (signature == _appliedKeys)
+        {
+            return;
+        }
+
+        _appliedKeys = signature;
+        var result = KeyMapBuilder.Build(bindings, CommandIds.All.Contains);
+        Keys = result.Map;
+        KeyProblems = result.Problems;
+        KeyNotes = result.Notes;
     }
 
     /// <summary>Tells the worker how many jobs may run at once.</summary>
@@ -564,7 +589,17 @@ internal static class KeyTranslator
         VirtualKey.Tab or VirtualKey.Enter or VirtualKey.Escape or VirtualKey.Delete or VirtualKey.Space or VirtualKey.Home or VirtualKey.End
             or VirtualKey.Insert or VirtualKey.PageUp or VirtualKey.PageDown => key.ToString(),
         VirtualKey.Back => "Backspace",
+        (VirtualKey)186 => ";",
+        (VirtualKey)187 => "=",
         (VirtualKey)188 => ",",
+        (VirtualKey)189 => "-",
+        (VirtualKey)190 => ".",
+        (VirtualKey)191 => "/",
+        (VirtualKey)192 => "`",
+        (VirtualKey)219 => "[",
+        (VirtualKey)220 => "\\",
+        (VirtualKey)221 => "]",
+        (VirtualKey)222 => "'",
         _ => null,
     };
 }

@@ -36,7 +36,7 @@ public static class SettingsCatalog
         new("media", "Media and preview", "Video and pictures", false, "Phase 3", ["Video engine", "Hardware decoding", "Where ffmpeg is", "Preview size limits", "Which triage tools are on", "Contact sheet grid"]),
         new("tags", "Tags", "Colour tags", false, "Phase 3", ["Tag names, colours and keys", "Write the Windows Tags property"]),
         new("search", "Search and index", "Finding files", false, "Phase 4", ["Indexer status", "Which NAS folders to index", "Index schedule"]),
-        new("keyboard", "Keyboard", "Shortcuts", false, "the next update", ["Every command with its shortcut", "Search, rebind and reset", "Import and export"]),
+        new("keyboard", "Keyboard", "Shortcuts of every command", true),
         new("advanced", "Advanced", "Diagnostics, caches and the settings file", true),
     ];
 
@@ -50,6 +50,7 @@ public static class SettingsCatalog
         new("files", "Show system files", "system", "protected"),
         new("files", "Show folder sizes", "size", "folder size", "calculate"),
         new("tabs", "Closing the last tab", "last tab", "close", "home", "window"),
+        new("keyboard", "Keyboard shortcuts", "keys", "hotkey", "remap", "rebind", "shortcut", "binding"),
         new("advanced", "Open the settings file", "json", "edit", "file"),
         new("advanced", "Diagnostics", "log", "crash", "worker", "stalls"),
         new("advanced", "Clear caches", "cache", "listings", "thumbnails", "history", "activity", "reset"),

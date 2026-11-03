@@ -51,6 +51,14 @@ public sealed class SettingsStore : IDisposable
     /// <summary>True when the last <see cref="LoadAsync"/> found an unreadable file and fell back to defaults.</summary>
     public bool RecoveredFromCorruption { get; private set; }
 
+    /// <summary>Reads the file again and tells subscribers (the user edited it while the app ran).</summary>
+    public async Task<AppSettings> ReloadAsync(CancellationToken cancellationToken)
+    {
+        var loaded = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        Changed?.Invoke(this, loaded);
+        return loaded;
+    }
+
     /// <summary>Reads the file. A missing file gives defaults; an unreadable one is renamed to <c>.corrupt</c> and defaults are used.</summary>
     public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken)
     {

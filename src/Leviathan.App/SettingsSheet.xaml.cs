@@ -13,6 +13,10 @@ namespace Leviathan.App;
 internal static class SettingsFormat
 {
     /// <summary>"Files and folders", or "Network (arrives in Phase 2)" for a page that is not built yet.</summary>
+    public static string Keys(string keys) => keys.Length == 0 ? "none" : keys;
+
+    public static string Changed(bool custom) => custom ? "changed" : string.Empty;
+
     public static string Where(string pageId)
     {
         var page = SettingsCatalog.Page(pageId);
@@ -43,6 +47,9 @@ internal sealed partial class SettingsSheet : UserControl
         App.Host.Settings.Changed += OnSettingsChanged;
         Sync();
     }
+
+    /// <summary>Gives the Keyboard page its rows (the window knows the commands).</summary>
+    internal Func<IReadOnlyList<Leviathan.ViewModels.Commands.KeyboardRow>> KeyRows { get; set; } = () => [];
 
     /// <summary>The user asked for the diagnostics window.</summary>
     internal event EventHandler? DiagnosticsRequested;
@@ -89,6 +96,7 @@ internal sealed partial class SettingsSheet : UserControl
             FilesPage.Visibility = Show("files");
             TabsPage.Visibility = Show("tabs");
             AdvancedPage.Visibility = Show("advanced");
+            KeyboardPage.Visibility = Show("keyboard");
             var planned = !page.IsAvailable;
             PlannedPage.Visibility = planned ? Visibility.Visible : Visibility.Collapsed;
             if (planned)
@@ -146,6 +154,11 @@ internal sealed partial class SettingsSheet : UserControl
         if (_model.IsOpen && _model.PageId == "advanced")
         {
             _ = ShowCacheSizesAsync();
+        }
+
+        if (_model.IsOpen && _model.PageId == "keyboard")
+        {
+            LoadKeyboard();
         }
     }
 
@@ -345,6 +358,46 @@ internal sealed partial class SettingsSheet : UserControl
         }
 
         CacheText.Text = text;
+    }
+
+    // ---- Keyboard
+
+    private void LoadKeyboard()
+    {
+        var filter = KeyFilterBox.Text.Trim();
+        var rows = KeyRows()
+            .Where(r => filter.Length == 0
+                || r.Title.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || r.Category.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || r.Keys.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || r.Command.Value.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        KeyList.ItemsSource = rows;
+        KeyProblemsText.Text = string.Join(Environment.NewLine, App.Host.KeyProblems);
+        KeyProblemsText.Visibility = App.Host.KeyProblems.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        KeyNotesText.Text = string.Join(Environment.NewLine, App.Host.KeyNotes);
+        KeyNotesText.Visibility = App.Host.KeyNotes.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnKeyFilterChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_ready)
+        {
+            LoadKeyboard();
+        }
+    }
+
+    private async void OnReloadFileClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await App.Host.Settings.ReloadAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            KeyProblemsText.Text = "The settings file could not be read: " + ex.Message;
+            KeyProblemsText.Visibility = Visibility.Visible;
+        }
     }
 
     // ---- sheet chrome
