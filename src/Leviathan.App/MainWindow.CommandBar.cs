@@ -99,6 +99,12 @@ public sealed partial class MainWindow
         }
 
         PasteButton.IsEnabled = _commands.CanExecute(CommandIds.EditPaste);
+        PasteIntoNewFolderItem.IsEnabled = _commands.CanExecute(CommandIds.EditPasteIntoNewFolder);
+
+        // A disabled Paste says why (spec §6.1).
+        ToolTipService.SetToolTip(PasteButton, PasteButton.IsEnabled ? "Paste (Ctrl+V)"
+            : !App.Host.FileClipboard.HasFiles ? "Nothing to paste: copy or cut files first"
+            : "Files cannot be pasted into this location");
         NewButton.IsEnabled = _commands.CanExecute(CommandIds.NewFolder);
         var hasTab = _bound is not null;
         ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = FilterBox.IsEnabled = hasTab;
@@ -177,6 +183,11 @@ public sealed partial class MainWindow
     }
 
     private void OnPasteClick(SplitButton sender, SplitButtonClickEventArgs args) => Run(CommandIds.EditPaste);
+
+    private void OnPasteIntoNewFolderClick(object sender, RoutedEventArgs e) => Run(CommandIds.EditPasteIntoNewFolder);
+
+    /// <summary>The clipboard changed (here or in another application): Paste enables or disables itself.</summary>
+    private void OnClipboardChanged(object? sender, EventArgs e) => OnUi(RefreshCommandBar);
 
     /// <summary>"Select by pattern": asks for a wildcard such as <c>*.mkv</c> in a small flyout and selects what matches.</summary>
     private void AskForPattern(FrameworkElement anchor)

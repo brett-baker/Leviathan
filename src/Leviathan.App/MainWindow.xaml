@@ -132,10 +132,10 @@
             <FontIcon Glyph="&#xE77F;" FontSize="16" />
             <SplitButton.Flyout>
               <MenuFlyout>
-                <MenuFlyoutItem Text="Paste as shortcut" IsEnabled="False" />
-                <MenuFlyoutItem Text="Paste as hard link" IsEnabled="False" />
-                <MenuFlyoutItem Text="Paste as symbolic link" IsEnabled="False" />
-                <MenuFlyoutItem Text="Paste into new folder" IsEnabled="False" />
+                <MenuFlyoutItem Text="Paste as shortcut" IsEnabled="False" ToolTipService.ToolTip="Shortcuts, hard links and symbolic links arrive in Phase 2" />
+                <MenuFlyoutItem Text="Paste as hard link" IsEnabled="False" ToolTipService.ToolTip="Shortcuts, hard links and symbolic links arrive in Phase 2" />
+                <MenuFlyoutItem Text="Paste as symbolic link" IsEnabled="False" ToolTipService.ToolTip="Shortcuts, hard links and symbolic links arrive in Phase 2" />
+                <MenuFlyoutItem x:Name="PasteIntoNewFolderItem" Text="Paste into new folder" Click="OnPasteIntoNewFolderClick" />
               </MenuFlyout>
             </SplitButton.Flyout>
           </SplitButton>

@@ -57,9 +57,10 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard);
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
         host.Undo.Changed += OnUndoChanged;
+        host.FileClipboard.Changed += OnClipboardChanged;
         host.Transfers.Finished += OnTransferFinished;
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
@@ -209,7 +210,8 @@ public sealed partial class MainWindow : Window, IShellActions
             // In a text box these keys edit the text: Ctrl+A selects it, Del deletes a character, Ctrl+Z undoes typing. They must
             // never reach the files behind it.
             if (IsEditingText() && (command == CommandIds.SelectAll || command == CommandIds.EditRename || command == CommandIds.EditDelete
-                || command == CommandIds.EditDeletePermanent || command == CommandIds.EditUndo || command == CommandIds.EditRedo))
+                || command == CommandIds.EditDeletePermanent || command == CommandIds.EditUndo || command == CommandIds.EditRedo
+                || command == CommandIds.EditCut || command == CommandIds.EditCopy || command == CommandIds.EditPaste))
             {
                 return;
             }
@@ -265,6 +267,12 @@ public sealed partial class MainWindow : Window, IShellActions
         var hadFocus = FileList.HasKeyboardFocus || FlowList.HasKeyboardFocus;
         FlowList.Visibility = flow ? Visibility.Visible : Visibility.Collapsed;
         FileList.Visibility = flow ? Visibility.Collapsed : Visibility.Visible;
+        if (flow)
+        {
+            // The view skipped scrolling to the selection while it was collapsed; do it now that elements can be created.
+            DispatcherQueue.TryEnqueue(FlowList.EnsureVisible);
+        }
+
         if (hadFocus)
         {
             FocusFiles();
@@ -836,6 +844,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Undo.Changed -= OnUndoChanged;
+        App.Host.FileClipboard.Changed -= OnClipboardChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
         _closing.Cancel();

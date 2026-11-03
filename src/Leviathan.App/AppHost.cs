@@ -101,6 +101,11 @@ internal sealed class AppHost
     /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
+    private WindowsFileClipboard? _clipboard;
+
+    /// <summary>Cut, copy and paste of files through the Windows clipboard (spec §6.1). Made on first use, on the UI thread, which the WinRT clipboard requires.</summary>
+    public WindowsFileClipboard FileClipboard => _clipboard ??= new WindowsFileClipboard();
+
     /// <summary>Which drives have their summary card hidden (spec §8.7).</summary>
     public Leviathan.ViewModels.Drives.DriveCardPreferences DriveCards { get; } = new(new JsonDriveCardStorage());
 

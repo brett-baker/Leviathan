@@ -202,14 +202,17 @@ public static class CommandIds
     // Ids of commands that arrive in later slices and phases. They are declared now so the context-action table of spec §6.2 and
     // the clipboard buttons name them; a button whose command is not registered is disabled or left out.
 
-    /// <summary>Cut (Ctrl+X). Arrives with slice E5.</summary>
+    /// <summary>Cut (Ctrl+X): the selection goes on the clipboard; paste moves it.</summary>
     public static readonly CommandId EditCut = new("edit.cut");
 
-    /// <summary>Copy (Ctrl+C). Arrives with slice E5.</summary>
+    /// <summary>Copy (Ctrl+C): the selection goes on the clipboard; paste copies it.</summary>
     public static readonly CommandId EditCopy = new("edit.copy");
 
-    /// <summary>Paste (Ctrl+V). Arrives with slice E5.</summary>
+    /// <summary>Paste (Ctrl+V): the clipboard's files go into the current folder.</summary>
     public static readonly CommandId EditPaste = new("edit.paste");
+
+    /// <summary>Paste into a new folder created in the current folder, which then opens its rename box.</summary>
+    public static readonly CommandId EditPasteIntoNewFolder = new("edit.pasteIntoNewFolder");
 
     /// <summary>Rename (F2): shows the inline rename box on the selected item.</summary>
     public static readonly CommandId EditRename = new("edit.rename");
@@ -360,7 +363,8 @@ public static partial class WindowCommands
         Transfers.ITransferService? transfers = null,
         Drives.DriveCardPreferences? driveCards = null,
         Transfers.IDeleteService? deleter = null,
-        Undo.UndoService? undo = null)
+        Undo.UndoService? undo = null,
+        Transfers.IFileClipboard? clipboard = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -783,6 +787,72 @@ public static partial class WindowCommands
         Add(CommandIds.EditDelete, "Delete", "Edit", (_, ct) => DeleteSelection(false, ct), _ => CanDeleteHere(), shortcut: "Del", icon: "Delete");
         Add(CommandIds.EditDeletePermanent, "Delete permanently", "Edit", (_, ct) => DeleteSelection(true, ct), _ => CanDeleteHere(), shortcut: "Shift+Del");
 
+        // Clipboard (spec §6.1): cut and copy put the selection on the Windows clipboard, paste hands it to the transfer service,
+        // so a paste is the same journaled copy or move a drop is. Pasting a cut moves; pasting a copy copies, even in the same volume.
+        bool InFolder() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc;
+        bool CanTakeSelection() => clipboard is not null && InFolder() && Current()!.Selection.Count > 0;
+        bool CanPasteHere() => clipboard is { HasFiles: true } && InFolder();
+
+        Task PutOnClipboard(Transfers.ClipboardOperation operation)
+        {
+            var items = Current()!.Selection.SelectedEntries.Select(e => e.Location).ToList();
+            clipboard!.Set(items, operation);
+            var what = items.Count == 1 ? items[0].Name : $"{items.Count} items";
+            shell.ShowMessage(operation == Transfers.ClipboardOperation.Cut ? $"Cut {what}. Paste to move." : $"Copied {what}.");
+            return Task.CompletedTask;
+        }
+
+        async Task PasteAsync(bool intoNewFolder, CancellationToken ct)
+        {
+            var tab = Current()!;
+            var here = tab.History.Current;
+            var contents = await clipboard!.GetAsync(ct);
+            if (contents is not { Items.Count: > 0 })
+            {
+                shell.ShowMessage("There are no files on the clipboard to paste.");
+                return;
+            }
+
+            var cut = contents.Operation == Transfers.ClipboardOperation.Cut;
+            var modifiers = cut ? Transfers.DropModifiers.Shift : Transfers.DropModifiers.Ctrl;
+
+            // Judge before creating anything, so a refused paste does not leave an empty folder behind.
+            var decision = Transfers.DropRules.Decide(contents.Items, intoNewFolder ? here.Combine("New folder") : here, modifiers);
+            if (!decision.Allowed)
+            {
+                shell.ShowMessage(decision.Tooltip);
+                return;
+            }
+
+            var destination = here;
+            if (intoNewFolder)
+            {
+                try
+                {
+                    destination = await newItems!.CreateAsync(NewMenu.NewItemService.FolderTemplate.Id, here, ct);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or KeyNotFoundException)
+                {
+                    shell.ShowMessage($"Could not create the folder: {ex.Message}");
+                    return;
+                }
+            }
+
+            var outcome = await (transfers ?? new Transfers.UnavailableTransferService())
+                .StartAsync(new Transfers.TransferRequest(contents.Items, destination, decision.Mode), ct);
+            shell.ShowMessage(outcome.Message);
+            if (outcome.Started && cut)
+            {
+                // Like Explorer: a cut can be pasted once; the items are on their way and the clipboard no longer offers them.
+                clipboard.Clear();
+            }
+        }
+
+        Add(CommandIds.EditCut, "Cut", "Edit", (_, _) => PutOnClipboard(Transfers.ClipboardOperation.Cut), _ => CanTakeSelection(), shortcut: "Ctrl+X", icon: "Cut");
+        Add(CommandIds.EditCopy, "Copy", "Edit", (_, _) => PutOnClipboard(Transfers.ClipboardOperation.Copy), _ => CanTakeSelection(), shortcut: "Ctrl+C", icon: "Copy");
+        Add(CommandIds.EditPaste, "Paste", "Edit", (_, ct) => PasteAsync(false, ct), _ => CanPasteHere(), shortcut: "Ctrl+V", icon: "Paste");
+        Add(CommandIds.EditPasteIntoNewFolder, "Paste into new folder", "Edit", (_, ct) => PasteAsync(true, ct), _ => CanPasteHere() && newItems is not null);
+
         // Undo and redo (spec §12.5): one history for the whole app. The view shows the result: the restored item is selected.
         async Task ShowUndoOutcome(Undo.UndoOutcome outcome, CancellationToken ct)
         {
@@ -888,6 +958,9 @@ public static partial class WindowCommands
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
             ("Del", CommandIds.EditDelete),
             ("Shift+Del", CommandIds.EditDeletePermanent),
+            ("Ctrl+X", CommandIds.EditCut),
+            ("Ctrl+C", CommandIds.EditCopy),
+            ("Ctrl+V", CommandIds.EditPaste),
             ("Ctrl+Z", CommandIds.EditUndo),
             ("Ctrl+Y", CommandIds.EditRedo),
             ("Ctrl+Shift+Z", CommandIds.EditRedo),

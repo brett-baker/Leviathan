@@ -158,7 +158,9 @@ public sealed partial class FlowView : UserControl
     /// <summary>Scrolls the focused item (or the first selected one) into view.</summary>
     internal void EnsureVisible()
     {
-        if (_tab is null)
+        // Both views stay bound to every tab; a collapsed repeater cannot create elements (the same COMException as crash signature
+        // 182fdb45375a, on a tab switch with a selection). MainWindow.ApplyLayout scrolls when this view is shown.
+        if (_tab is null || Visibility != Visibility.Visible)
         {
             return;
         }
