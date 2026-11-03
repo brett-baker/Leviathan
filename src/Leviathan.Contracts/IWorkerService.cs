@@ -88,4 +88,7 @@ public static class PipeNames
     /// the pipe is also created with current-user-only access.
     /// </summary>
     public const string WorkerPrefix = "Leviathan.Worker.v2.";
+
+    /// <summary>Prefix of the shell host pipe, built the same way as <see cref="WorkerPrefix"/>.</summary>
+    public const string ShellHostPrefix = "Leviathan.ShellHost.v2.";
 }

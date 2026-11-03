@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Out-of-process home of shell extensions: context-menu and preview handlers load third-party COM code, so they run here (spec §2.2). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <RootNamespace>Leviathan.ShellHost</RootNamespace>
+    <AssemblyName>Leviathan.ShellHost</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
+    <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
+    <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.ShellHost.Tests" />
+  </ItemGroup>
+</Project>

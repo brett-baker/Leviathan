@@ -157,7 +157,9 @@ Existing pieces reused as they are: `LocationPath` (parse, resolve, breadcrumbs)
 
 ### F. ShellHost and the right-click menu
 
-- [ ] **F1. `Leviathan.ShellHost` process**: STA worker pool, named-pipe contract, supervised by `ProcessSupervisor`.
+- [x] **F1. `Leviathan.ShellHost` process**: STA worker pool, named-pipe contract, supervised by `ProcessSupervisor`.
+  Done: `Leviathan.ShellHost.exe` (one per user, pipe `Leviathan.ShellHost.v2.<userhash>`, current-user-only like the worker; exits after 2 minutes with no client, so it runs on demand) with `StaPool` (2 STA threads, a time limit on every request counted from when the work starts; a request over its limit gives the caller a `TimeoutException`, the stuck thread is written off and replaced, and 8 stuck threads make the host exit with code 2 so the supervisor starts a clean one), `IShellHostService` (`PingAsync`, `GetStatusAsync`, in `Leviathan.Contracts`, same `ContractVersion` as the worker), `ShellHostClient` (Ipc) and `ShellHostConnection` (Engine): starts the host on the first call, reconnects to a restarted host, fails at once with `ShellHostUnavailableException` when the host is disabled (3 crashes in 5 minutes) or does not come up within the limit. `AppHost.ShellHost` is lazy; the app project copies the exe next to `Leviathan.exe`. Verified: 16 tests in the new `Leviathan.ShellHost.Tests`, including the real exe on a private pipe (`--pipe`), killed and restarted, and disabled after repeated crashes; the built app output starts the host (43 MB, 22 threads idle).
+  Not done: the host has no menu or preview work yet (F2, F3); a status line for it on the Background tab (I9).
 - [ ] **F2. Context-menu port** from Files `ContextMenu*` / `ContextMenuWorkerPool`, hosted in ShellHost.
 - [ ] **F3. Right-click menu** (§8.5): Leviathan items first, third-party items loaded asynchronously into "More options ▸",
   Shift+right-click inline. A deliberately crashing handler must not affect the app (integration test).

@@ -11,6 +11,9 @@ public static class PipeNaming
     /// <summary>The worker pipe name for the current user.</summary>
     public static string WorkerPipe() => PipeNames.WorkerPrefix + UserHash();
 
+    /// <summary>The shell host pipe name for the current user.</summary>
+    public static string ShellHostPipe() => PipeNames.ShellHostPrefix + UserHash();
+
     /// <summary>A short hash of the current user's SID (or user name off Windows).</summary>
     public static string UserHash()
     {

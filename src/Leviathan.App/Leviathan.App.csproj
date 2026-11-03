@@ -40,5 +40,7 @@
     <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />
     <!-- Builds the worker and copies it next to Leviathan.exe so the UI can start it. -->
     <ProjectReference Include="..\Leviathan.Worker\Leviathan.Worker.csproj" />
+    <!-- Same for the shell host, which runs third-party shell extensions out of process. -->
+    <ProjectReference Include="..\Leviathan.ShellHost\Leviathan.ShellHost.csproj" />
   </ItemGroup>
 </Project>

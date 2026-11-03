@@ -101,6 +101,22 @@ internal sealed class AppHost
     /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
+    private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
+
+    /// <summary>
+    /// The out-of-process home of shell extensions (spec §2.2). Nothing starts until the first call to
+    /// <see cref="Leviathan.Engine.Supervision.ShellHostConnection.GetServiceAsync"/>, which the right-click menu makes (slice F3).
+    /// </summary>
+    public Leviathan.Engine.Supervision.ShellHostConnection ShellHost => _shellHost.Value;
+
+    private static Leviathan.Engine.Supervision.ExecutableLauncher ShellHostLauncher()
+    {
+        var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.exe");
+        return File.Exists(exe)
+            ? new Leviathan.Engine.Supervision.ExecutableLauncher(exe)
+            : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.dll")}\"");
+    }
+
     private WindowsFileClipboard? _clipboard;
 
     /// <summary>Cut, copy and paste of files through the Windows clipboard (spec §6.1). Made on first use, on the UI thread, which the WinRT clipboard requires.</summary>

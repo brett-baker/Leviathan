@@ -18,6 +18,12 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
+    <Project Path="src/Leviathan.ShellHost/Leviathan.ShellHost.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="src/Leviathan.Core/Leviathan.Core.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
@@ -129,6 +135,12 @@
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
     <Project Path="tests/Leviathan.ViewModels.Tests/Leviathan.ViewModels.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.ShellHost.Tests/Leviathan.ShellHost.Tests.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
       <Platform Solution="*|x64" Project="x64" />
