@@ -137,6 +137,27 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     /// <summary>Time from the start of the last load to its end.</summary>
     public TimeSpan? TotalElapsed { get; private set; }
 
+    /// <summary>The quickest the UI is updated while a listing is under way, however fast batches arrive.</summary>
+    public static readonly TimeSpan MinFlushInterval = TimeSpan.FromMilliseconds(40);
+
+    /// <summary>
+    /// The most rows put into the list by one UI callback. Sorting and merging them costs about a millisecond per hundred rows, so a
+    /// callback stays near 20 ms and the window can answer clicks and keys between callbacks, however big the folder is (spec §3.2:
+    /// nothing on the UI thread takes over 50 ms).
+    /// </summary>
+    public const int MaxRowsPerUpdate = 2000;
+
+    /// <summary>The slowest the UI is updated while a listing is under way (a listing that takes a minute still shows progress).</summary>
+    public static readonly TimeSpan MaxFlushInterval = TimeSpan.FromMilliseconds(400);
+
+    /// <summary>
+    /// How long to hold arriving rows back before the next update of the list: 250 rows per millisecond of interval, so a folder of
+    /// a few thousand rows updates about 25 times a second and one of 50,000 rows about five times, never less often than
+    /// <see cref="MaxFlushInterval"/>. Every update re-sorts and redraws the rows, which costs more the more rows there are.
+    /// </summary>
+    public static TimeSpan FlushIntervalFor(int rowsSoFar) =>
+        TimeSpan.FromMilliseconds(Math.Clamp(rowsSoFar / 250.0, MinFlushInterval.TotalMilliseconds, MaxFlushInterval.TotalMilliseconds));
+
     /// <summary>Lists <paramref name="location"/>, cancelling any listing in progress. Completes when the listing ends.</summary>
     public async Task LoadAsync(LocationPath location, CancellationToken cancellationToken)
     {
@@ -156,6 +177,84 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         TotalElapsed = null;
         var all = new List<FileEntry>();
 
+        // Rows are handed to the UI in a few updates a second, not one per batch: the first batch at once (first rows within the
+        // §3.1 budget), later ones gathered until the interval for the size so far has passed, the rest before the listing ends.
+        var pumpGate = new Lock();
+        var pending = new List<FileEntry>();
+        long? lastFlush = null;
+        var flushQueued = false;
+
+        // Runs on the UI thread. Puts up to MaxRowsPerUpdate pending rows into the list; when more are waiting it queues itself
+        // again, so the dispatcher can handle input in between. 'after' runs once everything pending is in (the end of a listing).
+        void Flush(Action? after = null)
+        {
+            List<FileEntry> take;
+            bool more;
+            lock (pumpGate)
+            {
+                var count = Math.Min(pending.Count, MaxRowsPerUpdate);
+                take = pending.GetRange(0, count);
+                pending.RemoveRange(0, count);
+                more = pending.Count > 0;
+                flushQueued = more;
+                if (count > 0)
+                {
+                    lastFlush = _time.GetTimestamp();
+                }
+            }
+
+            if (take.Count > 0)
+            {
+                Entries.AddRange(take);
+            }
+
+            if (more)
+            {
+                PostIfCurrent(generation, () => Flush(after));
+            }
+            else
+            {
+                after?.Invoke();
+            }
+        }
+
+        void QueueFlush()
+        {
+            TimeSpan delay;
+            lock (pumpGate)
+            {
+                if (flushQueued)
+                {
+                    return;
+                }
+
+                flushQueued = true;
+                delay = lastFlush is { } last ? FlushIntervalFor(all.Count) - _time.GetElapsedTime(last) : TimeSpan.Zero;
+            }
+
+            if (delay <= TimeSpan.Zero)
+            {
+                PostIfCurrent(generation, () => Flush());
+            }
+            else
+            {
+                _ = FlushLaterAsync(delay);
+            }
+        }
+
+        async Task FlushLaterAsync(TimeSpan delay)
+        {
+            try
+            {
+                await Task.Delay(delay, _time, source.Token).ConfigureAwait(false);
+                PostIfCurrent(generation, () => Flush());
+            }
+            catch (OperationCanceledException)
+            {
+                // The listing was cancelled or replaced; nothing is shown from it any more.
+            }
+        }
+
         PostIfCurrent(generation, () =>
         {
             Location = location;
@@ -174,19 +273,26 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
                 if (batch.Items.Count > 0)
                 {
                     FirstRowsElapsed ??= _time.GetElapsedTime(started);
-                    all.AddRange(batch.Items);
-                    var items = batch.Items;
-                    PostIfCurrent(generation, () => Entries.AddRange(items));
+                    lock (pumpGate)
+                    {
+                        all.AddRange(batch.Items);
+                        pending.AddRange(batch.Items);
+                    }
+
+                    QueueFlush();
                 }
             }
 
             TotalElapsed = _time.GetElapsedTime(started);
+
+            // Whatever is still held back goes to the UI first, a chunk at a time; the state changes when the last chunk is in.
             var kind = FolderKindDetector.Detect(all);
-            PostIfCurrent(generation, () =>
+            var finished = all.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+            PostIfCurrent(generation, () => Flush(() =>
             {
                 Kind = kind;
-                State = all.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
-            });
+                State = finished;
+            }));
         }
         catch (OperationCanceledException) when (source.IsCancellationRequested)
         {
@@ -195,8 +301,9 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // Rows that arrived before the failure stay on screen with the message.
             var failure = ex as LocationException ?? LocationErrors.Wrap(ex, location);
-            PostIfCurrent(generation, () => ShowFailure(failure));
+            PostIfCurrent(generation, () => Flush(() => ShowFailure(failure)));
         }
     }
 

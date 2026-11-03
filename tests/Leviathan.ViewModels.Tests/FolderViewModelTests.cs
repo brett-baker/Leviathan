@@ -55,7 +55,7 @@ public sealed class FolderViewModelTests
     }
 
     [Fact]
-    public async Task LoadAsync_LargeFolder_RaisesOneChangePerBatchNotPerItem()
+    public async Task LoadAsync_LargeFolder_RaisesAFewChangesNotOnePerItem()
     {
         var fake = new FakeLocationProvider();
         for (var i = 0; i < 1000; i++)
@@ -70,8 +70,11 @@ public sealed class FolderViewModelTests
 
         await vm.LoadAsync(P(@"C:\big"), CancellationToken.None);
 
+        // The first batch goes to the UI at once, the rest are gathered into a few updates (never one per item or per batch).
         Assert.Equal(1000, vm.Entries.Count);
-        Assert.Equal([NotifyCollectionChangedAction.Reset, .. Enumerable.Repeat(NotifyCollectionChangedAction.Add, 4)], changes);
+        Assert.Equal(NotifyCollectionChangedAction.Reset, changes[0]);
+        Assert.All(changes.Skip(1), c => Assert.Equal(NotifyCollectionChangedAction.Add, c));
+        Assert.InRange(changes.Count - 1, 1, 4);
         Assert.True(ui.Posts < 20, $"expected a handful of UI posts, got {ui.Posts}");
     }
 

@@ -176,9 +176,20 @@ public sealed partial class FolderItemsView : ObservableObject
 
     private void Apply(FolderViewSettings settings, bool publish)
     {
-        _sort = settings.Sort.Count > 0 ? settings.Sort : [new SortKey("name")];
+        var sort = settings.Sort.Count > 0 ? settings.Sort : [new SortKey("name")];
+        var groupBy = settings.GroupBy is not null && FileColumns.TryGet(settings.GroupBy, out var column) && column.Group is not null ? column.Id : null;
+
+        // A view that did not change is not worth sorting every row again. This runs at the end of every listing (the folder type
+        // is detected and the view resolved again), when 50,000 rows sorted afresh on the UI thread is a stall for nothing.
+        var unchanged = _comparison is not null && _sort.SequenceEqual(sort) && _folders == settings.Folders && _groupBy == groupBy;
+        _sort = sort;
         _folders = settings.Folders;
-        _groupBy = settings.GroupBy is not null && FileColumns.TryGet(settings.GroupBy, out var column) && column.Group is not null ? column.Id : null;
+        _groupBy = groupBy;
+        if (unchanged)
+        {
+            return;
+        }
+
         _comparison = BuildComparison();
         if (publish)
         {

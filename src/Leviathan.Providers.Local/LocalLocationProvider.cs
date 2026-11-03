@@ -5,8 +5,8 @@ using Leviathan.Core.Providers;
 namespace Leviathan.Providers.Local;
 
 /// <summary>
-/// Lists local drives and SMB (UNC) paths. Network paths get the Win32 large-fetch lister and a first-batch timeout,
-/// so a dead share fails in seconds with a clear error instead of hanging the tab (spec §3.3).
+/// Lists local drives and SMB (UNC) paths. Network paths, UNC or a mapped drive letter, get the Win32 large-fetch lister and a
+/// first-batch timeout, so a dead share fails in seconds with a clear error instead of hanging the tab (spec §3.3).
 /// </summary>
 public sealed class LocalLocationProvider : ILocationProvider
 {
@@ -34,6 +34,12 @@ public sealed class LocalLocationProvider : ILocationProvider
         _time = time ?? TimeProvider.System;
     }
 
+    /// <summary>
+    /// Decides whether a drive-letter path is really a network share (a mapped drive). Such a path is listed like a UNC path. The
+    /// default asks Windows; tests replace it.
+    /// </summary>
+    public Func<LocationPath, bool> IsMappedDrive { get; init; } = MappedDrives.IsMappedDrive;
+
     /// <summary>How long a network listing may take to produce its first batch before failing as unreachable.</summary>
     public TimeSpan NetworkFirstBatchTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
@@ -55,10 +61,11 @@ public sealed class LocalLocationProvider : ILocationProvider
         }
 
         var osPath = _toOsPath(location);
-        var lister = location.IsNetwork ? _networkLister : _localLister;
+        var isNetwork = location.IsNetwork || IsMappedDrive(location);
+        var lister = isNetwork ? _networkLister : _localLister;
 
         using var firstBatch = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (location.IsNetwork)
+        if (isNetwork)
         {
             firstBatch.CancelAfter(NetworkFirstBatchTimeout);
         }

@@ -128,6 +128,54 @@ public sealed class LocalLocationProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task List_AMappedNetworkDrive_IsListedLikeAShare_AndFailsFastWhenItHangs()
+    {
+        var provider = new LocalLocationProvider(new ManagedDirectoryLister(), new HangingLister(), _ => "unused", TimeProvider.System)
+        {
+            NetworkFirstBatchTimeout = TimeSpan.FromMilliseconds(200),
+            IsMappedDrive = location => location.Root.StartsWith("Y", StringComparison.OrdinalIgnoreCase),
+        };
+
+        var ex = await Assert.ThrowsAsync<LocationException>(() => ListAllAsync(provider, LocationPath.Parse(@"Y:\Misc\Renamed")));
+
+        Assert.Equal(LocationError.Unreachable, ex.Error);
+    }
+
+    [Fact]
+    public async Task List_AnOrdinaryDrive_StaysOnTheLocalListerEvenWithAHangingNetworkOne()
+    {
+        var provider = new LocalLocationProvider(new ManagedDirectoryLister(), new HangingLister(), _ => _root, TimeProvider.System)
+        {
+            NetworkFirstBatchTimeout = TimeSpan.FromMilliseconds(200),
+            IsMappedDrive = _ => false,
+        };
+
+        var items = await ListAllAsync(provider, _rootLocation);
+
+        Assert.NotNull(items);
+    }
+
+    [Fact]
+    public void MappedDrives_AreNeverGuessedFromNonDrivePaths()
+    {
+        Assert.False(MappedDrives.IsMappedDrive(LocationPath.Parse(@"\\nas\media")));
+        Assert.False(MappedDrives.IsMappedDrive(LocationPath.Parse(@"C:\")));
+        Assert.False(MappedDrives.IsMappedDrive(LocationPath.Parse(@"Q:\does\not\exist")));
+    }
+
+    [Fact]
+    public void MappedDrives_RecogniseARealMappedDriveOnThisMachine()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Drive types are a Windows notion.");
+        var mapped = DriveInfo.GetDrives().FirstOrDefault(d => d.DriveType == DriveType.Network);
+        Assert.SkipWhen(mapped is null, "No network drive is mapped on this machine.");
+        MappedDrives.Forget();
+
+        Assert.True(MappedDrives.IsMappedDrive(LocationPath.Parse(mapped!.Name + @"some\folder")));
+        Assert.False(MappedDrives.IsMappedDrive(LocationPath.Parse(@"C:\Windows")));
+    }
+
+    [Fact]
     public async Task List_CallerCancellation_IsNotReportedAsUnreachable()
     {
         var provider = new LocalLocationProvider(new ManagedDirectoryLister(), new HangingLister(), _ => "unused", TimeProvider.System);
