@@ -130,6 +130,9 @@ internal sealed class AppHost
 
     private JsonFileStore<SessionFile> SessionStore { get; init; } = null!;
 
+    /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
+    public ListingCache Listings { get; private init; } = null!;
+
     /// <summary>Keeps the saved folder views (columns, sort, layout) between runs.</summary>
     private ViewRulesPersistence ViewRulesStore { get; init; } = null!;
 
@@ -219,12 +222,31 @@ internal sealed class AppHost
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
-        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions);
+        var listings = new ListingCache();
+        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions, listings);
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         var transfers = new WorkerTransfers(() => worker.Value);
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
+
+        // Our own copies, moves and deletes change folders the cache remembers (spec §3.1): forget them before any view reloads.
+        transfers.Finished += (_, done) =>
+        {
+            if (done.Destination is { } to)
+            {
+                listings.Invalidate(to, includeDescendants: true);
+            }
+
+            foreach (var source in done.Sources)
+            {
+                listings.Invalidate(source, includeDescendants: true);
+                if (source.Parent is { } parent)
+                {
+                    listings.Invalidate(parent);
+                }
+            }
+        };
         var windows = new WindowManager(services);
 
         // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
@@ -255,6 +277,7 @@ internal sealed class AppHost
         {
             Transfers = transfers,
             Undo = undo,
+            Listings = listings,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
             SessionStore = sessionStore,

@@ -343,8 +343,18 @@
       <Button x:Name="FilterPart" Grid.Column="2" Style="{StaticResource StatusPart}" Click="OnStatusFilterClick" ToolTipService.ToolTip="Clear the filter" Visibility="Collapsed">
         <TextBlock x:Name="FilterText" Style="{StaticResource CaptionTextBlockStyle}" />
       </Button>
-      <TextBlock x:Name="HealthText" Grid.Column="3" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
-                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+      <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock x:Name="HealthText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+
+        <!-- Rows that came from the cache: shown while the real folder is checked, so it is clear they may still change (spec 3.3). -->
+        <StackPanel x:Name="NoticePart" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
+                    AutomationProperties.LiveSetting="Polite">
+          <ProgressRing x:Name="NoticeRing" Width="12" Height="12" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+          <FontIcon x:Name="NoticeIcon" Glyph="&#xE7BA;" FontSize="12" Visibility="Collapsed" VerticalAlignment="Center" />
+          <TextBlock x:Name="NoticeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </StackPanel>
       <TextBlock x:Name="MessageText" Grid.Column="4" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
       <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">

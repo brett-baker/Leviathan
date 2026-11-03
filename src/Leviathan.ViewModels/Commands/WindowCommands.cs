@@ -744,7 +744,8 @@ public static partial class WindowCommands
         Add(CommandIds.NavBack, "Back", "Navigation", (c, ct) => Current()!.GoBackAsync(ct, Steps(c)), _ => Current()?.History.CanGoBack == true, "Back", "Alt+Left");
         Add(CommandIds.NavForward, "Forward", "Navigation", (c, ct) => Current()!.GoForwardAsync(ct, Steps(c)), _ => Current()?.History.CanGoForward == true, "Forward", "Alt+Right");
         Add(CommandIds.NavUp, "Up", "Navigation", (_, ct) => Current()!.GoUpAsync(ct), _ => Current()?.History.CanGoUp == true, "Up", "Alt+Up");
-        Add(CommandIds.NavReload, "Reload", "Navigation", (_, ct) => Current()!.ReloadAsync(ct), _ => Current() is not null, "Refresh", "F5");
+        // F5 means "look again": the cached rows are not shown first. A tab that was never listed (restored, or just opened) is not a refresh.
+        Add(CommandIds.NavReload, "Reload", "Navigation", (_, ct) => Current()!.ReloadAsync(ct, forceFresh: Current()!.Folder.State is not Folders.FolderLoadState.Idle), _ => Current() is not null, "Refresh", "F5");
 
         Add(CommandIds.NavGo, "Go to address", "Navigation", async (c, ct) =>
         {
@@ -1031,6 +1032,19 @@ public static partial class WindowCommands
         async Task ShowUndoOutcome(Undo.UndoOutcome outcome, CancellationToken ct)
         {
             shell.ShowMessage(outcome.Message);
+            if (Current() is { } changed)
+            {
+                // Items came back or went away in other folders too: whatever the cache holds for them is out of date.
+                foreach (var touched in outcome.Touched.Select(LocationPath.Parse))
+                {
+                    changed.Folder.Cache?.Invalidate(touched, includeDescendants: true);
+                    if (touched.Parent is { } parent)
+                    {
+                        changed.Folder.Cache?.Invalidate(parent);
+                    }
+                }
+            }
+
             if (Current() is { } tab)
             {
                 var here = tab.History.Current;

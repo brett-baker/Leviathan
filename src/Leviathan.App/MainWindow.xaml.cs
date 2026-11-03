@@ -588,7 +588,7 @@ public sealed partial class MainWindow : Window, IShellActions
         if (_bound is null)
         {
             StatusText.Text = string.Empty;
-            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = DriveCard.Visibility = Visibility.Collapsed;
+            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = DriveCard.Visibility = NoticePart.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -602,6 +602,8 @@ public sealed partial class MainWindow : Window, IShellActions
         var filter = StatusBarText.Filter(_bound.FilterText, items.ShownCount, items.TotalCount);
         FilterText.Text = filter;
         FilterPart.Visibility = filter.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        ShowListingNotice(_bound.Folder.Notice);
 
         var health = StatusBarText.Health(_bound.History.Current, _bound.IsOffline);
         HealthText.Text = health;

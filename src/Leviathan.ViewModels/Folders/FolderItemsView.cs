@@ -208,6 +208,13 @@ public sealed partial class FolderItemsView : ObservableObject
                 Count(added, 1);
                 MergeBatch(added);
                 break;
+            case NotifyCollectionChangedAction.Remove when e.OldItems is not null:
+                var gone = new HashSet<FileEntry>(e.OldItems.Cast<FileEntry>());
+                _all.RemoveAll(gone.Contains);
+                Count(gone, -1);
+                _sorted = [.. _sorted.Where(entry => !gone.Contains(entry))];
+                Publish();
+                break;
             case NotifyCollectionChangedAction.Reset:
                 _all.Clear();
                 FolderCount = 0;

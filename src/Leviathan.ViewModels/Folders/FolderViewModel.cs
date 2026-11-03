@@ -65,6 +65,36 @@ public sealed class RangeObservableCollection<T> : ObservableCollection<T>
         OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
     }
 
+    /// <summary>Removes <paramref name="items"/> (those that are in the list) and raises one <see cref="NotifyCollectionChangedAction.Remove"/> event.</summary>
+    public void RemoveRange(IReadOnlyList<T> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var wanted = new HashSet<T>(items);
+        var removed = new List<T>(items.Count);
+        for (var i = Items.Count - 1; i >= 0; i--)
+        {
+            if (wanted.Contains(Items[i]))
+            {
+                removed.Add(Items[i]);
+                Items.RemoveAt(i);
+            }
+        }
+
+        if (removed.Count == 0)
+        {
+            return;
+        }
+
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, removed, -1));
+    }
+
     /// <summary>Appends <paramref name="items"/> and raises one <see cref="NotifyCollectionChangedAction.Add"/> event.</summary>
     public void AddRange(IReadOnlyList<T> items)
     {
@@ -115,15 +145,30 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private FolderKind _kind = FolderKind.General;
 
+    /// <summary>
+    /// What the status bar should say about the listing beyond its state: rows shown from the cache that are being checked, what
+    /// the check changed, or why it could not be done. Null when the rows are exactly what the folder holds.
+    /// </summary>
+    [ObservableProperty]
+    private ListingNotice? _notice;
+
     /// <summary>Creates the view model.</summary>
-    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null)
+    /// <param name="providers">Where listings come from.</param>
+    /// <param name="ui">The UI thread.</param>
+    /// <param name="time">Clock.</param>
+    /// <param name="cache">Remembered listings, or null to always list afresh.</param>
+    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null, ListingCache? cache = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(ui);
         _providers = providers;
         _ui = ui;
         _time = time ?? TimeProvider.System;
+        Cache = cache;
     }
+
+    /// <summary>The remembered listings this folder view shows first, or null.</summary>
+    public ListingCache? Cache { get; }
 
     /// <summary>Items listed so far, in arrival order. Sorting, grouping and filtering sit on top of this list.</summary>
     public RangeObservableCollection<FileEntry> Entries { get; } = [];
@@ -158,8 +203,22 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     public static TimeSpan FlushIntervalFor(int rowsSoFar) =>
         TimeSpan.FromMilliseconds(Math.Clamp(rowsSoFar / 250.0, MinFlushInterval.TotalMilliseconds, MaxFlushInterval.TotalMilliseconds));
 
-    /// <summary>Lists <paramref name="location"/>, cancelling any listing in progress. Completes when the listing ends.</summary>
-    public async Task LoadAsync(LocationPath location, CancellationToken cancellationToken)
+    /// <summary>
+    /// A cached listing younger than this is shown without being checked again: going back and forward through the same few
+    /// folders does not re-list each of them every time.
+    /// </summary>
+    public static readonly TimeSpan CacheTrustedFor = TimeSpan.FromSeconds(2);
+
+    /// <summary>The last background check of a cached listing, so a test (or a caller) can wait for it to end. Never faults.</summary>
+    public Task Revalidation { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Lists <paramref name="location"/>, cancelling any listing in progress. When the cache knows the folder its rows are shown
+    /// at once (the task completes then) and the folder is listed again in the background, the difference applied when it ends
+    /// (<see cref="Revalidation"/>); without a cached listing, or with <paramref name="forceFresh"/>, rows stream in and the task
+    /// completes when the listing ends.
+    /// </summary>
+    public async Task LoadAsync(LocationPath location, CancellationToken cancellationToken, bool forceFresh = false)
     {
         ArgumentNullException.ThrowIfNull(location);
         var generation = Interlocked.Increment(ref _generation);
@@ -172,95 +231,40 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         }
 
         var options = Options;
+        var key = new ListingKey(location, options.IncludeHidden, options.IncludeSystem);
         var started = _time.GetTimestamp();
         FirstRowsElapsed = null;
         TotalElapsed = null;
-        var all = new List<FileEntry>();
+        var pump = new UpdatePump(this, generation, source.Token);
 
-        // Rows are handed to the UI in a few updates a second, not one per batch: the first batch at once (first rows within the
-        // §3.1 budget), later ones gathered until the interval for the size so far has passed, the rest before the listing ends.
-        var pumpGate = new Lock();
-        var pending = new List<FileEntry>();
-        long? lastFlush = null;
-        var flushQueued = false;
-
-        // Runs on the UI thread. Puts up to MaxRowsPerUpdate pending rows into the list; when more are waiting it queues itself
-        // again, so the dispatcher can handle input in between. 'after' runs once everything pending is in (the end of a listing).
-        void Flush(Action? after = null)
-        {
-            List<FileEntry> take;
-            bool more;
-            lock (pumpGate)
-            {
-                var count = Math.Min(pending.Count, MaxRowsPerUpdate);
-                take = pending.GetRange(0, count);
-                pending.RemoveRange(0, count);
-                more = pending.Count > 0;
-                flushQueued = more;
-                if (count > 0)
-                {
-                    lastFlush = _time.GetTimestamp();
-                }
-            }
-
-            if (take.Count > 0)
-            {
-                Entries.AddRange(take);
-            }
-
-            if (more)
-            {
-                PostIfCurrent(generation, () => Flush(after));
-            }
-            else
-            {
-                after?.Invoke();
-            }
-        }
-
-        void QueueFlush()
-        {
-            TimeSpan delay;
-            lock (pumpGate)
-            {
-                if (flushQueued)
-                {
-                    return;
-                }
-
-                flushQueued = true;
-                delay = lastFlush is { } last ? FlushIntervalFor(all.Count) - _time.GetElapsedTime(last) : TimeSpan.Zero;
-            }
-
-            if (delay <= TimeSpan.Zero)
-            {
-                PostIfCurrent(generation, () => Flush());
-            }
-            else
-            {
-                _ = FlushLaterAsync(delay);
-            }
-        }
-
-        async Task FlushLaterAsync(TimeSpan delay)
+        CachedListing? cached = null;
+        if (Cache is not null && !forceFresh)
         {
             try
             {
-                await Task.Delay(delay, _time, source.Token).ConfigureAwait(false);
-                PostIfCurrent(generation, () => Flush());
+                cached = await Cache.TryGetAsync(key, source.Token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (source.IsCancellationRequested)
             {
-                // The listing was cancelled or replaced; nothing is shown from it any more.
+                PostIfCurrent(generation, () => State = FolderLoadState.Cancelled);
+                return;
             }
         }
 
+        if (cached is not null)
+        {
+            await ShowCachedAsync(location, options, key, cached, pump, generation, source, started).ConfigureAwait(false);
+            return;
+        }
+
+        var all = new List<FileEntry>();
         PostIfCurrent(generation, () =>
         {
             Location = location;
             Entries.Clear();
             Message = null;
             IsRetryable = false;
+            Notice = null;
             Kind = FolderKind.General;
             State = FolderLoadState.Loading;
         });
@@ -273,13 +277,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
                 if (batch.Items.Count > 0)
                 {
                     FirstRowsElapsed ??= _time.GetElapsedTime(started);
-                    lock (pumpGate)
-                    {
-                        all.AddRange(batch.Items);
-                        pending.AddRange(batch.Items);
-                    }
-
-                    QueueFlush();
+                    all.AddRange(batch.Items);
+                    pump.Add(batch.Items);
                 }
             }
 
@@ -288,7 +287,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             // Whatever is still held back goes to the UI first, a chunk at a time; the state changes when the last chunk is in.
             var kind = FolderKindDetector.Detect(all);
             var finished = all.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
-            PostIfCurrent(generation, () => Flush(() =>
+            Cache?.Put(key, all.ToArray(), _time.GetUtcNow(), kind);
+            PostIfCurrent(generation, () => pump.Drain(() =>
             {
                 Kind = kind;
                 State = finished;
@@ -303,13 +303,216 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         {
             // Rows that arrived before the failure stay on screen with the message.
             var failure = ex as LocationException ?? LocationErrors.Wrap(ex, location);
-            PostIfCurrent(generation, () => Flush(() => ShowFailure(failure)));
+            PostIfCurrent(generation, () => pump.Drain(() => ShowFailure(failure)));
         }
     }
 
-    /// <summary>Lists the current folder again (F5).</summary>
-    public Task ReloadAsync(CancellationToken cancellationToken) =>
-        Location is null ? Task.CompletedTask : LoadAsync(Location, cancellationToken);
+    /// <summary>Shows a cached listing at once and starts checking it against the real folder in the background.</summary>
+    private async Task ShowCachedAsync(LocationPath location, ListingOptions options, ListingKey key, CachedListing cached, UpdatePump pump, int generation, CancellationTokenSource source, long started)
+    {
+        var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = source.Token.Register(() => shown.TrySetCanceled(source.Token));
+        var age = _time.GetUtcNow() - cached.ListedAt;
+        var trusted = age < CacheTrustedFor;
+
+        PostIfCurrent(generation, () =>
+        {
+            Location = location;
+            Entries.Clear();
+            Message = null;
+            IsRetryable = false;
+            Kind = cached.Kind;
+            State = FolderLoadState.Loading;
+            Notice = trusted ? null : ListingNotice.Checking(cached.Source, age);
+        });
+        FirstRowsElapsed = _time.GetElapsedTime(started);
+        pump.Add(cached.Entries);
+        var count = cached.Entries.Count;
+        PostIfCurrent(generation, () => pump.Drain(() =>
+        {
+            State = count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+            shown.TrySetResult();
+        }));
+
+        try
+        {
+            await shown.Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        TotalElapsed = _time.GetElapsedTime(started);
+        if (!trusted)
+        {
+            Revalidation = RevalidateAsync(location, options, key, cached, pump, generation, source);
+        }
+    }
+
+    /// <summary>
+    /// Lists the folder again behind a cached listing that is on screen and applies what changed: items that are gone are taken
+    /// out, new and changed ones put in, nothing else is touched, so the scroll position and the selection stay where they are. If
+    /// the folder cannot be reached the cached rows stay and the notice says so.
+    /// </summary>
+    private async Task RevalidateAsync(LocationPath location, ListingOptions options, ListingKey key, CachedListing cached, UpdatePump pump, int generation, CancellationTokenSource source)
+    {
+        try
+        {
+            var fresh = new List<FileEntry>(cached.Entries.Count);
+            await foreach (var batch in _providers.Resolve(location).ListAsync(location, options, source.Token).ConfigureAwait(false))
+            {
+                fresh.AddRange(batch.Items);
+            }
+
+            var kind = FolderKindDetector.Detect(fresh);
+            var diff = ListingDiff.Compute(cached.Entries, fresh);
+            Cache?.Put(key, fresh.ToArray(), _time.GetUtcNow(), kind);
+            PostIfCurrent(generation, () =>
+            {
+                Entries.RemoveRange(diff.Remove);
+                pump.Add(diff.Add);
+                pump.Drain(() =>
+                {
+                    Kind = kind;
+                    State = fresh.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+                    Notice = diff.IsEmpty ? null : ListingNotice.Updated(diff.Describe());
+                    if (Notice is { } updated)
+                    {
+                        _ = ClearNoticeLaterAsync(generation, updated, source.Token);
+                    }
+                });
+            });
+        }
+        catch (OperationCanceledException) when (source.IsCancellationRequested)
+        {
+            PostIfCurrent(generation, () => Notice = null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            var failure = ex as LocationException ?? LocationErrors.Wrap(ex, location);
+            var age = _time.GetUtcNow() - cached.ListedAt;
+            PostIfCurrent(generation, () => Notice = ListingNotice.RefreshFailed(failure.Message, age));
+        }
+    }
+
+    private async Task ClearNoticeLaterAsync(int generation, ListingNotice notice, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(ListingNotice.UpdatedShownFor, _time, cancellationToken).ConfigureAwait(false);
+            PostIfCurrent(generation, () =>
+            {
+                if (ReferenceEquals(Notice, notice))
+                {
+                    Notice = null;
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Another listing replaced this one; it clears the notice itself.
+        }
+    }
+
+    /// <summary>
+    /// Hands arriving rows to the UI in a few updates a second, in chunks (see <see cref="MaxRowsPerUpdate"/>): the first rows at
+    /// once, later ones gathered until the interval for the size so far has passed. One per listing.
+    /// </summary>
+    private sealed class UpdatePump(FolderViewModel owner, int generation, CancellationToken token)
+    {
+        private readonly Lock _gate = new();
+        private readonly List<FileEntry> _pending = [];
+        private long? _lastFlush;
+        private bool _queued;
+        private int _total;
+
+        /// <summary>Takes rows from any thread.</summary>
+        public void Add(IReadOnlyList<FileEntry> items)
+        {
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            TimeSpan delay;
+            lock (_gate)
+            {
+                _pending.AddRange(items);
+                _total += items.Count;
+                if (_queued)
+                {
+                    return;
+                }
+
+                _queued = true;
+                delay = _lastFlush is { } last ? FlushIntervalFor(_total) - owner._time.GetElapsedTime(last) : TimeSpan.Zero;
+            }
+
+            if (delay <= TimeSpan.Zero)
+            {
+                owner.PostIfCurrent(generation, () => Flush(null));
+            }
+            else
+            {
+                _ = FlushLaterAsync(delay);
+            }
+        }
+
+        /// <summary>On the UI thread: puts every row still pending into the list, chunk by chunk, then runs <paramref name="after"/>.</summary>
+        public void Drain(Action? after) => Flush(after);
+
+        private async Task FlushLaterAsync(TimeSpan delay)
+        {
+            try
+            {
+                await Task.Delay(delay, owner._time, token).ConfigureAwait(false);
+                owner.PostIfCurrent(generation, () => Flush(null));
+            }
+            catch (OperationCanceledException)
+            {
+                // The listing was cancelled or replaced; nothing is shown from it any more.
+            }
+        }
+
+        // On the UI thread. Puts up to MaxRowsPerUpdate pending rows into the list; when more are waiting it queues itself again,
+        // so the dispatcher can handle input in between. 'after' runs once everything pending is in.
+        private void Flush(Action? after)
+        {
+            List<FileEntry> take;
+            bool more;
+            lock (_gate)
+            {
+                var count = Math.Min(_pending.Count, MaxRowsPerUpdate);
+                take = _pending.GetRange(0, count);
+                _pending.RemoveRange(0, count);
+                more = _pending.Count > 0;
+                _queued = more;
+                if (count > 0)
+                {
+                    _lastFlush = owner._time.GetTimestamp();
+                }
+            }
+
+            if (take.Count > 0)
+            {
+                owner.Entries.AddRange(take);
+            }
+
+            if (more)
+            {
+                owner.PostIfCurrent(generation, () => Flush(after));
+            }
+            else
+            {
+                after?.Invoke();
+            }
+        }
+    }
+
+    /// <summary>Lists the current folder again (F5). With <paramref name="forceFresh"/> the cache is not shown first.</summary>
+    public Task ReloadAsync(CancellationToken cancellationToken, bool forceFresh = false) =>
+        Location is null ? Task.CompletedTask : LoadAsync(Location, cancellationToken, forceFresh);
 
     /// <summary>Cancels the listing in progress, if any. The state becomes <see cref="FolderLoadState.Cancelled"/>.</summary>
     public void Cancel() => _current?.Cancel();
