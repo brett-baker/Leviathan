@@ -32,18 +32,23 @@ public sealed partial class MainWindow
     private StatusHubPanel? _hubPanel;
     private HubWindow? _hubWindow;
     private int _operationsDirty;
+    private int _activityDirty;
 
     private void InitHub()
     {
         var hub = _viewModel.Hub;
         hub.Apply(App.Host.HubLayout);
         hub.LayoutChanged += (_, layout) => App.Host.SaveHubLayout(layout);
-        var panel = new StatusHubPanel(hub, App.Host.Operations);
+        var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity) { CanUndo = () => App.Host.Undo.CanUndo };
         _hubPanel = panel;
         BodyArea.Children.Add(panel);
         panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
         panel.WidthRequested += (_, width) => hub.SetWidth(width, BodyArea.ActualWidth);
         panel.PlaceRequested += (_, placement) => hub.Place(placement);
+        panel.GoToRequested += (_, where) => Run(CommandIds.NavGo, where);
+        panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
+        panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
+        App.Host.Activity.Changed += OnActivityChanged;
         hub.PropertyChanged += (_, _) => OnHubChanged();
         BodyArea.SizeChanged += (_, _) => ApplyHubPlacement();
         App.Host.Operations.Changed += OnOperationsChanged;
@@ -200,6 +205,38 @@ public sealed partial class MainWindow
     {
         var point = e.GetCurrentPoint(element).Position;
         return point.X >= 0 && point.Y >= 0 && point.X <= element.ActualWidth && point.Y <= element.ActualHeight;
+    }
+
+    // The log grows on whatever thread ran a command; one pass on the UI thread covers a burst.
+    private void OnActivityChanged(object? sender, EventArgs e)
+    {
+        if (Interlocked.Exchange(ref _activityDirty, 1) == 0)
+        {
+            OnUi(() =>
+            {
+                Interlocked.Exchange(ref _activityDirty, 0);
+                _hubPanel?.RefreshActivity();
+            });
+        }
+    }
+
+    private async Task ExportActivityAsync(string text, string extension)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileSavePicker { SuggestedFileName = "leviathan-activity" };
+            picker.FileTypeChoices.Add(extension == "json" ? "JSON" : "Text", [$".{extension}"]);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+            if (await picker.PickSaveFileAsync() is { } file)
+            {
+                await File.WriteAllTextAsync(file.Path, text);
+                MessageText.Text = $"Saved the activity log to {file.Name}";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            MessageText.Text = $"Could not save the log: {ex.Message}";
+        }
     }
 
     private void OnOperationsChanged(object? sender, EventArgs e)

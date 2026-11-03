@@ -212,7 +212,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
   click-outside closes, pin keeps it open), dock bottom / right and pop-out window, tabs Operations, Activity, Background, Quick
   settings, Space. Operations shows the worker jobs that exist now (folder sizes, E2/E3 copies and deletes) in a simple list until
   Phase 2 builds the full panel; Space says "arrives with the space map" until Phase 4. Status-bar parts open the matching tab.
-- [ ] **I8. Activity tab** (§16.1): session activity log fed by the command layer (every executed command with its arguments
+- [x] **I8. Activity tab** (§16.1): session activity log fed by the command layer (every executed command with its arguments
   summarised) and the diagnostics `ActionTrail`; stored in SQLite (7 days), filter, search, go to location, open the job, undo where
   possible, copy/export. Logging must cost < 1 ms per action on the UI thread (batched writes off-thread). Unit-tested.
 - [ ] **I9. Background tab** (§16.1): folder-size queue and rate, thumbnail generation, worker / ShellHost process status and restart

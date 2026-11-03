@@ -69,6 +69,8 @@ public partial class App : Application
         using (UiTrace.Begin("AppHost.Create"))
         {
             Host = AppHost.Create(new DispatcherQueueUiContext(queue));
+            Actions.Recorded += (_, action) => Host.Activity.Add(action);
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => Host.Activity.Dispose();
         }
 
         Host.Windows.WindowOpened += (_, window) => queue.TryEnqueue(() => Show(window));

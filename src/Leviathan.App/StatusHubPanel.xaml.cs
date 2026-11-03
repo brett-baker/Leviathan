@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Leviathan.Contracts;
+using Leviathan.ViewModels.Activity;
 using Leviathan.ViewModels.Hub;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -31,6 +32,21 @@ internal static class HubFormat
 
     public static Visibility ShowBar(bool active) => active ? Visibility.Visible : Visibility.Collapsed;
 
+    public static string When(DateTimeOffset time)
+    {
+        var local = time.ToLocalTime();
+        return local.Date == DateTime.Today
+            ? local.ToString("HH:mm:ss", System.Globalization.CultureInfo.CurrentCulture)
+            : local.ToString("MMM d HH:mm", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    public static string Where(string? target, string? location) => target ?? location ?? string.Empty;
+
+    public static Visibility ShowText(string? target, string? location) => string.IsNullOrEmpty(target ?? location) ? Visibility.Collapsed : Visibility.Visible;
+
+    public static Brush ActivityBrush(bool error) =>
+        (Brush)Application.Current.Resources[error ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];
+
     public static string StateText(JobState state) => state switch
     {
         JobState.Queued => "Queued",
@@ -53,13 +69,17 @@ internal sealed partial class StatusHubPanel : UserControl
 {
     private readonly StatusHubModel _model;
     private readonly OperationsModel _operations;
+    private readonly ActivityLog _activity;
     private bool _syncing;
+    private bool _ready;
 
-    public StatusHubPanel(StatusHubModel model, OperationsModel operations)
+    public StatusHubPanel(StatusHubModel model, OperationsModel operations, ActivityLog activity)
     {
         _model = model;
         _operations = operations;
+        _activity = activity;
         InitializeComponent();
+        _ready = true;
         Icons.Bind(PinButton, static (b, i) => b.Content = i, "pin");
         Icons.Bind(PlaceButton, static (b, i) => b.Content = i, "split");
         Icons.Bind(CloseButton, static (b, i) => b.Content = i, "close");
@@ -78,6 +98,18 @@ internal sealed partial class StatusHubPanel : UserControl
     /// <summary>The user dragged the left edge of the right dock: the width they ask for.</summary>
     internal event EventHandler<double>? WidthRequested;
 
+    /// <summary>A row of the Activity log was clicked: go to its place.</summary>
+    internal event EventHandler<string>? GoToRequested;
+
+    /// <summary>"Undo last" was clicked.</summary>
+    internal event EventHandler? UndoRequested;
+
+    /// <summary>The user chose "Export to a file": the text and the suggested extension (<c>txt</c> or <c>json</c>).</summary>
+    internal event EventHandler<(string Text, string Extension)>? ExportRequested;
+
+    /// <summary>Tells whether there is a file action to undo; set by the window.</summary>
+    internal Func<bool> CanUndo { get; set; } = () => false;
+
     /// <summary>The user chose where the hub is shown.</summary>
     internal event EventHandler<HubPlacement>? PlaceRequested;
 
@@ -89,6 +121,70 @@ internal sealed partial class StatusHubPanel : UserControl
         TopGrip.Visibility = right || placement == HubPlacement.PoppedOut ? Visibility.Collapsed : Visibility.Visible;
         Frame.BorderThickness = placement == HubPlacement.PoppedOut ? new Thickness(0) : right ? new Thickness(1, 0, 0, 0) : new Thickness(0, 1, 0, 0);
         Frame.CornerRadius = placement == HubPlacement.Flyout ? new CornerRadius(8, 8, 0, 0) : new CornerRadius(0);
+    }
+
+    /// <summary>Lists the activity again (something was logged, or a filter changed).</summary>
+    internal void RefreshActivity()
+    {
+        // Controls raise their change events while the XAML is still being built; nothing is ready to list into yet.
+        if (!_ready || _model.Tab != HubTab.Activity)
+        {
+            return;
+        }
+
+        var entries = _activity.Find(CurrentQuery());
+        ActivityList.ItemsSource = entries;
+        ActivityEmpty.Visibility = entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UndoActivityButton.IsEnabled = CanUndo();
+    }
+
+    private ActivityQuery CurrentQuery() => new(
+        (KindBox.SelectedItem as ComboBoxItem)?.Tag is string tag && Enum.TryParse<ActivityKind>(tag, out var kind) ? kind : null,
+        ActivitySearch.Text,
+        EarlierBox.IsChecked == true);
+
+    private void OnActivityFilterChanged(object sender, SelectionChangedEventArgs e) => RefreshActivity();
+
+    private void OnActivitySearchChanged(object sender, TextChangedEventArgs e) => RefreshActivity();
+
+    private async void OnEarlierClick(object sender, RoutedEventArgs e)
+    {
+        if (EarlierBox.IsChecked == true)
+        {
+            await _activity.LoadEarlierAsync();
+        }
+
+        RefreshActivity();
+    }
+
+    private void OnActivityItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is ActivityEntry { Location: { Length: > 0 } where })
+        {
+            GoToRequested?.Invoke(this, where);
+        }
+    }
+
+    private void OnUndoLastClick(object sender, RoutedEventArgs e) => UndoRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnCopyTextClick(object sender, RoutedEventArgs e) => CopyToClipboard(ActivityLog.ExportText(_activity.Find(CurrentQuery())));
+
+    private void OnCopyJsonClick(object sender, RoutedEventArgs e) => CopyToClipboard(ActivityLog.ExportJson(_activity.Find(CurrentQuery())));
+
+    private void OnExportClick(object sender, RoutedEventArgs e) =>
+        ExportRequested?.Invoke(this, (ActivityLog.ExportText(_activity.Find(CurrentQuery())), "txt"));
+
+    private async void OnClearActivityClick(object sender, RoutedEventArgs e)
+    {
+        await _activity.ClearAsync();
+        RefreshActivity();
+    }
+
+    private static void CopyToClipboard(string text)
+    {
+        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        package.SetText(text);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
     }
 
     /// <summary>Lists the operations again (the worker reported a change).</summary>
@@ -117,6 +213,11 @@ internal sealed partial class StatusHubPanel : UserControl
 
             OperationsPage.Visibility = Show(HubTab.Operations);
             ActivityPage.Visibility = Show(HubTab.Activity);
+            if (_model.Tab == HubTab.Activity)
+            {
+                DispatcherQueue.TryEnqueue(RefreshActivity);
+            }
+
             BackgroundPage.Visibility = Show(HubTab.Background);
             QuickSettingsPage.Visibility = Show(HubTab.QuickSettings);
             SpacePage.Visibility = Show(HubTab.Space);

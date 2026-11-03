@@ -11,7 +11,27 @@ namespace Leviathan.App;
 /// <param name="Destination">The folder they went to; null for a delete.</param>
 /// <param name="Permanent">True for a permanent delete.</param>
 /// <param name="Job">The worker's last word on the job.</param>
-internal sealed record TransferFinished(JobKind Kind, IReadOnlyList<Leviathan.Core.Paths.LocationPath> Sources, Leviathan.Core.Paths.LocationPath? Destination, bool Permanent, JobSnapshot Job);
+internal sealed record TransferFinished(JobKind Kind, IReadOnlyList<Leviathan.Core.Paths.LocationPath> Sources, Leviathan.Core.Paths.LocationPath? Destination, bool Permanent, JobSnapshot Job)
+{
+    /// <summary>How the job ended, in words: "Copied 3 items to media", "Cancelled: a.mkv", or the worker's reason for a failure.</summary>
+    public string Describe()
+    {
+        var what = Sources.Count == 1 ? Sources[0].Name : $"{Sources.Count} items";
+        var done = Kind switch
+        {
+            JobKind.Move => $"Moved {what} to {Destination?.Name}",
+            JobKind.Delete when Permanent => $"Deleted {what}",
+            JobKind.Delete => $"Moved {what} to the Recycle Bin",
+            _ => $"Copied {what} to {Destination?.Name}",
+        };
+        return Job.State switch
+        {
+            JobState.Completed => done,
+            JobState.Cancelled => $"Cancelled: {what}",
+            _ => Job.Error ?? $"Could not finish: {what}",
+        };
+    }
+}
 
 /// <summary>
 /// Hands drops and pastes to the worker as copy and move jobs (spec §12.1, §12.3). The UI only submits and listens: the copying runs

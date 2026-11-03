@@ -26,20 +26,7 @@ public sealed partial class MainWindow
     /// <summary>A copy or move the worker was running ended: say how it went and refresh the folder if it was touched.</summary>
     private void OnTransferFinished(object? sender, TransferFinished finished) => OnUi(() =>
     {
-        var what = finished.Sources.Count == 1 ? finished.Sources[0].Name : $"{finished.Sources.Count} items";
-        var done = finished.Kind switch
-        {
-            Contracts.JobKind.Move => $"Moved {what} to {finished.Destination?.Name}",
-            Contracts.JobKind.Delete when finished.Permanent => $"Deleted {what}",
-            Contracts.JobKind.Delete => $"Moved {what} to the Recycle Bin",
-            _ => $"Copied {what} to {finished.Destination?.Name}",
-        };
-        var message = finished.Job.State switch
-        {
-            Contracts.JobState.Completed => done,
-            Contracts.JobState.Cancelled => $"Cancelled: {what}",
-            _ => finished.Job.Error ?? $"Could not finish: {what}",
-        };
+        var message = finished.Describe();
 
         if (_bound is { } tab)
         {

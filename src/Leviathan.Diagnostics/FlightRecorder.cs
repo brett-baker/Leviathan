@@ -136,18 +136,25 @@ public sealed class ActionTrail
     /// <summary>Creates a trail.</summary>
     public ActionTrail(TimeProvider? time = null) => _time = time ?? TimeProvider.System;
 
+    /// <summary>Raised after a command was recorded, on the recording thread (the session activity log listens, spec 16.1).</summary>
+    public event EventHandler<UserAction>? Recorded;
+
     /// <summary>Records a command.</summary>
     public void Record(string command, string? target = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
+        UserAction action;
         lock (_lock)
         {
-            _actions.Enqueue(new UserAction(_time.GetUtcNow(), command, target));
+            action = new UserAction(_time.GetUtcNow(), command, target);
+            _actions.Enqueue(action);
             while (_actions.Count > Capacity)
             {
                 _actions.Dequeue();
             }
         }
+
+        Recorded?.Invoke(this, action);
     }
 
     /// <summary>Actions, oldest first.</summary>

@@ -8,6 +8,7 @@ using Leviathan.Interop;
 using Leviathan.Providers.Cloud;
 using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
+using Leviathan.ViewModels.Activity;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Hub;
 using Leviathan.ViewModels.Icons;
@@ -135,6 +136,9 @@ internal sealed class AppHost
 
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
+
+    /// <summary>What the user did this session and, for seven days, earlier (spec 16.1, D35).</summary>
+    public ActivityLog Activity { get; private init; } = null!;
 
     /// <summary>The user's operations (copies, moves, deletes) as the Operations tab of the status hub lists them (spec 16.1).</summary>
     public OperationsModel Operations { get; private init; } = null!;
@@ -300,6 +304,14 @@ internal sealed class AppHost
                 }
             }
         };
+        var activity = new ActivityLog(new SqliteActivityStore(Path.Combine(data, "activity.db")));
+
+        // How our own copies, moves and deletes ended belongs in the log whichever window asked (spec 16.1).
+        transfers.Finished += (_, done) => activity.Note(
+            done.Describe(),
+            ActivityKind.Message,
+            (done.Destination ?? (done.Sources.Count > 0 ? done.Sources[0].Parent : null))?.Value,
+            done.Job.State != Leviathan.Contracts.JobState.Completed);
         var windows = new WindowManager(services);
         var icons = new IconService(IconPacks.Discover(disk, Path.Combine(AppContext.BaseDirectory, "Assets", "Icons")), queue);
 
@@ -329,6 +341,7 @@ internal sealed class AppHost
             Listings = listings,
             Icons = icons,
             Operations = operations,
+            Activity = activity,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),

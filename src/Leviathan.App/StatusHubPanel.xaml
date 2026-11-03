@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Leviathan.App"
-    xmlns:hub="using:Leviathan.ViewModels.Hub">
+    xmlns:hub="using:Leviathan.ViewModels.Hub"
+    xmlns:activity="using:Leviathan.ViewModels.Activity">
 
   <UserControl.Resources>
     <DataTemplate x:Key="OperationTemplate" x:DataType="hub:OperationEntry">
@@ -26,6 +27,23 @@
         </StackPanel>
         <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(State)}" VerticalAlignment="Top"
                    Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ActivityTemplate" x:DataType="activity:ActivityEntry">
+      <Grid ColumnSpacing="12" Padding="4,5">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="104" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{x:Bind local:HubFormat.When(Time)}" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Top" Margin="0,2,0,0"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <StackPanel Grid.Column="1" Spacing="1">
+          <TextBlock Text="{x:Bind Summary}" TextTrimming="CharacterEllipsis"
+                     Foreground="{x:Bind local:HubFormat.ActivityBrush(IsError)}" />
+          <TextBlock Text="{x:Bind local:HubFormat.Where(Target, Location)}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind local:HubFormat.ShowText(Target, Location)}" />
+        </StackPanel>
       </Grid>
     </DataTemplate>
   </UserControl.Resources>
@@ -94,8 +112,50 @@
           <TextBlock x:Name="NothingText" Grid.Row="1" Text="Nothing is running. Copies, moves and deletes appear here."
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
         </Grid>
-        <TextBlock x:Name="ActivityPage" Text="The log of what you did this session arrives with the next update (slice I8)." TextWrapping="Wrap"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
+        <Grid x:Name="ActivityPage" RowSpacing="6" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="KindBox" Width="130" SelectedIndex="0" SelectionChanged="OnActivityFilterChanged" AutomationProperties.Name="Kind">
+              <ComboBoxItem Content="All kinds" />
+              <ComboBoxItem Content="Navigation" Tag="Navigation" />
+              <ComboBoxItem Content="Files" Tag="Files" />
+              <ComboBoxItem Content="Tabs" Tag="Tabs" />
+              <ComboBoxItem Content="View" Tag="View" />
+              <ComboBoxItem Content="Settings" Tag="Settings" />
+              <ComboBoxItem Content="Messages" Tag="Message" />
+            </ComboBox>
+            <TextBox x:Name="ActivitySearch" Grid.Column="1" PlaceholderText="Search the log" TextChanged="OnActivitySearchChanged" AutomationProperties.Name="Search the log" />
+            <CheckBox x:Name="EarlierBox" Grid.Column="2" Content="Earlier sessions" MinWidth="0" Click="OnEarlierClick"
+                      ToolTipService.ToolTip="Include the last seven days from earlier runs" />
+            <Button x:Name="UndoActivityButton" Grid.Column="3" Content="Undo last" Click="OnUndoLastClick" ToolTipService.ToolTip="Undo the last file action (Ctrl+Z)" />
+            <Button Grid.Column="4" Content="Copy or export" AutomationProperties.Name="Copy or export">
+              <Button.Flyout>
+                <MenuFlyout>
+                  <MenuFlyoutItem Text="Copy as text" Click="OnCopyTextClick" />
+                  <MenuFlyoutItem Text="Copy as JSON" Click="OnCopyJsonClick" />
+                  <MenuFlyoutSeparator />
+                  <MenuFlyoutItem Text="Export to a file…" Click="OnExportClick" />
+                  <MenuFlyoutSeparator />
+                  <MenuFlyoutItem Text="Clear the log" Click="OnClearActivityClick" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+          </Grid>
+          <ListView x:Name="ActivityList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnActivityItemClick"
+                    ItemTemplate="{StaticResource ActivityTemplate}" />
+          <TextBlock x:Name="ActivityEmpty" Grid.Row="1" Text="Nothing here yet. What you do is listed here, newest first." Margin="4,12,0,0"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+        </Grid>
         <TextBlock x:Name="BackgroundPage" Text="Background tasks (folder sizes, thumbnails, indexing) with pause and priority arrive with slice I9." TextWrapping="Wrap"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
         <TextBlock x:Name="QuickSettingsPage" Text="Live settings (limits, bandwidth, polling) arrive with slice I10." TextWrapping="Wrap"
