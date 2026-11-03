@@ -34,6 +34,8 @@ public static class JobRequestValidator
                 return ValidateRename(request);
             case JobKind.Delete:
                 return request.Destination is null ? null : "A delete job has no destination.";
+            case JobKind.Restore:
+                return ValidateRestore(request);
             default:
                 return null;
         }
@@ -56,6 +58,16 @@ public static class JobRequestValidator
         }
 
         return null;
+    }
+
+    private static string? ValidateRestore(JobRequest request)
+    {
+        if (request.Targets is not { } targets || targets.Count != request.Sources.Count)
+        {
+            return "A restore job needs one target for each source.";
+        }
+
+        return targets.Any(t => !LocationPath.TryParse(t, out _)) ? "A restore target is not a valid location." : null;
     }
 
     private static string? ValidateRename(JobRequest request)

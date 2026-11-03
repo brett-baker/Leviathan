@@ -63,6 +63,7 @@ builder.Services.AddSingleton(sp => new LocationProviderRegistry(sp.GetServices<
 builder.Services.AddSingleton<FolderSizeService>();
 builder.Services.AddSingleton<IJobExecutor, ComputeFolderSizeExecutor>();
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers.CopyMoveExecutor(sp.GetRequiredService<IFileSystem>()));
+builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers.RestoreExecutor(sp.GetRequiredService<IFileSystem>()));
 builder.Services.AddSingleton<Leviathan.Core.Platform.IRecycleBin, Leviathan.Interop.WindowsRecycleBin>();
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers.DeleteExecutor(sp.GetRequiredService<IFileSystem>(), sp.GetRequiredService<Leviathan.Core.Platform.IRecycleBin>(), sp.GetRequiredService<TimeProvider>()));
 

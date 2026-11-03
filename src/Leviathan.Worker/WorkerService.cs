@@ -162,6 +162,7 @@ public static class JobTitles
             JobKind.BulkRename => $"Rename {what}",
             JobKind.Rename => $"Rename {what}",
             JobKind.Link => $"Create shortcut to {what} in {destination}",
+            JobKind.Restore => $"Restore {what}",
             JobKind.ComputeFolderSize => $"Folder sizes: {(sources.Count == 1 ? sources[0].Value : what)}",
             _ => $"{kind} {what}",
         };

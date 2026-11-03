@@ -57,8 +57,9 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers);
+        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo);
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
+        host.Undo.Changed += OnUndoChanged;
         host.Transfers.Finished += OnTransferFinished;
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
@@ -205,8 +206,10 @@ public sealed partial class MainWindow : Window, IShellActions
 
         if (KeyTranslator.ToGesture(e.Key) is { } gesture && App.Host.Keys.Resolve(gesture, _viewModel.Tabs.Selected?.IsSplit == true) is { } command)
         {
-            // In a text box Ctrl+A selects the text, not the rows.
-            if ((command == CommandIds.SelectAll || command == CommandIds.EditRename) && IsEditingText())
+            // In a text box these keys edit the text: Ctrl+A selects it, Del deletes a character, Ctrl+Z undoes typing. They must
+            // never reach the files behind it.
+            if (IsEditingText() && (command == CommandIds.SelectAll || command == CommandIds.EditRename || command == CommandIds.EditDelete
+                || command == CommandIds.EditDeletePermanent || command == CommandIds.EditUndo || command == CommandIds.EditRedo))
             {
                 return;
             }
@@ -832,6 +835,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
+        App.Host.Undo.Changed -= OnUndoChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
         _closing.Cancel();

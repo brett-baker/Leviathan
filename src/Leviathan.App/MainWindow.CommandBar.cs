@@ -56,7 +56,17 @@ public sealed partial class MainWindow
         _viewModel.PropertyChanged += OnWindowPropertyChanged;
         ApplyPreviewPane();
         RefreshCommandBar();
+        OnUndoChanged(null, EventArgs.Empty);
     }
+
+    /// <summary>The history changed (from any window): the buttons enable and their tooltips say what they would undo or redo (spec §12.5).</summary>
+    private void OnUndoChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        var undo = App.Host.Undo;
+        ToolTipService.SetToolTip(UndoButton, undo.UndoTitle is { } u ? $"Undo {u} (Ctrl+Z)" : "Undo (Ctrl+Z)");
+        ToolTipService.SetToolTip(RedoButton, undo.RedoTitle is { } r ? $"Redo {r} (Ctrl+Y)" : "Redo (Ctrl+Y)");
+        RefreshCommandBar();
+    });
 
     private void OnWindowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {

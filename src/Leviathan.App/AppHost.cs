@@ -98,6 +98,9 @@ internal sealed class AppHost
     /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
     public WorkerTransfers Transfers { get; private init; } = null!;
 
+    /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
+    public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
+
     /// <summary>Which drives have their summary card hidden (spec §8.7).</summary>
     public Leviathan.ViewModels.Drives.DriveCardPreferences DriveCards { get; } = new(new JsonDriveCardStorage());
 
@@ -167,6 +170,9 @@ internal sealed class AppHost
         var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes, viewOptions);
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
+        var transfers = new WorkerTransfers(() => worker.Value);
+        var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value));
+        transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
         return new AppHost(
             new WindowManager(services),
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
@@ -185,7 +191,8 @@ internal sealed class AppHost
             viewOptions,
             new RenameService(disk))
         {
-            Transfers = new WorkerTransfers(() => worker.Value),
+            Transfers = transfers,
+            Undo = undo,
         };
     }
 }

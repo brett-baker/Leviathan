@@ -74,6 +74,55 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
         return snapshot;
     }
 
+    /// <summary>The per-item results of a job (empty when the worker no longer knows it).</summary>
+    public async Task<JobResult> GetResultAsync(Guid jobId) =>
+        await _client.Service.GetResultAsync(jobId, _closing.Token).ConfigureAwait(false) ?? new JobResult(jobId, []);
+
+    /// <summary>
+    /// Submits a short job and waits for it to end, then returns its per-item results. For work whose outcome the caller needs, such
+    /// as undo; it gives up after <paramref name="timeout"/> (spec §3.2: every wait has a limit) but the job itself keeps running.
+    /// </summary>
+    public async Task<JobResult> RunAsync(JobRequest request, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var ended = new System.Collections.Concurrent.ConcurrentDictionary<Guid, JobSnapshot>();
+        using var wake = new SemaphoreSlim(0);
+
+        void OnChanged(object? sender, JobSnapshot snapshot)
+        {
+            if (snapshot.State is JobState.Completed or JobState.Failed or JobState.Cancelled)
+            {
+                ended[snapshot.Id] = snapshot;
+                wake.Release();
+            }
+        }
+
+        JobChanged += OnChanged;
+        try
+        {
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            limit.CancelAfter(timeout);
+            var submitted = await SubmitAsync(request).ConfigureAwait(false);
+            try
+            {
+                while (!ended.ContainsKey(submitted.Id))
+                {
+                    await wake.WaitAsync(limit.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException("The worker did not finish in time.");
+            }
+
+            return await _client.Service.GetResultAsync(submitted.Id, cancellationToken).ConfigureAwait(false)
+                ?? new JobResult(submitted.Id, []);
+        }
+        finally
+        {
+            JobChanged -= OnChanged;
+        }
+    }
+
     public Task OnJobChangedAsync(JobSnapshot snapshot)
     {
         JobChanged?.Invoke(this, snapshot);

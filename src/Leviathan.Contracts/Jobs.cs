@@ -35,6 +35,12 @@ public enum JobKind
 
     /// <summary>Create shortcuts to the sources in the destination folder (drag with Alt, spec §8.4).</summary>
     Link,
+
+    /// <summary>
+    /// Move each source back to the matching entry of <see cref="JobRequest.Targets"/> without overwriting anything. Undo and redo of
+    /// a rename or a delete are this job (spec §12.5); it also tidies the Recycle Bin's bookkeeping when the source was in the bin.
+    /// </summary>
+    Restore,
 }
 
 /// <summary>What to do when an item with the same name is already in the destination (spec §12.2). Asking is a later slice; until then the choice is made up front.</summary>
@@ -156,6 +162,9 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>The new name (rename only): a name, not a path.</summary>
     public string? NewName { get; init; }
+
+    /// <summary>Where each source goes, one per source in the same order (restore only).</summary>
+    public IReadOnlyList<string>? Targets { get; init; }
 }
 
 /// <summary>A point-in-time view of a job, as shown in the Operations panel.</summary>

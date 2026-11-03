@@ -17,6 +17,9 @@ public sealed class DeleteExecutorTests
 
         public bool Refuse { get; set; }
 
+        /// <summary>Leaves the <c>$I</c> / <c>$R</c> pair Windows leaves, with the deletion time of <see cref="FixedTime"/>.</summary>
+        public bool WriteRecords { get; set; }
+
         public Task RecycleAsync(LocationPath path, CancellationToken cancellationToken)
         {
             if (Refuse)
@@ -25,6 +28,19 @@ public sealed class DeleteExecutorTests
             }
 
             Recycled.Add(path.Value);
+            if (WriteRecords)
+            {
+                var original = path.Value;
+                var text = new List<byte>();
+                text.AddRange(BitConverter.GetBytes(2L));
+                text.AddRange(BitConverter.GetBytes(1L));
+                text.AddRange(BitConverter.GetBytes(new DateTimeOffset(2026, 11, 3, 10, 30, 0, TimeSpan.Zero).ToFileTime()));
+                text.AddRange(BitConverter.GetBytes(original.Length + 1));
+                text.AddRange(System.Text.Encoding.Unicode.GetBytes(original + "\0"));
+                fs.AddFile(@"C:\$Recycle.Bin\S-1-5-21-1\$INEW.txt", new MockFileData([.. text]));
+                fs.AddFile(@"C:\$Recycle.Bin\S-1-5-21-1\$RNEW.txt", new MockFileData("x"));
+            }
+
             if (fs.Directory.Exists(path.Value))
             {
                 fs.Directory.Delete(path.Value, true);
@@ -85,6 +101,28 @@ public sealed class DeleteExecutorTests
         Assert.Equal(JobState.Completed, job.State);
         Assert.Equal([@"C:\a\1.txt", @"C:\a\tree"], bin.Recycled);
         Assert.All(items, i => Assert.Equal(ItemStatus.Done, i.Status));
+    }
+
+    [Fact]
+    public async Task LocalDelete_ReportsWhereTheBinPutIt_SoItCanBeUndone()
+    {
+        var fs = Disk();
+        var bin = new FakeBin(fs) { WriteRecords = true };
+
+        var (_, items) = await RunAsync(fs, bin, @"C:\a\1.txt");
+
+        Assert.Equal(@"C:\$Recycle.Bin\S-1-5-21-1\$RNEW.txt", items[0].Result);
+    }
+
+    [Fact]
+    public async Task LocalDelete_WhereTheBinKeepsNoRecord_StillSucceeds_ButHasNothingToUndo()
+    {
+        var fs = Disk();
+
+        var (job, items) = await RunAsync(fs, new FakeBin(fs), @"C:\a\1.txt");
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Null(items[0].Result);
     }
 
     [Fact]

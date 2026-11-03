@@ -30,6 +30,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     /// <summary>Raised on a thread-pool thread when a job ends.</summary>
     public event EventHandler<TransferFinished>? Finished;
 
+    /// <summary>Raised on a thread-pool thread when a delete to the Recycle Bin or a share's recycle folder ended, with what went where.</summary>
+    public event EventHandler<IReadOnlyList<ViewModels.Undo.ItemMove>>? DeleteCompleted;
+
     /// <inheritdoc />
     public async Task<TransferOutcome> StartAsync(TransferRequest request, CancellationToken cancellationToken)
     {
@@ -106,7 +109,12 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
         }
         else
         {
-            // The worker can report the end before our own submit call returned.
+            // The worker can report the end before our own submit call returned. Jobs that are not ours (undo's) would pile up here.
+            if (_early.Count > 32)
+            {
+                _early.Clear();
+            }
+
             _early[snapshot.Id] = snapshot;
         }
     }
@@ -115,7 +123,30 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     {
         if (_jobs.TryRemove(snapshot.Id, out var p))
         {
+            if (p.Kind == JobKind.Delete && !p.Permanent)
+            {
+                _ = ReportDeletedAsync(snapshot.Id);
+            }
+
             Finished?.Invoke(this, new TransferFinished(p.Kind, p.Sources, p.Destination, p.Permanent, snapshot));
+        }
+    }
+
+    /// <summary>Tells the undo history where each item went (spec §12.5). Items the bin gave no place for cannot be undone, so they are left out.</summary>
+    private async Task ReportDeletedAsync(Guid jobId)
+    {
+        try
+        {
+            var result = await Connection().GetResultAsync(jobId).ConfigureAwait(false);
+            var moves = WorkerUndoActions.Summarize(result.Items).Done;
+            if (moves.Count > 0)
+            {
+                DeleteCompleted?.Invoke(this, moves);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            // The delete itself is done; only undo is lost.
         }
     }
 

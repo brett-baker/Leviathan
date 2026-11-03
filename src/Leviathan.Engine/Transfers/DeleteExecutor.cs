@@ -102,8 +102,11 @@ public sealed class DeleteExecutor : IJobExecutor
             return new ItemOutcome(source.Value, trashed.Value, ItemStatus.Done);
         }
 
+        // Windows gives no way to ask where the item went, so look it up; without it the delete just cannot be undone (spec §12.5).
+        var started = _time.GetUtcNow() - TimeSpan.FromSeconds(5);
         await _bin.RecycleAsync(source, ct).ConfigureAwait(false);
-        return new ItemOutcome(source.Value, null, ItemStatus.Done);
+        var recycled = RecycleBinIndex.FindRecycled(_fs, source, started);
+        return new ItemOutcome(source.Value, recycled?.Value, ItemStatus.Done);
     }
 
     private void DeletePermanently(LocationPath source, bool isFolder)

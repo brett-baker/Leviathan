@@ -223,10 +223,10 @@ public static class CommandIds
     /// <summary>Delete permanently (Shift+Del), after the user confirms.</summary>
     public static readonly CommandId EditDeletePermanent = new("edit.deletePermanent");
 
-    /// <summary>Undo (Ctrl+Z). Arrives with slice E4.</summary>
+    /// <summary>Undo (Ctrl+Z): the last rename or delete, from any window.</summary>
     public static readonly CommandId EditUndo = new("edit.undo");
 
-    /// <summary>Redo (Ctrl+Y). Arrives with slice E4.</summary>
+    /// <summary>Redo (Ctrl+Y or Ctrl+Shift+Z): what was undone.</summary>
     public static readonly CommandId EditRedo = new("edit.redo");
 
     /// <summary>Space map of a folder (Phase 5).</summary>
@@ -359,7 +359,8 @@ public static partial class WindowCommands
         Folders.RenameService? renamer = null,
         Transfers.ITransferService? transfers = null,
         Drives.DriveCardPreferences? driveCards = null,
-        Transfers.IDeleteService? deleter = null)
+        Transfers.IDeleteService? deleter = null,
+        Undo.UndoService? undo = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -688,6 +689,7 @@ public static partial class WindowCommands
                 try
                 {
                     renamed = await renamer!.RenameAsync(location, text, ct);
+                    undo?.RecordRename(location.Value, renamed.Value);
                     shell.ShowMessage($"Renamed to {renamed.Name}");
                     await tab.ReloadAndSelectAsync(renamed, ct);
                 }
@@ -781,6 +783,24 @@ public static partial class WindowCommands
         Add(CommandIds.EditDelete, "Delete", "Edit", (_, ct) => DeleteSelection(false, ct), _ => CanDeleteHere(), shortcut: "Del", icon: "Delete");
         Add(CommandIds.EditDeletePermanent, "Delete permanently", "Edit", (_, ct) => DeleteSelection(true, ct), _ => CanDeleteHere(), shortcut: "Shift+Del");
 
+        // Undo and redo (spec §12.5): one history for the whole app. The view shows the result: the restored item is selected.
+        async Task ShowUndoOutcome(Undo.UndoOutcome outcome, CancellationToken ct)
+        {
+            shell.ShowMessage(outcome.Message);
+            if (Current() is { } tab)
+            {
+                var here = tab.History.Current;
+                var inHere = outcome.Touched.Select(LocationPath.Parse).Where(p => p.Parent == here).ToList();
+                if (inHere.Count > 0)
+                {
+                    await tab.ReloadAndSelectAsync(inHere[0], ct);
+                }
+            }
+        }
+
+        Add(CommandIds.EditUndo, "Undo", "Edit", async (_, ct) => await ShowUndoOutcome(await undo!.UndoAsync(ct), ct), _ => undo is { CanUndo: true }, shortcut: "Ctrl+Z", icon: "Undo");
+        Add(CommandIds.EditRedo, "Redo", "Edit", async (_, ct) => await ShowUndoOutcome(await undo!.RedoAsync(ct), ct), _ => undo is { CanRedo: true }, shortcut: "Ctrl+Y", icon: "Redo");
+
         // Show or hide the summary card of the drive in Target (spec §8.7); remembered per drive.
         Add(CommandIds.DriveCardToggle, "Show or hide the drive summary", "View", (c, _) => Run(() =>
         {
@@ -868,6 +888,9 @@ public static partial class WindowCommands
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
             ("Del", CommandIds.EditDelete),
             ("Shift+Del", CommandIds.EditDeletePermanent),
+            ("Ctrl+Z", CommandIds.EditUndo),
+            ("Ctrl+Y", CommandIds.EditRedo),
+            ("Ctrl+Shift+Z", CommandIds.EditRedo),
             ("Alt+P", CommandIds.PreviewPane),
             ("F2", CommandIds.EditRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
