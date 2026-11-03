@@ -9,6 +9,7 @@ using Leviathan.Providers.Cloud;
 using Leviathan.Providers.Local;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
+using Leviathan.ViewModels.Hub;
 using Leviathan.ViewModels.Icons;
 using Leviathan.ViewModels.Navigation;
 using Leviathan.ViewModels.Sessions;
@@ -135,6 +136,37 @@ internal sealed class AppHost
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
 
+    /// <summary>The user's operations (copies, moves, deletes) as the Operations tab of the status hub lists them (spec 16.1).</summary>
+    public OperationsModel Operations { get; private init; } = null!;
+
+    private JsonFileStore<HubLayout> HubStore { get; init; } = null!;
+
+    private HubLayout _hubLayout = new();
+    private Timer? _hubSaveTimer;
+
+    /// <summary>The status hub's remembered tab, placement and size; read at startup.</summary>
+    public HubLayout HubLayout => Volatile.Read(ref _hubLayout);
+
+    /// <summary>Remembers the status hub's layout; the file is written a moment after the last change (a drag changes it many times).</summary>
+    public void SaveHubLayout(HubLayout layout)
+    {
+        Volatile.Write(ref _hubLayout, layout);
+        var timer = _hubSaveTimer ??= new Timer(_ => _ = SaveHubLayoutNowAsync());
+        timer.Change(TimeSpan.FromMilliseconds(600), Timeout.InfiniteTimeSpan);
+    }
+
+    private async Task SaveHubLayoutNowAsync()
+    {
+        try
+        {
+            await HubStore.SaveAsync(HubLayout, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The layout is only a convenience; the next change tries again.
+        }
+    }
+
     /// <summary>Draws the app's own icons from the chosen icon pack (spec §4.3).</summary>
     internal IconService Icons { get; private init; } = null!;
 
@@ -151,6 +183,7 @@ internal sealed class AppHost
         await Profiles.Catalog.LoadAsync(cancellationToken).ConfigureAwait(false);
         await ViewRulesStore.LoadAsync(cancellationToken).ConfigureAwait(false);
         ViewRulesStore.Start();
+        Volatile.Write(ref _hubLayout, await HubStore.LoadAsync(cancellationToken).ConfigureAwait(false) ?? new HubLayout());
         var last = await SessionStore.LoadAsync(cancellationToken).ConfigureAwait(false);
         return StartupPlanner.Decide(settings.General, last, Profiles.Catalog);
     }
@@ -223,7 +256,15 @@ internal sealed class AppHost
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
         var queue = DispatcherQueue.GetForCurrentThread();
-        var worker = new Lazy<WorkerConnection>(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
+        // The operations list of the status hub (spec 16.1) hears every job the worker reports; the worker itself is still only
+        // started when something needs it.
+        var operations = new OperationsModel();
+        var worker = new Lazy<WorkerConnection>(() =>
+        {
+            var connection = new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []);
+            connection.JobChanged += (_, job) => operations.Apply(job);
+            return connection;
+        });
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
@@ -287,6 +328,8 @@ internal sealed class AppHost
             Undo = undo,
             Listings = listings,
             Icons = icons,
+            Operations = operations,
+            HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
             SessionStore = sessionStore,

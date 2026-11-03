@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window, IShellActions
         Closed += OnClosed;
         Address.Attach(host.AddressBar);
         BindChromeIcons();
+        InitHub();
         FileList.ItemInvoked += OnFileInvoked;
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
@@ -204,6 +205,13 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        // Esc closes an unpinned status hub (spec 16.1), unless the key belongs to a text box.
+        if (e.Key == VirtualKey.Escape && HandleHubEscape())
+        {
+            e.Handled = true;
+            return;
+        }
+
         // Ctrl+Shift+digit is a layout shortcut (spec §8.1), plain Ctrl+digit selects a tab.
         if (KeyTranslator.IsDown(VirtualKey.Control) && !KeyTranslator.IsDown(VirtualKey.Menu) && !KeyTranslator.IsDown(VirtualKey.Shift)
             && KeyTranslator.DigitOf(e.Key) is > 0 and var digit)
@@ -902,6 +910,8 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Icons.Changed -= OnIconsChanged;
+        App.Host.Operations.Changed -= OnOperationsChanged;
+        _hubWindow?.Close();
         App.Host.Undo.Changed -= OnUndoChanged;
         App.Host.FileClipboard.Changed -= OnClipboardChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;

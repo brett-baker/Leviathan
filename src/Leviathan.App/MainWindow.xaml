@@ -188,7 +188,16 @@
     </Grid>
 
     <!-- Row 3: sidebar | file view | preview pane (spec 4). -->
-    <Grid Grid.Row="3" ColumnSpacing="1">
+    <Grid x:Name="BodyArea" Grid.Row="3">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+    <Grid x:Name="BodyContent" ColumnSpacing="1">
       <Grid.ColumnDefinitions>
         <ColumnDefinition x:Name="SidebarColumn" Width="220" />
         <ColumnDefinition Width="Auto" />
@@ -311,10 +320,11 @@
         </StackPanel>
       </Border>
     </Grid>
+    </Grid>
 
     <!-- Row 4: status bar (spec 16). -->
     <!-- Parts with nothing to say are collapsed; clicking a part acts on it. -->
-    <Grid Grid.Row="4" Padding="8,2" ColumnSpacing="4">
+    <Grid x:Name="StatusBar" Grid.Row="4" Padding="8,2" ColumnSpacing="4">
       <Grid.Resources>
         <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
           <Setter Property="Background" Value="Transparent" />
@@ -330,6 +340,7 @@
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
@@ -357,12 +368,23 @@
       </StackPanel>
       <TextBlock x:Name="MessageText" Grid.Column="4" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-      <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">
+      <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed"
+                  Tapped="OnFreeSpaceTapped" ToolTipService.ToolTip="Space map of this folder (Ctrl+Shift+O)">
         <TextBlock x:Name="FreeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         <ProgressBar x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
       </StackPanel>
-      <TextBlock x:Name="StallText" Grid.Column="6" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
-                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <!-- The jobs running now ("2 jobs, 1 queued, 112 MB/s, 2 min left"); opens the Operations tab of the status hub (spec 16.1). -->
+        <Button x:Name="OperationsPart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick"
+                ToolTipService.ToolTip="Show the operations (Ctrl+Shift+O)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ProgressRing Width="12" Height="12" IsActive="True" />
+            <TextBlock x:Name="OperationsText" Style="{StaticResource CaptionTextBlockStyle}" />
+          </StackPanel>
+        </Button>
+        <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
       <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
         <Slider x:Name="SizeSlider" Width="90" Minimum="64" Maximum="512" StepFrequency="16" SmallChange="16" LargeChange="64" Visibility="Collapsed"
                 VerticalAlignment="Center" ValueChanged="OnSizeSliderChanged" AutomationProperties.Name="Thumbnail size" />
@@ -376,6 +398,12 @@
           <FontIcon Glyph="&#xE80A;" FontSize="14" />
         </Button>
       </StackPanel>
+      <!-- The status hub (spec 16.1): the chevron opens it; the badge counts failed jobs nobody has looked at. -->
+      <Grid Grid.Column="8" VerticalAlignment="Center">
+        <Button x:Name="HubChevron" Style="{StaticResource StatusPart}" Click="OnHubChevronClick" AutomationProperties.Name="Status hub"
+                ToolTipService.ToolTip="Operations, activity, background tasks and quick settings (Ctrl+Shift+O)" />
+        <InfoBadge x:Name="HubBadge" Value="0" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" />
+      </Grid>
     </Grid>
   </Grid>
 </Window>

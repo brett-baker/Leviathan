@@ -119,6 +119,9 @@ public sealed partial class WindowViewModel : ObservableObject
     /// <summary>Stable identity.</summary>
     public Guid Id { get; } = Guid.NewGuid();
 
+    /// <summary>The status hub of this window: open or closed, its tab, placement and size (spec 16.1).</summary>
+    public Hub.StatusHubModel Hub { get; } = new();
+
     /// <summary>The tab strip.</summary>
     public TabStripViewModel Tabs { get; }
 

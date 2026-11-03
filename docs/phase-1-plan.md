@@ -208,7 +208,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
 - [x] **I6. Colour icon set** (§4.3): pick a permissively licensed colour set (Fluent UI System Icons colour variants or similar),
   record it in `THIRD-PARTY-NOTICES.md`, add `IconCatalog` mapping commands and node kinds to icons, and switch the command bar, tree,
   tabs, status bar and menus over; light/dark variants, high-contrast fallback to monochrome glyphs. File-view icons stay from the shell.
-- [ ] **I7. Status hub shell** (§16.1): chevron at the right of the status bar, fly-up panel (height draggable and remembered, Esc /
+- [x] **I7. Status hub shell** (§16.1): chevron at the right of the status bar, fly-up panel (height draggable and remembered, Esc /
   click-outside closes, pin keeps it open), dock bottom / right and pop-out window, tabs Operations, Activity, Background, Quick
   settings, Space. Operations shows the worker jobs that exist now (folder sizes, E2/E3 copies and deletes) in a simple list until
   Phase 2 builds the full panel; Space says "arrives with the space map" until Phase 4. Status-bar parts open the matching tab.

@@ -235,6 +235,9 @@ public static class CommandIds
     /// <summary>Set the Details columns. Parameter: a <see cref="Folders.ColumnChoice"/> from the column chooser (spec §8.2).</summary>
     public static readonly CommandId ViewColumns = new("view.columns");
 
+    /// <summary>Open or close the status hub (Ctrl+Shift+O). Parameter: the <see cref="Hub.HubTab"/> to show, or none for the one last used.</summary>
+    public static readonly CommandId HubToggle = new("hub.toggle");
+
     /// <summary>Collapse or restore the sidebar (Ctrl+B).</summary>
     public static readonly CommandId ViewSidebar = new("pane.sidebar");
 
@@ -1109,6 +1112,7 @@ public static partial class WindowCommands
             var choice = (Folders.ColumnChoice)c.Parameter!;
             Current()!.ApplyColumns(choice.Ids, choice.ForAllOfType);
         }), c => Current() is not null && c.Parameter is Folders.ColumnChoice);
+        Add(CommandIds.HubToggle, "Status hub", "View", (c, _) => Run(() => window.Hub.Toggle(c.Parameter as Hub.HubTab?)), shortcut: "Ctrl+Shift+O");
         Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
 
@@ -1167,6 +1171,7 @@ public static partial class WindowCommands
             ("Ctrl+Shift+Z", CommandIds.EditRedo),
             ("Alt+P", CommandIds.PreviewPane),
             ("Ctrl+B", CommandIds.ViewSidebar),
+            ("Ctrl+Shift+O", CommandIds.HubToggle),
             ("F2", CommandIds.EditRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
