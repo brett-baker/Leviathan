@@ -33,6 +33,14 @@ public sealed class ListingCacheTests
             return Task.CompletedTask;
         }
 
+        public List<(ListingKey Key, DateTimeOffset At)> Touched { get; } = [];
+
+        public Task TouchAsync(ListingKey key, DateTimeOffset listedAt, CancellationToken cancellationToken)
+        {
+            Touched.Add((key, listedAt));
+            return Task.CompletedTask;
+        }
+
         public Task RemoveAsync(LocationPath folder, bool includeDescendants, CancellationToken cancellationToken)
         {
             Removed.Add(folder);
@@ -114,6 +122,21 @@ public sealed class ListingCacheTests
 
         Assert.Equal(4, cache.EntryCount);
         Assert.Equal(4, (await cache.TryGetAsync(Key(@"C:\a"), CancellationToken.None))!.Entries.Count);
+    }
+
+    [Fact]
+    public async Task Put_WithUnchangedContent_OnlyNotesTheNewTimeInTheStore()
+    {
+        var store = new MemoryStore();
+        var cache = new ListingCache(store: store);
+        var key = new ListingKey(P(@"C:\a"), false, false);
+
+        cache.Put(key, [], Stamp, FolderKind.General, changed: false);
+        cache.Put(new ListingKey(P(@"C:\b"), false, false), [], Stamp, FolderKind.General);
+
+        await UntilAsync(() => store.Touched.Count == 1 && store.Saved.Count == 1);
+        Assert.Equal(key, store.Touched[0].Key);
+        Assert.DoesNotContain(key, store.Saved.Keys);
     }
 
     [Fact]
@@ -497,6 +520,8 @@ public sealed class CachedFolderTests
             Task.FromResult<CachedListing?>(new CachedListing([File("old")], Stamp.AddYears(-1), FolderKind.General));
 
         public Task SaveAsync(ListingKey key, CachedListing listing, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task TouchAsync(ListingKey key, DateTimeOffset listedAt, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task RemoveAsync(LocationPath folder, bool includeDescendants, CancellationToken cancellationToken) => Task.CompletedTask;
     }

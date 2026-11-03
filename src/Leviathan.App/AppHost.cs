@@ -3,6 +3,7 @@ using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
+using Leviathan.Data;
 using Leviathan.Interop;
 using Leviathan.Providers.Cloud;
 using Leviathan.Providers.Local;
@@ -222,7 +223,14 @@ internal sealed class AppHost
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
-        var listings = new ListingCache();
+        // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
+        // touch the real ones.
+        var data = Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
+
+        // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
+        var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
@@ -249,11 +257,6 @@ internal sealed class AppHost
         };
         var windows = new WindowManager(services);
 
-        // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
-        // touch the real ones.
-        var data = Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
-            ? custom
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
         var sessionStore = new JsonFileStore<SessionFile>(disk, Path.Combine(data, "session.json"));
         var catalog = new ProfileCatalog(new JsonFileStore<ProfilesFile>(disk, Path.Combine(data, "profiles.json")));
         var recorder = new SessionRecorder(windows, sessionStore, ui);

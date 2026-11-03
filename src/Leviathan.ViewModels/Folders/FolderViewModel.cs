@@ -381,7 +381,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
 
             var kind = FolderKindDetector.Detect(fresh);
             var diff = ListingDiff.Compute(cached.Entries, fresh);
-            Cache?.Put(key, fresh.ToArray(), _time.GetUtcNow(), kind);
+            Cache?.Put(key, fresh.ToArray(), _time.GetUtcNow(), kind, changed: !diff.IsEmpty);
             PostIfCurrent(generation, () =>
             {
                 Entries.RemoveRange(diff.Remove);
@@ -530,7 +530,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             }, token).ConfigureAwait(false);
 
             var kind = FolderKindDetector.Detect(fresh);
-            Cache?.Put(new ListingKey(location, options.IncludeHidden, options.IncludeSystem), fresh.ToArray(), _time.GetUtcNow(), kind);
+            Cache?.Put(new ListingKey(location, options.IncludeHidden, options.IncludeSystem), fresh.ToArray(), _time.GetUtcNow(), kind, changed: !diff.IsEmpty);
             if (diff.IsEmpty)
             {
                 PostIfCurrent(generation, Settled);

@@ -267,4 +267,4 @@ Defaults I will take unless Brett says otherwise; none blocks the first slices.
 
 - [x] **Cache-1/2.** In-memory listing cache, show-then-check with footer notice, invalidation on our own operations (6240a49).
 - [x] **Cache-3.** Folder watcher for local drives: the folder on screen follows the disk (`IFolderWatcher`, `LocalFolderWatcher`). Checked live: create, delete and rename showed within about 0.9 s.
-- [ ] **Cache-4.** SQLite persistent tier for restarts and offline.
+- [x] **Cache-4.** SQLite persistent tier (`listings.db`) for restarts and offline. Checked live: after a restart the 48,797-file folder opened with "Showing the saved listing from 18 seconds ago while the folder is checked".

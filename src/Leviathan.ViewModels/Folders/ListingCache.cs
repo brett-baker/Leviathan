@@ -40,6 +40,9 @@ public interface IListingStore
     /// <summary>Saves a finished listing.</summary>
     Task SaveAsync(ListingKey key, CachedListing listing, CancellationToken cancellationToken);
 
+    /// <summary>Records that a saved listing was checked at <paramref name="listedAt"/> and found unchanged, without writing it again.</summary>
+    Task TouchAsync(ListingKey key, DateTimeOffset listedAt, CancellationToken cancellationToken);
+
     /// <summary>Forgets the folder's saved listings, and those of everything below it when <paramref name="includeDescendants"/> is set.</summary>
     Task RemoveAsync(LocationPath folder, bool includeDescendants, CancellationToken cancellationToken);
 }
@@ -140,14 +143,19 @@ public sealed class ListingCache
     }
 
     /// <summary>Stores a finished listing, in memory and, when there is one, in the store (in the background).</summary>
-    public void Put(ListingKey key, IReadOnlyList<FileEntry> entries, DateTimeOffset listedAt, FolderKind kind)
+    /// <param name="key">What was listed.</param>
+    /// <param name="entries">The items.</param>
+    /// <param name="listedAt">When.</param>
+    /// <param name="kind">The detected folder type.</param>
+    /// <param name="changed">False when the listing is the same as the one the cache already holds, so the store only notes the new time instead of writing megabytes again.</param>
+    public void Put(ListingKey key, IReadOnlyList<FileEntry> entries, DateTimeOffset listedAt, FolderKind kind, bool changed = true)
     {
         ArgumentNullException.ThrowIfNull(entries);
         var listing = new CachedListing(entries, listedAt, kind);
         Remember(key, listing);
         if (Store is { } store)
         {
-            _ = SaveQuietlyAsync(store, key, listing);
+            _ = changed ? SaveQuietlyAsync(store, key, listing) : TouchQuietlyAsync(store, key, listedAt);
         }
     }
 
@@ -226,6 +234,18 @@ public sealed class ListingCache
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Not saved this time; the memory copy still works.
+        }
+    }
+
+    private static async Task TouchQuietlyAsync(IListingStore store, ListingKey key, DateTimeOffset listedAt)
+    {
+        try
+        {
+            await store.TouchAsync(key, listedAt, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The saved time stays old; the listing is checked on the next visit anyway.
         }
     }
 
