@@ -106,7 +106,7 @@ public partial class App : Application
         }
 
         // The icon pack is a setting; it applies before any window draws its icons, and later changes redraw them.
-        Host.Icons.UsePack(Host.Settings.Current.Appearance.IconPack);
+        Host.ApplySettings(Host.Settings.Current);
 
         // Last session is only recorded once the first windows exist and, when the user is asked, once they have chosen, so a window
         // opened just to show the question never replaces the session they are about to pick. Subscribe before the window opens.

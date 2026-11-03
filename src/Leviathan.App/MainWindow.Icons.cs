@@ -72,37 +72,4 @@ public sealed partial class MainWindow
         UpdateStatus();
         UpdateState();
     }
-
-    // Options > Icon set: the installed packs, the one in use checked (written to settings, applies at once).
-    private void FillIconPackMenu()
-    {
-        IconPackMenu.Items.Clear();
-        var current = App.Host.Icons.CurrentId;
-        foreach (var pack in App.Host.Icons.Packs)
-        {
-            var id = pack.Id;
-            var item = new RadioMenuFlyoutItem { Text = pack.Name, GroupName = "iconpack", IsChecked = string.Equals(id, current, StringComparison.OrdinalIgnoreCase) };
-            ToolTipService.SetToolTip(item, $"{pack.Manifest.Description} Licence: {pack.Manifest.License}.");
-            item.Click += async (_, _) => await UseIconPackAsync(id);
-            IconPackMenu.Items.Add(item);
-        }
-
-        if (IconPackMenu.Items.Count == 0)
-        {
-            IconPackMenu.Items.Add(new MenuFlyoutItem { Text = "No icon packs installed", IsEnabled = false });
-        }
-    }
-
-    private static async Task UseIconPackAsync(string id)
-    {
-        try
-        {
-            await App.Host.Settings.UpdateAsync(s => s with { Appearance = s.Appearance with { IconPack = id } }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The pack still applies for this run; only the saved setting failed.
-            App.Host.Icons.UsePack(id);
-        }
-    }
 }

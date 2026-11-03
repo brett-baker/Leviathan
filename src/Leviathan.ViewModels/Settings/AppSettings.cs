@@ -74,6 +74,33 @@ public sealed record AppearanceSettings
     public string IconPack { get; init; } = "fluent";
 }
 
+/// <summary>The settings people change while working: how much runs at once and what is done over the network (spec 16.1 Quick settings).</summary>
+public sealed record PerformanceSettings
+{
+    /// <summary>Background jobs (folder sizes, thumbnails) that run at the same time, 1 to 8.</summary>
+    public int MaxBackgroundJobs { get; init; } = 2;
+
+    /// <summary>Operations (copies, moves, deletes) that run at the same time, 1 to 16.</summary>
+    public int MaxRunningJobs { get; init; } = 3;
+
+    /// <summary>Operations that run at the same time on one device or share, 1 to 4.</summary>
+    public int MaxPerDevice { get; init; } = 1;
+
+    /// <summary>Count the size of folders on network drives. Each one means walking the share, so turning it off spares a slow NAS.</summary>
+    public bool FolderSizesOnNetwork { get; init; } = true;
+
+    /// <summary>Make thumbnails of files on network drives. Each one means reading the file over the network.</summary>
+    public bool ThumbnailsOnNetwork { get; init; } = true;
+
+    /// <summary>The same settings with every number inside its limits (a hand-edited file cannot ask for 500 threads).</summary>
+    public PerformanceSettings Clamped() => this with
+    {
+        MaxBackgroundJobs = Math.Clamp(MaxBackgroundJobs, 1, 8),
+        MaxRunningJobs = Math.Clamp(MaxRunningJobs, 1, 16),
+        MaxPerDevice = Math.Clamp(MaxPerDevice, 1, 4),
+    };
+}
+
 /// <summary>Files and folders page (spec §17.2).</summary>
 public sealed record FilesSettings
 {
@@ -123,6 +150,9 @@ public sealed record AppSettings
 
     /// <summary>Tabs and windows page.</summary>
     public TabSettings Tabs { get; init; } = new();
+
+    /// <summary>What runs at once and what is done over the network (the Quick settings tab).</summary>
+    public PerformanceSettings Performance { get; init; } = new();
 
     /// <summary>Key overrides: command id to gesture text (empty text unbinds). Only the user's changes are stored.</summary>
     public Dictionary<string, string> KeyBindings { get; init; } = [];

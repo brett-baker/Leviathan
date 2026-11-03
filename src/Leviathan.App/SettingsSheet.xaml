@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Leviathan.App.SettingsSheet"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Leviathan.App"
+    xmlns:settings="using:Leviathan.ViewModels.Settings">
+
+  <UserControl.Resources>
+    <DataTemplate x:Key="PageTemplate" x:DataType="settings:SettingsPageInfo">
+      <StackPanel Padding="4,6" Spacing="1">
+        <TextBlock Text="{x:Bind Title}" />
+        <TextBlock Text="{x:Bind Summary}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="ResultTemplate" x:DataType="settings:SettingEntry">
+      <StackPanel Padding="4,6" Spacing="1">
+        <TextBlock Text="{x:Bind Title}" />
+        <TextBlock Text="{x:Bind local:SettingsFormat.Where(PageId)}" Style="{StaticResource CaptionTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+    </DataTemplate>
+    <Style x:Key="SettingTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}" />
+    <Style x:Key="SettingNote" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+      <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </UserControl.Resources>
+
+  <Border x:Name="Frame" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+          BorderThickness="0,1,0,0" CornerRadius="8,8,0,0">
+    <Grid RowSpacing="4">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <Grid Padding="16,10,12,4" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
+        <TextBox x:Name="SearchBox" Grid.Column="1" MaxWidth="520" PlaceholderText="Search all settings" TextChanged="OnSearchChanged"
+                 AutomationProperties.Name="Search all settings" />
+        <Button x:Name="ExpandButton" Grid.Column="2" Width="32" Height="32" Padding="0" Background="Transparent" BorderThickness="0" Click="OnExpandClick"
+                AutomationProperties.Name="Expand" ToolTipService.ToolTip="Fill the window" />
+        <Button x:Name="CloseButton" Grid.Column="3" Width="32" Height="32" Padding="0" Background="Transparent" BorderThickness="0" Click="OnCloseClick"
+                AutomationProperties.Name="Close settings" ToolTipService.ToolTip="Close (Esc)" />
+      </Grid>
+
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="230" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <ListView x:Name="PageList" Padding="8,0" SelectionMode="Single" ItemTemplate="{StaticResource PageTemplate}" SelectionChanged="OnPageSelected" />
+
+        <Grid Grid.Column="1">
+          <ListView x:Name="ResultList" Visibility="Collapsed" Padding="8,0" IsItemClickEnabled="True" SelectionMode="None" ItemClick="OnResultClick"
+                    ItemTemplate="{StaticResource ResultTemplate}" />
+          <TextBlock x:Name="NoResults" Text="No setting matches that." Margin="16,8,0,0" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+          <ScrollViewer x:Name="PageScroll" VerticalScrollBarVisibility="Auto">
+            <Grid Padding="20,8,24,24" MaxWidth="760" HorizontalAlignment="Left">
+              <!-- General -->
+              <StackPanel x:Name="GeneralPage" Spacing="14">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="When the app starts" Style="{StaticResource SettingTitle}" />
+                  <ComboBox x:Name="StartupBox" Width="280" SelectionChanged="OnStartupChanged" AutomationProperties.Name="When the app starts">
+                    <ComboBoxItem Content="Open where I left off (Last session)" />
+                    <ComboBoxItem Content="Open a saved profile" />
+                    <ComboBoxItem Content="Ask me" />
+                  </ComboBox>
+                  <ComboBox x:Name="ProfileBox" Width="280" Visibility="Collapsed" PlaceholderText="Choose a profile" SelectionChanged="OnProfileChanged"
+                            AutomationProperties.Name="Startup profile" />
+                  <TextBlock Text="Profiles are saved from the Options menu (Save current windows as profile)." Style="{StaticResource SettingNote}" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Where a new tab opens" Style="{StaticResource SettingTitle}" />
+                  <TextBox x:Name="NewTabBox" Width="420" HorizontalAlignment="Left" PlaceholderText="Home (leave empty)" LostFocus="OnNewTabCommit" KeyDown="OnNewTabKeyDown"
+                           AutomationProperties.Name="Where a new tab opens" />
+                  <TextBlock x:Name="NewTabNote" Text="A folder such as C:\Projects or \\nas\media. Empty means your user folder." Style="{StaticResource SettingNote}" />
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Appearance -->
+              <StackPanel x:Name="AppearancePage" Spacing="14" Visibility="Collapsed">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Icon set" Style="{StaticResource SettingTitle}" />
+                  <TextBlock Text="The icons of the toolbar, the sidebar, tabs and menus. The change shows at once." Style="{StaticResource SettingNote}" />
+                  <StackPanel x:Name="IconPackList" Spacing="2" />
+                </StackPanel>
+                <TextBlock Text="Theme, density, accent colour and the window backdrop arrive with the next update." Style="{StaticResource SettingNote}" />
+              </StackPanel>
+
+              <!-- Files and folders -->
+              <StackPanel x:Name="FilesPage" Spacing="14" Visibility="Collapsed">
+                <ToggleSwitch x:Name="HiddenSwitch" Header="Show hidden files and folders" Toggled="OnFilesToggled" />
+                <ToggleSwitch x:Name="SystemSwitch" Header="Show system files and folders" Toggled="OnFilesToggled" />
+                <StackPanel Spacing="4">
+                  <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
+                  <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Tabs and windows -->
+              <StackPanel x:Name="TabsPage" Spacing="14" Visibility="Collapsed">
+                <ToggleSwitch x:Name="LastTabSwitch" Header="Closing the last tab opens your home folder instead of closing the window" Toggled="OnTabsToggled" />
+              </StackPanel>
+
+              <!-- Advanced -->
+              <StackPanel x:Name="AdvancedPage" Spacing="14" Visibility="Collapsed">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Settings file" Style="{StaticResource SettingTitle}" />
+                  <TextBlock x:Name="SettingsPathText" Style="{StaticResource SettingNote}" IsTextSelectionEnabled="True" />
+                  <Button Content="Show the settings file" Click="OnShowSettingsFileClick" />
+                  <TextBlock Text="Changes made to the file while the app runs are picked up the next time it starts." Style="{StaticResource SettingNote}" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Diagnostics" Style="{StaticResource SettingTitle}" />
+                  <TextBlock Text="The worker connection, the job queue and crash reports." Style="{StaticResource SettingNote}" />
+                  <Button Content="Open diagnostics" Click="OnDiagnosticsClick" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Caches" Style="{StaticResource SettingTitle}" />
+                  <TextBlock x:Name="CacheText" Style="{StaticResource SettingNote}" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Clear remembered folders" Click="OnClearListingsClick" />
+                    <Button Content="Clear thumbnails" Click="OnClearThumbnailsClick" />
+                    <Button Content="Clear the activity log" Click="OnClearActivityClick" />
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Pages that only say what they will hold -->
+              <StackPanel x:Name="PlannedPage" Spacing="8" Visibility="Collapsed">
+                <TextBlock x:Name="PlannedTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock x:Name="PlannedWhen" Style="{StaticResource SettingNote}" />
+                <ItemsControl x:Name="PlannedList" />
+              </StackPanel>
+            </Grid>
+          </ScrollViewer>
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

@@ -137,6 +137,92 @@ internal sealed class AppHost
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
 
+    private WorkerFolderSizes Sizes { get; init; } = null!;
+
+    private NetworkThumbnailGate ThumbnailGate { get; init; } = null!;
+
+    /// <summary>The folder a new tab opens: the one chosen in General, else Home.</summary>
+    public LocationPath NewTabLocation() =>
+        Settings.Current.General.NewTabLocation is { Length: > 0 } chosen && LocationPath.TryParse(chosen, out var parsed) ? parsed : Home;
+
+    /// <summary>
+    /// Applies the settings to the parts of the app they change (spec 17.2: every setting takes effect without a restart), now and
+    /// whenever they change: what the file list shows, folder sizes, thumbnails, how much runs at once, the last-tab rule, and the
+    /// icon pack. A change made in the View menu is written back, so the two never disagree.
+    /// </summary>
+    private void StartApplyingSettings(IUiContext ui)
+    {
+        Settings.Changed += (_, changed) => ui.Post(() => ApplySettings(changed));
+        ViewOptions.PropertyChanged += (_, _) =>
+        {
+            var wanted = (ViewOptions.ShowHidden, ViewOptions.ShowSystem);
+            var files = Settings.Current.Files;
+            if (wanted != (files.ShowHidden, files.ShowSystem))
+            {
+                _ = SaveQuietlyAsync(s => s with { Files = s.Files with { ShowHidden = wanted.ShowHidden, ShowSystem = wanted.ShowSystem } });
+            }
+        };
+        Windows.WindowOpened += (_, window) => window.Tabs.LastTabResetsToHome = Settings.Current.Tabs.LastTabResetsToHome;
+    }
+
+    /// <summary>Applies <paramref name="settings"/>. On the UI thread.</summary>
+    public void ApplySettings(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        Icons.UsePack(settings.Appearance.IconPack);
+        if (ViewOptions.ShowHidden != settings.Files.ShowHidden)
+        {
+            ViewOptions.ShowHidden = settings.Files.ShowHidden;
+        }
+
+        if (ViewOptions.ShowSystem != settings.Files.ShowSystem)
+        {
+            ViewOptions.ShowSystem = settings.Files.ShowSystem;
+        }
+
+        Sizes.Enabled = settings.Files.ShowFolderSizes;
+        Sizes.NetworkEnabled = settings.Performance.FolderSizesOnNetwork;
+        ThumbnailGate.AllowNetwork = settings.Performance.ThumbnailsOnNetwork;
+        foreach (var window in Windows.Windows)
+        {
+            window.Tabs.LastTabResetsToHome = settings.Tabs.LastTabResetsToHome;
+        }
+
+        if (WorkerLazy.IsValueCreated)
+        {
+            _ = ApplyLimitsAsync(WorkerLazy.Value);
+        }
+    }
+
+    /// <summary>Tells the worker how many jobs may run at once.</summary>
+    public async Task ApplyLimitsAsync(WorkerConnection connection)
+    {
+        var performance = Settings.Current.Performance;
+        try
+        {
+            await connection.SetLimitsAsync(new ConcurrencyLimits(performance.MaxRunningJobs, performance.MaxPerDevice, performance.MaxBackgroundJobs));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
+        {
+            // The worker is not reachable right now; the limits are sent again when it connects.
+        }
+    }
+
+    private async Task SaveQuietlyAsync(Func<AppSettings, AppSettings> change)
+    {
+        try
+        {
+            await Settings.UpdateAsync(change, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A setting that could not be saved still applies for this run.
+        }
+    }
+
+    /// <summary>The settings file, for "Show the settings file".</summary>
+    public string SettingsPath { get; private init; } = string.Empty;
+
     /// <summary>Background jobs, thumbnails and the state of the worker and shell host, for the Background tab (spec 16.1).</summary>
     public BackgroundModel Background { get; private init; } = null!;
 
@@ -309,11 +395,20 @@ internal sealed class AppHost
         // started when something needs it.
         var operations = new OperationsModel();
         AppHost? built = null;
-        var thumbnails = new ThumbnailCache(new ShellThumbnailSource());
+        var thumbnailGate = new NetworkThumbnailGate(new ShellThumbnailSource());
+        var thumbnails = new ThumbnailCache(thumbnailGate);
         BackgroundModel? background = null;
         var worker = new Lazy<WorkerConnection>(() =>
         {
             var connection = new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []);
+            // Whatever the user chose for how much runs at once reaches the worker as soon as it is connected, and again on every change.
+            connection.StatusChanged += (_, status) =>
+            {
+                if (status.Connected && built is not null)
+                {
+                    _ = built.ApplyLimitsAsync(connection);
+                }
+            };
             connection.JobChanged += (_, job) =>
             {
                 operations.Apply(job);
@@ -342,7 +437,7 @@ internal sealed class AppHost
 
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
-        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
+        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         var transfers = new WorkerTransfers(() => worker.Value);
@@ -405,9 +500,12 @@ internal sealed class AppHost
             Operations = operations,
             Activity = activity,
             Background = background,
+            Sizes = sizes,
+            ThumbnailGate = thumbnailGate,
             WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
+            SettingsPath = Path.Combine(data, "settings.json"),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
             SessionStore = sessionStore,
             Recorder = recorder,
@@ -416,7 +514,7 @@ internal sealed class AppHost
 
         // The icon pack is a setting that applies without a restart (spec §17).
         built = host;
-        host.Settings.Changed += (_, changed) => ui.Post(() => icons.UsePack(changed.Appearance.IconPack));
+        host.StartApplyingSettings(ui);
         return host;
     }
 }
@@ -466,6 +564,7 @@ internal static class KeyTranslator
         VirtualKey.Tab or VirtualKey.Enter or VirtualKey.Escape or VirtualKey.Delete or VirtualKey.Space or VirtualKey.Home or VirtualKey.End
             or VirtualKey.Insert or VirtualKey.PageUp or VirtualKey.PageDown => key.ToString(),
         VirtualKey.Back => "Backspace",
+        (VirtualKey)188 => ",",
         _ => null,
     };
 }

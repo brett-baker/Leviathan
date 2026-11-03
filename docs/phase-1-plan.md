@@ -217,7 +217,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
   possible, copy/export. Logging must cost < 1 ms per action on the UI thread (batched writes off-thread). Unit-tested.
 - [x] **I9. Background tab** (§16.1): folder-size queue and rate, thumbnail generation, worker / ShellHost process status and restart
   counts, with pause / resume / priority where the task supports it.
-- [ ] **I10. Quick settings tab and settings sheet** (§16.1, §17.2): Quick settings for background threads / worker processes, running
+- [x] **I10. Quick settings tab and settings sheet** (§16.1, §17.2): Quick settings for background threads / worker processes, running
   jobs, folder sizes on network shares, thumbnails on network files, polling interval, each applied live through the settings store.
   The settings sheet (Options ⚙ and Ctrl+,) rises from the bottom (about 70% of the window), page list left, search on top, expandable
   to full window; Phase 1 fills General, Appearance (G3 builds its page here) and Files and folders; the other pages show what they

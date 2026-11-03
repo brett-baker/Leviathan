@@ -112,7 +112,9 @@ internal sealed partial class StatusHubPanel : UserControl
         LeftGrip.CurrentSize = () => ActualWidth;
         LeftGrip.SizeRequested += (_, size) => WidthRequested?.Invoke(this, size);
         _model.PropertyChanged += OnModelChanged;
+        App.Host.Settings.Changed += OnSettingsChanged;
         Sync();
+        LoadQuick();
         RefreshOperations();
     }
 
@@ -134,6 +136,9 @@ internal sealed partial class StatusHubPanel : UserControl
     /// <summary>Tells whether there is a file action to undo; set by the window.</summary>
     internal Func<bool> CanUndo { get; set; } = () => false;
 
+    /// <summary>"All settings" was clicked.</summary>
+    internal event EventHandler? AllSettingsRequested;
+
     /// <summary>The user chose where the hub is shown.</summary>
     internal event EventHandler<HubPlacement>? PlaceRequested;
 
@@ -146,6 +151,77 @@ internal sealed partial class StatusHubPanel : UserControl
         Frame.BorderThickness = placement == HubPlacement.PoppedOut ? new Thickness(0) : right ? new Thickness(1, 0, 0, 0) : new Thickness(0, 1, 0, 0);
         Frame.CornerRadius = placement == HubPlacement.Flyout ? new CornerRadius(8, 8, 0, 0) : new CornerRadius(0);
     }
+
+    /// <summary>Called when the window closes, so the panel stops listening to the shared settings.</summary>
+    internal void Detach() => App.Host.Settings.Changed -= OnSettingsChanged;
+
+    private void OnSettingsChanged(object? sender, Leviathan.ViewModels.Settings.AppSettings settings) => DispatcherQueue.TryEnqueue(LoadQuick);
+
+    // The controls take their values from the settings; their change events are ignored while they are being filled.
+    private bool _loadingQuick;
+
+    private void LoadQuick()
+    {
+        if (!_ready)
+        {
+            return;
+        }
+
+        var performance = App.Host.Settings.Current.Performance;
+        _loadingQuick = true;
+        try
+        {
+            RunningBox.Value = performance.MaxRunningJobs;
+            PerDeviceBox.Value = performance.MaxPerDevice;
+            BackgroundBox.Value = performance.MaxBackgroundJobs;
+            NetworkSizesSwitch.IsOn = performance.FolderSizesOnNetwork;
+            NetworkThumbsSwitch.IsOn = performance.ThumbnailsOnNetwork;
+        }
+        finally
+        {
+            _loadingQuick = false;
+        }
+    }
+
+    private async void OnQuickNumberChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        // Clearing the box gives NaN; the old number is put back on the next load.
+        if (!_ready || _loadingQuick || double.IsNaN(args.NewValue))
+        {
+            return;
+        }
+
+        var running = (int)RunningBox.Value;
+        var perDevice = (int)PerDeviceBox.Value;
+        var background = (int)BackgroundBox.Value;
+        await SaveQuickAsync(p => p with { MaxRunningJobs = running, MaxPerDevice = perDevice, MaxBackgroundJobs = background });
+    }
+
+    private async void OnQuickToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loadingQuick)
+        {
+            return;
+        }
+
+        var sizes = NetworkSizesSwitch.IsOn;
+        var thumbnails = NetworkThumbsSwitch.IsOn;
+        await SaveQuickAsync(p => p with { FolderSizesOnNetwork = sizes, ThumbnailsOnNetwork = thumbnails });
+    }
+
+    private static async Task SaveQuickAsync(Func<Leviathan.ViewModels.Settings.PerformanceSettings, Leviathan.ViewModels.Settings.PerformanceSettings> change)
+    {
+        try
+        {
+            await App.Host.Settings.UpdateAsync(s => s with { Performance = change(s.Performance) }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The change still applies for this run; the file could not be written.
+        }
+    }
+
+    private void OnAllSettingsClick(object sender, RoutedEventArgs e) => AllSettingsRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>Shows the Background tab again: jobs, thumbnails, processes. Lists are only replaced when something changed, so an open menu is not closed under the user.</summary>
     internal void RefreshBackground()

@@ -26,19 +26,31 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
     /// <summary>Creates the source; <paramref name="worker"/> is called on first use to get the connection to the worker.</summary>
     public WorkerFolderSizes(Func<WorkerConnection> worker) => _worker = worker;
 
+    /// <summary>False when the user turned folder sizes off (Files and folders): nothing is counted and no size is shown.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>False when sizes are not wanted on network drives (Quick settings): such a folder costs a walk of the whole share.</summary>
+    public bool NetworkEnabled { get; set; } = true;
+
     /// <inheritdoc />
     public event EventHandler<IReadOnlyList<LocationPath>>? Computed;
 
     /// <inheritdoc />
-    public bool CanCompute(LocationPath folder) => folder.Value.Length >= 2 && folder.Value[1] == ':';
+    public bool CanCompute(LocationPath folder) =>
+        Enabled && folder.Value.Length >= 2 && folder.Value[1] == ':' && (NetworkEnabled || !Leviathan.Providers.Local.MappedDrives.IsMappedDrive(folder));
 
     /// <inheritdoc />
-    public FolderSizeInfo? TryGet(LocationPath folder) => _cache.TryGetValue(folder, out var info) ? info : null;
+    public FolderSizeInfo? TryGet(LocationPath folder) => Enabled && CanCompute(folder) && _cache.TryGetValue(folder, out var info) ? info : null;
 
     /// <inheritdoc />
     public void Request(IReadOnlyList<FileEntry> folders)
     {
-        var copy = folders.ToList();
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var copy = folders.Where(f => CanCompute(f.Location)).ToList();
         _ = Task.Run(() => RequestAsync(copy, _closing.Token), _closing.Token);
     }
 

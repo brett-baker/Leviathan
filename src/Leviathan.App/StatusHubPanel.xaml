@@ -228,8 +228,33 @@
             </StackPanel>
           </StackPanel>
         </ScrollViewer>
-        <TextBlock x:Name="QuickSettingsPage" Text="Live settings (limits, bandwidth, polling) arrive with slice I10." TextWrapping="Wrap"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
+        <ScrollViewer x:Name="QuickSettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="12" Padding="0,0,8,8" MaxWidth="640" HorizontalAlignment="Left">
+            <TextBlock Text="How much runs at once" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <Grid ColumnSpacing="16" RowSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <NumberBox x:Name="RunningBox" Header="Copies, moves and deletes" Minimum="1" Maximum="16" SpinButtonPlacementMode="Inline" SmallChange="1"
+                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="All together, on every drive" />
+              <NumberBox x:Name="PerDeviceBox" Grid.Column="1" Header="On one drive or share" Minimum="1" Maximum="4" SpinButtonPlacementMode="Inline" SmallChange="1"
+                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="One at a time is kindest to a NAS" />
+              <NumberBox x:Name="BackgroundBox" Grid.Column="2" Header="Background work" Minimum="1" Maximum="8" SpinButtonPlacementMode="Inline" SmallChange="1"
+                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="Folder sizes, thumbnails and the like" />
+            </Grid>
+            <TextBlock Text="On network drives" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <ToggleSwitch x:Name="NetworkSizesSwitch" Header="Count the size of folders" Toggled="OnQuickToggled"
+                          ToolTipService.ToolTip="Each folder means walking the whole share. Turn off to spare a slow NAS." />
+            <ToggleSwitch x:Name="NetworkThumbsSwitch" Header="Make thumbnails of files" Toggled="OnQuickToggled"
+                          ToolTipService.ToolTip="Each thumbnail means reading the file over the network." />
+            <TextBlock Text="Not yet" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <TextBlock Text="How often shares are checked for changes, and a limit on copy speed with a schedule, arrive with the network and operations work of Phase 2."
+                       TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton Content="All settings…" Click="OnAllSettingsClick" Padding="0" />
+          </StackPanel>
+        </ScrollViewer>
         <TextBlock x:Name="SpacePage" Text="The space map of this folder arrives with Phase 4." TextWrapping="Wrap"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
       </Grid>

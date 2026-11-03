@@ -71,6 +71,7 @@ public sealed partial class MainWindow : Window, IShellActions
         Address.Attach(host.AddressBar);
         BindChromeIcons();
         InitHub();
+        InitSettingsSheet();
         FileList.ItemInvoked += OnFileInvoked;
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
@@ -205,6 +206,13 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        // Esc closes the settings sheet (spec 17.2) wherever the focus is, even in its search box.
+        if (e.Key == VirtualKey.Escape && HandleSettingsEscape())
+        {
+            e.Handled = true;
+            return;
+        }
+
         // Esc closes an unpinned status hub (spec 16.1), unless the key belongs to a text box.
         if (e.Key == VirtualKey.Escape && HandleHubEscape())
         {
@@ -913,6 +921,8 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Operations.Changed -= OnOperationsChanged;
         App.Host.Activity.Changed -= OnActivityChanged;
         App.Host.Background.Changed -= OnBackgroundChanged;
+        _settingsSheet?.Detach();
+        _hubPanel?.Detach();
         _hubWindow?.Close();
         App.Host.Undo.Changed -= OnUndoChanged;
         App.Host.FileClipboard.Changed -= OnClipboardChanged;

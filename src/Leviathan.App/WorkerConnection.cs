@@ -68,6 +68,9 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Switches a disabled worker back on (the user asked, spec 3.4).</summary>
     public void Reenable() => _supervisor.Reenable();
 
+    /// <summary>Sets how many jobs run at once (Quick settings).</summary>
+    public Task SetLimitsAsync(ConcurrencyLimits limits) => _client.Service.SetLimitsAsync(limits, _closing.Token);
+
     /// <summary>Pauses a job (the Background tab).</summary>
     public Task PauseAsync(Guid jobId) => _client.Service.PauseAsync(jobId, _closing.Token);
 

@@ -45,6 +45,7 @@ public sealed partial class MainWindow
         panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
         panel.WidthRequested += (_, width) => hub.SetWidth(width, BodyArea.ActualWidth);
         panel.PlaceRequested += (_, placement) => hub.Place(placement);
+        panel.AllSettingsRequested += (_, _) => Run(CommandIds.SettingsOpen);
         panel.GoToRequested += (_, where) => Run(CommandIds.NavGo, where);
         panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
         panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);

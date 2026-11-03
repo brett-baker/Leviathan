@@ -166,24 +166,23 @@
         <TextBox x:Name="FilterBox" Width="170" PlaceholderText="Filter this folder" AutomationProperties.Name="Filter this folder"
                  ToolTipService.ToolTip="Filters as you type: *.mp4, size:&gt;1GB, tag:red, duration:&lt;2m (Ctrl+Shift+F)"
                  TextChanged="OnFilterTextChanged" KeyDown="OnFilterKeyDown" />
-        <Button x:Name="OptionsButton" ToolTipService.ToolTip="Options" AutomationProperties.Name="Options">
+        <SplitButton x:Name="OptionsButton" ToolTipService.ToolTip="Settings (Ctrl+,). The arrow has windows, profiles and diagnostics." AutomationProperties.Name="Settings"
+                     Click="OnOptionsClick" Padding="8,4">
           <FontIcon Glyph="&#xE713;" FontSize="14" />
-          <Button.Flyout>
+          <SplitButton.Flyout>
             <MenuFlyout Opening="OnOptionsMenuOpening">
               <MenuFlyoutItem Text="New window" Click="OnNewWindowClick" />
               <MenuFlyoutSubItem x:Name="ProfilesMenu" Text="Profiles" />
               <MenuFlyoutSubItem x:Name="StartupMenu" Text="At startup" />
-              <MenuFlyoutSubItem x:Name="IconPackMenu" Text="Icon set" />
               <MenuFlyoutSeparator />
-              <MenuFlyoutItem Text="Settings (slice G3)" IsEnabled="False" />
-              <MenuFlyoutItem Text="Folder options" IsEnabled="False" />
+              <MenuFlyoutItem Text="Settings…" Click="OnOptionsClick" KeyboardAcceleratorTextOverride="Ctrl+," />
               <MenuFlyoutItem Text="Operations queue (Phase 2)" IsEnabled="False" />
               <MenuFlyoutItem Text="Soft-delete bin (Phase 2)" IsEnabled="False" />
               <MenuFlyoutSeparator />
               <MenuFlyoutItem Text="Diagnostics…" Click="OnDiagnosticsClick" />
             </MenuFlyout>
-          </Button.Flyout>
-        </Button>
+          </SplitButton.Flyout>
+        </SplitButton>
       </StackPanel>
     </Grid>
 
@@ -404,6 +403,11 @@
                 ToolTipService.ToolTip="Operations, activity, background tasks and quick settings (Ctrl+Shift+O)" />
         <InfoBadge x:Name="HubBadge" Value="0" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" />
       </Grid>
+    </Grid>
+
+    <!-- The settings sheet (spec 17.2, D36) rises over the window from the bottom; the sheet itself is made the first time it is opened. -->
+    <Grid x:Name="SettingsLayer" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed">
+      <Border x:Name="SettingsScrim" Background="#66000000" Tapped="OnSettingsScrimTapped" />
     </Grid>
   </Grid>
 </Window>
