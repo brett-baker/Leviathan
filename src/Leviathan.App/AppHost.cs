@@ -189,6 +189,7 @@ internal sealed class AppHost
         }
 
         ApplyKeyBindings(settings.KeyBindings);
+        ApplyAppearance(settings.Appearance);
         Sizes.Enabled = settings.Files.ShowFolderSizes;
         Sizes.NetworkEnabled = settings.Performance.FolderSizesOnNetwork;
         ThumbnailGate.AllowNetwork = settings.Performance.ThumbnailsOnNetwork;
@@ -201,6 +202,36 @@ internal sealed class AppHost
         {
             _ = ApplyLimitsAsync(WorkerLazy.Value);
         }
+    }
+
+    /// <summary>Raised on the UI thread when the theme, the density, the accent, the backdrop or the icon size changed; each window redraws itself.</summary>
+    public event EventHandler? AppearanceChanged;
+
+    private (ThemeMode, Density, bool, string, int)? _appliedLook;
+
+    // The look of the app (spec 17.2 Appearance). The accent and the sizes are app-wide and set here; the theme and the backdrop
+    // belong to each window, which listens to AppearanceChanged.
+    private void ApplyAppearance(AppearanceSettings look)
+    {
+        var key = (look.Theme, look.Density, look.Mica, look.Accent, look.IconSize);
+        if (_appliedLook == key)
+        {
+            return;
+        }
+
+        var first = _appliedLook is null;
+        var accentChanged = first || _appliedLook!.Value.Item4 != look.Accent;
+        _appliedLook = key;
+        var metrics = AppearanceMetrics.For(look.Density, look.IconSize);
+        GridRow.RowHeight = metrics.DetailsRowHeight;
+        GridRow.IconSize = metrics.IconSize;
+        SidebarFormat.VerticalPadding = metrics.SidebarRowPadding;
+        if (accentChanged)
+        {
+            AccentResources.Apply(look.Accent);
+        }
+
+        AppearanceChanged?.Invoke(this, EventArgs.Empty);
     }
 
     // The default keys with the user's changes from the settings file (spec 17.3). Only rebuilt when the file's KeyBindings changed.
@@ -244,6 +275,12 @@ internal sealed class AppHost
             // A setting that could not be saved still applies for this run.
         }
     }
+
+    /// <summary>Where the app keeps its settings, session, profiles and caches; <c>LEVIATHAN_DATA_DIR</c> moves it (a portable copy, or a test run).</summary>
+    public static string DataFolder() =>
+        Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
 
     /// <summary>The settings file, for "Show the settings file".</summary>
     public string SettingsPath { get; private init; } = string.Empty;
@@ -456,9 +493,7 @@ internal sealed class AppHost
         var viewRules = new FolderViewRules();
         // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
         // touch the real ones.
-        var data = Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
-            ? custom
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
+        var data = DataFolder();
 
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));

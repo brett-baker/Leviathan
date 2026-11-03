@@ -118,7 +118,7 @@ public sealed class SettingsStore : IDisposable
     private static AppSettings Normalize(AppSettings settings) => settings with
     {
         General = settings.General ?? new GeneralSettings(),
-        Appearance = settings.Appearance ?? new AppearanceSettings(),
+        Appearance = (settings.Appearance ?? new AppearanceSettings()).Cleaned(),
         Files = settings.Files ?? new FilesSettings(),
         Tabs = settings.Tabs ?? new TabSettings(),
         Performance = (settings.Performance ?? new PerformanceSettings()).Clamped(),

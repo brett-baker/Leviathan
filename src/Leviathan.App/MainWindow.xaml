@@ -229,7 +229,7 @@
         </ListView.ItemContainerStyle>
         <ListView.ItemTemplate>
           <DataTemplate x:DataType="sidebar:SidebarNode">
-            <Grid Background="{x:Bind local:SidebarFormat.Background(IsSelected), Mode=OneWay}" CornerRadius="4" Padding="2,3"
+            <Grid Background="{x:Bind local:SidebarFormat.Background(IsSelected), Mode=OneWay}" CornerRadius="4" Padding="{x:Bind local:SidebarFormat.RowPadding()}"
                   BorderThickness="1" BorderBrush="Transparent"
                   AllowDrop="True" DragOver="OnSidebarDragOver" DragLeave="OnSidebarDragLeave" Drop="OnSidebarDrop"
                   ToolTipService.ToolTip="{x:Bind Detail}">

@@ -29,6 +29,17 @@ public partial class App : Application
         Crashes = new CrashHandlers(builder, new CrashBundleStore(new FileSystem(), CrashBundleStore.DefaultRoot));
         Crashes.Install();
 
+        // The application's theme can only be chosen here, before anything is drawn; "same as Windows" leaves it alone.
+        switch (ThemePeek.Read(Path.Combine(AppHost.DataFolder(), "settings.json")))
+        {
+            case ViewModels.Settings.ThemeMode.Light:
+                RequestedTheme = ApplicationTheme.Light;
+                break;
+            case ViewModels.Settings.ThemeMode.Dark:
+                RequestedTheme = ApplicationTheme.Dark;
+                break;
+        }
+
         InitializeComponent();
 
         // WinUI-specific: exceptions on the UI thread. Write the bundle, then let the app crash as normal.

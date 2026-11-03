@@ -253,6 +253,22 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
+    /// <summary>Takes the row height and the icon size again after the density or the icon size changed.</summary>
+    internal void RefreshMetrics()
+    {
+        foreach (var row in _realized.ToList())
+        {
+            row.ApplyMetrics();
+            if (row.Entry is not null)
+            {
+                row.Bind(row.Entry);
+            }
+        }
+
+        Repeater.InvalidateMeasure();
+        Repeater.InvalidateArrange();
+    }
+
     /// <summary>Draws the icons of the rows again after the icon pack or the theme changed.</summary>
     internal void RefreshIcons()
     {

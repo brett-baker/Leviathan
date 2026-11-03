@@ -16,8 +16,11 @@ namespace Leviathan.App;
 /// </summary>
 internal sealed class GridRow : Grid
 {
-    /// <summary>Row height in device-independent pixels. Fixed, so the grid can compute scroll positions without measuring.</summary>
-    public const double RowHeight = 30;
+    /// <summary>Row height in device-independent pixels. The same for every row, so the grid can compute scroll positions without measuring; it follows the density and icon size of the Appearance settings.</summary>
+    public static double RowHeight { get; set; } = 30;
+
+    /// <summary>Size of the icon in front of a name (Appearance: icon size).</summary>
+    public static double IconSize { get; set; } = 16;
 
     private const double IconWidth = 24;
 
@@ -45,6 +48,22 @@ internal sealed class GridRow : Grid
     private TextBlock? _nameText;
     private bool _hover;
     private bool _dropTarget;
+
+    /// <summary>Takes the row height and icon size again (the density or icon size was changed).</summary>
+    public void ApplyMetrics()
+    {
+        Height = RowHeight;
+        if (_nameImage is not null)
+        {
+            _nameImage.Width = IconSize;
+            _nameImage.Height = IconSize;
+        }
+
+        if (_nameIcon is not null)
+        {
+            _nameIcon.FontSize = IconSize * 0.875;
+        }
+    }
 
     /// <summary>Creates an empty row for <paramref name="owner"/>.</summary>
     public GridRow(DetailsGrid owner)
@@ -257,8 +276,8 @@ internal sealed class GridRow : Grid
             FrameworkElement element = text;
             if (slot.Column == FileColumns.Name)
             {
-                icon = new FontIcon { FontSize = 16, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false };
-                _nameImage = new Image { Width = 16, Height = 16, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+                icon = new FontIcon { FontSize = IconSize * 0.875, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false };
+                _nameImage = new Image { Width = IconSize, Height = IconSize, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false, Visibility = Visibility.Collapsed };
                 var panel = new Grid { IsHitTestVisible = false };
                 panel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -301,7 +320,7 @@ internal sealed class GridRow : Grid
             if (cell.Icon is { } icon)
             {
                 // The icon pack draws the kind of item (spec 4.3); the system glyph stays for a pack without it and for high contrast.
-                var picture = Icons.Shared(Formatters.IconKey(entry.Kind, entry.Attributes));
+                var picture = Icons.Shared(Formatters.IconKey(entry.Kind, entry.Attributes), IconSize);
                 if (picture is not null && _nameImage is not null)
                 {
                     _nameImage.Source = picture;

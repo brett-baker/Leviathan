@@ -72,6 +72,7 @@ public sealed partial class MainWindow : Window, IShellActions
         BindChromeIcons();
         InitHub();
         InitSettingsSheet();
+        InitAppearance();
         FileList.ItemInvoked += OnFileInvoked;
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
@@ -920,6 +921,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;
+        App.Host.AppearanceChanged -= OnAppearanceChanged;
         App.Host.Activity.Changed -= OnActivityChanged;
         App.Host.Background.Changed -= OnBackgroundChanged;
         _settingsSheet?.Detach();

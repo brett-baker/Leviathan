@@ -104,13 +104,35 @@
               </StackPanel>
 
               <!-- Appearance -->
-              <StackPanel x:Name="AppearancePage" Spacing="14" Visibility="Collapsed">
+              <StackPanel x:Name="AppearancePage" Spacing="16" Visibility="Collapsed">
+                <RadioButtons x:Name="ThemeButtons" Header="Theme (takes effect the next time the app starts)" SelectionChanged="OnLookChanged" AutomationProperties.Name="Theme">
+                  <x:String>Same as Windows</x:String>
+                  <x:String>Light</x:String>
+                  <x:String>Dark</x:String>
+                </RadioButtons>
+                <RadioButtons x:Name="DensityButtons" Header="Density" SelectionChanged="OnLookChanged" AutomationProperties.Name="Density">
+                  <x:String>Comfortable: roomier rows</x:String>
+                  <x:String>Compact: more on the screen</x:String>
+                </RadioButtons>
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Accent colour" Style="{StaticResource SettingTitle}" />
+                  <StackPanel x:Name="AccentList" Orientation="Horizontal" Spacing="6" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox x:Name="AccentBox" Width="140" PlaceholderText="#RRGGBB" LostFocus="OnAccentCommit" KeyDown="OnAccentKeyDown" AutomationProperties.Name="Accent colour as #RRGGBB" />
+                    <TextBlock x:Name="AccentNote" Style="{StaticResource SettingNote}" VerticalAlignment="Center" Text="Pick one, or type a colour. The first swatch follows Windows. Windows opened from now on use it; this one has it from the next start." />
+                  </StackPanel>
+                </StackPanel>
+                <ToggleSwitch x:Name="MicaSwitch" Header="Window backdrop (Mica): the colour of your wallpaper shows through" Toggled="OnLookToggled" />
+                <RadioButtons x:Name="IconSizeButtons" Header="Icon size in the file list" SelectionChanged="OnLookChanged" AutomationProperties.Name="Icon size">
+                  <x:String>Small (16)</x:String>
+                  <x:String>Medium (20)</x:String>
+                  <x:String>Large (24)</x:String>
+                </RadioButtons>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Icon set" Style="{StaticResource SettingTitle}" />
                   <TextBlock Text="The icons of the toolbar, the sidebar, tabs and menus. The change shows at once." Style="{StaticResource SettingNote}" />
                   <StackPanel x:Name="IconPackList" Spacing="2" />
                 </StackPanel>
-                <TextBlock Text="Theme, density, accent colour and the window backdrop arrive with the next update." Style="{StaticResource SettingNote}" />
               </StackPanel>
 
               <!-- Files and folders -->

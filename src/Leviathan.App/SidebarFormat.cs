@@ -37,6 +37,12 @@ internal static class SidebarFormat
             ? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, Convert.ToByte(accent![1..3], 16), Convert.ToByte(accent[3..5], 16), Convert.ToByte(accent[5..7], 16)))
             : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
+    /// <summary>Space above and below a row's text; the density sets it (Appearance), and the list is drawn again when it changes.</summary>
+    public static double VerticalPadding { get; set; } = 3;
+
+    /// <summary>The padding of a sidebar row.</summary>
+    public static Thickness RowPadding() => new(2, VerticalPadding, 2, VerticalPadding);
+
     /// <summary>The row's icon from the chosen icon pack: the user's pick and colour for a favorite, else the standard one for its kind (spec §4.3).</summary>
     public static Microsoft.UI.Xaml.Controls.IconElement IconOf(SidebarIcon icon, string? custom, string? accent) =>
         Icons.OfGlyph(Glyph(icon, custom), 16, FavoriteStyles.IsColor(accent) ? accent : null);

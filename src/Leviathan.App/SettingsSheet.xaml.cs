@@ -144,6 +144,15 @@ internal sealed partial class SettingsSheet : UserControl
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
             LastTabSwitch.IsOn = settings.Tabs.LastTabResetsToHome;
             FillIconPacks(settings.Appearance.IconPack);
+            ThemeButtons.SelectedIndex = (int)settings.Appearance.Theme;
+            DensityButtons.SelectedIndex = settings.Appearance.Density == Density.Compact ? 1 : 0;
+            MicaSwitch.IsOn = settings.Appearance.Mica;
+            IconSizeButtons.SelectedIndex = Math.Max(0, Leviathan.ViewModels.Settings.AppearanceMetrics.IconSizes.ToList().IndexOf(settings.Appearance.IconSize));
+            FillAccents(settings.Appearance.Accent);
+            if (!AccentBox.FocusState.HasFlag(FocusState.Keyboard))
+            {
+                AccentBox.Text = settings.Appearance.Accent;
+            }
             SettingsPathText.Text = App.Host.SettingsPath;
         }
         finally
@@ -187,6 +196,90 @@ internal sealed partial class SettingsSheet : UserControl
         }
 
         _ = current;
+    }
+
+    // The accent swatches: "Windows" first (no colour of its own), then the presets; the one in use is ringed.
+    private void FillAccents(string current)
+    {
+        AccentList.Children.Clear();
+        AccentList.Children.Add(Swatch("Windows accent", string.Empty, current.Length == 0));
+        foreach (var (name, hex) in AccentPalette.Presets)
+        {
+            AccentList.Children.Add(Swatch(name, hex, string.Equals(hex, current, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    private static Button Swatch(string name, string hex, bool chosen)
+    {
+        var fill = AccentPalette.From(hex) is { } palette
+            ? Windows.UI.Color.FromArgb(255, palette.Accent.R, palette.Accent.G, palette.Accent.B)
+            : (Windows.UI.Color)Application.Current.Resources["SystemAccentColor"];
+        var button = new Button
+        {
+            Width = 32,
+            Height = 32,
+            Padding = new Thickness(0),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(fill),
+            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(chosen ? Windows.UI.Color.FromArgb(255, 128, 128, 128) : Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(chosen ? 3 : 1),
+            CornerRadius = new CornerRadius(16),
+            Content = chosen ? new FontIcon { Glyph = "\uE73E", FontSize = 14, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) } : null,
+        };
+        ToolTipService.SetToolTip(button, name);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
+        button.Click += async (_, _) => await SaveAsync(s => s with { Appearance = s.Appearance with { Accent = hex } });
+        return button;
+    }
+
+    private async void OnLookChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _loading || ThemeButtons.SelectedIndex < 0 || DensityButtons.SelectedIndex < 0 || IconSizeButtons.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var theme = (ThemeMode)ThemeButtons.SelectedIndex;
+        var density = DensityButtons.SelectedIndex == 1 ? Density.Compact : Density.Comfortable;
+        var size = AppearanceMetrics.IconSizes[IconSizeButtons.SelectedIndex];
+        await SaveAsync(s => s with { Appearance = s.Appearance with { Theme = theme, Density = density, IconSize = size } });
+    }
+
+    private async void OnLookToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var mica = MicaSwitch.IsOn;
+        await SaveAsync(s => s with { Appearance = s.Appearance with { Mica = mica } });
+    }
+
+    private void OnAccentKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            OnAccentCommit(sender, e);
+        }
+    }
+
+    private async void OnAccentCommit(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var text = AccentBox.Text.Trim();
+        if (text.Length > 0 && AccentPalette.From(text) is null)
+        {
+            AccentNote.Text = $"'{text}' is not a colour. Write it like #0F6CBD.";
+            return;
+        }
+
+        AccentNote.Text = "Pick one, or type a colour. The first swatch follows Windows. Windows opened from now on use it; this one has it from the next start.";
+        await SaveAsync(s => s with { Appearance = s.Appearance with { Accent = text.Length == 0 ? string.Empty : AccentPalette.From(text)!.Accent.Hex } });
     }
 
     private static async Task SaveAsync(Func<AppSettings, AppSettings> change)

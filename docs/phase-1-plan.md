@@ -232,7 +232,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
   Verified: 66 new view-model tests (629 total), all suites green; in the real app (isolated data folder) a hard kill and relaunch restored 3 tabs and the selected one, a clean close and relaunch restored 4, a tab planted on a dead share (10.255.255.1) restored offline with the window up in 1.65 s and the app responsive, and with "ask me" set the picker listed Last session, the profile and a fresh window and choosing the profile opened its tabs and closed the temporary window.
   Not done: tab groups, status hub height and dock position (their slices I4, I10 come first in the plan; the file layout ignores unknown properties, so they join Last session when built), split-pane state beyond the flag (Phase 2), keyboard control of the picker was not tested (injected keys), a restore that crashes the app on every start has no safe-mode (rename `session.json`), settings page UI (I10), command palette entry.
 - [x] **G2. Keyboard map** (§17.3) complete for Phase 1 commands, remappable through the settings file.
-- [ ] **G3. Appearance:** theme, Compact/Comfortable density, accent, Mica on/off, icon size (§17.2 Appearance page in the settings sheet from I10).
+- [x] **G3. Appearance:** theme, Compact/Comfortable density, accent, Mica on/off, icon size (§17.2 Appearance page in the settings sheet from I10).
 
 ### H. Verification and finish
 

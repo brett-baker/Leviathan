@@ -67,6 +67,18 @@ public sealed record AppearanceSettings
     /// <summary>Accent colour as <c>#RRGGBB</c>, or empty to use the system accent.</summary>
     public string Accent { get; init; } = string.Empty;
 
+    /// <summary>Size of the icons in the file list: 16, 20 or 24.</summary>
+    public int IconSize { get; init; } = 16;
+
+    /// <summary>The same settings with a readable accent and an icon size from the list (a hand-edited file cannot break the look).</summary>
+    public AppearanceSettings Cleaned() => this with
+    {
+        Accent = AccentPalette.From(Accent) is { } palette ? palette.Accent.Hex : string.Empty,
+        IconSize = AppearanceMetrics.NearestIconSize(IconSize),
+        Theme = Enum.IsDefined(Theme) ? Theme : ThemeMode.System,
+        Density = Enum.IsDefined(Density) ? Density : Density.Comfortable,
+    };
+
     /// <summary>
     /// The id of the icon pack that draws the app's own icons (spec §4.3), e.g. <c>fluent</c> or <c>fontawesome</c>. An id that is
     /// not installed falls back to the default pack. Applies without a restart.
