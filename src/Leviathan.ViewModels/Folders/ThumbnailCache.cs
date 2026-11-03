@@ -19,6 +19,14 @@ public interface IThumbnailCache
     void Clear();
 }
 
+/// <summary>The state of the thumbnail cache.</summary>
+/// <param name="Cached">Entries held, including remembered "no thumbnail" results.</param>
+/// <param name="Bytes">Pixel bytes held.</param>
+/// <param name="Capacity">The byte budget.</param>
+/// <param name="Generating">Thumbnails being made right now.</param>
+/// <param name="Failed">Files whose thumbnail failed and is not retried until they change.</param>
+public sealed record ThumbnailStats(int Cached, long Bytes, long Capacity, int Generating, int Failed);
+
 /// <summary>
 /// An in-memory thumbnail cache with a byte budget (spec §2.4, "size-capped LRU"). Concurrent requests for the same image share
 /// one generation; at most <c>maxConcurrent</c> generations run at once so fast scrolling cannot flood the shell; a request
@@ -51,6 +59,18 @@ public sealed class ThumbnailCache : IThumbnailCache, IDisposable
 
     /// <summary>Bytes of pixel data held.</summary>
     public long CachedBytes { get; private set; }
+
+    /// <summary>What the cache holds and is doing now, for the Background tab (spec 16.1).</summary>
+    public ThumbnailStats Stats
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return new ThumbnailStats(_entries.Count, CachedBytes, _capacity, _inFlight.Count, _failed.Count);
+            }
+        }
+    }
 
     /// <summary>Number of cached entries (including remembered "no thumbnail" results).</summary>
     public int Count

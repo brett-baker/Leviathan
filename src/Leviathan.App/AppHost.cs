@@ -137,6 +137,51 @@ internal sealed class AppHost
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
 
+    /// <summary>Background jobs, thumbnails and the state of the worker and shell host, for the Background tab (spec 16.1).</summary>
+    public BackgroundModel Background { get; private init; } = null!;
+
+    private Lazy<WorkerConnection> WorkerLazy { get; init; } = null!;
+
+    /// <summary>True once the shell host was needed (reading <see cref="ShellHost"/> would start it).</summary>
+    internal bool IsShellHostStarted => _shellHost.IsValueCreated;
+
+    private static ProcessEntry ProcessEntryFor(string name, Leviathan.Engine.Supervision.SupervisedState state, int? pid, int restarts, string? disabledReason, string purpose) => new(
+        name,
+        state switch
+        {
+            Leviathan.Engine.Supervision.SupervisedState.Running => "Running",
+            Leviathan.Engine.Supervision.SupervisedState.Restarting => "Restarting after a crash",
+            Leviathan.Engine.Supervision.SupervisedState.Disabled => "Switched off",
+            _ => "Stopped until it is needed",
+        },
+        pid,
+        restarts,
+        state == Leviathan.Engine.Supervision.SupervisedState.Disabled ? disabledReason ?? purpose : purpose,
+        state == Leviathan.Engine.Supervision.SupervisedState.Disabled);
+
+    /// <summary>Pauses a background job.</summary>
+    public Task PauseJobAsync(Guid id) => WorkerLazy.IsValueCreated ? WorkerLazy.Value.PauseAsync(id) : Task.CompletedTask;
+
+    /// <summary>Resumes a paused background job.</summary>
+    public Task ResumeJobAsync(Guid id) => WorkerLazy.IsValueCreated ? WorkerLazy.Value.ResumeAsync(id) : Task.CompletedTask;
+
+    /// <summary>Changes the priority of a background job.</summary>
+    public Task SetJobPriorityAsync(Guid id, Leviathan.Contracts.JobPriority priority) =>
+        WorkerLazy.IsValueCreated ? WorkerLazy.Value.SetPriorityAsync(id, priority) : Task.CompletedTask;
+
+    /// <summary>Switches a process that crashed too often back on.</summary>
+    public void ReenableProcess(string name)
+    {
+        if (name == "Worker" && WorkerLazy.IsValueCreated)
+        {
+            WorkerLazy.Value.Reenable();
+        }
+        else if (name == "Shell host" && IsShellHostStarted)
+        {
+            ShellHost.Reenable();
+        }
+    }
+
     /// <summary>What the user did this session and, for seven days, earlier (spec 16.1, D35).</summary>
     public ActivityLog Activity { get; private init; } = null!;
 
@@ -263,12 +308,29 @@ internal sealed class AppHost
         // The operations list of the status hub (spec 16.1) hears every job the worker reports; the worker itself is still only
         // started when something needs it.
         var operations = new OperationsModel();
+        AppHost? built = null;
+        var thumbnails = new ThumbnailCache(new ShellThumbnailSource());
+        BackgroundModel? background = null;
         var worker = new Lazy<WorkerConnection>(() =>
         {
             var connection = new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []);
-            connection.JobChanged += (_, job) => operations.Apply(job);
+            connection.JobChanged += (_, job) =>
+            {
+                operations.Apply(job);
+                background?.Apply(job);
+            };
             return connection;
         });
+        background = new BackgroundModel(
+            () => thumbnails.Stats,
+            [
+                () => worker.IsValueCreated
+                    ? ProcessEntryFor("Worker", worker.Value.State, worker.Value.ProcessId, worker.Value.RestartCount, worker.Value.DisabledReason, "Copies, moves, deletes and folder sizes")
+                    : new ProcessEntry("Worker", "Not started", null, 0, "Starts when the first copy, delete or folder size needs it"),
+                () => built is { IsShellHostStarted: true } host
+                    ? ProcessEntryFor("Shell host", host.ShellHost.State, host.ShellHost.SupervisedProcessId, host.ShellHost.RestartCount, host.ShellHost.DisabledReason, "Right-click menus of other programs, kept out of this window")
+                    : new ProcessEntry("Shell host", "Not started", null, 0, "Starts at the first right-click menu"),
+            ]);
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
@@ -329,7 +391,7 @@ internal sealed class AppHost
             recent,
             new AddressCompleter(lister),
             new SubfolderMenu(lister),
-            new ThumbnailCache(new ShellThumbnailSource()),
+            thumbnails,
             new FavoritesList(new JsonFavoritesStorage()),
             new ProviderSubfolderSource(providers),
             newItems,
@@ -342,6 +404,8 @@ internal sealed class AppHost
             Icons = icons,
             Operations = operations,
             Activity = activity,
+            Background = background,
+            WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
@@ -351,6 +415,7 @@ internal sealed class AppHost
         };
 
         // The icon pack is a setting that applies without a restart (spec §17).
+        built = host;
         host.Settings.Changed += (_, changed) => ui.Post(() => icons.UsePack(changed.Appearance.IconPack));
         return host;
     }

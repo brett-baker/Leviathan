@@ -46,6 +46,51 @@
         </StackPanel>
       </Grid>
     </DataTemplate>
+
+    <DataTemplate x:Key="ProcessTemplate" x:DataType="hub:ProcessEntry">
+      <Grid ColumnSpacing="12" Padding="4,5">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="110" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+        <StackPanel Grid.Column="1" Spacing="1">
+          <TextBlock Text="{x:Bind local:HubFormat.ProcessLine(State, ProcessId, Restarts)}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <Button Grid.Column="2" Content="Switch back on" Tag="{x:Bind Name}" Click="OnReenableClick" VerticalAlignment="Center"
+                Visibility="{x:Bind local:HubFormat.ShowBar(CanReenable)}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="TaskTemplate" x:DataType="hub:BackgroundTaskEntry">
+      <Grid ColumnSpacing="8" Padding="4,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="1">
+          <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{x:Bind local:HubFormat.StateText(State)}" VerticalAlignment="Center"
+                   Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <ComboBox Grid.Column="2" Width="100" Tag="{x:Bind Id}" SelectedIndex="{x:Bind local:HubFormat.PriorityIndex(Priority)}"
+                  SelectionChanged="OnTaskPriorityChanged" AutomationProperties.Name="Priority"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(CanPause)}">
+          <ComboBoxItem Content="Low" />
+          <ComboBoxItem Content="Normal" />
+          <ComboBoxItem Content="High" />
+        </ComboBox>
+        <Button Grid.Column="3" Content="{x:Bind local:HubFormat.PauseText(CanResume)}" Tag="{x:Bind Id}" Click="OnTaskPauseResumeClick"
+                Visibility="{x:Bind local:HubFormat.ShowBar(CanPauseOrResume)}" />
+      </Grid>
+    </DataTemplate>
   </UserControl.Resources>
 
   <Border x:Name="Frame" Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
@@ -156,8 +201,33 @@
           <TextBlock x:Name="ActivityEmpty" Grid.Row="1" Text="Nothing here yet. What you do is listed here, newest first." Margin="4,12,0,0"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
         </Grid>
-        <TextBlock x:Name="BackgroundPage" Text="Background tasks (folder sizes, thumbnails, indexing) with pause and priority arrive with slice I9." TextWrapping="Wrap"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
+        <ScrollViewer x:Name="BackgroundPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="10" Padding="0,0,8,8">
+            <StackPanel Spacing="4">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Folder sizes and other background work" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                <Button x:Name="PauseAllButton" Grid.Column="1" Content="Pause all" Click="OnPauseAllClick" />
+                <Button x:Name="ResumeAllButton" Grid.Column="2" Content="Resume all" Click="OnResumeAllClick" />
+              </Grid>
+              <TextBlock x:Name="FolderSizeText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <ListView x:Name="TaskList" SelectionMode="None" ItemTemplate="{StaticResource TaskTemplate}" MaxHeight="260" />
+              <TextBlock x:Name="TasksEmpty" Text="No background work right now." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,0,0,0" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Thumbnails" Style="{StaticResource BodyStrongTextBlockStyle}" />
+              <TextBlock x:Name="ThumbText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Programs this app runs" Style="{StaticResource BodyStrongTextBlockStyle}" />
+              <ItemsControl x:Name="ProcessList" ItemTemplate="{StaticResource ProcessTemplate}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
         <TextBlock x:Name="QuickSettingsPage" Text="Live settings (limits, bandwidth, polling) arrive with slice I10." TextWrapping="Wrap"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
         <TextBlock x:Name="SpacePage" Text="The space map of this folder arrives with Phase 4." TextWrapping="Wrap"

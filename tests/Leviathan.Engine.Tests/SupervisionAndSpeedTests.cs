@@ -122,6 +122,26 @@ public class ProcessSupervisorTests
     }
 
     [Fact]
+    public async Task RestartCount_CountsRestartsAfterCrashes_NotTheFirstStart()
+    {
+        var launcher = new FakeLauncher();
+        var policy = new RestartPolicy(TimeProvider.System, new Core.Resilience.BackoffPolicy(TimeSpan.FromMilliseconds(5), TimeSpan.FromMilliseconds(5), 0));
+        await using var supervisor = new ProcessSupervisor("worker", launcher, policy);
+        Assert.Equal(0, supervisor.RestartCount);
+        Assert.Null(supervisor.ProcessId);
+
+        supervisor.EnsureRunning();
+        Assert.Equal(0, supervisor.RestartCount);
+        Assert.Equal(1, supervisor.ProcessId);
+
+        launcher.Started[0].Exit(-1);
+        await WaitUntilAsync(() => launcher.Started.Count == 2 && supervisor.State == SupervisedState.Running);
+
+        Assert.Equal(1, supervisor.RestartCount);
+        Assert.Equal(2, supervisor.ProcessId);
+    }
+
+    [Fact]
     public async Task RepeatedCrashes_DisableWorker_UntilReenabled()
     {
         var launcher = new FakeLauncher();

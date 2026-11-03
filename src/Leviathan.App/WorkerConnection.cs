@@ -53,6 +53,30 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
 
     public event EventHandler<WorkerStatus>? StatusChanged;
 
+    /// <summary>State of the worker process.</summary>
+    public SupervisedState State => _supervisor.State;
+
+    /// <summary>How many times the worker was started again after a crash.</summary>
+    public int RestartCount => _supervisor.RestartCount;
+
+    /// <summary>Process id of the running worker, or null.</summary>
+    public int? ProcessId => _supervisor.ProcessId;
+
+    /// <summary>Why the worker was disabled, when it was.</summary>
+    public string? DisabledReason => _supervisor.DisabledReason;
+
+    /// <summary>Switches a disabled worker back on (the user asked, spec 3.4).</summary>
+    public void Reenable() => _supervisor.Reenable();
+
+    /// <summary>Pauses a job (the Background tab).</summary>
+    public Task PauseAsync(Guid jobId) => _client.Service.PauseAsync(jobId, _closing.Token);
+
+    /// <summary>Resumes a paused job.</summary>
+    public Task ResumeAsync(Guid jobId) => _client.Service.ResumeAsync(jobId, _closing.Token);
+
+    /// <summary>Changes how soon a queued job runs.</summary>
+    public Task SetPriorityAsync(Guid jobId, JobPriority priority) => _client.Service.SetPriorityAsync(jobId, priority, _closing.Token);
+
     /// <summary>Raised on the calling thread (not the UI thread) whenever the worker reports a job's state.</summary>
     public event EventHandler<JobSnapshot>? JobChanged;
 

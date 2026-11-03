@@ -77,6 +77,23 @@ public sealed class ProcessSupervisor : IAsyncDisposable
     /// <summary>Why the worker was disabled, when it is.</summary>
     public string? DisabledReason { get; private set; }
 
+    private int _restartCount;
+
+    /// <summary>How many times the process was started again after a crash since this supervisor was made (the Background tab shows it, spec 16.1).</summary>
+    public int RestartCount => Volatile.Read(ref _restartCount);
+
+    /// <summary>Process id of the running process, or null when there is none.</summary>
+    public int? ProcessId
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return State == SupervisedState.Running ? _process?.Id : null;
+            }
+        }
+    }
+
     /// <summary>Raised when <see cref="State"/> changes.</summary>
     public event EventHandler<SupervisedState>? StateChanged;
 
@@ -183,6 +200,7 @@ public sealed class ProcessSupervisor : IAsyncDisposable
         {
             if (State == SupervisedState.Restarting)
             {
+                Interlocked.Increment(ref _restartCount);
                 StartLocked();
             }
         }

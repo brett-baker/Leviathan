@@ -48,6 +48,12 @@ public sealed class ShellHostConnection : IAsyncDisposable
     /// <summary>State of the host process.</summary>
     public SupervisedState State => _supervisor.State;
 
+    /// <summary>How many times the host was started again after a crash.</summary>
+    public int RestartCount => _supervisor.RestartCount;
+
+    /// <summary>Process id of the running host, or null.</summary>
+    public int? SupervisedProcessId => _supervisor.ProcessId;
+
     /// <summary>Why the host was disabled, when it was.</summary>
     public string? DisabledReason => _supervisor.DisabledReason;
 

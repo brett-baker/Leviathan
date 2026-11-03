@@ -39,7 +39,7 @@ public sealed partial class MainWindow
         var hub = _viewModel.Hub;
         hub.Apply(App.Host.HubLayout);
         hub.LayoutChanged += (_, layout) => App.Host.SaveHubLayout(layout);
-        var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity) { CanUndo = () => App.Host.Undo.CanUndo };
+        var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity, App.Host.Background) { CanUndo = () => App.Host.Undo.CanUndo };
         _hubPanel = panel;
         BodyArea.Children.Add(panel);
         panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
@@ -49,6 +49,7 @@ public sealed partial class MainWindow
         panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
         panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
         App.Host.Activity.Changed += OnActivityChanged;
+        App.Host.Background.Changed += OnBackgroundChanged;
         hub.PropertyChanged += (_, _) => OnHubChanged();
         BodyArea.SizeChanged += (_, _) => ApplyHubPlacement();
         App.Host.Operations.Changed += OnOperationsChanged;
@@ -238,6 +239,8 @@ public sealed partial class MainWindow
             MessageText.Text = $"Could not save the log: {ex.Message}";
         }
     }
+
+    private void OnBackgroundChanged(object? sender, EventArgs e) => OnUi(() => _hubPanel?.RefreshBackground());
 
     private void OnOperationsChanged(object? sender, EventArgs e)
     {

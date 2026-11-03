@@ -47,6 +47,26 @@ internal static class HubFormat
     public static Brush ActivityBrush(bool error) =>
         (Brush)Application.Current.Resources[error ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];
 
+    public static string ProcessLine(string state, int? pid, int restarts)
+    {
+        var line = state;
+        if (pid is { } id)
+        {
+            line += $" · process {id}";
+        }
+
+        return restarts == 0 ? line : $"{line} · restarted {restarts} time{(restarts == 1 ? string.Empty : "s")} after crashes";
+    }
+
+    public static int PriorityIndex(JobPriority priority) => priority switch
+    {
+        JobPriority.Low => 0,
+        JobPriority.High => 2,
+        _ => 1,
+    };
+
+    public static string PauseText(bool canResume) => canResume ? "Resume" : "Pause";
+
     public static string StateText(JobState state) => state switch
     {
         JobState.Queued => "Queued",
@@ -70,14 +90,18 @@ internal sealed partial class StatusHubPanel : UserControl
     private readonly StatusHubModel _model;
     private readonly OperationsModel _operations;
     private readonly ActivityLog _activity;
+    private readonly BackgroundModel _background;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _backgroundTimer;
+    private BackgroundView? _shownBackground;
     private bool _syncing;
     private bool _ready;
 
-    public StatusHubPanel(StatusHubModel model, OperationsModel operations, ActivityLog activity)
+    public StatusHubPanel(StatusHubModel model, OperationsModel operations, ActivityLog activity, BackgroundModel background)
     {
         _model = model;
         _operations = operations;
         _activity = activity;
+        _background = background;
         InitializeComponent();
         _ready = true;
         Icons.Bind(PinButton, static (b, i) => b.Content = i, "pin");
@@ -121,6 +145,108 @@ internal sealed partial class StatusHubPanel : UserControl
         TopGrip.Visibility = right || placement == HubPlacement.PoppedOut ? Visibility.Collapsed : Visibility.Visible;
         Frame.BorderThickness = placement == HubPlacement.PoppedOut ? new Thickness(0) : right ? new Thickness(1, 0, 0, 0) : new Thickness(0, 1, 0, 0);
         Frame.CornerRadius = placement == HubPlacement.Flyout ? new CornerRadius(8, 8, 0, 0) : new CornerRadius(0);
+    }
+
+    /// <summary>Shows the Background tab again: jobs, thumbnails, processes. Lists are only replaced when something changed, so an open menu is not closed under the user.</summary>
+    internal void RefreshBackground()
+    {
+        if (!_ready || _model.Tab != HubTab.Background || !_model.IsOpen)
+        {
+            return;
+        }
+
+        var view = _background.View();
+        FolderSizeText.Text = view.FolderSizes;
+        ThumbText.Text = view.Thumbnails;
+        PauseAllButton.IsEnabled = view.AnyActive && !view.AllPaused;
+        ResumeAllButton.IsEnabled = view.AllPaused || _background.PausedIds().Count > 0;
+        TasksEmpty.Visibility = view.Tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_shownBackground is null || !_shownBackground.Tasks.SequenceEqual(view.Tasks))
+        {
+            TaskList.ItemsSource = view.Tasks;
+        }
+
+        if (_shownBackground is null || !_shownBackground.Processes.SequenceEqual(view.Processes))
+        {
+            ProcessList.ItemsSource = view.Processes;
+        }
+
+        _shownBackground = view;
+    }
+
+    private void OnPauseAllClick(object sender, RoutedEventArgs e) => ForEachJob(_background.RunningOrQueuedIds(), App.Host.PauseJobAsync);
+
+    private void OnResumeAllClick(object sender, RoutedEventArgs e) => ForEachJob(_background.PausedIds(), App.Host.ResumeJobAsync);
+
+    private void OnTaskPauseResumeClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: Guid id } && _shownBackground?.Tasks.FirstOrDefault(t => t.Id == id) is { } task)
+        {
+            ForEachJob([id], task.CanResume ? App.Host.ResumeJobAsync : App.Host.PauseJobAsync);
+        }
+    }
+
+    private async void OnTaskPriorityChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Setting the box up raises this too; only a change the user made (an item was replaced) counts.
+        if (e.RemovedItems.Count == 0 || sender is not ComboBox { Tag: Guid id } box)
+        {
+            return;
+        }
+
+        var priority = box.SelectedIndex switch { 0 => JobPriority.Low, 2 => JobPriority.High, _ => JobPriority.Normal };
+        try
+        {
+            await App.Host.SetJobPriorityAsync(id, priority);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
+        {
+            // The worker went away; the next refresh shows what it reports.
+        }
+    }
+
+    private void OnReenableClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string name })
+        {
+            App.Host.ReenableProcess(name);
+            RefreshBackground();
+        }
+    }
+
+    private static async void ForEachJob(IEnumerable<Guid> ids, Func<Guid, Task> action)
+    {
+        try
+        {
+            foreach (var id in ids.ToList())
+            {
+                await action(id);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
+        {
+            // The worker went away; the next refresh shows what it reports.
+        }
+    }
+
+    // The numbers of the Background tab (processes, thumbnails) change without an event: look again every two seconds while it is shown.
+    private void SyncBackgroundTimer()
+    {
+        var wanted = _model.IsOpen && _model.Tab == HubTab.Background;
+        if (wanted && _backgroundTimer is null)
+        {
+            _backgroundTimer = DispatcherQueue.CreateTimer();
+            _backgroundTimer.Interval = TimeSpan.FromSeconds(2);
+            _backgroundTimer.Tick += (_, _) => RefreshBackground();
+            _backgroundTimer.Start();
+            RefreshBackground();
+        }
+        else if (!wanted && _backgroundTimer is not null)
+        {
+            _backgroundTimer.Stop();
+            _backgroundTimer = null;
+            _shownBackground = null;
+        }
     }
 
     /// <summary>Lists the activity again (something was logged, or a filter changed).</summary>
@@ -213,6 +339,7 @@ internal sealed partial class StatusHubPanel : UserControl
 
             OperationsPage.Visibility = Show(HubTab.Operations);
             ActivityPage.Visibility = Show(HubTab.Activity);
+            SyncBackgroundTimer();
             if (_model.Tab == HubTab.Activity)
             {
                 DispatcherQueue.TryEnqueue(RefreshActivity);

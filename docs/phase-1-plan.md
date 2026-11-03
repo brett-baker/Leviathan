@@ -215,7 +215,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
 - [x] **I8. Activity tab** (§16.1): session activity log fed by the command layer (every executed command with its arguments
   summarised) and the diagnostics `ActionTrail`; stored in SQLite (7 days), filter, search, go to location, open the job, undo where
   possible, copy/export. Logging must cost < 1 ms per action on the UI thread (batched writes off-thread). Unit-tested.
-- [ ] **I9. Background tab** (§16.1): folder-size queue and rate, thumbnail generation, worker / ShellHost process status and restart
+- [x] **I9. Background tab** (§16.1): folder-size queue and rate, thumbnail generation, worker / ShellHost process status and restart
   counts, with pause / resume / priority where the task supports it.
 - [ ] **I10. Quick settings tab and settings sheet** (§16.1, §17.2): Quick settings for background threads / worker processes, running
   jobs, folder sizes on network shares, thumbnails on network files, polling interval, each applied live through the settings store.

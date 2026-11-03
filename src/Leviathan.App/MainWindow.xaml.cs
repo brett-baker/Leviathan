@@ -912,6 +912,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;
         App.Host.Activity.Changed -= OnActivityChanged;
+        App.Host.Background.Changed -= OnBackgroundChanged;
         _hubWindow?.Close();
         App.Host.Undo.Changed -= OnUndoChanged;
         App.Host.FileClipboard.Changed -= OnClipboardChanged;
