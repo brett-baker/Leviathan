@@ -193,6 +193,9 @@ public static class CommandIds
     /// <summary>Change a favorite's icon and colour. Target: the folder. Parameter: a <see cref="Sidebar.FavoriteStyleChange"/> (spec §5.2).</summary>
     public static readonly CommandId FavoriteStyle = new("favorite.style");
 
+    /// <summary>Set the Details columns. Parameter: a <see cref="Folders.ColumnChoice"/> from the column chooser (spec §8.2).</summary>
+    public static readonly CommandId ViewColumns = new("view.columns");
+
     /// <summary>Collapse or restore the sidebar (Ctrl+B).</summary>
     public static readonly CommandId ViewSidebar = new("pane.sidebar");
 
@@ -962,6 +965,11 @@ public static partial class WindowCommands
             await Current()!.ReloadAsync(ct);
         }, _ => viewOptions is not null && Current() is not null);
 
+        Add(CommandIds.ViewColumns, "Choose columns", "View", (c, _) => Run(() =>
+        {
+            var choice = (Folders.ColumnChoice)c.Parameter!;
+            Current()!.ApplyColumns(choice.Ids, choice.ForAllOfType);
+        }), c => Current() is not null && c.Parameter is Folders.ColumnChoice);
         Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
 

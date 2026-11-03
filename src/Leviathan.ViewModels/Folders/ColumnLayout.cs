@@ -169,6 +169,39 @@ public sealed class ColumnLayout
         Changed?.Invoke(this, true);
     }
 
+    /// <summary>
+    /// Replaces the set and order of columns (the column chooser, spec §8.2). Columns that stay keep their width, columns that come
+    /// back get the width they had, unknown ids are skipped and Name is added at the front if missing.
+    /// </summary>
+    public void SetColumns(IEnumerable<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        foreach (var slot in _slots)
+        {
+            _remembered[slot.Column.Id] = slot.Width;
+        }
+
+        var before = Ids;
+        _slots.Clear();
+        foreach (var id in ids)
+        {
+            if (FileColumns.TryGet(id, out var column) && _slots.All(s => s.Column != column))
+            {
+                _slots.Add(new ColumnSlot(column, WidthOf(column)));
+            }
+        }
+
+        if (_slots.All(s => s.Column != FileColumns.Name))
+        {
+            _slots.Insert(0, new ColumnSlot(FileColumns.Name, WidthOf(FileColumns.Name)));
+        }
+
+        if (!before.SequenceEqual(Ids))
+        {
+            Changed?.Invoke(this, true);
+        }
+    }
+
     /// <summary>Shows or hides a column. Name cannot be hidden. A column shown again goes to the end with its remembered width.</summary>
     public void SetVisible(string id, bool visible)
     {

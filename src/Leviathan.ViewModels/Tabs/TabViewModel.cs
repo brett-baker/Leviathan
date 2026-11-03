@@ -334,6 +334,20 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _useExplicitView = true;
     }
 
+    /// <summary>
+    /// Applies the column set chosen in the column chooser (spec §8.2) to this tab and, with <paramref name="forAllOfType"/>, saves the
+    /// view as the rule for every folder of the kind this one is (spec §8.1: "Apply to all folders of this type").
+    /// </summary>
+    public void ApplyColumns(IReadOnlyList<string> ids, bool forAllOfType)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        Columns.SetColumns(ids);
+        if (forAllOfType)
+        {
+            _services.ViewRules.SetForKind(Folder.Kind, CurrentView());
+        }
+    }
+
     /// <summary>The view in effect (layout, sort, grouping, columns), e.g. to save as a folder rule.</summary>
     public FolderViewSettings CurrentView() => new()
     {
@@ -442,5 +456,18 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Layout = settings.Layout;
         ThumbnailSize = ItemFlow.ClampThumbnailSize(settings.ThumbnailSize);
         Items.Apply(settings);
+
+        // A saved view brings its columns and widths; with none saved the tab keeps the columns the user set on it.
+        if (!_useExplicitView && _services.ViewRules.TryResolve(History.Current, Folder.Kind, out _))
+        {
+            Columns.SetColumns(settings.Columns);
+            foreach (var (id, width) in settings.ColumnWidths)
+            {
+                if (Columns.IsVisible(id))
+                {
+                    Columns.Resize(id, width);
+                }
+            }
+        }
     }
 }

@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FlowList.RenameFinished += OnRenameFinished;
         FileList.DropRequested += OnItemsDropped;
         FileList.RowContextRequested += OnRowContextRequested;
+        FileList.ColumnChooserRequested += async (_, _) => await ShowColumnChooserAsync();
         FlowList.RowContextRequested += OnRowContextRequested;
         FlowList.DropRequested += OnItemsDropped;
         _sidebar = new SidebarTree(host.SidebarSource);

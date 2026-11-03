@@ -311,6 +311,10 @@ public sealed partial class MainWindow
         var smaller = new MenuFlyoutItem { Text = "Smaller thumbnails", Icon = new FontIcon { Glyph = "" }, IsEnabled = _commands.CanExecute(CommandIds.ViewZoom, new CommandContext(null, -1)) };
         smaller.Click += (_, _) => Run(CommandIds.ViewZoom, parameter: -1);
         ViewMenu.Items.Add(new MenuFlyoutSeparator());
+        var columns = new MenuFlyoutItem { Text = "Columns…", Icon = new FontIcon { Glyph = "\uE9D5" }, IsEnabled = tab.Layout == ViewLayout.Details };
+        columns.Click += async (_, _) => await ShowColumnChooserAsync();
+        ViewMenu.Items.Add(columns);
+        ViewMenu.Items.Add(new MenuFlyoutSeparator());
         ViewMenu.Items.Add(bigger);
         ViewMenu.Items.Add(smaller);
         ViewMenu.Items.Add(new MenuFlyoutSeparator());

@@ -88,12 +88,19 @@ public sealed class FolderViewRules
     }
 
     /// <summary>Resolves the view for <paramref name="folder"/>, whose content was detected as <paramref name="kind"/>.</summary>
-    public FolderViewSettings Resolve(LocationPath folder, FolderKind kind)
+    public FolderViewSettings Resolve(LocationPath folder, FolderKind kind) => TryResolve(folder, kind, out var rule) ? rule : GlobalDefault;
+
+    /// <summary>
+    /// Finds the saved rule that applies to <paramref name="folder"/>, most specific first. False when none does and the global
+    /// default would apply, so callers can tell "the user saved a view here" from "nobody said anything".
+    /// </summary>
+    public bool TryResolve(LocationPath folder, FolderKind kind, out FolderViewSettings settings)
     {
         ArgumentNullException.ThrowIfNull(folder);
         if (_thisFolder.TryGetValue(folder, out var exact))
         {
-            return exact;
+            settings = exact;
+            return true;
         }
 
         // The nearest ancestor (or the folder itself) with an "and subfolders" rule: walk up from the folder.
@@ -101,11 +108,19 @@ public sealed class FolderViewRules
         {
             if (_subtree.TryGetValue(current, out var inherited))
             {
-                return inherited;
+                settings = inherited;
+                return true;
             }
         }
 
-        return _byKind.TryGetValue(kind, out var byKind) ? byKind : GlobalDefault;
+        if (_byKind.TryGetValue(kind, out var byKind))
+        {
+            settings = byKind;
+            return true;
+        }
+
+        settings = GlobalDefault;
+        return false;
     }
 
     /// <summary>Every saved rule, for persistence.</summary>

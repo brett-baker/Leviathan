@@ -799,6 +799,9 @@ public sealed partial class DetailsGrid : UserControl
         _tab.Columns.AutoFit(columnId, sample, Measure, columnId == "name" ? GridRow.NameExtra + 8 : 0);
     }
 
+    /// <summary>"More columns…" was chosen in the header menu.</summary>
+    internal event EventHandler? ColumnChooserRequested;
+
     private void OnHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         if (_tab is null)
@@ -817,6 +820,9 @@ public sealed partial class DetailsGrid : UserControl
         }
 
         menu.Items.Add(new MenuFlyoutSeparator());
+        var more = new MenuFlyoutItem { Text = "More columns…" };
+        more.Click += (_, _) => ColumnChooserRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(more);
         var fit = new MenuFlyoutItem { Text = "Size all columns to fit" };
         fit.Click += (_, _) =>
         {

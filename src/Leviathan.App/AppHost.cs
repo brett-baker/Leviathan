@@ -130,6 +130,9 @@ internal sealed class AppHost
 
     private JsonFileStore<SessionFile> SessionStore { get; init; } = null!;
 
+    /// <summary>Keeps the saved folder views (columns, sort, layout) between runs.</summary>
+    private ViewRulesPersistence ViewRulesStore { get; init; } = null!;
+
     /// <summary>
     /// Reads the settings, the profiles and Last session off the UI thread and decides what to open (spec §17.1). Reading
     /// problems never stop startup: a missing or damaged file means defaults and a fresh window.
@@ -138,6 +141,8 @@ internal sealed class AppHost
     {
         var settings = await Settings.LoadAsync(cancellationToken).ConfigureAwait(false);
         await Profiles.Catalog.LoadAsync(cancellationToken).ConfigureAwait(false);
+        await ViewRulesStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        ViewRulesStore.Start();
         var last = await SessionStore.LoadAsync(cancellationToken).ConfigureAwait(false);
         return StartupPlanner.Decide(settings.General, last, Profiles.Catalog);
     }
@@ -213,7 +218,8 @@ internal sealed class AppHost
         var worker = new Lazy<WorkerConnection>(() => new WorkerConnection(new DispatcherQueueUiDispatcher(queue), []));
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
-        var services = new TabServices(providers, ui, new FolderViewRules(), TimeProvider.System, () => home, recent, sizes, viewOptions);
+        var viewRules = new FolderViewRules();
+        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => home, recent, sizes, viewOptions);
         var disk = new FileSystem();
         var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         var transfers = new WorkerTransfers(() => worker.Value);
@@ -250,6 +256,7 @@ internal sealed class AppHost
             Transfers = transfers,
             Undo = undo,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
+            ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
             SessionStore = sessionStore,
             Recorder = recorder,
             Profiles = new ProfileService(windows, catalog, recorder),
