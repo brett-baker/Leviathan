@@ -41,6 +41,7 @@ internal sealed class GridRow : Grid
     private string _signature = string.Empty;
     private RenameBox? _editor;
     private FontIcon? _nameIcon;
+    private Image? _nameImage;
     private TextBlock? _nameText;
     private bool _hover;
     private bool _dropTarget;
@@ -238,6 +239,7 @@ internal sealed class GridRow : Grid
         _cells.Clear();
         _editor = null;
         _nameIcon = null;
+        _nameImage = null;
         _nameText = null;
         for (var i = 0; i < slots.Count; i++)
         {
@@ -256,10 +258,12 @@ internal sealed class GridRow : Grid
             if (slot.Column == FileColumns.Name)
             {
                 icon = new FontIcon { FontSize = 16, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false };
+                _nameImage = new Image { Width = 16, Height = 16, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), IsHitTestVisible = false, Visibility = Visibility.Collapsed };
                 var panel = new Grid { IsHitTestVisible = false };
                 panel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 panel.Children.Add(icon);
+                panel.Children.Add(_nameImage);
                 SetColumn(text, 1);
                 text.Margin = new Thickness(8, 0, 8, 0);
                 panel.Children.Add(text);
@@ -296,8 +300,27 @@ internal sealed class GridRow : Grid
             cell.Text.Text = sizes is null && cell.ColumnId == "size" ? string.Empty : TextFor(cell.ColumnId, entry, sizes!);
             if (cell.Icon is { } icon)
             {
-                icon.Glyph = Formatters.Glyph(entry.Kind, entry.Attributes);
-                icon.Opacity = entry.IsHidden ? 0.55 : 1;
+                // The icon pack draws the kind of item (spec 4.3); the system glyph stays for a pack without it and for high contrast.
+                var picture = Icons.Shared(Formatters.IconKey(entry.Kind, entry.Attributes));
+                if (picture is not null && _nameImage is not null)
+                {
+                    _nameImage.Source = picture;
+                    _nameImage.Opacity = entry.IsHidden ? 0.55 : 1;
+                    _nameImage.Visibility = Visibility.Visible;
+                    icon.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    if (_nameImage is not null)
+                    {
+                        _nameImage.Visibility = Visibility.Collapsed;
+                    }
+
+                    icon.Visibility = Visibility.Visible;
+                    icon.Glyph = Formatters.Glyph(entry.Kind, entry.Attributes);
+                    icon.Opacity = entry.IsHidden ? 0.55 : 1;
+                }
+
                 cell.Text.Opacity = entry.IsHidden ? 0.65 : 1;
             }
             else if (cell.ColumnId == "size")

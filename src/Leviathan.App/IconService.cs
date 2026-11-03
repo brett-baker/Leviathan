@@ -27,6 +27,7 @@ internal sealed class IconService
     private readonly IconPacks _packs;
     private readonly Dictionary<(string Pack, string Key, string Color), byte[]> _bytes = [];
     private readonly List<Slot> _slots = [];
+    private readonly Dictionary<(string Pack, string Key, string Color, double Size), SvgImageSource> _shared = [];
     private IconPack? _pack;
     private bool _dark;
     private bool _highContrast;
@@ -153,8 +154,35 @@ internal sealed class IconService
         Draw(slot, host);
     }
 
+    /// <summary>
+    /// One image source per icon, shared by every row that shows it (a folder of 50,000 files has two or three different icons, not
+    /// 50,000). Null when the pack has no such icon or high contrast is on: the caller draws the system glyph. The sources are
+    /// dropped when the pack or theme changes, so callers redraw on <see cref="Changed"/>.
+    /// </summary>
+    public ImageSource? Shared(string key, double size = 16)
+    {
+        var definition = IconCatalog.Find(key);
+        var packed = _highContrast || definition is null ? null : _pack?.Get(key);
+        if (definition is null || packed is null)
+        {
+            return null;
+        }
+
+        var color = definition.Accent ?? (_dark ? NeutralDark : NeutralLight);
+        var cacheKey = (_pack!.Id, key, packed.IsColor ? string.Empty : color, size);
+        if (!_shared.TryGetValue(cacheKey, out var source))
+        {
+            source = new SvgImageSource { RasterizePixelWidth = size * 3, RasterizePixelHeight = size * 3 };
+            _shared[cacheKey] = source;
+            _ = LoadAsync(source, SvgBytes(_pack.Id, key, packed, color));
+        }
+
+        return source;
+    }
+
     private void Redraw()
     {
+        _shared.Clear();
         _slots.RemoveAll(s => !s.Host.TryGetTarget(out _));
         foreach (var slot in _slots.ToList())
         {
@@ -244,6 +272,9 @@ internal static class Icons
 
     /// <inheritdoc cref="IconService.CreateForGlyph"/>
     public static IconElement OfGlyph(string glyph, double size = 16, string? tint = null) => Service.CreateForGlyph(glyph, size, tint);
+
+    /// <inheritdoc cref="IconService.Shared"/>
+    public static ImageSource? Shared(string key, double size = 16) => Service.Shared(key, size);
 
     /// <inheritdoc cref="IconService.CreateSource"/>
     public static IconSource SourceOf(string key, double size = 16, string? tint = null) => Service.CreateSource(key, size, tint);

@@ -15,6 +15,15 @@ internal static class Formatters
         _ => "",
     };
 
+    /// <summary>The icon-pack key that draws an entry until its own shell icon is shown (spec 4.3): folders, links and plain files.</summary>
+    public static string IconKey(FileEntryKind kind, FileAttributes attributes) => kind switch
+    {
+        FileEntryKind.Folder => "folder",
+        FileEntryKind.Link when attributes.HasFlag(FileAttributes.Directory) => "folder",
+        FileEntryKind.Link => "link",
+        _ => "file",
+    };
+
     public static string SizeText(FileEntryKind kind, long size) => kind == FileEntryKind.File ? DisplayFormat.Size(size) : string.Empty;
 
     public static string DateText(DateTimeOffset modified) => DisplayFormat.Date(modified);

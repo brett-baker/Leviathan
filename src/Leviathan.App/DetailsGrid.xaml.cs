@@ -253,6 +253,15 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
+    /// <summary>Draws the icons of the rows again after the icon pack or the theme changed.</summary>
+    internal void RefreshIcons()
+    {
+        foreach (var row in _realized.Where(r => r.Entry is not null).ToList())
+        {
+            row.Bind(row.Entry!);
+        }
+    }
+
     private void OnColumnsChanged(object? sender, bool structure)
     {
         if (structure)

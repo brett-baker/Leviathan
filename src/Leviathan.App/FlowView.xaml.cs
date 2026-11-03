@@ -237,6 +237,15 @@ public sealed partial class FlowView : UserControl
         }
     }
 
+    /// <summary>Draws the icons of the cells again after the icon pack or the theme changed.</summary>
+    internal void RefreshIcons()
+    {
+        foreach (var cell in _realized.Where(c => c.Entry is not null).ToList())
+        {
+            cell.Bind(cell.Entry!, Mode, Size);
+        }
+    }
+
     private void OnTabChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TabViewModel.Layout) or nameof(TabViewModel.ThumbnailSize))

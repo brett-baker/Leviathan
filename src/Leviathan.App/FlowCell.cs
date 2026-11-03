@@ -26,6 +26,7 @@ internal sealed class FlowCell : Grid
     private readonly FlowView _owner;
     private readonly Grid _picture = new() { IsHitTestVisible = false };
     private readonly FontIcon _glyph = new() { IsHitTestVisible = false, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Image _kind = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     private readonly Image _image = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, Visibility = Visibility.Collapsed };
     private readonly TextBlock _name = new() { IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Microsoft.UI.Xaml.Shapes.Rectangle _focus = new()
@@ -78,6 +79,15 @@ internal sealed class FlowCell : Grid
 
     private static Color Accent => Application.Current.Resources.TryGetValue("SystemAccentColor", out var value) && value is Color color ? color : Color.FromArgb(255, 0, 120, 212);
 
+    // The icon pack draws the kind of item (spec 4.3) until a thumbnail replaces it; the system glyph stays for a pack without it and for high contrast.
+    private void ShowKindIcon(FileEntry entry)
+    {
+        var picture = Icons.Shared(Formatters.IconKey(entry.Kind, entry.Attributes), _kind.Width is > 0 and < 1000 ? _kind.Width : 16);
+        _kind.Source = picture;
+        _kind.Visibility = picture is null ? Visibility.Collapsed : Visibility.Visible;
+        _glyph.Visibility = picture is null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Shows <paramref name="entry"/> in <paramref name="layout"/> at thumbnail edge <paramref name="size"/>.</summary>
     public void Bind(FileEntry entry, ViewLayout layout, int size)
     {
@@ -92,9 +102,10 @@ internal sealed class FlowCell : Grid
         _name.Opacity = entry.IsHidden ? 0.65 : 1;
         _glyph.Glyph = Formatters.Glyph(entry.Kind, entry.Attributes);
         _glyph.Opacity = entry.IsHidden ? 0.55 : 1;
+        _kind.Opacity = entry.IsHidden ? 0.55 : 1;
         _image.Source = null;
         _image.Visibility = Visibility.Collapsed;
-        _glyph.Visibility = Visibility.Visible;
+        ShowKindIcon(entry);
         UpdateVisuals();
         UpdateEditor();
         if (layout == ViewLayout.Thumbnails)
@@ -182,6 +193,7 @@ internal sealed class FlowCell : Grid
             RowDefinitions.Add(new RowDefinition { Height = new GridLength(size) });
             RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             _glyph.FontSize = Math.Max(24, size / 2.0);
+            _kind.Width = _kind.Height = Math.Max(24, size / 2.0);
             _name.TextWrapping = TextWrapping.Wrap;
             _name.MaxLines = 2;
             _name.TextAlignment = TextAlignment.Center;
@@ -195,6 +207,7 @@ internal sealed class FlowCell : Grid
             SetColumn(_editor, 0);
             SetRow(_name, 1);
             _picture.Children.Add(_glyph);
+            _picture.Children.Add(_kind);
             _picture.Children.Add(_image);
             Children.Add(_picture);
         }
@@ -206,6 +219,7 @@ internal sealed class FlowCell : Grid
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _glyph.FontSize = 16;
+            _kind.Width = _kind.Height = 16;
             _name.TextWrapping = TextWrapping.NoWrap;
             _name.MaxLines = 1;
             _name.TextAlignment = TextAlignment.Left;
@@ -220,6 +234,8 @@ internal sealed class FlowCell : Grid
             SetRow(_name, 0);
             SetColumn(_name, 1);
             Children.Add(_glyph);
+            SetColumn(_kind, 0);
+            Children.Add(_kind);
         }
 
         Children.Add(_name);
@@ -259,6 +275,7 @@ internal sealed class FlowCell : Grid
                 _image.Source = bitmap;
                 _image.Visibility = Visibility.Visible;
                 _glyph.Visibility = Visibility.Collapsed;
+                _kind.Visibility = Visibility.Collapsed;
             }
         }
         catch (OperationCanceledException)

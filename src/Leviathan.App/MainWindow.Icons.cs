@@ -54,6 +54,8 @@ public sealed partial class MainWindow
         Sidebar.ItemsSource = null;
         Sidebar.ItemsSource = _sidebar.Rows;
         Address.RefreshIcons();
+        FileList.RefreshIcons();
+        FlowList.RefreshIcons();
         foreach (var button in _contextButtons)
         {
             if (_barButtons.TryGetValue(button, out var model))
