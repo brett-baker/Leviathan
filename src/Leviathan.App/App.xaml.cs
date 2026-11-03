@@ -50,6 +50,9 @@ public partial class App : Application
     /// <summary>The tab being dragged between windows, so a strip that receives the drop knows what it is (the drag stays inside this process).</summary>
     internal static ViewModels.Tabs.TabViewModel? DraggedTab { get; set; }
 
+    /// <summary>The tab group being dragged by its chip, so a strip that receives the drop knows what it is.</summary>
+    internal static ViewModels.Tabs.TabGroup? DraggedGroup { get; set; }
+
     /// <summary>The services all windows share.</summary>
     internal static AppHost Host { get; private set; } = null!;
 

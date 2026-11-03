@@ -65,6 +65,7 @@ public sealed partial class MainWindow : Window, IShellActions
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
+        viewModel.Tabs.Groups.CollectionChanged += OnGroupsCollectionChanged;
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
         Address.Attach(host.AddressBar);
@@ -328,17 +329,21 @@ public sealed partial class MainWindow : Window, IShellActions
         _syncingTabs = true;
         try
         {
-            var wanted = _viewModel.Tabs.Tabs.ToList();
-            foreach (var removed in _tabUi.Keys.Except(wanted).ToList())
+            var tabs = _viewModel.Tabs.Tabs.ToList();
+            foreach (var removed in _tabUi.Keys.Except(tabs).ToList())
             {
                 removed.PropertyChanged -= OnTabPropertyChanged;
                 TabsView.TabItems.Remove(_tabUi[removed].Item);
                 _tabUi.Remove(removed);
             }
 
-            for (var i = 0; i < wanted.Count; i++)
+            RemoveGoneChips();
+
+            // What the strip should hold: each tab in order, with its group's chip in front of the group's first tab.
+            var wanted = new List<TabViewItem>(tabs.Count + _viewModel.Tabs.Groups.Count);
+            var chipped = new HashSet<TabGroup>();
+            foreach (var tab in tabs)
             {
-                var tab = wanted[i];
                 if (!_tabUi.TryGetValue(tab, out var ui))
                 {
                     ui = new TabItemUi(tab);
@@ -348,16 +353,29 @@ public sealed partial class MainWindow : Window, IShellActions
                     _tabUi[tab] = ui;
                 }
 
-                ui.Refresh();
-                if (i >= TabsView.TabItems.Count || !ReferenceEquals(TabsView.TabItems[i], ui.Item))
+                var group = _viewModel.Tabs.GroupOf(tab);
+                ui.Refresh(group);
+                if (group is not null && chipped.Add(group))
                 {
-                    var existing = TabsView.TabItems.IndexOf(ui.Item);
+                    var chip = EnsureChip(group);
+                    chip.Refresh(_viewModel.Tabs.TabsOf(group).Count);
+                    wanted.Add(chip.Item);
+                }
+
+                wanted.Add(ui.Item);
+            }
+
+            for (var i = 0; i < wanted.Count; i++)
+            {
+                if (i >= TabsView.TabItems.Count || !ReferenceEquals(TabsView.TabItems[i], wanted[i]))
+                {
+                    var existing = TabsView.TabItems.IndexOf(wanted[i]);
                     if (existing >= 0)
                     {
                         TabsView.TabItems.RemoveAt(existing);
                     }
 
-                    TabsView.TabItems.Insert(Math.Min(i, TabsView.TabItems.Count), ui.Item);
+                    TabsView.TabItems.Insert(Math.Min(i, TabsView.TabItems.Count), wanted[i]);
                 }
             }
         }
@@ -387,9 +405,19 @@ public sealed partial class MainWindow : Window, IShellActions
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_syncingTabs && TabsView.SelectedItem is TabViewItem { Tag: TabViewModel tab })
+        if (_syncingTabs)
+        {
+            return;
+        }
+
+        if (TabsView.SelectedItem is TabViewItem { Tag: TabViewModel tab })
         {
             _viewModel.Tabs.Select(tab);
+        }
+        else if (TabsView.SelectedItem is TabViewItem { Tag: TabGroup group })
+        {
+            // A chip is not a place to be: the click folds or unfolds the group and the selection stays on the real tab.
+            HandleChipSelected(group);
         }
     }
 
@@ -874,6 +902,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.FileClipboard.Changed -= OnClipboardChanged;
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
+        _viewModel.Tabs.Groups.CollectionChanged -= OnGroupsCollectionChanged;
         _closing.Cancel();
         _closing.Dispose();
     }

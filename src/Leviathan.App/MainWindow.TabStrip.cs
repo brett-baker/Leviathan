@@ -22,6 +22,7 @@ internal sealed class TabItemUi
     private readonly ProgressRing _busy = new() { Width = 12, Height = 12, IsActive = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly FontIcon _offline = new() { Glyph = "", FontSize = 12, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _accent = new() { Height = 2, CornerRadius = new CornerRadius(1), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 2, 0, 0) };
+    private readonly Border _groupBar = new() { Height = 3, CornerRadius = new CornerRadius(1.5), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 1, 0, 0) };
 
     public TabItemUi(TabViewModel tab)
     {
@@ -35,9 +36,12 @@ internal sealed class TabItemUi
         var header = new Grid();
         header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         header.Children.Add(content);
         Grid.SetRow(_accent, 1);
         header.Children.Add(_accent);
+        Grid.SetRow(_groupBar, 2);
+        header.Children.Add(_groupBar);
         Item = new TabViewItem { Tag = tab, Header = header, IconSource = new SymbolIconSource { Symbol = Symbol.Folder } };
         Refresh();
     }
@@ -46,9 +50,21 @@ internal sealed class TabItemUi
 
     public TabViewItem Item { get; }
 
-    public void Refresh()
+    /// <summary>Redraws the tab. <paramref name="group"/> is the tab's group: its colour runs as a bar under the tab (spec §4.1), and a folded group hides its tabs.</summary>
+    public void Refresh(TabGroup? group = null)
     {
         var tab = Tab;
+        Item.Visibility = group is { IsCollapsed: true } ? Visibility.Collapsed : Visibility.Visible;
+        if (group is not null && TryParseColor(group.Color, out var groupColor))
+        {
+            _groupBar.Background = new SolidColorBrush(groupColor);
+            _groupBar.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _groupBar.Visibility = Visibility.Collapsed;
+        }
+
         _title.Text = tab.Title;
         _title.Visibility = tab.IsPinned ? Visibility.Collapsed : Visibility.Visible;
         ToolTipService.SetToolTip(Item, tab.History.Current.Value);
@@ -96,7 +112,16 @@ public sealed partial class MainWindow
     {
         if (sender is TabViewModel tab && _tabUi.TryGetValue(tab, out var ui))
         {
-            OnUi(ui.Refresh);
+            OnUi(() =>
+            {
+                ui.Refresh(_viewModel.Tabs.GroupOf(tab));
+
+                // Joining or leaving a group changes where the chip stands; the group's own properties go through SyncTabs.
+                if (e.PropertyName == nameof(TabViewModel.GroupId))
+                {
+                    SyncTabs();
+                }
+            });
         }
     }
 
@@ -189,11 +214,18 @@ public sealed partial class MainWindow
     private void OnTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
     {
         UiTrace.Mark($"tab drag starting: {(args.Tab.Tag as TabViewModel)?.Title}");
+        _draggedItem = args.Tab.Tag;
         if (args.Tab.Tag is TabViewModel tab)
         {
             App.DraggedTab = tab;
             args.Data.RequestedOperation = DataPackageOperation.Move;
             args.Data.SetText(tab.History.Current.Value);
+        }
+        else if (args.Tab.Tag is TabGroup group)
+        {
+            App.DraggedGroup = group;
+            args.Data.RequestedOperation = DataPackageOperation.Move;
+            args.Data.SetText(group.Name);
         }
     }
 
@@ -201,6 +233,7 @@ public sealed partial class MainWindow
     {
         UiTrace.Mark($"tab drag completed: {args.DropResult}");
         App.DraggedTab = null;
+        App.DraggedGroup = null;
     }
 #pragma warning restore CA1822
 
@@ -214,14 +247,18 @@ public sealed partial class MainWindow
             // Put the new window's tab under the cursor rather than its corner.
             AfterDrag(() => Run(CommandIds.TabTearOff, tab.History.Current.Value, new TabTearOff(tab, x - 60, y - 24)));
         }
+        else if (args.Tab.Tag is TabGroup group && hasCursor)
+        {
+            AfterDrag(() => Run(CommandIds.TabGroupTearOff, null, new TabGroupTearOff(group, x - 60, y - 24)));
+        }
     }
 
     private void OnTabStripDragOver(object sender, DragEventArgs e)
     {
-        if (App.DraggedTab is not null)
+        if (App.DraggedTab is not null || App.DraggedGroup is not null)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
-            e.DragUIOverride.Caption = "Move tab here";
+            e.DragUIOverride.Caption = App.DraggedGroup is not null ? "Move group here" : "Move tab here";
         }
     }
 
@@ -229,7 +266,13 @@ public sealed partial class MainWindow
     private void OnTabStripDrop(object sender, DragEventArgs e)
     {
         UiTrace.Mark($"tab strip drop; dragged tab: {App.DraggedTab?.Title}");
-        if (App.DraggedTab is { } tab)
+        if (App.DraggedGroup is { } group)
+        {
+            e.AcceptedOperation = DataPackageOperation.Move;
+            var at = IndexAt(e.GetPosition(TabsView).X);
+            AfterDrag(() => Run(CommandIds.TabGroupDrop, null, new TabGroupDrop(group, at)));
+        }
+        else if (App.DraggedTab is { } tab)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
             var index = IndexAt(e.GetPosition(TabsView).X);
@@ -242,19 +285,25 @@ public sealed partial class MainWindow
 
     private int IndexAt(double x)
     {
-        for (var i = 0; i < TabsView.TabItems.Count; i++)
+        // The index among the tabs; chips are not tabs.
+        var tabs = 0;
+        foreach (var entry in TabsView.TabItems.OfType<TabViewItem>())
         {
-            if (TabsView.TabItems[i] is TabViewItem item)
+            if (entry.Tag is not TabViewModel || entry.Visibility != Visibility.Visible)
             {
-                var centre = item.TransformToVisual(TabsView).TransformPoint(new Point(item.ActualWidth / 2, 0)).X;
-                if (x < centre)
-                {
-                    return i;
-                }
+                continue;
             }
+
+            var centre = entry.TransformToVisual(TabsView).TransformPoint(new Point(entry.ActualWidth / 2, 0)).X;
+            if (x < centre)
+            {
+                return TabsView.TabItems.OfType<TabViewItem>().Where(i => i.Tag is TabViewModel).ToList().IndexOf(entry);
+            }
+
+            tabs++;
         }
 
-        return TabsView.TabItems.Count;
+        return _viewModel.Tabs.Tabs.Count;
     }
 
     /// <summary>The strip reordered itself while the user dragged within it: tell the view model, which settles the order (pinned tabs stay left).</summary>
@@ -265,27 +314,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            var shown = TabsView.TabItems.OfType<TabViewItem>().Select(i => i.Tag).OfType<TabViewModel>().ToList();
-            var model = _viewModel.Tabs.Tabs;
-            if (shown.Count != model.Count)
-            {
-                SyncTabs();
-                return;
-            }
-
-            for (var i = 0; i < shown.Count; i++)
-            {
-                if (!ReferenceEquals(shown[i], model[i]))
-                {
-                    Run(CommandIds.TabMove, shown[i].History.Current.Value, new TabMove(shown[i], i));
-                    break;
-                }
-            }
-
-            SyncTabs();
-        });
+        DispatcherQueue.TryEnqueue(ReconcileStripOrder);
     }
 
     // Context menu -----------------------------------------------------------------------------------------------------
@@ -325,6 +354,8 @@ public sealed partial class MainWindow
             }
 
             menu.Items.Add(colour);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            AddGroupEntries(menu, tab);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(Item("Duplicate tab", CommandIds.TabDuplicate));
             menu.Items.Add(Item("Close tab", CommandIds.TabClose));
@@ -375,17 +406,33 @@ public sealed partial class MainWindow
         var list = new ListView { MaxHeight = 360, IsItemClickEnabled = true, SelectionMode = ListViewSelectionMode.None };
         var flyout = new Flyout { Content = new StackPanel { Spacing = 8, Children = { search, list } } };
 
-        void Fill() => list.ItemsSource = _viewModel.Tabs.Search(search.Text)
-            .Select(t => new TabListEntry(t, t.Title + (t.IsPinned ? "  (pinned)" : string.Empty), t.History.Current.Value))
-            .ToList();
+        void Fill()
+        {
+            // Tabs under their group's heading (spec §4.1); a folded group's tabs are listed too, and picking one opens the group.
+            var entries = new List<TabListEntry>();
+            TabGroup? current = null;
+            foreach (var t in _viewModel.Tabs.Search(search.Text))
+            {
+                var group = _viewModel.Tabs.GroupOf(t);
+                if (group is not null && group != current)
+                {
+                    entries.Add(new TabListEntry(null, "▌ " + (group.Name.Length == 0 ? "Unnamed group" : group.Name), string.Empty));
+                }
+
+                current = group;
+                entries.Add(new TabListEntry(t, (group is null ? string.Empty : "    ") + t.Title + (t.IsPinned ? "  (pinned)" : string.Empty), t.History.Current.Value));
+            }
+
+            list.ItemsSource = entries;
+        }
 
         search.TextChanged += (_, _) => Fill();
         list.ItemTemplate = null;
         list.ItemClick += (_, args) =>
         {
-            if (args.ClickedItem is TabListEntry entry)
+            if (args.ClickedItem is TabListEntry { Tab: { } picked })
             {
-                _viewModel.Tabs.Select(entry.Tab);
+                _viewModel.Tabs.Select(picked);
                 flyout.Hide();
             }
         };
@@ -393,9 +440,9 @@ public sealed partial class MainWindow
         flyout.ShowAt((FrameworkElement)sender);
     }
 
-    private sealed record TabListEntry(TabViewModel Tab, string Title, string Path)
+    private sealed record TabListEntry(TabViewModel? Tab, string Title, string Path)
     {
-        public override string ToString() => $"{Title}    {Path}";
+        public override string ToString() => Path.Length == 0 ? Title : $"{Title}    {Path}";
     }
 
     // Middle-click opens a folder in a new background tab (spec 4.1) -----------------------------------------------------
