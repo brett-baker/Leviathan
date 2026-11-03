@@ -25,7 +25,17 @@
         Tapped="OnFrameTapped"
         RightTapped="OnFrameRightTapped"
         SizeChanged="OnFrameSizeChanged">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
     <StackPanel x:Name="CrumbPanel" Orientation="Horizontal" Padding="4,0" VerticalAlignment="Center" />
+    <!-- The favorite star (spec 5.2): outlined when this folder is not a favorite, filled when it is. -->
+    <Button x:Name="StarButton" Grid.Column="1" Width="30" Height="30" Padding="0" Margin="0,0,1,0" Background="Transparent" BorderThickness="0"
+            VerticalAlignment="Center" Click="OnStarClick" RightTapped="OnStarRightTapped"
+            AutomationProperties.Name="Favorite">
+      <FontIcon x:Name="StarIcon" Glyph="&#xE734;" FontSize="14" />
+    </Button>
     <AutoSuggestBox x:Name="Editor"
                     Visibility="Collapsed"
                     VerticalAlignment="Center"

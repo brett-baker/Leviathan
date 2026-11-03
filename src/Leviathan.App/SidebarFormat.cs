@@ -28,6 +28,15 @@ internal static class SidebarFormat
         _ => "",
     };
 
+    /// <summary>The row's icon: the one the user chose for a favorite, else the standard one.</summary>
+    public static string Glyph(SidebarIcon icon, string? custom) => custom ?? Glyph(icon);
+
+    /// <summary>The row's icon colour: the one the user chose for a favorite, else the text colour.</summary>
+    public static Brush IconBrush(string? accent) =>
+        FavoriteStyles.IsColor(accent)
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, Convert.ToByte(accent![1..3], 16), Convert.ToByte(accent[3..5], 16), Convert.ToByte(accent[5..7], 16)))
+            : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+
     public static string Chevron(bool expanded) => expanded ? "" : "";
 
     public static double IndentWidth(int depth) => Math.Max(0, depth - 1) * 14;

@@ -11,7 +11,11 @@ internal sealed class JsonFavoritesStorage : IFavoritesStorage
     private readonly string _path;
 
     public JsonFavoritesStorage(string? path = null) =>
-        _path = path ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan", "favorites.json");
+        _path = path ?? Path.Combine(
+            Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
+                ? custom
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan"),
+            "favorites.json");
 
     public IReadOnlyList<FavoriteEntry> Load()
     {
@@ -23,7 +27,7 @@ internal sealed class JsonFavoritesStorage : IFavoritesStorage
             }
 
             var stored = JsonSerializer.Deserialize<List<Stored>>(File.ReadAllText(_path)) ?? [];
-            return [.. stored.Where(s => LocationPath.TryParse(s.Path, out _)).Select(s => new FavoriteEntry(LocationPath.Parse(s.Path), s.Name))];
+            return [.. stored.Where(s => LocationPath.TryParse(s.Path, out _)).Select(s => new FavoriteEntry(LocationPath.Parse(s.Path), s.Name, s.Icon, s.Color))];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -36,9 +40,9 @@ internal sealed class JsonFavoritesStorage : IFavoritesStorage
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var temp = _path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(favorites.Select(f => new Stored(f.Location.Value, f.Name)), Options));
+        File.WriteAllText(temp, JsonSerializer.Serialize(favorites.Select(f => new Stored(f.Location.Value, f.Name, f.Icon, f.Color)), Options));
         File.Move(temp, _path, overwrite: true);
     }
 
-    private sealed record Stored(string Path, string? Name);
+    private sealed record Stored(string Path, string? Name, string? Icon = null, string? Color = null);
 }

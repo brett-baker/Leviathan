@@ -82,6 +82,8 @@ public sealed partial class MainWindow : Window, IShellActions
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
         host.Favorites.Changed += OnFavoritesChanged;
+        Address.FavoriteToggleRequested += (_, _) => Run(CommandIds.FavoriteToggle);
+        Address.FavoriteMenuRequested += OnAddressFavoriteMenu;
         FlowList.ItemInvoked += OnFileInvoked;
         FlowList.MiddleClicked += OnFileMiddleClicked;
         FlowList.KeyDown += OnFileKeyDown;
@@ -432,6 +434,7 @@ public sealed partial class MainWindow : Window, IShellActions
         SyncFilterBox();
         RefreshNavigationButtons();
         SyncSidebar();
+        UpdateFavoriteStar();
         if (tab.Folder.State == FolderLoadState.Idle)
         {
             Run(CommandIds.NavReload);
@@ -462,6 +465,7 @@ public sealed partial class MainWindow : Window, IShellActions
             {
                 RefreshNavigationButtons();
                 SyncSidebar();
+                UpdateFavoriteStar();
             });
         }
     }
@@ -676,7 +680,11 @@ public sealed partial class MainWindow : Window, IShellActions
         UpdateStatus();
     }
 
-    private void OnFavoritesChanged(object? sender, EventArgs e) => OnUi(RebuildSidebar);
+    private void OnFavoritesChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        RebuildSidebar();
+        UpdateFavoriteStar();
+    });
 
     private void SyncSidebar()
     {
@@ -802,7 +810,7 @@ public sealed partial class MainWindow : Window, IShellActions
         };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
-            App.Host.Favorites.Rename(where, box.Text);
+            Run(CommandIds.FavoriteRename, where.Value, box.Text);
         }
     }
 

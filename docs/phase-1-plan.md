@@ -176,8 +176,11 @@ Spec §4.1 (tab groups), §4.3 (icons), §5.2 (favorite star), §8.2 (column cho
 decisions D32–D36. I1–I5 must land before G1 so startup profiles save tab groups from the start. The letter is I so the
 existing slice names stay as they are; work order is E, F, I, G, H.
 
-- [ ] **I1. Favorite star in the address bar** (§5.2): outlined/filled star at the right end of the breadcrumb, bound to the
+- [x] **I1. Favorite star in the address bar** (§5.2): outlined/filled star at the right end of the breadcrumb, bound to the
   favorites store so it updates when Ctrl+D, the tree or drag-to-Favorites change it; click toggles, right-click rename/icon/colour.
+  Done: a star at the right end of the address bar (outlined when the folder is not a favorite, filled in the favorite's own icon and colour when it is) bound to the favorites list, so Ctrl+D, the star, the tree and drops all update it; click toggles, right-click offers Rename, Icon (12 icons), Colour (9 colours and default) and Remove. Favorites now carry an icon key and a colour (`favorites.json` stays readable by older builds), the sidebar shows them, and the changes run as commands `favorite.rename` and `favorite.style` so the action trail sees them. Favorites storage follows `LEVIATHAN_DATA_DIR`.
+  Verified: 17 new view-model tests (646); in the real app, clicking the star pinned D:\d9tmp (file written, sidebar row appeared, tooltip and name changed to "Remove from Favorites").
+  Not done: dragging a favorite to reorder, icon and colour menus checked by clicking in the real app (built from the same code as the tested commands).
 - [ ] **I2. Resizable sidebar** (§4): splitter between the tree and the file view, minimum/maximum widths, double-click to collapse
   and restore, width remembered per window (and in session state); keyboard-accessible. The spec already required this; it was missed.
 - [ ] **I3. Column chooser** (§8.2): View → Columns… and a "More columns…" item at the bottom of the header's right-click list open

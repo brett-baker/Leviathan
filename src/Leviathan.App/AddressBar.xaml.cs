@@ -3,6 +3,7 @@ using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Tabs;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -75,6 +76,31 @@ public sealed partial class AddressBar : UserControl
 
     /// <summary>Raised when the editor closes (Enter, Esc or focus lost), so the host can move focus to the file list.</summary>
     internal event EventHandler? EditEnded;
+
+    /// <summary>The star was clicked: pin or unpin the current folder (same as Ctrl+D).</summary>
+    internal event EventHandler? FavoriteToggleRequested;
+
+    /// <summary>The star was right-clicked: show the rename / icon / colour menu at <see cref="RightTappedRoutedEventArgs"/>'s position.</summary>
+    internal event EventHandler<RightTappedRoutedEventArgs>? FavoriteMenuRequested;
+
+    /// <summary>Draws the star outlined or filled (in the favorite's own colour and icon when it has them) and sets its tooltip.</summary>
+    internal void SetFavorite(bool pinned, string? glyph = null, string? colorHex = null)
+    {
+        StarIcon.Glyph = pinned ? (glyph ?? "\uE735") : "\uE734";
+        StarIcon.Foreground = pinned && FavoriteStyles.IsColor(colorHex)
+            ? SidebarFormat.IconBrush(colorHex)
+            : (Brush)Application.Current.Resources[pinned ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush"];
+        ToolTipService.SetToolTip(StarButton, pinned ? "Remove from Favorites (Ctrl+D)" : "Add to Favorites (Ctrl+D)");
+        AutomationProperties.SetName(StarButton, pinned ? "Remove from Favorites" : "Add to Favorites");
+    }
+
+    private void OnStarClick(object sender, RoutedEventArgs e) => FavoriteToggleRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnStarRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        e.Handled = true;
+        FavoriteMenuRequested?.Invoke(this, e);
+    }
 
     internal void Attach(AddressBarServices services)
     {

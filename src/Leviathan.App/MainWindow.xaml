@@ -234,7 +234,8 @@
                 <FontIcon FontSize="10" Glyph="{x:Bind local:SidebarFormat.Chevron(IsExpanded), Mode=OneWay}" />
               </Button>
               <FontIcon Grid.Column="2" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0"
-                        Glyph="{x:Bind local:SidebarFormat.Glyph(Icon)}"
+                        Glyph="{x:Bind local:SidebarFormat.Glyph(Icon, Glyph)}"
+                        Foreground="{x:Bind local:SidebarFormat.IconBrush(Accent)}"
                         Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
               <ProgressRing Grid.Column="2" Width="14" Height="14" IsActive="True" HorizontalAlignment="Center"
                             Visibility="{x:Bind local:SidebarFormat.IsLoading(Kind)}" />

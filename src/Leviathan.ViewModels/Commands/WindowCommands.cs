@@ -187,6 +187,12 @@ public static class CommandIds
     /// <summary>Show or hide hidden and system items.</summary>
     public static readonly CommandId ViewHidden = new("view.hidden");
 
+    /// <summary>Give a favorite its own name. Target: the folder. Parameter: the name, or null for the folder's own (spec §5.2).</summary>
+    public static readonly CommandId FavoriteRename = new("favorite.rename");
+
+    /// <summary>Change a favorite's icon and colour. Target: the folder. Parameter: a <see cref="Sidebar.FavoriteStyleChange"/> (spec §5.2).</summary>
+    public static readonly CommandId FavoriteStyle = new("favorite.style");
+
     /// <summary>Show or hide the preview pane (Alt+P).</summary>
     public static readonly CommandId PreviewPane = new("pane.preview");
 
@@ -955,6 +961,13 @@ public static partial class WindowCommands
 
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
 
+        Add(CommandIds.FavoriteRename, "Rename favorite", "Favorites", (c, _) => Run(() => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string)),
+            c => favorites is not null && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
+        Add(CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", (c, _) => Run(() =>
+        {
+            var change = (Sidebar.FavoriteStyleChange)c.Parameter!;
+            favorites!.SetStyle(LocationPath.Parse(c.Target!), change.Icon, change.Color);
+        }), c => favorites is not null && c.Parameter is Sidebar.FavoriteStyleChange && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
         Add(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (_, _) => Run(() =>
         {
             var pinned = favorites!.Toggle(Current()!.History.Current);

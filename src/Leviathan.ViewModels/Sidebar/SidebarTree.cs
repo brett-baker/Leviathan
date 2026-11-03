@@ -74,7 +74,14 @@ public enum SidebarIcon
 /// <param name="Detail">Second line, such as free space, or empty.</param>
 /// <param name="UsedFraction">Share of a drive in use for the usage bar, or null for no bar.</param>
 /// <param name="IsLowOnSpace">True when the bar should warn.</param>
-public sealed record SidebarPlace(string Title, LocationPath Location, SidebarIcon Icon, string Detail = "", double? UsedFraction = null, bool IsLowOnSpace = false);
+public sealed record SidebarPlace(string Title, LocationPath Location, SidebarIcon Icon, string Detail = "", double? UsedFraction = null, bool IsLowOnSpace = false)
+{
+    /// <summary>Icon character that replaces the standard one (a favorite the user gave an icon), or null.</summary>
+    public string? Glyph { get; init; }
+
+    /// <summary>Icon colour as <c>#RRGGBB</c>, or null for the theme's.</summary>
+    public string? Accent { get; init; }
+}
 
 /// <summary>A section and its entries.</summary>
 /// <param name="Title">Header text.</param>
@@ -117,6 +124,12 @@ public sealed partial class SidebarNode : ObservableObject
 
     /// <summary>Icon.</summary>
     public SidebarIcon Icon { get; }
+
+    /// <summary>Icon character that replaces <see cref="Icon"/>'s standard one, or null.</summary>
+    public string? Glyph { get; init; }
+
+    /// <summary>Icon colour as <c>#RRGGBB</c>, or null for the theme's.</summary>
+    public string? Accent { get; init; }
 
     /// <summary>Usage bar fill, or null for no bar.</summary>
     public double? UsedFraction { get; init; }
@@ -222,6 +235,8 @@ public sealed class SidebarTree
                     Detail = place.Detail,
                     UsedFraction = place.UsedFraction,
                     IsLowOnSpace = place.IsLowOnSpace,
+                    Glyph = place.Glyph,
+                    Accent = place.Accent,
                     CanExpand = true,
                 });
             }

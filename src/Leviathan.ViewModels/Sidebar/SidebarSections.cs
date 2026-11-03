@@ -7,7 +7,57 @@ namespace Leviathan.ViewModels.Sidebar;
 /// <summary>A pinned folder (spec §7, Favorites).</summary>
 /// <param name="Location">The folder.</param>
 /// <param name="Name">The name the user gave it, or null for the folder's own name.</param>
-public sealed record FavoriteEntry(LocationPath Location, string? Name = null);
+/// <param name="Icon">Key of the icon the user chose (see <see cref="FavoriteStyles"/>), or null for the star.</param>
+/// <param name="Color">Colour the user chose as <c>#RRGGBB</c>, or null for the default.</param>
+public sealed record FavoriteEntry(LocationPath Location, string? Name = null, string? Icon = null, string? Color = null);
+
+/// <summary>A change to how a favorite looks: both parts are applied, null meaning "back to the default".</summary>
+/// <param name="Icon">Icon key from <see cref="FavoriteStyles.Icons"/>.</param>
+/// <param name="Color">Colour as <c>#RRGGBB</c>.</param>
+public sealed record FavoriteStyleChange(string? Icon, string? Color);
+
+/// <summary>The icons and colours a favorite can wear (spec §5.2: "right-click offers rename, icon and colour for the favorite").</summary>
+public static class FavoriteStyles
+{
+    /// <summary>Icons by key: key, name shown in the menu, Segoe Fluent Icons character.</summary>
+    public static IReadOnlyList<(string Key, string Title, string Glyph)> Icons { get; } =
+    [
+        ("star", "Star", "\uE734"),
+        ("folder", "Folder", "\uE8B7"),
+        ("heart", "Heart", "\uEB51"),
+        ("flag", "Flag", "\uE7C1"),
+        ("pin", "Pin", "\uE718"),
+        ("work", "Work", "\uE821"),
+        ("home", "Home", "\uE80F"),
+        ("code", "Code", "\uE943"),
+        ("video", "Video", "\uE714"),
+        ("photo", "Photos", "\uEB9F"),
+        ("music", "Music", "\uE8D6"),
+        ("download", "Download", "\uE896"),
+    ];
+
+    /// <summary>Colours: name shown in the menu and <c>#RRGGBB</c>.</summary>
+    public static IReadOnlyList<(string Title, string Hex)> Colors { get; } =
+    [
+        ("Red", "#E74856"),
+        ("Orange", "#F7630C"),
+        ("Yellow", "#FFB900"),
+        ("Green", "#16C60C"),
+        ("Teal", "#00B7C3"),
+        ("Blue", "#0078D4"),
+        ("Purple", "#886CE4"),
+        ("Pink", "#E3008C"),
+        ("Grey", "#8A8A8A"),
+    ];
+
+    /// <summary>The glyph of icon <paramref name="key"/>, or null when there is no such icon.</summary>
+    public static string? GlyphOf(string? key) => Icons.FirstOrDefault(i => string.Equals(i.Key, key, StringComparison.Ordinal)).Glyph;
+
+    /// <summary>True for <c>#RRGGBB</c>.</summary>
+    public static bool IsColor(string? text) => text is { Length: 7 } && text[0] == '#' && text.AsSpan(1).ContainsAnyExcept(HexDigits) is false;
+
+    private static readonly System.Buffers.SearchValues<char> HexDigits = System.Buffers.SearchValues.Create("0123456789abcdefABCDEF");
+}
 
 /// <summary>Where the favorites are kept between runs. Writes must be atomic (spec §17).</summary>
 public interface IFavoritesStorage
@@ -71,6 +121,26 @@ public sealed class FavoritesList
         }
     }
 
+    /// <summary>
+    /// Sets how a favorite looks: an icon key from <see cref="FavoriteStyles.Icons"/> and a colour as <c>#RRGGBB</c>; null for either
+    /// goes back to the default. An unknown key or a malformed colour is ignored rather than stored.
+    /// </summary>
+    public void SetStyle(LocationPath location, string? icon, string? color)
+    {
+        var index = _items.FindIndex(f => f.Location == location);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _items[index] = _items[index] with
+        {
+            Icon = FavoriteStyles.GlyphOf(icon) is null ? null : icon,
+            Color = FavoriteStyles.IsColor(color) ? color!.ToUpperInvariant() : null,
+        };
+        Persist();
+    }
+
     private void Persist()
     {
         try
@@ -110,7 +180,7 @@ public static class SidebarSections
         var driveList = drives.ToList();
         return
         [
-            new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value))], "Press Ctrl+D to pin a folder"),
+            new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })], "Press Ctrl+D to pin a folder"),
             new SidebarSection("Common folders", [.. common]),
             new SidebarSection("Tags", [], "Tags arrive in Phase 3"),
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]),
