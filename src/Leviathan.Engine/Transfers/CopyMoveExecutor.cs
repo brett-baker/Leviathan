@@ -24,13 +24,15 @@ public sealed class CopyMoveExecutor : IJobExecutor
     private readonly int _bufferSize;
     private readonly TransferPlanner _planner;
     private readonly ITransferPlanStore _plans;
+    private readonly IFileCopier _copier;
 
     /// <summary>
     /// Creates the executor over <paramref name="fileSystem"/> with <paramref name="bufferSize"/>-byte chunks (1 MB by default).
     /// <paramref name="planStore"/> keeps each job's plan until the job finishes; <paramref name="identities"/> lets names of one
-    /// SMB server count as one when choosing the path (spec §3.5 item 5).
+    /// SMB server count as one when choosing the path (spec §3.5 item 5); <paramref name="copier"/> moves the bytes of each file
+    /// (the portable chunked copier by default).
     /// </summary>
-    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null)
+    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentOutOfRangeException.ThrowIfLessThan(bufferSize, 1);
@@ -38,6 +40,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         _bufferSize = bufferSize;
         _planner = new TransferPlanner(fileSystem, identities);
         _plans = planStore ?? new InMemoryTransferPlanStore();
+        _copier = copier ?? new ChunkedFileCopier(fileSystem, () => BufferPolicy.Fixed(bufferSize));
     }
 
     /// <inheritdoc />
@@ -168,51 +171,19 @@ public sealed class CopyMoveExecutor : IJobExecutor
             return;
         }
 
-        // ServerSideCopy is planned for two ends on one SMB server; until the CopyFile2 copier lands (slice B2) it runs through the chunked copier.
-        var part = Io(target) + PartSuffix;
-        var info = _fs.FileInfo.New(Io(source));
-        var length = info.Length;
         run.Publish(source.Name);
-        byte[]? sourceHash = null;
-        try
-        {
-            using (var input = _fs.File.Open(Io(source), FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (var output = _fs.File.Open(part, FileMode.Create, FileAccess.Write, FileShare.None))
-            {
-                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                var buffer = new byte[_bufferSize];
-                int read;
-                while ((read = await input.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false)) > 0)
-                {
-                    await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                    hash.AppendData(buffer, 0, read);
-                    run.AddBytes(read);
-                }
-
-                await output.FlushAsync(ct).ConfigureAwait(false);
-                sourceHash = hash.GetHashAndReset();
-            }
-
-            if (_fs.FileInfo.New(part).Length != length)
-            {
-                throw new IOException($"The copy of {source.Name} is {_fs.FileInfo.New(part).Length:N0} bytes, not {length:N0}.");
-            }
-
-            _fs.File.SetLastWriteTimeUtc(part, info.LastWriteTimeUtc);
-            _fs.File.SetCreationTimeUtc(part, info.CreationTimeUtc);
-            _fs.File.SetAttributes(part, info.Attributes & ~FileAttributes.ReadOnly);
-            _fs.File.Move(part, Io(target), overwrite: true);
-        }
-        catch
-        {
-            TryDelete(part);
-            throw;
-        }
+        var result = await _copier.CopyAsync(
+            new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: run.Move && path != TransferPath.ServerSideCopy, run.AddBytes),
+            ct).ConfigureAwait(false);
 
         if (run.Move)
         {
-            // Across volumes the original goes only after the copy is read back and matches (spec §12.1).
-            if (!await MatchesAsync(Io(target), sourceHash!, ct).ConfigureAwait(false))
+            // Across volumes the original goes only after the copy is read back and matches (spec §12.1). A server-side copy has no
+            // hash made on the way, so for now it is checked by size; the verify policy of slice B4 adds a sampled hash.
+            var verified = result.SourceHash is { } expected
+                ? await MatchesAsync(Io(target), expected, ct).ConfigureAwait(false)
+                : _fs.FileInfo.New(Io(target)).Length == result.Length;
+            if (!verified)
             {
                 TryDelete(Io(target));
                 throw new IOException($"The copy of {source.Name} did not match the original, so the original was kept.");

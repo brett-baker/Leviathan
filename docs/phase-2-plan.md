@@ -71,8 +71,9 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [x] **B1. Planner.** Enumerate sources into the journal before copying; free-space check at the destination; fastest path per
   item: same-volume rename, same-server `CopyFile2` (server-side copy), otherwise chunked copier. Unit tests with fakes.
   Done as `TransferPlanner` (plan = items with resolved names and a path per file, exact totals), `TransferPlan` + `ITransferPlanStore` (JSON file per job, atomic; saved before the first byte, deleted when the job ends) and `CopyMoveExecutor` now running the plan step by step. Existing behaviour and tests unchanged. Not yet: `ServerSideCopy` is chosen but runs through the chunked copier until `CopyFile2` lands (B2); a restart plans afresh, resuming from the saved plan needs the per-file journal (B3).
-- [ ] **B2. Chunked copier.** `IFileCopier` with adaptive buffers, unbuffered I/O for files over 256 MB, writes to
+- [x] **B2. Chunked copier.** `IFileCopier` with adaptive buffers, unbuffered I/O for files over 256 MB, writes to
   `*.leviathan-part`, renames when complete; preserves timestamps, attributes and alternate data streams (tags), ACLs optional.
+  Done: `IFileCopier`; portable `ChunkedFileCopier` (buffer 1-8 MB from measured throughput per destination, unbuffered I/O from 256 MB with hand-aligned buffers and a padded last sector cut back to size, part file + rename, times, attributes incl. read-only, alternate streams via `IAlternateStreams`); `WindowsFileCopier` in Interop (`CopyFile2` with progress and cancel for server-side copy, real stream copy via `FindFirstStreamW`). The worker uses it. Not done: ACLs (optional in the spec), a server-side move is verified by size only until B4, `CopyFile2` against a real NAS is for the lab run.
 - [ ] **B3. Resume journal.** Per-file confirmed-bytes records; resume from the last confirmed chunk after a network drop,
   worker restart or reboot. Torn-write tests.
 - [ ] **B4. Verify policy.** xxHash3 (`System.IO.Hashing`): full verify up to 4 GB, sampled above (first/last 64 MB + 16 random
