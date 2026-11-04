@@ -84,7 +84,8 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   trying 30 minutes); permanent errors → one prompt with Skip / Retry / Skip all like this; safe rename for names invalid on
   the destination; end-of-job report.
   Done: transient drops -> Waiting with `RetryAt` (countdown) and a 30-minute limit that then fails the job (kept work stays); permanent errors (access denied, disk full, invalid name, failed verify) -> `JobPrompt` in the snapshot, answered with `AnswerPromptAsync` (Skip / Retry / Skip all like this), or `OnError = SkipAndReport`; names a network share would refuse are changed at plan time (`SafeNames`) and listed in the report; `JobReport` (counts, every item with its reason, notes) kept 7 days (`GetReportAsync`). Not done: the prompt UI and the countdown display (C3), a Skip-all choice survives only within one run, the app submits with SkipAndReport until C3 exists.
-- [ ] **B6. Replace Phase 1's basic copy/move** with the engine; contract version bump if the request shape changes.
+- [x] **B6. Replace Phase 1's basic copy/move** with the engine; contract version bump if the request shape changes.
+  Done by evolving in place: the app has one transfer path (`WorkerTransfers` -> worker -> `CopyMoveExecutor`), so there was no second implementation to remove. Contract changes are additive (`Verify`, `OnError`, `RetryAt`, `Prompt`, `AnswerPromptAsync`, `GetReportAsync`), contract minor 3; the major stays 2.
 
 ### C. Queue and UI (§12.3, §12.6)
 
