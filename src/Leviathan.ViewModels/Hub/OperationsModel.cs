@@ -141,6 +141,29 @@ public sealed class OperationsModel
         }
     }
 
+    /// <summary>
+    /// What the newest failure nobody has looked at says, cut to <paramref name="maxLength"/> characters: the tooltip of the failure
+    /// mark in the status bar (the full text is in the Operations tab). Null when there is none.
+    /// </summary>
+    public string? LatestUnseenFailure(int maxLength = 100)
+    {
+        lock (_gate)
+        {
+            var newest = _jobs.Values
+                .Where(j => j.Job.State == JobState.Failed && !_seenFailures.Contains(j.Job.Id))
+                .OrderByDescending(j => j.Order)
+                .Select(j => j.Job)
+                .FirstOrDefault();
+            if (newest is null)
+            {
+                return null;
+            }
+
+            var text = $"{newest.Title}: {newest.Error ?? "failed"}".ReplaceLineEndings(" ");
+            return text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength - 1), "…");
+        }
+    }
+
     /// <summary>The status bar chip: "2 jobs · 1 queued · 112 MB/s", or empty when nothing is going on.</summary>
     public string Summary
     {

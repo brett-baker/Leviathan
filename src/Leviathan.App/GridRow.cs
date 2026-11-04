@@ -341,11 +341,32 @@ internal sealed class GridRow : Grid
                 }
 
                 cell.Text.Opacity = entry.IsHidden ? 0.65 : 1;
+                if (entry.Kind == Leviathan.Core.Model.FileEntryKind.File && _nameImage is not null)
+                {
+                    _ = ShowTypeIconAsync(entry, icon);
+                }
             }
             else if (cell.ColumnId == "size")
             {
                 cell.Text.FontStyle = sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
             }
+        }
+    }
+
+    // The icon of the program that opens the file replaces the generic one as soon as the shell has answered for this file type.
+    private async Task ShowTypeIconAsync(FileEntry entry, FontIcon glyph)
+    {
+        if (!TypeIcons.TryGet(entry, TypeIcons.RowSize, out var icon))
+        {
+            icon = await TypeIcons.GetAsync(entry, TypeIcons.RowSize);
+        }
+
+        // The row may have been recycled for another item meanwhile.
+        if (icon is not null && ReferenceEquals(Entry, entry) && _nameImage is not null)
+        {
+            _nameImage.Source = icon;
+            _nameImage.Visibility = Visibility.Visible;
+            glyph.Visibility = Visibility.Collapsed;
         }
     }
 

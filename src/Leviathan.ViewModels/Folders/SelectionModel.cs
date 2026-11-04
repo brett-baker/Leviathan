@@ -48,7 +48,11 @@ public sealed class SelectionModel
         _time = time ?? TimeProvider.System;
         if (rows is INotifyCollectionChanged notifying)
         {
-            notifying.CollectionChanged += (_, _) => _index = null;
+            notifying.CollectionChanged += (_, _) =>
+            {
+                _index = null;
+                _selectedCache = null;
+            };
         }
     }
 
@@ -61,13 +65,28 @@ public sealed class SelectionModel
     /// <summary>Number of selected items that are currently in the view.</summary>
     public int Count => SelectedEntries.Count;
 
+    // The selected rows, worked out once per change: with 40,000 rows selected every pass costs milliseconds, and each change is
+    // read by the status bar, the command bar, the preview and the views (a select-all stalled the window for over 600 ms).
+    private IReadOnlyList<FileEntry>? _selectedCache;
+
+    private void RaiseChanged()
+    {
+        _selectedCache = null;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Selected items in display order.</summary>
     public IReadOnlyList<FileEntry> SelectedEntries
     {
         get
         {
+            if (_selectedCache is { } cached)
+            {
+                return cached;
+            }
+
             Prune();
-            return [.. _rows.Where(r => _selected.Contains(r.Location))];
+            return _selectedCache = _selected.Count == 0 ? [] : [.. _rows.Where(r => _selected.Contains(r.Location))];
         }
     }
 
@@ -98,7 +117,7 @@ public sealed class SelectionModel
         }
 
         Focus = entry.Location;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Space in keyboard mode, or a checkbox: toggles one item and makes it the anchor.</summary>
@@ -112,7 +131,7 @@ public sealed class SelectionModel
 
         _anchor = entry.Location;
         Focus = entry.Location;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Selects every row (Ctrl+A).</summary>
@@ -124,14 +143,14 @@ public sealed class SelectionModel
             _selected.Add(row.Location);
         }
 
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Clears the selection (Ctrl+Shift+A). Focus stays.</summary>
     public void Clear()
     {
         _selected.Clear();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Selects what is not selected and deselects the rest (Ctrl+I).</summary>
@@ -144,7 +163,7 @@ public sealed class SelectionModel
             _selected.Add(location);
         }
 
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Selects rows whose name matches a wildcard pattern such as <c>*.mkv</c> (spec §6.2). Returns how many matched.</summary>
@@ -165,7 +184,7 @@ public sealed class SelectionModel
             matched++;
         }
 
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
         return matched;
     }
 
@@ -192,7 +211,7 @@ public sealed class SelectionModel
         if (ctrl && !shift)
         {
             Focus = entry.Location;
-            Changed?.Invoke(this, EventArgs.Empty);
+            RaiseChanged();
             return;
         }
 
@@ -201,7 +220,7 @@ public sealed class SelectionModel
             _anchor ??= Focus ?? entry.Location;
             SelectRangeTo(entry, keepExisting: false);
             Focus = entry.Location;
-            Changed?.Invoke(this, EventArgs.Empty);
+            RaiseChanged();
             return;
         }
 
@@ -264,7 +283,7 @@ public sealed class SelectionModel
             }
         }
 
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>
@@ -290,7 +309,7 @@ public sealed class SelectionModel
 
         _selected.Clear();
         _selected.UnionWith(next);
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     /// <summary>Space in keyboard mode: toggles the item with the focus.</summary>
@@ -356,6 +375,7 @@ public sealed class SelectionModel
         if (_selected.Count > 0)
         {
             _selected.RemoveWhere(l => IndexOf(l) < 0);
+            _selectedCache = null;
         }
 
         if (Focus is not null && IndexOf(Focus) < 0)

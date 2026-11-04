@@ -49,6 +49,10 @@ public sealed partial class MainWindow
         Icons.Bind(HubChevron, static (b, i) => b.Content = i, "chevron-up", 12);
         UpdateOperationsPart();
         _stripModel = new ActivityStripModel(App.Host.Operations);
+
+        // The strip runs from where the address bar starts to where it ends (not edge to edge).
+        Address.SizeChanged += (_, _) => AlignStrip();
+        Root.SizeChanged += (_, _) => AlignStrip();
         Strip.JobRequested += (_, _) =>
         {
             // A click opens the Operations panel; when it is already showing, it stays open.
@@ -311,8 +315,26 @@ public sealed partial class MainWindow
         OperationsPart.Visibility = summary.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         OperationsText.Text = summary;
         var failures = operations.UnseenFailures;
+        FailurePart.Visibility = failures > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (failures > 0)
+        {
+            ToolTipService.SetToolTip(FailurePart, operations.LatestUnseenFailure() ?? "A job failed");
+        }
+
         HubBadge.Value = failures;
         HubBadge.Visibility = failures > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AlignStrip()
+    {
+        if (Address.ActualWidth <= 0 || Root.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        var left = Address.TransformToVisual(Root).TransformPoint(new Windows.Foundation.Point(0, 0)).X;
+        var right = Math.Max(0, Root.ActualWidth - left - Address.ActualWidth);
+        Strip.Margin = new Thickness(left, 2, right, 2);
     }
 
     private bool HandleHubEscape()

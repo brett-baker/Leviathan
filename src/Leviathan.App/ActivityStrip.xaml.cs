@@ -11,7 +11,7 @@ namespace Leviathan.App;
 
 /// <summary>
 /// The activity strip (spec §12.6): a band of thin progress lines directly under the address bar, one per running job in the job's
-/// colour, taking no space when nothing runs. It only draws what <see cref="ActivityStripModel"/> says; click opens the Operations
+/// colour, with room for four lines kept free even when nothing runs, so the window does not jump when a job starts. It only draws what <see cref="ActivityStripModel"/> says; click opens the Operations
 /// panel (at the job, for a single line). Lines are kept and restyled rather than rebuilt, so a busy worker does not make the UI churn.
 /// </summary>
 public sealed partial class ActivityStrip : UserControl
@@ -31,7 +31,6 @@ public sealed partial class ActivityStrip : UserControl
     public void Update(IReadOnlyList<StripLine> lines)
     {
         ArgumentNullException.ThrowIfNull(lines);
-        Visibility = lines.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         while (_views.Count > lines.Count)
         {
             var last = _views[^1];

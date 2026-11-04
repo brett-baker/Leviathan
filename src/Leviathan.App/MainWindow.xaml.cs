@@ -314,6 +314,8 @@ public sealed partial class MainWindow : Window, IShellActions
         var hadFocus = FileList.HasKeyboardFocus || FlowList.HasKeyboardFocus;
         FlowList.Visibility = flow ? Visibility.Visible : Visibility.Collapsed;
         FileList.Visibility = flow ? Visibility.Collapsed : Visibility.Visible;
+        FileList.SetActive(!flow);
+        FlowList.SetActive(flow);
         if (flow)
         {
             // The view skipped scrolling to the selection while it was collapsed; do it now that elements can be created.
@@ -332,8 +334,15 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             OnUi(() =>
             {
-                ApplyLayout();
-                UpdateLayoutSwitch();
+                using (UiTrace.Begin("MainWindow.ApplyLayout", 5))
+                {
+                    ApplyLayout();
+                }
+
+                using (UiTrace.Begin("MainWindow.UpdateLayoutSwitch", 5))
+                {
+                    UpdateLayoutSwitch();
+                }
             });
         }
         else if (e.PropertyName == nameof(TabViewModel.ThumbnailSize))

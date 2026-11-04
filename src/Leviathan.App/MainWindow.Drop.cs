@@ -37,7 +37,12 @@ public sealed partial class MainWindow
             }
         }
 
-        MessageText.Text = message;
+        // A failure is not written into the footer: the failure mark next to the operations chip says it, and the Operations tab has
+        // the full text. Everything else (done, cancelled) is a one-line message.
+        if (finished.Job.State != Leviathan.Contracts.JobState.Failed)
+        {
+            MessageText.Text = message;
+        }
     });
 
     /// <inheritdoc />

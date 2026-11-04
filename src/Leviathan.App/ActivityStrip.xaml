@@ -2,7 +2,7 @@
     x:Class="Leviathan.App.ActivityStrip"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Visibility="Collapsed">
-  <!-- The lines are built in code (ActivityStrip.xaml.cs): their number and look change with the jobs. -->
+    Height="11">
+  <!-- The height holds four lines of 2 px with 1 px between, always, so nothing below moves when a job starts. The lines are built in code (ActivityStrip.xaml.cs): their number and look change with the jobs. -->
   <StackPanel x:Name="Lines" Spacing="1" Background="Transparent" />
 </UserControl>

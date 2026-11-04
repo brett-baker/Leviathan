@@ -234,4 +234,33 @@ public sealed class LargeFolderTests
         Assert.True(afterChanged > 0);
         Assert.Equal("f001999.txt", view.Rows[0].Name);
     }
+
+    // Names in a scrambled order, so the first sort has real work to do.
+    private static FileEntry Scattered(int i)
+    {
+        var name = $"f{(i * 7919) % 40_000:D5}.txt";
+        return new FileEntry(name, P(@"C:\big\" + name), FileEntryKind.File, 1, Stamp, Stamp, FileAttributes.Normal);
+    }
+
+    [Fact]
+    public void ChangingTheFilter_OfAnAlreadySortedFolder_DoesNotSortAgain()
+    {
+        // Showing or hiding items and typing in the filter box used to sort every row afresh on the UI thread (300 to 500 ms for
+        // 40,000 rows, the 572 ms stall of "show hidden"). The sorted list is kept, so a filter change is one pass over it.
+        var source = new RangeObservableCollection<FileEntry>();
+        source.AddRange([.. Enumerable.Range(0, 40_000).Select(i => Scattered(i))]);
+        var view = new FolderItemsView(source);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        view.SetSort([new SortKey("name", SortDirection.Descending)]);
+        var fullSort = sw.Elapsed;
+
+        sw.Restart();
+        view.SetFilter("f0");
+        view.SetFilter(null);
+        var twoFilterChanges = sw.Elapsed;
+
+        Assert.Equal(40_000, view.Rows.Count);
+        Assert.Equal("f39999.txt", view.Rows[0].Name);
+        Assert.True(twoFilterChanges < fullSort / 2, $"two filter changes took {twoFilterChanges.TotalMilliseconds:F0} ms, a full sort {fullSort.TotalMilliseconds:F0} ms");
+    }
 }

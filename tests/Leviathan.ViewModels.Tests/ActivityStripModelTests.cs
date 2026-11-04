@@ -177,6 +177,23 @@ public sealed class ActivityStripModelTests
         Assert.Equal(StripLineStyle.Solid, new ActivityStripModel(operations).Lines.Single().Style);
     }
 
+    [Fact]
+    public void LatestUnseenFailure_IsShortened_AndGoesAwayOnceSeen()
+    {
+        var (operations, _) = Make(Job(JobState.Failed, title: "Delete 4 items", error: new string('x', 300)));
+
+        var text = operations.LatestUnseenFailure(100);
+
+        Assert.NotNull(text);
+        Assert.Equal(100, text.Length);
+        Assert.StartsWith("Delete 4 items: xxx", text, StringComparison.Ordinal);
+        Assert.EndsWith("…", text, StringComparison.Ordinal);
+
+        operations.MarkFailuresSeen();
+
+        Assert.Null(operations.LatestUnseenFailure());
+    }
+
     private sealed class DoubleComparer : IEqualityComparer<double>
     {
         public bool Equals(double x, double y) => Math.Abs(x - y) < 0.01;

@@ -194,16 +194,17 @@ public sealed class DeleteExecutorTests
     }
 
     [Fact]
-    public async Task ADriveRoot_AndAMissingItem_AreRefused_WhileTheOthersStillRun()
+    public async Task ADriveRoot_IsRefused_AMissingItemIsAlreadyDone_AndTheOthersStillRun()
     {
         var fs = Disk();
         var bin = new FakeBin(fs);
 
         var (job, items) = await RunAsync(fs, bin, @"C:\", @"C:\a\gone.txt", @"C:\a\1.txt");
 
+        // A listing can show a file that was deleted a moment ago; that is not a failure (it was a "4 files could not be deleted" message).
         Assert.Equal(JobState.Failed, job.State);
-        Assert.Contains("2 of 3", job.Error, StringComparison.Ordinal);
-        Assert.Equal([ItemStatus.Failed, ItemStatus.Failed, ItemStatus.Done], items.Select(i => i.Status));
+        Assert.Contains("1 of 3", job.Error, StringComparison.Ordinal);
+        Assert.Equal([ItemStatus.Failed, ItemStatus.Skipped, ItemStatus.Done], items.Select(i => i.Status));
         Assert.Equal([@"C:\a\1.txt"], bin.Recycled);
     }
 }

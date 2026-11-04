@@ -40,6 +40,13 @@ public sealed partial class FolderItemsView : ObservableObject
     private readonly HashSet<string> _collapsed = [];
     private readonly TimeProvider _time;
     private List<FileEntry> _sorted = [];
+
+    // Every entry in sort order, unfiltered, kept while neither the entries nor the sort changed: a filter change (hidden items, the
+    // filter box) then only filters this list, where sorting 40,000 rows afresh took 300 to 500 ms on the UI thread.
+    private List<FileEntry>? _allSorted;
+    private Comparison<FileEntry>? _allSortedBy;
+    private int _version;
+    private int _allSortedVersion = -1;
     private IReadOnlyList<SortKey> _sort = [new SortKey("name")];
     private FolderPlacement _folders = FolderPlacement.First;
     private string? _groupBy;
@@ -200,6 +207,7 @@ public sealed partial class FolderItemsView : ObservableObject
 
     private void OnSourceChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        _version++;
         switch (e.Action)
         {
             case NotifyCollectionChangedAction.Add when e.NewItems is not null:
@@ -256,10 +264,37 @@ public sealed partial class FolderItemsView : ObservableObject
 
     private void Recompute()
     {
-        var list = _all.Where(Passes).ToList();
-        list.Sort(_comparison);
-        _sorted = list;
+        if (_allSorted is null || _allSortedVersion != _version || !ReferenceEquals(_allSortedBy, _comparison))
+        {
+            var all = new List<FileEntry>(_all);
+
+            // A folder usually arrives nearly in order, and checking costs one pass; sorting costs far more.
+            if (!IsSorted(all, _comparison))
+            {
+                all.Sort(_comparison);
+            }
+
+            _allSorted = all;
+            _allSortedVersion = _version;
+            _allSortedBy = _comparison;
+        }
+
+        // Filtering a sorted list keeps it sorted.
+        _sorted = _filter.IsEmpty ? new List<FileEntry>(_allSorted) : _allSorted.Where(Passes).ToList();
         Publish();
+    }
+
+    private static bool IsSorted(List<FileEntry> list, Comparison<FileEntry> comparison)
+    {
+        for (var i = 1; i < list.Count; i++)
+        {
+            if (comparison(list[i - 1], list[i]) > 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private bool Passes(FileEntry entry) => _filter.IsEmpty || _filter.Matches(entry, _metadata);

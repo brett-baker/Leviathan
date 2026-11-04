@@ -89,6 +89,9 @@ public sealed partial class DetailsGrid : UserControl
     /// <summary>Width of a row: the columns, or the viewport if that is wider so selection spans the whole line.</summary>
     internal double RowWidth => Math.Max((Layout?.TotalWidth ?? 0) + 4, Scroller.ViewportWidth - 8);
 
+    /// <summary>Gives the rows to the repeater when this view is the one on screen, and takes them away when it is not.</summary>
+    internal void SetActive(bool active) => Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+
     /// <summary>Shows <paramref name="tab"/>, or nothing for null.</summary>
     internal void Bind(TabViewModel? tab)
     {
@@ -99,7 +102,8 @@ public sealed partial class DetailsGrid : UserControl
 
         Unhook();
         _tab = tab;
-        Repeater.ItemsSource = tab?.Items.Rows;
+        // Only the view on screen holds the rows: the other one would otherwise take every update of a 40,000-row list too.
+        Repeater.ItemsSource = Visibility == Visibility.Visible ? tab?.Items.Rows : null;
         if (tab is null)
         {
             BuildHeader();

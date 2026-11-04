@@ -19,6 +19,7 @@ namespace Leviathan.App;
 /// </summary>
 internal sealed class FlowCell : Grid
 {
+    private static readonly TimeSpan ThumbnailDelay = TimeSpan.FromMilliseconds(120);
     private static Brush? s_selected;
     private static Brush? s_hover;
     private static Brush? s_drop;
@@ -106,11 +107,33 @@ internal sealed class FlowCell : Grid
         _image.Source = null;
         _image.Visibility = Visibility.Collapsed;
         ShowKindIcon(entry);
+        if (entry.Kind == FileEntryKind.File)
+        {
+            _ = ShowTypeIconAsync(entry, layout == ViewLayout.Thumbnails ? Math.Max(TypeIcons.RowSize, Bucket(size / 2)) : TypeIcons.RowSize);
+        }
+
         UpdateVisuals();
         UpdateEditor();
         if (layout == ViewLayout.Thumbnails)
         {
             _ = LoadThumbnailAsync(entry, size);
+        }
+    }
+
+    // The icon of the program that opens the file replaces the generic one as soon as the shell has answered for this file type.
+    private async Task ShowTypeIconAsync(FileEntry entry, int pixels)
+    {
+        if (!TypeIcons.TryGet(entry, pixels, out var icon))
+        {
+            icon = await TypeIcons.GetAsync(entry, pixels);
+        }
+
+        // The cell may have been recycled for another item, or a thumbnail may already be showing.
+        if (icon is not null && ReferenceEquals(Entry, entry) && _image.Visibility != Visibility.Visible)
+        {
+            _kind.Source = icon;
+            _kind.Visibility = Visibility.Visible;
+            _glyph.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -264,13 +287,20 @@ internal sealed class FlowCell : Grid
             ThumbnailImage? image;
             if (!cache.TryGetCached(request, out image))
             {
+                // A cell that is recycled or hidden within a moment (switching view, scrolling past) never reaches the shell, so
+                // a burst of changes does not queue hundreds of thumbnail jobs behind the one the user waits for.
+                await Task.Delay(ThumbnailDelay, loading.Token);
                 image = await cache.GetAsync(request, loading.Token);
             }
 
             if (image is not null && !loading.IsCancellationRequested && ReferenceEquals(Entry, entry))
             {
+                using var scope = UiTrace.Begin("FlowCell.Thumbnail", 5);
                 var bitmap = new WriteableBitmap(image.Width, image.Height);
-                image.Bgra.ToArray().CopyTo(bitmap.PixelBuffer);
+                using (var pixels = bitmap.PixelBuffer.AsStream())
+                {
+                    pixels.Write(image.Bgra.Span);
+                }
 
                 _image.Source = bitmap;
                 _image.Visibility = Visibility.Visible;

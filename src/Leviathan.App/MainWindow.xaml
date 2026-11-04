@@ -377,6 +377,10 @@
         <ProgressBar x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
       </StackPanel>
       <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->
+        <Button x:Name="FailurePart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick" AutomationProperties.Name="A job failed">
+          <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+        </Button>
         <!-- The jobs running now ("2 jobs, 1 queued, 112 MB/s, 2 min left"); opens the Operations tab of the status hub (spec 16.1). -->
         <Button x:Name="OperationsPart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick"
                 ToolTipService.ToolTip="Show the operations (Ctrl+Shift+O)">

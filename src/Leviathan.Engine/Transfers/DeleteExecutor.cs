@@ -82,7 +82,9 @@ public sealed class DeleteExecutor : IJobExecutor
         var isFolder = _fs.Directory.Exists(Io(source));
         if (!isFolder && !_fs.File.Exists(Io(source)))
         {
-            return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"{source.Name} no longer exists.");
+            // The folder view can show an item that was removed a moment ago (a cached listing, another program): the goal of the delete
+            // is reached, so it is not a failure and does not turn the job red. It is listed in the report as left alone.
+            return new ItemOutcome(source.Value, null, ItemStatus.Skipped, $"{source.Name} was already gone.");
         }
 
         if (source.IsRoot)

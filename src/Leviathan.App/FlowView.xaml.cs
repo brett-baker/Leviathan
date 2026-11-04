@@ -83,6 +83,9 @@ public sealed partial class FlowView : UserControl
 
     private int Size => _tab?.ThumbnailSize ?? ItemFlow.DefaultThumbnailSize;
 
+    /// <summary>Gives the rows to the repeater when this view is the one on screen, and takes them away when it is not.</summary>
+    internal void SetActive(bool active) => Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+
     /// <summary>Shows <paramref name="tab"/>, or nothing for null.</summary>
     internal void Bind(TabViewModel? tab)
     {
@@ -93,7 +96,8 @@ public sealed partial class FlowView : UserControl
 
         Unhook();
         _tab = tab;
-        Repeater.ItemsSource = tab?.Items.Rows;
+        // Only the view on screen holds the rows: the other one would otherwise take every update of a 40,000-row list too.
+        Repeater.ItemsSource = Visibility == Visibility.Visible ? tab?.Items.Rows : null;
         if (tab is null)
         {
             return;
@@ -250,8 +254,15 @@ public sealed partial class FlowView : UserControl
     {
         if (e.PropertyName is nameof(TabViewModel.Layout) or nameof(TabViewModel.ThumbnailSize))
         {
-            Configure();
-            EnsureVisible();
+            using (UiTrace.Begin("FlowView.Configure", 5))
+            {
+                Configure();
+            }
+
+            using (UiTrace.Begin("FlowView.EnsureVisible", 5))
+            {
+                EnsureVisible();
+            }
         }
         else if (e.PropertyName == nameof(TabViewModel.Renaming))
         {
@@ -274,7 +285,10 @@ public sealed partial class FlowView : UserControl
         if (args.Element is FlowCell cell && _tab is not null && args.Index >= 0 && args.Index < _tab.Items.Rows.Count)
         {
             _realized.Add(cell);
-            cell.Bind(_tab.Items.Rows[args.Index], Mode, Size);
+            using (UiTrace.Begin("FlowView.Bind", 8))
+            {
+                cell.Bind(_tab.Items.Rows[args.Index], Mode, Size);
+            }
         }
     }
 
