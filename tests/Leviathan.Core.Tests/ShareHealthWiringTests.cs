@@ -55,7 +55,7 @@ public sealed class ShareHealthWiringTests
         return (new HealthTrackingLocationProvider(inner, registry, time), registry, time, inner);
     }
 
-    private static async Task ListAsync(ILocationProvider provider, LocationPath location)
+    private static async Task ListAsync(HealthTrackingLocationProvider provider, LocationPath location)
     {
         await foreach (var batch in provider.ListAsync(location, ListingOptions.Default, CancellationToken.None))
         {

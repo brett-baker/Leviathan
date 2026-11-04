@@ -111,7 +111,7 @@ public class BatchingTests
         IEnumerable<FileEntry> Stuck(CancellationToken _)
         {
             yield return Entries(1).First();
-            release.Wait(TimeSpan.FromSeconds(10)); // simulates a blocking OS call on a dead share
+            release.Wait(TimeSpan.FromSeconds(10), CancellationToken.None); // simulates a blocking OS call on a dead share
             yield break;
         }
 

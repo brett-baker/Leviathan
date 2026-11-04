@@ -118,6 +118,8 @@ internal static class EnumerationGate
 }
 
 /// <summary>BenchmarkDotNet suite for listing performance.</summary>
+// BenchmarkDotNet discovers this type by reflection and the file uses top-level statements, so it stays in the global namespace.
+#pragma warning disable CA1050
 [MemoryDiagnoser]
 public class EnumerationBenchmarks
 {

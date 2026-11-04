@@ -238,7 +238,10 @@ public sealed class ShellMenuManagerTests
     [Fact]
     public async Task AHandlerThatThrows_FailsTheOpen_AndLeavesNothingBehind()
     {
+        // A shell handler fails with a COMException; that is exactly the failure being simulated, so the rule against throwing it does not apply.
+#pragma warning disable CA2201
         var source = new FakeSource { OnOpen = () => throw new System.Runtime.InteropServices.COMException("handler failed") };
+#pragma warning restore CA2201
         using var manager = new ShellMenuManager(source);
 
         await Assert.ThrowsAsync<System.Runtime.InteropServices.COMException>(() => manager.OpenAsync(Request(), TestContext.Current.CancellationToken));

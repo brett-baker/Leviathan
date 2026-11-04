@@ -225,7 +225,18 @@ public sealed class SqliteListingStoreTests : IDisposable
         }
 
         await Assert.ThrowsAsync<InvalidDataException>(() => store.LoadAsync(Key, CancellationToken.None));
-        await UntilAsync(async () => await store.LoadAsync(Key, CancellationToken.None) is null);
+        // The damaged row is dropped in the background, so until that finishes a load still reports it as damaged.
+        await UntilAsync(async () =>
+        {
+            try
+            {
+                return await store.LoadAsync(Key, CancellationToken.None) is null;
+            }
+            catch (InvalidDataException)
+            {
+                return false;
+            }
+        });
     }
 
     [Fact]

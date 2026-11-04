@@ -61,6 +61,12 @@ public sealed class ThumbnailTests : IDisposable
         return new ThumbnailRequest(LocationPath.Parse(path), info.LastWriteTimeUtc, info.Exists ? info.Length : 0, size, mode);
     }
 
+    // The hosted Windows runner has no working shell thumbnail provider (a bitmap comes back black or as the generic icon), so the
+    // pixel checks can only run on a real desktop. They pass there; the rest of this class does not depend on the shell's pixels.
+    private static bool IsHostedRunner => Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true";
+
+    private const string HostedRunnerReason = "the GitHub-hosted runner's shell cannot render thumbnails";
+
     private static (byte B, byte G, byte R, byte A) Pixel(ThumbnailImage image, int x, int y)
     {
         var span = image.Bgra.Span;
@@ -71,6 +77,7 @@ public sealed class ThumbnailTests : IDisposable
     [Fact]
     public async Task Thumbnail_OfAnImage_IsUprightBgra_RedOnTopBlueBelow()
     {
+        Assert.SkipWhen(IsHostedRunner, HostedRunnerReason);
         using var source = new ShellThumbnailSource();
         var path = WriteTwoColorBitmap("two.bmp");
 
@@ -90,6 +97,7 @@ public sealed class ThumbnailTests : IDisposable
     public async Task Thumbnail_AskedForAgain_StaysUpright_WhetherMadeFreshOrServedFromTheShellCache()
     {
         // The shell returns a bottom-up bitmap when it serves a thumbnail from its own cache; GetObject cannot tell the two apart.
+        Assert.SkipWhen(IsHostedRunner, HostedRunnerReason);
         using var source = new ShellThumbnailSource();
         var path = WriteTwoColorBitmap("again.bmp");
 

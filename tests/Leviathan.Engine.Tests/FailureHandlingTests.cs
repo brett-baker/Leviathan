@@ -45,7 +45,7 @@ public sealed class FailureHandlingTests
         }
     }
 
-    private static Exception Denied() => new UnauthorizedAccessException("Access to the path is denied.");
+    private static UnauthorizedAccessException Denied() => new UnauthorizedAccessException("Access to the path is denied.");
 
     private static IOException DiskFull() => new("There is not enough space on the disk.", unchecked((int)0x80070070));
 

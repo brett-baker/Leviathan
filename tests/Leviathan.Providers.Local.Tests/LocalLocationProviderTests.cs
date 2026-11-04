@@ -37,7 +37,7 @@ public sealed class LocalLocationProviderTests : IDisposable
     private LocalLocationProvider CreateProvider(IDirectoryLister? network = null) =>
         new(new ManagedDirectoryLister(), network, ToOsPath, TimeProvider.System);
 
-    private static async Task<List<FileEntry>> ListAllAsync(ILocationProvider provider, LocationPath location, ListingOptions? options = null, CancellationToken cancellationToken = default)
+    private static async Task<List<FileEntry>> ListAllAsync(LocalLocationProvider provider, LocationPath location, ListingOptions? options = null, CancellationToken cancellationToken = default)
     {
         var items = new List<FileEntry>();
         await foreach (var batch in provider.ListAsync(location, options ?? ListingOptions.Default, cancellationToken))
