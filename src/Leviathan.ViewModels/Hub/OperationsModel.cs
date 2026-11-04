@@ -48,7 +48,10 @@ public sealed class OperationsModel
 
         lock (_gate)
         {
-            _jobs[job.Id] = (job, ++_order);
+            // A job keeps its place while it runs (the strip's lines and the panel's rows must not swap on every progress report);
+            // it moves to the top of the finished ones only when it ends.
+            var order = _jobs.TryGetValue(job.Id, out var before) && !(IsActive(before.Job.State) && !IsActive(job.State)) ? before.Order : ++_order;
+            _jobs[job.Id] = (job, order);
             Trim();
         }
 
@@ -98,7 +101,7 @@ public sealed class OperationsModel
                     .. _jobs.Values
                         .OrderBy(j => IsActive(j.Job.State) ? 0 : 1)
                         .ThenBy(j => j.Job.State == JobState.Queued ? 1 : 0)
-                        .ThenByDescending(j => j.Order)
+                        .ThenBy(j => IsActive(j.Job.State) ? j.Order : -j.Order)
                         .Select(j => ToEntry(j.Job, _seenFailures.Contains(j.Job.Id))),
                 ];
             }

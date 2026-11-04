@@ -19,7 +19,7 @@
         <StackPanel Grid.Column="1" Spacing="3">
           <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
           <ProgressBar Value="{x:Bind local:HubFormat.Value(Percent)}" Maximum="100"
-                       IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Percent, IsActive)}"
+                       IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Percent, State)}"
                        ShowError="{x:Bind IsFailed}"
                        Visibility="{x:Bind local:HubFormat.ShowBar(IsActive)}" />
           <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"

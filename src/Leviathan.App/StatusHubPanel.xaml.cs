@@ -19,7 +19,8 @@ internal static class HubFormat
 
     public static double Value(double? percent) => percent ?? 0;
 
-    public static bool Indeterminate(double? percent, bool active) => active && percent is null;
+    // Only a running job with an unknown total sweeps; a queued, paused or waiting job shows an empty bar.
+    public static bool Indeterminate(double? percent, JobState state) => state == JobState.Running && percent is null;
 
     public static Visibility ShowBar(bool active) => active ? Visibility.Visible : Visibility.Collapsed;
 

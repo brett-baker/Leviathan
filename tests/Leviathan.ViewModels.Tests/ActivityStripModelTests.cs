@@ -126,7 +126,7 @@ public sealed class ActivityStripModelTests
     [Fact]
     public void Lines_AMergedLine_ShowsTheRedTip_WhenAnyOfItsJobsHasFailures()
     {
-        var jobs = Enumerable.Range(0, 5).Select(i => Job(JobState.Running, color: i, done: 1, total: 10, error: i == 0 ? "x" : null)).ToArray(); // the oldest job lists last, so it lands in the merged slot
+        var jobs = Enumerable.Range(0, 5).Select(i => Job(JobState.Running, color: i, done: 1, total: 10, error: i == 4 ? "x" : null)).ToArray(); // the newest job lists last, so it lands in the merged slot
 
         Assert.True(Make(jobs).Strip.Lines[^1].RedTip);
     }
@@ -192,6 +192,26 @@ public sealed class ActivityStripModelTests
         operations.MarkFailuresSeen();
 
         Assert.Null(operations.LatestUnseenFailure());
+    }
+
+    [Fact]
+    public void Lines_KeepTheirPlace_WhenTheJobsReportProgress()
+    {
+        // Two running jobs reporting in turn used to swap places on every report (the lines jumped up and down).
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var (operations, strip) = Make(Job(JobState.Running, color: 0, done: 1, total: 10, id: first), Job(JobState.Running, color: 1, done: 1, total: 10, id: second));
+        var before = strip.Lines.Select(l => l.JobId).ToList();
+
+        for (var step = 2; step < 6; step++)
+        {
+            operations.Apply(Job(JobState.Running, color: 0, done: step, total: 10, id: first));
+            Assert.Equal(before, strip.Lines.Select(l => l.JobId));
+            operations.Apply(Job(JobState.Running, color: 1, done: step, total: 10, id: second));
+            Assert.Equal(before, strip.Lines.Select(l => l.JobId));
+        }
+
+        Assert.Equal(first, before[0]);
     }
 
     private sealed class DoubleComparer : IEqualityComparer<double>
