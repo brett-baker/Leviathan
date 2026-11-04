@@ -144,6 +144,11 @@ public sealed class ChunkedFileCopier : IFileCopier
                     written += read;
                     sinceConfirm += read;
                     policy.Observe(read, _time.GetElapsedTime(started));
+                    if (request.Throttle is not null)
+                    {
+                        await request.Throttle(read, cancellationToken).ConfigureAwait(false);
+                    }
+
                     if (!padded && request.OnConfirmed is not null
                         && (sinceConfirm >= _confirmEveryBytes || _time.GetElapsedTime(lastConfirm) >= TimeSpan.FromSeconds(2)))
                     {

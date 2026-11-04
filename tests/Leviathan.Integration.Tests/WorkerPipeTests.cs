@@ -163,4 +163,25 @@ public sealed class WorkerPipeTests : IAsyncDisposable
         Assert.Equal(5, limits.MaxRunningJobs);
         Assert.Equal(2, _server.ConnectionCount);
     }
+
+    [Fact]
+    public async Task BandwidthSettings_SurviveThePipe_WithSchedulesAndDays()
+    {
+        await using var client = new WorkerClient(new RecordingCallbacks(), _pipe);
+        await client.ConnectAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+        var settings = new BandwidthSettings
+        {
+            Global = new BandwidthRule(50_000_000, [new BandwidthWindow(TimeSpan.FromHours(22), TimeSpan.FromHours(6), 0) { Days = [DayOfWeek.Friday, DayOfWeek.Saturday] }]),
+            PerDevice = new Dictionary<string, BandwidthRule> { [@"\nas"] = new(10_000_000) },
+        };
+
+        await client.Service.SetBandwidthAsync(settings, CancellationToken.None);
+        var back = await client.Service.GetBandwidthAsync(CancellationToken.None);
+
+        Assert.Equal(50_000_000, back.Global.BytesPerSecond);
+        var window = Assert.Single(back.Global.Windows!);
+        Assert.Equal((TimeSpan.FromHours(22), TimeSpan.FromHours(6), 0), (window.From, window.To, window.BytesPerSecond));
+        Assert.Equal([DayOfWeek.Friday, DayOfWeek.Saturday], window.Days);
+        Assert.Equal(10_000_000, back.PerDevice[@"\nas"].BytesPerSecond);
+    }
 }

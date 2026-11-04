@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 3;
+    public const int Minor = 4;
 }
 
 /// <summary>Information the worker reports about itself.</summary>
@@ -74,6 +74,12 @@ public interface IWorkerService
 
     /// <summary>Changes the concurrency limits; takes effect immediately without restarting jobs.</summary>
     Task SetLimitsAsync(ConcurrencyLimits limits, CancellationToken cancellationToken);
+
+    /// <summary>Current bandwidth limits and schedules.</summary>
+    Task<BandwidthSettings> GetBandwidthAsync(CancellationToken cancellationToken);
+
+    /// <summary>Changes the bandwidth limits; running copies slow down or speed up at once.</summary>
+    Task SetBandwidthAsync(BandwidthSettings settings, CancellationToken cancellationToken);
 }
 
 /// <summary>Notifications the worker pushes to connected UI processes.</summary>

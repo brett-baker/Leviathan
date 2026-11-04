@@ -239,6 +239,9 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
     /// <summary>What to do with a name that is already taken (copy, move, link).</summary>
     public ConflictPolicy Conflict { get; init; } = ConflictPolicy.KeepBoth;
 
+    /// <summary>A speed limit for this job alone, in bytes per second; 0 = none. Combined with the global and per-device limits, the slowest wins.</summary>
+    public long BytesPerSecondLimit { get; init; }
+
     /// <summary>What to do when an item fails for a reason retrying later will not fix (copy and move).</summary>
     public ErrorMode OnError { get; init; } = ErrorMode.Ask;
 
@@ -323,6 +326,60 @@ public sealed record JobSnapshot
 
     /// <summary>When the job was queued.</summary>
     public DateTimeOffset CreatedAt { get; init; }
+}
+
+/// <summary>A time of day (and optionally certain days) when a different speed limit applies, such as "unlimited at night" (spec §12.3).</summary>
+/// <param name="From">Start, as a time of day in local time.</param>
+/// <param name="To">End (exclusive). Earlier than <paramref name="From"/> means the window runs past midnight.</param>
+/// <param name="BytesPerSecond">The limit while the window is active; 0 = unlimited.</param>
+public sealed record BandwidthWindow(TimeSpan From, TimeSpan To, long BytesPerSecond)
+{
+    /// <summary>Days the window starts on; null or empty = every day.</summary>
+    public IReadOnlyList<DayOfWeek>? Days { get; init; }
+
+    /// <summary>True when the window is active at <paramref name="localNow"/>.</summary>
+    public bool IsActiveAt(DateTime localNow)
+    {
+        var time = localNow.TimeOfDay;
+        if (From == To)
+        {
+            return false;
+        }
+
+        // A window past midnight belongs to the day it started on, so after midnight look at yesterday.
+        var wraps = From > To;
+        var startedToday = wraps ? time >= From : time >= From && time < To;
+        var startedYesterday = wraps && time < To;
+        if (!startedToday && !startedYesterday)
+        {
+            return false;
+        }
+
+        var day = startedYesterday ? localNow.AddDays(-1).DayOfWeek : localNow.DayOfWeek;
+        return Days is not { Count: > 0 } || Days.Contains(day);
+    }
+}
+
+/// <summary>A speed limit with an optional schedule: the first active window wins, otherwise the default applies.</summary>
+/// <param name="BytesPerSecond">The default limit; 0 = unlimited.</param>
+/// <param name="Windows">Scheduled overrides.</param>
+public sealed record BandwidthRule(long BytesPerSecond = 0, IReadOnlyList<BandwidthWindow>? Windows = null)
+{
+    /// <summary>The limit that applies at <paramref name="localNow"/>; 0 = unlimited.</summary>
+    public long LimitAt(DateTime localNow) => Windows?.FirstOrDefault(w => w.IsActiveAt(localNow))?.BytesPerSecond ?? BytesPerSecond;
+}
+
+/// <summary>
+/// Bandwidth limits (spec §12.3): one for everything the worker moves, and optionally one per destination device such as the NAS.
+/// A job can add its own limit. The slowest limit that applies wins.
+/// </summary>
+public sealed record BandwidthSettings
+{
+    /// <summary>The limit for all transfers together.</summary>
+    public BandwidthRule Global { get; init; } = new();
+
+    /// <summary>Limits per device key (for example <c>\nas</c>), shared by every job touching that device.</summary>
+    public IReadOnlyDictionary<string, BandwidthRule> PerDevice { get; init; } = new Dictionary<string, BandwidthRule>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>Concurrency limits for the scheduler (spec §12.3).</summary>

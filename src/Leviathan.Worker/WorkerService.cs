@@ -66,10 +66,12 @@ public sealed class WorkerService : IWorkerService
 
     private readonly JobHost _host;
     private readonly ServerIdentityMap? _identities;
+    private readonly BandwidthController _bandwidth;
 
     /// <summary>Creates the service. With <paramref name="identities"/>, names of one server share a device limit (spec §3.5).</summary>
-    public WorkerService(JobHost host, ServerIdentityMap? identities = null)
+    public WorkerService(JobHost host, ServerIdentityMap? identities = null, BandwidthController? bandwidth = null)
     {
+        _bandwidth = bandwidth ?? new BandwidthController();
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _identities = identities;
     }
@@ -158,6 +160,17 @@ public sealed class WorkerService : IWorkerService
 
     /// <inheritdoc />
     public Task<ConcurrencyLimits> GetLimitsAsync(CancellationToken cancellationToken) => Task.FromResult(_host.Scheduler.Limits);
+
+    /// <inheritdoc />
+    public Task<BandwidthSettings> GetBandwidthAsync(CancellationToken cancellationToken) => Task.FromResult(_bandwidth.Settings);
+
+    /// <inheritdoc />
+    public Task SetBandwidthAsync(BandwidthSettings settings, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        _bandwidth.Settings = settings;
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public Task SetLimitsAsync(ConcurrencyLimits limits, CancellationToken cancellationToken) => Run(() => _host.SetLimits(limits));

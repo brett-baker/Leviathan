@@ -31,6 +31,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
     private readonly IFileCopier _copier;
     private readonly ITransferJournal _journal;
     private readonly IFileVerifier _verifier;
+    private readonly BandwidthController? _bandwidth;
     private readonly VerifyPolicy _verifyPolicy;
 
     /// <summary>
@@ -38,11 +39,13 @@ public sealed class CopyMoveExecutor : IJobExecutor
     /// <paramref name="planStore"/> keeps each job's plan until the job finishes; <paramref name="identities"/> lets names of one
     /// SMB server count as one when choosing the path (spec §3.5 item 5); <paramref name="copier"/> moves the bytes of each file
     /// (the portable chunked copier by default); <paramref name="verifyPolicy"/> and <paramref name="verifier"/> decide and run the check
-    /// of each finished file (spec §12.1 step 6); <paramref name="journal"/> records what is done so an interrupted job continues
+    /// of each finished file (spec §12.1 step 6); <paramref name="bandwidth"/> paces the bytes to the configured limits (spec §12.3);
+    /// <paramref name="journal"/> records what is done so an interrupted job continues
     /// (spec §12.1 step 4).
     /// </summary>
-    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null, VerifyPolicy? verifyPolicy = null, IFileVerifier? verifier = null)
+    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null, VerifyPolicy? verifyPolicy = null, IFileVerifier? verifier = null, BandwidthController? bandwidth = null)
     {
+        _bandwidth = bandwidth;
         _verifyPolicy = verifyPolicy ?? new VerifyPolicy();
         _verifier = verifier ?? new HashFileVerifier(fileSystem, _verifyPolicy);
         _journal = journal ?? new InMemoryTransferJournal();
@@ -81,7 +84,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         }
 
         var progress = _journal.Load(plan.JobId);
-        var run = new Run(context, plan);
+        var run = new Run(context, plan) { Throttle = _bandwidth?.CreateThrottle(context.Job.DeviceKey, request.BytesPerSecondLimit) };
         run.Publish(null);
         if (!_fs.Directory.Exists(Io(destination)))
         {
@@ -346,7 +349,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         var method = _verifyPolicy.Decide(run.Verify, run.Move, source.IsNetwork || target.IsNetwork, length);
         var result = await _copier.CopyAsync(
             new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: method == VerifyMethod.Full && path != TransferPath.ServerSideCopy, run.AddBytes,
-                path == TransferPath.ServerSideCopy ? 0 : confirmed, onConfirmed),
+                path == TransferPath.ServerSideCopy ? 0 : confirmed, onConfirmed, path == TransferPath.ServerSideCopy ? null : run.Throttle),
             ct).ConfigureAwait(false);
 
         // The copy is read back and compared before anything else happens (spec §12.1 step 6): a move deletes its original only after
@@ -387,6 +390,8 @@ public sealed class CopyMoveExecutor : IJobExecutor
         public bool Move { get; } = plan.Move;
 
         public VerifyMode Verify { get; } = context.Job.Request.Verify;
+
+        public Func<int, CancellationToken, ValueTask>? Throttle { get; init; }
 
         public int ItemsDone { get; set; }
 

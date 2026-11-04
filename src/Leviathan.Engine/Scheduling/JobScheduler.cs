@@ -92,7 +92,7 @@ public sealed class JobScheduler
                 {
                     job.State = JobState.Running;
                     job.WaitingReason = null;
-                job.RetryAt = null;
+                    job.RetryAt = null;
                     started.Add(job);
                     touched.Add(job.Id);
                 }

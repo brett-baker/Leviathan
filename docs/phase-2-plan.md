@@ -89,8 +89,9 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 ### C. Queue and UI (§12.3, §12.6)
 
-- [ ] **C1. Scheduler features.** Live limits from the UI, bandwidth limit per job/destination with schedule, background lane
+- [x] **C1. Scheduler features.** Live limits from the UI, bandwidth limit per job/destination with schedule, background lane
   pauses during a copy to the same NAS (already in the scheduler; wire and test end to end), 7-day reports.
+  Done: `BandwidthSettings` (global + per-device `BandwidthRule`, each with scheduled `BandwidthWindow`s incl. past-midnight and day filters) + `JobRequest.BytesPerSecondLimit`; `BandwidthController` and `ByteRateLimiter` pace every chunk of the chunked copier, shared across jobs on the same budget, slowest limit wins, changes apply to the next chunk; worker `Get/SetBandwidthAsync` (contract minor 4); end-to-end tests for pacing, shared NAS budget, live change, the lane yielding to a copy on the same NAS, and settings crossing the pipe. Live concurrency limits and 7-day reports already existed (Phase 1 / B5). Not done: UI to edit limits and schedule (C5b), the app does not push saved limits to the worker yet, server-side copies are not throttled (they do not cross this PC).
 - [ ] **C2. Activity strip control.** 1–2 px line per job under the address bar, per-job colour from the 8-colour palette,
   states (shimmer while enumerating, dashed paused, pulse waiting, red tip on failures), tooltip, click opens the panel,
   up to 4 lines then merged "+N".
