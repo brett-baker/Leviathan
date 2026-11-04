@@ -1,3 +1,5 @@
+using Leviathan.Core.Resilience;
+
 namespace Leviathan.Core.Paths;
 
 /// <summary>
@@ -17,6 +19,26 @@ public static class DeviceKeys
             LocationKind.Shell => location.Root.ToLowerInvariant(),
             _ => $"{location.Kind.ToString().ToLowerInvariant()}://{location.Server}",
         };
+    }
+
+    /// <summary>
+    /// Like <see cref="For(LocationPath)"/>, but a UNC server is keyed by its identity, so <c>\\192.168.1.5</c>, <c>\\diskstation</c>
+    /// and the DDNS name of one NAS are one device (spec §3.5 item 5).
+    /// </summary>
+    public static string For(LocationPath location, ServerIdentityMap identities)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        ArgumentNullException.ThrowIfNull(identities);
+        return location.Kind == LocationKind.Unc ? @"\\" + identities.KeyFor(location.Server!) : For(location);
+    }
+
+    /// <summary><see cref="ForJob(IEnumerable{LocationPath})"/> with server identities applied.</summary>
+    public static string? ForJob(IEnumerable<LocationPath> locations, ServerIdentityMap identities)
+    {
+        ArgumentNullException.ThrowIfNull(locations);
+        var list = locations.ToList();
+        var network = list.FirstOrDefault(l => l.IsNetwork);
+        return network is not null ? For(network, identities) : list.Count > 0 ? For(list[0], identities) : null;
     }
 
     /// <summary>The device key that limits a job touching <paramref name="locations"/>: the first network device, else the first device.</summary>

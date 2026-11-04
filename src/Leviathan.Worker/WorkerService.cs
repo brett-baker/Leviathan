@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Leviathan.Contracts;
 using Leviathan.Core.Paths;
+using Leviathan.Core.Resilience;
 using Leviathan.Engine.Execution;
 using Microsoft.Extensions.Logging;
 
@@ -61,17 +62,24 @@ public sealed class WorkerService : IWorkerService
 
     private static readonly ActivitySource Activities = new("Leviathan.Worker");
 
-    private readonly JobHost _host;
+    private static readonly TimeSpan IdentifyTimeout = TimeSpan.FromMilliseconds(1500);
 
-    /// <summary>Creates the service.</summary>
-    public WorkerService(JobHost host) => _host = host ?? throw new ArgumentNullException(nameof(host));
+    private readonly JobHost _host;
+    private readonly ServerIdentityMap? _identities;
+
+    /// <summary>Creates the service. With <paramref name="identities"/>, names of one server share a device limit (spec §3.5).</summary>
+    public WorkerService(JobHost host, ServerIdentityMap? identities = null)
+    {
+        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _identities = identities;
+    }
 
     /// <inheritdoc />
     public Task<WorkerInfo> PingAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new WorkerInfo(ContractVersion.Major, ContractVersion.Minor, AppVersion, Environment.ProcessId, StartedAt));
 
     /// <inheritdoc />
-    public Task<JobSnapshot> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
+    public async Task<JobSnapshot> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         using var activity = Activities.StartActivity("SubmitJob");
@@ -85,9 +93,24 @@ public sealed class WorkerService : IWorkerService
         var sources = request.Sources.Select(LocationPath.Parse).ToList();
         var destination = request.Destination is null ? null : LocationPath.Parse(request.Destination);
         var lane = request.Kind == JobKind.ComputeFolderSize ? JobLane.Background : JobLane.Operations;
-        var device = DeviceKeys.ForJob(destination is null ? sources : [destination, .. sources]);
+        IEnumerable<LocationPath> touched = destination is null ? sources : [destination, .. sources];
+        string? device;
+        if (_identities is null)
+        {
+            device = DeviceKeys.ForJob(touched);
+        }
+        else
+        {
+            foreach (var server in touched.Where(l => l.Kind == LocationKind.Unc).Select(l => l.Server!).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                await _identities.IdentifyAsync(server, IdentifyTimeout, cancellationToken).ConfigureAwait(false);
+            }
+
+            device = DeviceKeys.ForJob(touched, _identities);
+        }
+
         var title = request.Title ?? JobTitles.For(request.Kind, sources, destination);
-        return Task.FromResult(_host.Submit(request, lane, device, title));
+        return _host.Submit(request, lane, device, title);
     }
 
     /// <inheritdoc />
