@@ -21,6 +21,15 @@ internal static class UiTrace
     /// <summary>Records a point in time.</summary>
     public static void Mark(string text) => Write(text);
 
+    /// <summary>Runs <paramref name="work"/> and traces how long it took.</summary>
+    public static T Measure<T>(string label, Func<T> work)
+    {
+        using (Begin(label))
+        {
+            return work();
+        }
+    }
+
     internal static void Write(string text)
     {
         if (!Enabled)

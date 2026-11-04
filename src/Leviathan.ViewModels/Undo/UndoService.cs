@@ -80,8 +80,13 @@ public sealed class UndoService : IDisposable
     private readonly TimeProvider _time;
     private readonly Lock _lock = new();
     private readonly SemaphoreSlim _busy = new(1, 1);
-    private readonly List<UndoEntry> _undo;
-    private readonly List<UndoEntry> _redo;
+    private readonly Lazy<(List<UndoEntry> Undo, List<UndoEntry> Redo)> _lists;
+
+    // The stacks come from the file on first use; the file is read on the thread pool from the constructor on, so the first
+    // window (cold start, spec 3.1) does not wait for it.
+    private List<UndoEntry> _undo => _lists.Value.Undo;
+
+    private List<UndoEntry> _redo => _lists.Value.Redo;
     private Task _saving = Task.CompletedTask;
 
     /// <summary>Creates the service and loads what was stored, dropping what has expired.</summary>
@@ -92,10 +97,13 @@ public sealed class UndoService : IDisposable
         _storage = storage;
         _actions = actions;
         _time = time ?? TimeProvider.System;
-        var state = storage.Load();
-        var oldest = _time.GetUtcNow() - Lifetime;
-        _undo = [.. state.Undo.Where(e => e.At >= oldest)];
-        _redo = [.. state.Redo.Where(e => e.At >= oldest)];
+        _lists = new Lazy<(List<UndoEntry>, List<UndoEntry>)>(() =>
+        {
+            var state = storage.Load();
+            var oldest = _time.GetUtcNow() - Lifetime;
+            return ([.. state.Undo.Where(e => e.At >= oldest)], [.. state.Redo.Where(e => e.At >= oldest)]);
+        });
+        _ = Task.Run(() => _lists.Value);
     }
 
     /// <summary>Raised, on whatever thread changed the stacks, after a record, undo or redo.</summary>

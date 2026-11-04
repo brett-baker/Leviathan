@@ -24,7 +24,7 @@ a listing cache that makes revisits instant, a status hub, settings, and an icon
 | --- | --- |
 | 10,000-item folder, first rows < 100 ms (p95) | provider 3.4 ms; through the view model 3.7 ms; from the cache 0.0 ms: **PASS** |
 | New tab < 150 ms | 1,000 items, first rows 5.1 ms p95: **PASS** |
-| Cold start to the first folder < 600 ms | **FAIL: median 1,291 ms, worst 1,693 ms** (Release, six starts, busy machine) |
+| Cold start to the first folder < 600 ms | **FAIL: median about 1,010 ms, worst about 1,100 ms** published ReadyToRun (was 1,291 / 1,693 before the follow-up work below; Release, six starts, busy machine) |
 | Zero UI stalls over 50 ms in the logs | Not yet shown: see below |
 | One week of use instead of Explorer | Starts after this review |
 
@@ -33,9 +33,11 @@ Run with `dotnet run -c Release --project tests/Leviathan.Benchmarks -p:Platform
 ### Cold start: what would close the gap
 
 From the app's own trace: about 480 ms from process start to `OnLaunched`, 160 ms `AppHost.Create`, about 850 ms building the main window.
-In order of likely gain: ReadyToRun for the app assemblies; building the status hub, settings sheet and their pages only when first shown
-(`x:Load`), which also removes the first-use stalls; moving the sidebar's first fill and background data load behind the first paint.
-None of this is done.
+Done after the `phase-1` tag (see `docs/decisions.md`): ReadyToRun (`tools/Publish-App.ps1`), listing the first folder while the window is
+built, the status hub panel built after the window is up, undo file and thumbnail threads off the start path. What is left is mostly the
+window itself (about 300 ms to `OnLaunched`, 90 ms creating the window, 140 ms XAML, 65 ms title bar, 47 ms chrome icons), so the budget
+needs a lighter `MainWindow` (`x:Load`, lazy chrome icons), not one more fix. Use the published exe for the gate:
+`--gate --cold-start artifacts\publish\Leviathan.exe`.
 
 ## How it was verified
 

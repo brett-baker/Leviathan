@@ -18,27 +18,33 @@ namespace Leviathan.Interop;
 /// </summary>
 public sealed unsafe class ShellThumbnailSource : IThumbnailSource, IDisposable
 {
-    private readonly StaThreadPool _pool;
+    private readonly Lazy<StaThreadPool> _pool;
 
-    /// <summary>Creates a source with two STA threads.</summary>
+    /// <summary>Creates a source with two STA threads, started when the first thumbnail is asked for (not part of cold start, spec 3.1).</summary>
     public ShellThumbnailSource()
-        : this(new StaThreadPool(2, "Leviathan thumbnails"))
     {
+        _pool = new Lazy<StaThreadPool>(() => new StaThreadPool(2, "Leviathan thumbnails"));
     }
 
     /// <summary>Creates a source over an existing pool (shared with other shell work).</summary>
     public ShellThumbnailSource(StaThreadPool pool)
     {
         ArgumentNullException.ThrowIfNull(pool);
-        _pool = pool;
+        _pool = new Lazy<StaThreadPool>(() => pool);
     }
 
     /// <inheritdoc />
     public Task<ThumbnailImage?> CreateAsync(ThumbnailRequest request, CancellationToken cancellationToken) =>
-        _pool.RunAsync(() => Create(request), cancellationToken);
+        _pool.Value.RunAsync(() => Create(request), cancellationToken);
 
     /// <inheritdoc />
-    public void Dispose() => _pool.Dispose();
+    public void Dispose()
+    {
+        if (_pool.IsValueCreated)
+        {
+            _pool.Value.Dispose();
+        }
+    }
 
     private static ThumbnailImage? Create(ThumbnailRequest request)
     {

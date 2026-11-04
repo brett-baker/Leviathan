@@ -1,4 +1,6 @@
 using System.IO.Abstractions;
+using Leviathan.Core.Providers;
+using Leviathan.ViewModels.Folders;
 using Leviathan.Diagnostics;
 using Leviathan.Diagnostics.Crash;
 using Leviathan.ViewModels.Windows;
@@ -166,8 +168,27 @@ public partial class App : Application
         });
     }
 
+    // The first folder starts listing before the window is built, so the listing (and the cache database opening) runs on the thread
+    // pool while the UI thread builds the window; the rows are applied as soon as the UI thread is free (spec 3.1, cold start).
+    private static async Task PreloadAsync(ViewModels.Tabs.TabViewModel tab)
+    {
+        try
+        {
+            await tab.ReloadAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or LocationException)
+        {
+            // The tab shows the failure itself; the window binds to the same state.
+        }
+    }
+
     private void Show(WindowViewModel viewModel)
     {
+        if (viewModel.Tabs.Selected is { } first && first.Folder.State == FolderLoadState.Idle)
+        {
+            _ = PreloadAsync(first);
+        }
+
         MainWindow window;
         using (UiTrace.Begin("new MainWindow"))
         {

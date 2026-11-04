@@ -57,7 +57,10 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         var host = App.Host;
-        _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles);
+        using (UiTrace.Begin("ctor: commands"))
+        {
+            _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles);
+        }
         host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
         host.Undo.Changed += OnUndoChanged;
         host.FileClipboard.Changed += OnClipboardChanged;
@@ -69,10 +72,22 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
         Address.Attach(host.AddressBar);
-        BindChromeIcons();
-        InitHub();
-        InitSettingsSheet();
-        InitAppearance();
+        using (UiTrace.Begin("ctor: chrome icons"))
+        {
+            BindChromeIcons();
+        }
+        using (UiTrace.Begin("ctor: hub"))
+        {
+            InitHub();
+        }
+        using (UiTrace.Begin("ctor: settings sheet"))
+        {
+            InitSettingsSheet();
+        }
+        using (UiTrace.Begin("ctor: appearance"))
+        {
+            InitAppearance();
+        }
         FileList.ItemInvoked += OnFileInvoked;
         FileList.SortRequested += OnSortRequested;
         FileList.MiddleClicked += OnFileMiddleClicked;
@@ -111,8 +126,14 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         ShowStalls();
-        InitializeCommandBar();
-        InitializeSidebarSplitter();
+        using (UiTrace.Begin("ctor: command bar"))
+        {
+            InitializeCommandBar();
+        }
+        using (UiTrace.Begin("ctor: splitter"))
+        {
+            InitializeSidebarSplitter();
+        }
         _ = LoadSidebarAsync();
     }
 

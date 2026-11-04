@@ -449,7 +449,9 @@ internal sealed class AppHost
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var home = LocationPath.TryParse(profile, out var parsed) ? parsed : LocationPath.Parse(@"C:\");
+        UiTrace.Mark("AppHost.Create begins");
         var providers = new LocationProviderRegistry([new LocalLocationProvider()]);
+        UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
         var queue = DispatcherQueue.GetForCurrentThread();
@@ -457,7 +459,9 @@ internal sealed class AppHost
         // started when something needs it.
         var operations = new OperationsModel();
         AppHost? built = null;
+        UiTrace.Mark("AppHost: operations model");
         var thumbnailGate = new NetworkThumbnailGate(new ShellThumbnailSource());
+        UiTrace.Mark("AppHost: thumbnail gate");
         var thumbnails = new ThumbnailCache(thumbnailGate);
         BackgroundModel? background = null;
         var worker = new Lazy<WorkerConnection>(() =>
@@ -494,12 +498,19 @@ internal sealed class AppHost
         // LEVIATHAN_DATA_DIR moves settings, Last session and profiles elsewhere: a portable copy, or a test run that must not
         // touch the real ones.
         var data = DataFolder();
+        UiTrace.Mark("AppHost: data folder");
 
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
+        UiTrace.Mark("AppHost: listing cache");
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
+        UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
-        var newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
+        NewItemService newItems;
+        using (UiTrace.Begin("AppHost: new items"))
+        {
+            newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
+        }
         var transfers = new WorkerTransfers(() => worker.Value);
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
@@ -521,7 +532,11 @@ internal sealed class AppHost
                 }
             }
         };
-        var activity = new ActivityLog(new SqliteActivityStore(Path.Combine(data, "activity.db")));
+        ActivityLog activity;
+        using (UiTrace.Begin("AppHost: activity log"))
+        {
+            activity = new ActivityLog(new SqliteActivityStore(Path.Combine(data, "activity.db")));
+        }
 
         // How our own copies, moves and deletes ended belongs in the log whichever window asked (spec 16.1).
         transfers.Finished += (_, done) => activity.Note(
@@ -530,18 +545,24 @@ internal sealed class AppHost
             (done.Destination ?? (done.Sources.Count > 0 ? done.Sources[0].Parent : null))?.Value,
             done.Job.State != Leviathan.Contracts.JobState.Completed);
         var windows = new WindowManager(services);
-        var icons = new IconService(IconPacks.Discover(disk, Path.Combine(AppContext.BaseDirectory, "Assets", "Icons")), queue);
+        IconService icons;
+        using (UiTrace.Begin("AppHost: icon packs"))
+        {
+            icons = new IconService(IconPacks.Discover(disk, Path.Combine(AppContext.BaseDirectory, "Assets", "Icons")), queue);
+        }
 
+        UiTrace.Mark("AppHost: windows");
         var sessionStore = new JsonFileStore<SessionFile>(disk, Path.Combine(data, "session.json"));
         var catalog = new ProfileCatalog(new JsonFileStore<ProfilesFile>(disk, Path.Combine(data, "profiles.json")));
         var recorder = new SessionRecorder(windows, sessionStore, ui);
+        UiTrace.Mark("AppHost: stores");
         var host = new AppHost(
             windows,
             new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
             new WindowsFileLauncher(),
             new WindowsKnownFolders(),
             new WindowsVolumeInfo(),
-            WindowCommands.DefaultKeyMap(),
+            UiTrace.Measure("AppHost: key map", WindowCommands.DefaultKeyMap),
             home,
             recent,
             new AddressCompleter(lister),
@@ -574,7 +595,11 @@ internal sealed class AppHost
 
         // The icon pack is a setting that applies without a restart (spec §17).
         built = host;
-        host.StartApplyingSettings(ui);
+        using (UiTrace.Begin("AppHost: apply settings"))
+        {
+            host.StartApplyingSettings(ui);
+        }
+
         return host;
     }
 }

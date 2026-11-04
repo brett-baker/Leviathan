@@ -39,16 +39,6 @@ public sealed partial class MainWindow
         var hub = _viewModel.Hub;
         hub.Apply(App.Host.HubLayout);
         hub.LayoutChanged += (_, layout) => App.Host.SaveHubLayout(layout);
-        var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity, App.Host.Background) { CanUndo = () => App.Host.Undo.CanUndo };
-        _hubPanel = panel;
-        BodyArea.Children.Add(panel);
-        panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
-        panel.WidthRequested += (_, width) => hub.SetWidth(width, BodyArea.ActualWidth);
-        panel.PlaceRequested += (_, placement) => hub.Place(placement);
-        panel.AllSettingsRequested += (_, _) => Run(CommandIds.SettingsOpen);
-        panel.GoToRequested += (_, where) => Run(CommandIds.NavGo, where);
-        panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
-        panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
         App.Host.Activity.Changed += OnActivityChanged;
         App.Host.Background.Changed += OnBackgroundChanged;
         hub.PropertyChanged += (_, _) => OnHubChanged();
@@ -56,8 +46,43 @@ public sealed partial class MainWindow
         App.Host.Operations.Changed += OnOperationsChanged;
         Root.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnPointerPressedForHub), true);
         Icons.Bind(HubChevron, static (b, i) => b.Content = i, "chevron-up", 12);
-        ApplyHubPlacement();
         UpdateOperationsPart();
+
+        // The panel (four tabs of XAML) is not part of cold start (spec 3.1): it is built a moment after the window is up, while
+        // nothing is happening, or at once if the hub was left open or is opened before that.
+        Root.Loaded += async (_, _) =>
+        {
+            if (!_viewModel.Hub.IsOpen)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(900));
+            }
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnsureHubPanel());
+        };
+    }
+
+    private StatusHubPanel? EnsureHubPanel()
+    {
+        if (_hubPanel is null && !_closed)
+        {
+            var hub = _viewModel.Hub;
+            var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity, App.Host.Background) { CanUndo = () => App.Host.Undo.CanUndo };
+            _hubPanel = panel;
+            BodyArea.Children.Add(panel);
+            panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
+            panel.WidthRequested += (_, width) => hub.SetWidth(width, BodyArea.ActualWidth);
+            panel.PlaceRequested += (_, placement) => hub.Place(placement);
+            panel.AllSettingsRequested += (_, _) => Run(CommandIds.SettingsOpen);
+            panel.GoToRequested += (_, where) => Run(CommandIds.NavGo, where);
+            panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
+            panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
+            ApplyHubPlacement();
+            panel.RefreshOperations();
+            panel.RefreshActivity();
+            panel.RefreshBackground();
+        }
+
+        return _hubPanel;
     }
 
     private void OnHubChevronClick(object sender, RoutedEventArgs e) => Run(CommandIds.HubToggle);
@@ -68,8 +93,13 @@ public sealed partial class MainWindow
 
     private void OnHubChanged()
     {
-        ApplyHubPlacement();
         var hub = _viewModel.Hub;
+        if (hub.IsOpen)
+        {
+            EnsureHubPanel();
+        }
+
+        ApplyHubPlacement();
         if (hub.IsOpen && hub.Tab == HubTab.Operations && App.Host.Operations.UnseenFailures > 0)
         {
             App.Host.Operations.MarkFailuresSeen();
