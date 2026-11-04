@@ -3,6 +3,7 @@ using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
+using Leviathan.Core.Resilience;
 using Leviathan.Data;
 using Leviathan.Interop;
 using Leviathan.Providers.Cloud;
@@ -445,12 +446,17 @@ internal sealed class AppHost
     /// <summary>What a new tab opens. The user profile folder; resolved from the environment, so no disk access at startup.</summary>
     public LocationPath Home { get; }
 
+    /// <summary>Health of every network server seen, for the tree, tab banners and status bar (spec 3.3).</summary>
+    public ShareHealthRegistry ShareHealth { get; init; } = null!;
+
     public static AppHost Create(IUiContext ui)
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var home = LocationPath.TryParse(profile, out var parsed) ? parsed : LocationPath.Parse(@"C:\");
         UiTrace.Mark("AppHost.Create begins");
-        var providers = new LocationProviderRegistry([new LocalLocationProvider()]);
+        // Every network listing feeds the server's health and an unreachable server fails fast (spec 3.3).
+        var shareHealth = new ShareHealthRegistry(new ServerIdentityMap(new DnsHostAddressResolver()));
+        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(new LocalLocationProvider(), shareHealth)]);
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -574,6 +580,7 @@ internal sealed class AppHost
             viewOptions,
             new RenameService(disk))
         {
+            ShareHealth = shareHealth,
             Transfers = transfers,
             Undo = undo,
             Listings = listings,

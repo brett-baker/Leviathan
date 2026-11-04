@@ -52,8 +52,9 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   DDNS): query the server's SMB identity where available, fall back to a normalized host key. `DeviceKeys` and caches use it.
   Unit tests with fake resolvers; manual check against the DS2419+ (two IPs, `Diskstation`, DDNS name).
   Done as `ServerIdentityMap` (Core/Resilience): names sharing a resolved address merge, first-seen key stays stable, loopback/link-local never merge, lookups time out. `DeviceKeys.For/ForJob` have identity overloads; the worker identifies UNC servers (1.5 s cap) before choosing a job's device. Not yet: tree, caches and server-side copy use it (A2, A6, B1); real-NAS check is for Brett's lab run.
-- [ ] **A2. Share health wiring.** One `ShareHealthTracker` per server, fed by every provider call's latency and errors;
+- [x] **A2. Share health wiring.** One `ShareHealthTracker` per server, fed by every provider call's latency and errors;
   `ShouldAttempt` gates calls (fail fast < 2 s while Unreachable); health exposed to tabs, tree and status bar.
+  Done as `ShareHealthRegistry` (one tracker per server identity, `HealthChanged`, `Snapshot`) and `HealthTrackingLocationProvider`, which wraps the app's provider: latency to the first batch gives Online/Slow, drops and timeouts count as failures, logon failures mean Auth required, "not found"/"denied" prove the server is alive, cancellation records nothing, an Unreachable server fails at once with "Trying again in N s". `AppHost.ShareHealth` exposes it. Not yet: health dots in the tree (A6), the banner and Work offline (A3); mapped drive letters are not tracked until A5; the worker's copy path does not feed health yet (B5).
 - [ ] **A3. Fast-fail banners and offline cache.** Last listing of each visited network folder cached (SQLite), shown greyed
   "offline — as of 14:02" with Retry / Work offline when the share is unreachable (§3.3, §8.6).
 - [ ] **A4. Change detection.** `ReadDirectoryChangesW` for local folders; polling with back-off for network folders (folder
