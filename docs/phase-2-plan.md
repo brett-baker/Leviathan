@@ -100,7 +100,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   its simple job list. Running / Queued / Completed-Failed groups; row actions (pause, resume, cancel, remove, move,
   priority, run now, retry failed, report, open source/destination); multi-select; toolbar (pause/resume all, limits, bandwidth,
   clear completed); queue ETA.
-- [ ] **C4. Hub positions and chip.** The status-bar operations chip with total sparkline opens the hub on Operations; fly-up
+- [x] **C4. Hub positions and chip** (already built in I7; confirmed in code and `StatusHubTests`: the chip opens Operations, placement/size are remembered, a popped-out hub is restored as a fly-up; the total sparkline in the chip is C5; live-job check by eye is Brett's). The status-bar operations chip with total sparkline opens the hub on Operations; fly-up
   (default), docked bottom, docked right and pop-out (built in I7) checked with live jobs; position remembered.
 - [ ] **C5. Speed sparklines.** Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
 - [ ] **C5b. Status hub additions.** Quick settings: running jobs per NAS volume, bandwidth limit and schedule, verify policy;
