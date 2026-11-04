@@ -6,8 +6,29 @@ enough to write, test, commit and push in one sitting, in dependency order. Tick
 Every slice follows `CLAUDE.md`: code and tests together, zero warnings in `src/`, whole suite green, app run by hand when
 the slice touches UI or process behaviour, commit, push.
 
-> Written before Phase 1 finished. At the start of Phase 2, re-read `docs/phase-1.md` and adjust slice names, projects and
-> order to what Phase 1 actually built; keep the scope and the gate.
+## Adjusted to what Phase 1 built (re-read of `docs/phase-1.md` and the engine code)
+
+Phase 1 already has more of the engine than this plan first assumed, so several slices extend existing code instead of starting it:
+
+- **Copy/move:** `CopyMoveExecutor` (Engine/Transfers) already writes `*.leviathan-part`, renames when complete, renames on one volume,
+  hash-verifies a cross-volume move before deleting the source, and applies `ConflictPolicy` (KeepBoth / Replace / Skip, chosen up
+  front). B1–B6 grow it in place behind `IFileCopier` / planner types; they do not add a second executor. It has no per-file
+  journal, no resume, no waiting state, no server-side copy and no ask-the-user conflicts: those are the work.
+- **Delete / restore:** `DeleteExecutor`, `RestoreExecutor` and `RecycleBinIndex` exist (Recycle Bin, share `#recycle`, undo).
+  D1–D3 add `.leviathan-trash`, the manifest, the bin view and purge; D2 reuses `Restore`.
+- **Folder sizes:** `FolderSizeService`, `ComputeFolderSizeExecutor` and `SqliteFolderSizeStore` exist and run in the background
+  lane. E1–E2 are the UI wiring and deltas. E2 also fixes the duplicate folder-size job for one folder seen in Phase 1.
+- **Queue and hub:** `JobScheduler` (limits, lanes, priorities), `JobJournal` (JSON lines), `SpeedMeter` and the status hub with
+  an Operations tab exist; C1–C5 complete them rather than build them.
+- **Network basics:** `ShareHealthTracker`, `BackoffPolicy`, `LocationErrors`, the listing cache (memory + `listings.db`) and
+  `LocalFolderWatcher` exist. A2/A3/A4 wire and extend them; A3 reuses the saved listings as the offline cache.
+- **Contracts:** `ConflictPolicy` needs Ask and the conditional rules (newer, larger, different) for C6; adding enum members and
+  request fields is a `Leviathan.Contracts` change, so bump `ContractVersion.Major` if the wire shape breaks.
+- **Phase 1 carry-over that touches this phase:** stalls over 50 ms on first show of the Background tab and a second window,
+  the six failing UI smoke tests (H1), and cold start (about 1,010 ms against 600 ms). They are listed as G5 and are not a gate for
+  starting; the tag `phase-1` stays where it is.
+
+Start order: A1 → A2 → B1–B6 are the critical path to the gate; C and D can follow B; E and F are independent of each other.
 
 ## Shape of the work
 
@@ -108,6 +129,8 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [ ] **G2. Chaos suite** (`Leviathan.Chaos.Tests`, nightly): kill the worker at random points during 1,000 copies → no corrupt
   or half-named files, every job resumes; Toxiproxy drops mid-copy → Waiting then resume; disk full; access denied mid-job.
 - [ ] **G3. Benchmarks:** large-file copy throughput to the NAS (manual lab run), NAS folder first rows (< 400 ms for 10,000 items).
+- [ ] **G5. Phase 1 carry-over:** make the six failing UI smoke tests pass or record why not, remove the first-show stalls
+  (Background tab, second window) with `x:Load`/idle building, and continue cold start toward 600 ms (lighter `MainWindow`).
 - [ ] **G4. Gate and wrap-up:** run the gate, write `docs/phase-2.md`, update `README.md`, tag `phase-2`, push, stop for review.
 
 ## Gate (from the build plan)
