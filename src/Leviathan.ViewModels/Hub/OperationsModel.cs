@@ -213,7 +213,12 @@ public sealed class OperationsModel
 
     private static OperationEntry ToEntry(JobSnapshot job, bool failureSeen)
     {
-        double? percent = job.State == JobState.Completed ? 100 : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100) : null;
+        // Copies know their bytes; a delete (or any job that only counts items) is measured over the whole batch by items, so the bar
+        // runs from 0 to 100 once for the job instead of sweeping endlessly.
+        double? percent = job.State == JobState.Completed ? 100
+            : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100)
+            : job.ItemsTotal > 0 ? Math.Clamp(100.0 * job.ItemsDone / job.ItemsTotal, 0, 100)
+            : null;
         var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && job.Error is not null;
         return new OperationEntry(
             job.Id,
@@ -267,8 +272,10 @@ public sealed class OperationsModel
 
     private static string DetailOf(JobSnapshot job)
     {
-        var items = job.ItemsDone > 0 ? $"{job.ItemsDone:N0} items · " : string.Empty;
-        var size = job.BytesTotal > 0 ? $"{DisplayFormat.Size(job.BytesDone)} of {DisplayFormat.Size(job.BytesTotal)}" : DisplayFormat.Size(job.BytesDone);
+        var items = job.ItemsTotal > 0 && job.BytesTotal <= 0 ? $"{job.ItemsDone:N0} of {job.ItemsTotal:N0} items" : job.ItemsDone > 0 ? $"{job.ItemsDone:N0} items · " : string.Empty;
+        var itemsOnly = job.ItemsTotal > 0 && job.BytesTotal <= 0 && job.BytesDone == 0;
+        var size = itemsOnly ? string.Empty
+            : job.BytesTotal > 0 ? $"{DisplayFormat.Size(job.BytesDone)} of {DisplayFormat.Size(job.BytesTotal)}" : DisplayFormat.Size(job.BytesDone);
         return job.State switch
         {
             JobState.Queued => job.WaitingReason ?? "Queued",

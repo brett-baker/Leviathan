@@ -158,4 +158,29 @@ public sealed class ActivityStripModelTests
         Assert.Equal(JobPalette.Neutral, JobPalette.Argb(-1));
         Assert.Equal(JobPalette.Neutral, JobPalette.Argb(8));
     }
+
+    [Fact]
+    public void Progress_OfAJobThatOnlyCountsItems_RunsOnceOverTheWholeBatch()
+    {
+        // A delete of 2,000 files reports items, not bytes: the bar must climb from 0 to 100 once, not sweep for each file.
+        var operations = new OperationsModel();
+        var id = Guid.NewGuid();
+        var percents = new List<double?>();
+        foreach (var done in new[] { 0, 500, 1000, 1999 })
+        {
+            operations.Apply(Job(JobState.Running, id: id) with { ItemsDone = done, ItemsTotal = 2000, BytesTotal = -1 });
+            percents.Add(operations.Entries.Single().Percent);
+        }
+
+        Assert.Equal([0, 25, 50, 99.95], percents.Select(p => p!.Value), new DoubleComparer());
+        Assert.Equal("1,999 of 2,000 items", operations.Entries.Single().Detail);
+        Assert.Equal(StripLineStyle.Solid, new ActivityStripModel(operations).Lines.Single().Style);
+    }
+
+    private sealed class DoubleComparer : IEqualityComparer<double>
+    {
+        public bool Equals(double x, double y) => Math.Abs(x - y) < 0.01;
+
+        public int GetHashCode(double obj) => 0;
+    }
 }
