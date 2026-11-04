@@ -102,7 +102,7 @@ public sealed class ChunkedFileCopierTests
     }
 
     [Fact]
-    public async Task Copy_WhenCancelled_LeavesNothingBehind()
+    public async Task Copy_WhenCancelled_NeverLeavesAFinishedLookingTarget()
     {
         var fs = Disk(2_000_000);
         using var cts = new CancellationTokenSource();
@@ -111,7 +111,20 @@ public sealed class ChunkedFileCopierTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             copier.CopyAsync(Request(onBytes: n => cts.Cancel()), cts.Token));
 
+        // The part file stays so a resume can continue it (spec 12.1 step 4); only the finished name must never appear.
         Assert.False(fs.File.Exists(@"C:\dst\f.bin"));
+    }
+
+    [Fact]
+    public async Task Copy_ThatFailsForARealReason_RemovesItsPartFile()
+    {
+        var fs = Disk(1000);
+        fs.AddFile(@"C:\dst\f.bin", new MockFileData("x") { Attributes = FileAttributes.Directory });
+        var copier = new ChunkedFileCopier(fs, streams: new FakeStreams(new()));
+        fs.File.Delete(@"C:\src\f.bin");
+
+        await Assert.ThrowsAnyAsync<Exception>(() => copier.CopyAsync(Request(), CancellationToken.None));
+
         Assert.False(fs.File.Exists(@"C:\dst\f.bin" + CopyMoveExecutor.PartSuffix));
     }
 

@@ -8,7 +8,9 @@ namespace Leviathan.Engine.Transfers;
 /// <param name="Path">The path the planner chose (spec §12.1 step 2); a copier may handle only some.</param>
 /// <param name="ComputeSourceHash">True when the caller wants a SHA-256 of what was read, computed while copying (a move to another volume checks the copy against it).</param>
 /// <param name="OnBytes">Called with the number of bytes just written, so progress and speed stay live inside a big file.</param>
-public sealed record FileCopyRequest(string Source, string Target, TransferPath Path, bool ComputeSourceHash, Action<long> OnBytes);
+/// <param name="ResumeFrom">Bytes of an earlier part file known to be on disk (from the journal); the copy continues from there when the part file still has them, else starts over.</param>
+/// <param name="OnConfirmed">Called with the number of bytes of the part file that are flushed to disk, now and then, so a resume can continue from that point (spec §12.1 step 4).</param>
+public sealed record FileCopyRequest(string Source, string Target, TransferPath Path, bool ComputeSourceHash, Action<long> OnBytes, long ResumeFrom = 0, Action<long>? OnConfirmed = null);
 
 /// <summary>What a finished file copy produced.</summary>
 /// <param name="Length">Bytes copied.</param>

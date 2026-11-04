@@ -56,3 +56,40 @@ public sealed class RealDiskCopyTests : IDisposable
         Assert.True(File.Exists(Path.Combine(source, "a#b.bin")));
     }
 }
+
+/// <summary>The progress journal on a real disk: appended, flushed, replayed after a "crash".</summary>
+public sealed class RealDiskJournalTests : IDisposable
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "leviathan-journal-" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_root, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best effort.
+        }
+    }
+
+    [Fact]
+    public void Journal_WrittenByOneProcess_IsReplayedByTheNext_EvenWithATornLastLine()
+    {
+        var id = Guid.NewGuid();
+        var journal = new FileTransferJournal(new FileSystem(), _root);
+        journal.StepDone(id, 0, 0);
+        journal.FileConfirmed(id, 0, 1, 33_554_432);
+        journal.ItemFinished(id, 2, Leviathan.Contracts.ItemStatus.Done, null);
+        // The process dies here: its handle goes away with it, and the last write is cut short.
+        journal.Dispose();
+        File.AppendAllText(Path.Combine(_root, id.ToString("N") + ".progress"), "{\"T\":\"c\",\"I\":0,\"S\":1,\"B\":6710");
+
+        var replay = new FileTransferJournal(new FileSystem(), _root).Load(id);
+
+        Assert.Contains((0, 0), replay.DoneSteps);
+        Assert.Equal(33_554_432, replay.Confirmed[(0, 1)]);
+        Assert.Equal(Leviathan.Contracts.ItemStatus.Done, replay.Items[2].Status);
+    }
+}

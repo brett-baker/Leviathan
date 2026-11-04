@@ -2,6 +2,7 @@ using System.IO.Abstractions;
 using System.Security.Cryptography;
 using Leviathan.Contracts;
 using Leviathan.Core.Paths;
+using Leviathan.Core.Providers;
 using Leviathan.Core.Resilience;
 using Leviathan.Engine.Execution;
 
@@ -25,15 +26,18 @@ public sealed class CopyMoveExecutor : IJobExecutor
     private readonly TransferPlanner _planner;
     private readonly ITransferPlanStore _plans;
     private readonly IFileCopier _copier;
+    private readonly ITransferJournal _journal;
 
     /// <summary>
     /// Creates the executor over <paramref name="fileSystem"/> with <paramref name="bufferSize"/>-byte chunks (1 MB by default).
     /// <paramref name="planStore"/> keeps each job's plan until the job finishes; <paramref name="identities"/> lets names of one
     /// SMB server count as one when choosing the path (spec §3.5 item 5); <paramref name="copier"/> moves the bytes of each file
-    /// (the portable chunked copier by default).
+    /// (the portable chunked copier by default); <paramref name="journal"/> records what is done so an interrupted job continues
+    /// (spec §12.1 step 4).
     /// </summary>
-    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null)
+    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null)
     {
+        _journal = journal ?? new InMemoryTransferJournal();
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentOutOfRangeException.ThrowIfLessThan(bufferSize, 1);
         _fs = fileSystem;
@@ -53,30 +57,50 @@ public sealed class CopyMoveExecutor : IJobExecutor
         var request = context.Job.Request;
         var destination = LocationPath.Parse(request.Destination!);
 
-        // Plan first (spec §12.1 step 1): every file, its resolved name and its path, before a byte moves. The plan is kept until the
-        // job finishes; resuming from it, with per-file progress, is the resume journal's job (slice B3), so a restart plans afresh.
-        var plan = await Task.Run(() => _planner.Plan(context.Job.Id, request, cancellationToken), cancellationToken).ConfigureAwait(false);
-        _plans.Save(plan);
+        // Plan first (spec §12.1 step 1): every file, its resolved name and its path, before a byte moves. The plan and a journal of
+        // what is done are kept until the job ends, so a network drop, a worker restart or a reboot continues the same plan (same
+        // numbered names, same steps) from where it stopped instead of planning afresh (spec §12.1 step 4).
+        TransferPlan plan;
+        if (_plans.TryLoad(context.Job.Id) is { } saved && Matches(saved, request))
+        {
+            plan = saved;
+        }
+        else
+        {
+            plan = await Task.Run(() => _planner.Plan(context.Job.Id, request, cancellationToken), cancellationToken).ConfigureAwait(false);
+            _journal.Delete(plan.JobId);
+            _plans.Save(plan);
+        }
+
+        var progress = _journal.Load(plan.JobId);
         var run = new Run(context, plan);
         run.Publish(null);
         if (!_fs.Directory.Exists(Io(destination)))
         {
-            _plans.Delete(plan.JobId);
+            Forget(plan.JobId);
             return new JobOutcome(JobState.Failed, $"{destination.Name} does not exist.");
         }
 
-        if (plan.BytesToWrite > 0 && FreeSpace(destination) is { } free && free < plan.BytesToWrite)
+        var remaining = RemainingBytesToWrite(plan, progress);
+        if (remaining > 0 && FreeSpace(destination) is { } free && free < remaining)
         {
-            _plans.Delete(plan.JobId);
-            return new JobOutcome(JobState.Failed, $"Not enough space on {destination.Root}: needs {plan.BytesToWrite:N0} bytes, {free:N0} free.");
+            Forget(plan.JobId);
+            return new JobOutcome(JobState.Failed, $"Not enough space on {destination.Root}: needs {remaining:N0} bytes, {free:N0} free.");
         }
 
         var failures = new List<string>();
-        foreach (var item in plan.Items)
+        for (var itemIndex = 0; itemIndex < plan.Items.Count; itemIndex++)
         {
+            var item = plan.Items[itemIndex];
             cancellationToken.ThrowIfCancellationRequested();
             ItemOutcome outcome;
-            if (item.Status != ItemStatus.Done)
+            if (progress.Items.TryGetValue(itemIndex, out var finished))
+            {
+                // Finished before the interruption: keep its outcome, count its bytes as done.
+                run.AddBytes(item.Size);
+                outcome = new ItemOutcome(item.Source, finished.Status == ItemStatus.Failed ? null : item.Target, finished.Status, finished.Error);
+            }
+            else if (item.Status != ItemStatus.Done)
             {
                 outcome = new ItemOutcome(item.Source, item.Target, item.Status, item.Note);
             }
@@ -84,13 +108,29 @@ public sealed class CopyMoveExecutor : IJobExecutor
             {
                 try
                 {
-                    foreach (var step in item.Steps)
+                    for (var stepIndex = 0; stepIndex < item.Steps.Count; stepIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        await RunStepAsync(run, step, cancellationToken).ConfigureAwait(false);
+                        var step = item.Steps[stepIndex];
+                        if (progress.DoneSteps.Contains((itemIndex, stepIndex)) || AlreadyInPlace(step, plan.Move))
+                        {
+                            run.AddBytes(step.Op is PlanOp.CopyFile or PlanOp.RenameItem ? step.Size : 0);
+                        }
+                        else
+                        {
+                            progress.Confirmed.TryGetValue((itemIndex, stepIndex), out var confirmed);
+                            await RunStepAsync(run, step, confirmed, bytes => _journal.FileConfirmed(plan.JobId, itemIndex, stepIndex, bytes), cancellationToken).ConfigureAwait(false);
+                        }
+
+                        _journal.StepDone(plan.JobId, itemIndex, stepIndex);
                     }
 
                     outcome = new ItemOutcome(item.Source, item.Target, ItemStatus.Done);
+                }
+                catch (IOException ex) when (LocationErrors.Wrap(ex, destination.IsNetwork ? destination : LocationPath.Parse(item.Source)) is { IsTransient: true } transient)
+                {
+                    // The network dropped: leave the plan and journal, let the host wait and run the job again from here (spec §12.2).
+                    throw transient;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -98,7 +138,12 @@ public sealed class CopyMoveExecutor : IJobExecutor
                 }
             }
 
-            context.AddResult(outcome);
+            _journal.ItemFinished(plan.JobId, itemIndex, outcome.Status, outcome.Error);
+            if (!context.Results.Any(r => r.Source == outcome.Source))
+            {
+                context.AddResult(outcome);
+            }
+
             run.ItemsDone++;
             run.Publish(null);
             if (outcome.Status == ItemStatus.Failed)
@@ -107,13 +152,70 @@ public sealed class CopyMoveExecutor : IJobExecutor
             }
         }
 
-        _plans.Delete(plan.JobId);
+        Forget(plan.JobId);
         return failures.Count == 0
             ? JobOutcome.Completed
             : new JobOutcome(JobState.Failed, $"{failures.Count} of {plan.Items.Count} item(s) failed. {string.Join(" ", failures.Take(3))}");
     }
 
     private static string Io(LocationPath path) => path.ToWin32Path();
+
+    /// <summary>True when a saved plan was made for this very request, so continuing it is the same job.</summary>
+    private static bool Matches(TransferPlan plan, JobRequest request) =>
+        plan.Move == (request.Kind == JobKind.Move)
+        && plan.Conflict == request.Conflict
+        && string.Equals(plan.Destination, LocationPath.Parse(request.Destination!).Value, StringComparison.Ordinal)
+        && plan.Items.Select(i => i.Source).SequenceEqual(request.Sources.Select(s => LocationPath.Parse(s).Value));
+
+    private void Forget(Guid jobId)
+    {
+        _plans.Delete(jobId);
+        _journal.Delete(jobId);
+    }
+
+    /// <summary>Bytes still to be written: what the plan writes, less finished steps and the confirmed part of files in progress.</summary>
+    private static long RemainingBytesToWrite(TransferPlan plan, TransferProgress progress)
+    {
+        long remaining = 0;
+        for (var i = 0; i < plan.Items.Count; i++)
+        {
+            if (progress.Items.ContainsKey(i))
+            {
+                continue;
+            }
+
+            for (var s = 0; s < plan.Items[i].Steps.Count; s++)
+            {
+                var step = plan.Items[i].Steps[s];
+                if (step.Op == PlanOp.CopyFile && step.Path != TransferPath.Rename && !progress.DoneSteps.Contains((i, s)))
+                {
+                    remaining += step.Size - progress.Confirmed.GetValueOrDefault((i, s));
+                }
+            }
+        }
+
+        return Math.Max(remaining, 0);
+    }
+
+    /// <summary>
+    /// A step whose journal line was lost (a crash right after it finished) is recognised by its result: for a move, the source is
+    /// gone and the target is there. Anything else is simply run again, which is safe for every step.
+    /// </summary>
+    private bool AlreadyInPlace(PlanStep step, bool move)
+    {
+        switch (step.Op)
+        {
+            case PlanOp.RemoveFolder:
+                return !_fs.Directory.Exists(Io(LocationPath.Parse(step.Source)));
+            case PlanOp.RenameItem or PlanOp.CopyFile when move:
+                var source = Io(LocationPath.Parse(step.Source));
+                var target = Io(LocationPath.Parse(step.Target));
+                var sourceGone = !_fs.File.Exists(source) && !_fs.Directory.Exists(source);
+                return sourceGone && (_fs.File.Exists(target) || _fs.Directory.Exists(target));
+            default:
+                return false;
+        }
+    }
 
     private long? FreeSpace(LocationPath destination)
     {
@@ -128,7 +230,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         }
     }
 
-    private async Task RunStepAsync(Run run, PlanStep step, CancellationToken ct)
+    private async Task RunStepAsync(Run run, PlanStep step, long confirmed, Action<long> onConfirmed, CancellationToken ct)
     {
         var source = LocationPath.Parse(step.Source);
         var target = LocationPath.Parse(step.Target);
@@ -150,7 +252,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
                 _fs.Directory.CreateDirectory(Io(target));
                 break;
             case PlanOp.CopyFile:
-                await TransferFileAsync(run, source, target, step.Path, ct).ConfigureAwait(false);
+                await TransferFileAsync(run, source, target, step.Path, confirmed, onConfirmed, ct).ConfigureAwait(false);
                 break;
             case PlanOp.RemoveFolder:
                 if (!_fs.Directory.EnumerateFileSystemEntries(Io(source)).Any())
@@ -162,7 +264,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         }
     }
 
-    private async Task TransferFileAsync(Run run, LocationPath source, LocationPath target, TransferPath path, CancellationToken ct)
+    private async Task TransferFileAsync(Run run, LocationPath source, LocationPath target, TransferPath path, long confirmed, Action<long> onConfirmed, CancellationToken ct)
     {
         if (path == TransferPath.Rename)
         {
@@ -173,7 +275,8 @@ public sealed class CopyMoveExecutor : IJobExecutor
 
         run.Publish(source.Name);
         var result = await _copier.CopyAsync(
-            new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: run.Move && path != TransferPath.ServerSideCopy, run.AddBytes),
+            new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: run.Move && path != TransferPath.ServerSideCopy, run.AddBytes,
+                path == TransferPath.ServerSideCopy ? 0 : confirmed, onConfirmed),
             ct).ConfigureAwait(false);
 
         if (run.Move)
