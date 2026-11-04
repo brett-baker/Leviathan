@@ -1,5 +1,5 @@
 using System.IO.Abstractions.TestingHelpers;
-using System.Security.Cryptography;
+using System.IO.Hashing;
 using Leviathan.Engine.Transfers;
 
 namespace Leviathan.Engine.Tests;
@@ -90,7 +90,7 @@ public sealed class ChunkedFileCopierTests
         var result = await new ChunkedFileCopier(fs, () => BufferPolicy.Fixed(100_000)).CopyAsync(Request(hash: true, onBytes: n => total += n), CancellationToken.None);
 
         Assert.Equal(3_000_000, total);
-        Assert.Equal(SHA256.HashData(Pattern(3_000_000)), result.SourceHash);
+        Assert.Equal(XxHash3.Hash(Pattern(3_000_000)), result.SourceHash);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class ChunkedFileCopierTests
 
         Assert.Equal(length, fs.FileInfo.New(@"C:\dst\f.bin").Length);
         Assert.Equal(Pattern(length), fs.File.ReadAllBytes(@"C:\dst\f.bin"));
-        Assert.Equal(SHA256.HashData(Pattern(length)), result.SourceHash);
+        Assert.Equal(XxHash3.Hash(Pattern(length)), result.SourceHash);
     }
 
     [Fact]

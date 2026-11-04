@@ -1,6 +1,6 @@
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
-using System.Security.Cryptography;
+using System.IO.Hashing;
 using Leviathan.Contracts;
 using Leviathan.Core.Resilience;
 using Leviathan.Engine.Execution;
@@ -51,7 +51,7 @@ public sealed class ResumeTests
 
         Assert.Equal(Pattern(2_000_000), fs.File.ReadAllBytes(@"C:\dst\f.bin"));
         Assert.Equal(2_000_000, counted);
-        Assert.Equal(SHA256.HashData(Pattern(2_000_000)), result.SourceHash);
+        Assert.Equal(XxHash3.Hash(Pattern(2_000_000)), result.SourceHash);
         Assert.False(fs.File.Exists(@"C:\dst\f.bin.leviathan-part"));
     }
 

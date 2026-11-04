@@ -6,7 +6,7 @@ namespace Leviathan.Engine.Transfers;
 /// <param name="Source">Source path in the form the file system wants (for example <c>\\?\C:\…</c>).</param>
 /// <param name="Target">Final destination path. Data is written to <c>Target + .leviathan-part</c> and renamed when complete.</param>
 /// <param name="Path">The path the planner chose (spec §12.1 step 2); a copier may handle only some.</param>
-/// <param name="ComputeSourceHash">True when the caller wants a SHA-256 of what was read, computed while copying (a move to another volume checks the copy against it).</param>
+/// <param name="ComputeSourceHash">True when the caller wants a xxHash3 (64-bit) of what was read, computed while copying (a move to another volume checks the copy against it).</param>
 /// <param name="OnBytes">Called with the number of bytes just written, so progress and speed stay live inside a big file.</param>
 /// <param name="ResumeFrom">Bytes of an earlier part file known to be on disk (from the journal); the copy continues from there when the part file still has them, else starts over.</param>
 /// <param name="OnConfirmed">Called with the number of bytes of the part file that are flushed to disk, now and then, so a resume can continue from that point (spec §12.1 step 4).</param>
@@ -14,7 +14,7 @@ public sealed record FileCopyRequest(string Source, string Target, TransferPath 
 
 /// <summary>What a finished file copy produced.</summary>
 /// <param name="Length">Bytes copied.</param>
-/// <param name="SourceHash">SHA-256 of the source as read, or null when not requested or not available (server-side copy).</param>
+/// <param name="SourceHash">xxHash3 of the source as read, or null when not requested or not available (server-side copy).</param>
 /// <param name="StreamsNotCopied">Alternate data streams the destination could not take (a share or file system without streams).</param>
 public sealed record FileCopyResult(long Length, byte[]? SourceHash, int StreamsNotCopied = 0);
 

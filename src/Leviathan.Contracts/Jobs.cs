@@ -56,6 +56,19 @@ public enum ConflictPolicy
     Skip,
 }
 
+/// <summary>How a copy is checked against its source (spec §12.1 step 6, §3.5 item 4).</summary>
+public enum VerifyMode
+{
+    /// <summary>The default policy: every move that deletes its source is checked, and so is any copy to or from a network location; local copies are not. Files up to 4 GB are hashed in full, larger ones are sampled.</summary>
+    Default,
+
+    /// <summary>Hash every file in full, whatever its size. Slower; for when a mistake would be expensive.</summary>
+    Full,
+
+    /// <summary>Do not check copies. A move still follows the default policy, because the source is deleted afterwards and must never be lost.</summary>
+    Off,
+}
+
 /// <summary>Where deleted items go (spec §12.5).</summary>
 public enum DeleteMode
 {
@@ -156,6 +169,9 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>What to do with a name that is already taken (copy, move, link).</summary>
     public ConflictPolicy Conflict { get; init; } = ConflictPolicy.KeepBoth;
+
+    /// <summary>How hard to check copies against their sources (copy and move, spec §12.1 step 6).</summary>
+    public VerifyMode Verify { get; init; } = VerifyMode.Default;
 
     /// <summary>Where deleted items go (delete only).</summary>
     public DeleteMode DeleteMode { get; init; } = DeleteMode.RecycleBin;

@@ -1,5 +1,5 @@
 using System.IO.Abstractions;
-using System.Security.Cryptography;
+using System.IO.Hashing;
 
 namespace Leviathan.Engine.Transfers;
 
@@ -80,7 +80,7 @@ public sealed class ChunkedFileCopier : IFileCopier
             using (var input = _fs.FileStream.New(request.Source, FileMode.Open, FileAccess.Read, FileShare.Read, 0, options))
             using (var output = _fs.FileStream.New(part, resumeFrom > 0 ? FileMode.Open : FileMode.Create, FileAccess.Write, FileShare.None, 0, options))
             {
-                using var hash = request.ComputeSourceHash ? IncrementalHash.CreateHash(HashAlgorithmName.SHA256) : null;
+                var hash = request.ComputeSourceHash ? new XxHash3() : null;
                 var size = unbuffered ? Align(policy.Size) : policy.Size;
                 var buffer = new AlignedBuffer(size);
                 if (resumeFrom > 0)
@@ -99,7 +99,7 @@ public sealed class ChunkedFileCopier : IFileCopier
                                 throw new IOException($"{request.Source} is shorter than the part already copied.");
                             }
 
-                            hash.AppendData(buffer.Memory.Span[..got]);
+                            hash.Append(buffer.Memory.Span[..got]);
                             left -= got;
                         }
                     }
@@ -130,7 +130,7 @@ public sealed class ChunkedFileCopier : IFileCopier
                         throw new IOException($"{request.Source} returned more data after a short read.");
                     }
 
-                    hash?.AppendData(buffer.Memory.Span[..read]);
+                    hash?.Append(buffer.Memory.Span[..read]);
                     var toWrite = read;
                     if (unbuffered && read % Sector != 0)
                     {
@@ -166,7 +166,7 @@ public sealed class ChunkedFileCopier : IFileCopier
                 }
 
                 await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-                sourceHash = hash?.GetHashAndReset();
+                sourceHash = hash?.GetCurrentHash();
             }
 
             _memory.Set(root, policy.BytesPerSecond);

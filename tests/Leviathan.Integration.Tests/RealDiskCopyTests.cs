@@ -40,7 +40,7 @@ public sealed class RealDiskCopyTests : IDisposable
         await using var host = new JobHost(new JobScheduler(), [new CopyMoveExecutor(new FileSystem(), planStore: new FileTransferPlanStore(new FileSystem(), plans))], new InMemoryJobJournal());
         host.Start();
 
-        var job = host.Submit(new JobRequest(JobKind.Copy, [source], destination), JobLane.Operations, null, "copy");
+        var job = host.Submit(new JobRequest(JobKind.Copy, [source], destination) { Verify = VerifyMode.Full }, JobLane.Operations, null, "copy");
         var deadline = DateTime.UtcNow.AddSeconds(20);
         while (!host.Scheduler.Find(job.Id)!.IsFinished && DateTime.UtcNow < deadline)
         {

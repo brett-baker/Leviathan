@@ -27,16 +27,21 @@ public sealed class CopyMoveExecutor : IJobExecutor
     private readonly ITransferPlanStore _plans;
     private readonly IFileCopier _copier;
     private readonly ITransferJournal _journal;
+    private readonly IFileVerifier _verifier;
+    private readonly VerifyPolicy _verifyPolicy;
 
     /// <summary>
     /// Creates the executor over <paramref name="fileSystem"/> with <paramref name="bufferSize"/>-byte chunks (1 MB by default).
     /// <paramref name="planStore"/> keeps each job's plan until the job finishes; <paramref name="identities"/> lets names of one
     /// SMB server count as one when choosing the path (spec §3.5 item 5); <paramref name="copier"/> moves the bytes of each file
-    /// (the portable chunked copier by default); <paramref name="journal"/> records what is done so an interrupted job continues
+    /// (the portable chunked copier by default); <paramref name="verifyPolicy"/> and <paramref name="verifier"/> decide and run the check
+    /// of each finished file (spec §12.1 step 6); <paramref name="journal"/> records what is done so an interrupted job continues
     /// (spec §12.1 step 4).
     /// </summary>
-    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null)
+    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null, VerifyPolicy? verifyPolicy = null, IFileVerifier? verifier = null)
     {
+        _verifyPolicy = verifyPolicy ?? new VerifyPolicy();
+        _verifier = verifier ?? new HashFileVerifier(fileSystem, _verifyPolicy);
         _journal = journal ?? new InMemoryTransferJournal();
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentOutOfRangeException.ThrowIfLessThan(bufferSize, 1);
@@ -274,40 +279,25 @@ public sealed class CopyMoveExecutor : IJobExecutor
         }
 
         run.Publish(source.Name);
+        var length = _fs.FileInfo.New(Io(source)).Length;
+        var method = _verifyPolicy.Decide(run.Verify, run.Move, source.IsNetwork || target.IsNetwork, length);
         var result = await _copier.CopyAsync(
-            new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: run.Move && path != TransferPath.ServerSideCopy, run.AddBytes,
+            new FileCopyRequest(Io(source), Io(target), path, ComputeSourceHash: method == VerifyMethod.Full && path != TransferPath.ServerSideCopy, run.AddBytes,
                 path == TransferPath.ServerSideCopy ? 0 : confirmed, onConfirmed),
             ct).ConfigureAwait(false);
 
+        // The copy is read back and compared before anything else happens (spec §12.1 step 6): a move deletes its original only after
+        // this passes, so a bad copy is removed and the original is kept.
+        if (method != VerifyMethod.None && !await _verifier.VerifyAsync(Io(source), Io(target), method, result.SourceHash, ct).ConfigureAwait(false))
+        {
+            TryDelete(Io(target));
+            throw new IOException($"The copy of {source.Name} did not match the original, so the {(run.Move ? "original was kept" : "copy was removed")}.");
+        }
+
         if (run.Move)
         {
-            // Across volumes the original goes only after the copy is read back and matches (spec §12.1). A server-side copy has no
-            // hash made on the way, so for now it is checked by size; the verify policy of slice B4 adds a sampled hash.
-            var verified = result.SourceHash is { } expected
-                ? await MatchesAsync(Io(target), expected, ct).ConfigureAwait(false)
-                : _fs.FileInfo.New(Io(target)).Length == result.Length;
-            if (!verified)
-            {
-                TryDelete(Io(target));
-                throw new IOException($"The copy of {source.Name} did not match the original, so the original was kept.");
-            }
-
             _fs.File.Delete(Io(source));
         }
-    }
-
-    private async Task<bool> MatchesAsync(string path, byte[] expected, CancellationToken ct)
-    {
-        using var stream = _fs.File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buffer = new byte[_bufferSize];
-        int read;
-        while ((read = await stream.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false)) > 0)
-        {
-            hash.AppendData(buffer, 0, read);
-        }
-
-        return hash.GetHashAndReset().AsSpan().SequenceEqual(expected);
     }
 
     private void TryDelete(string path)
@@ -332,6 +322,8 @@ public sealed class CopyMoveExecutor : IJobExecutor
         private string? _current;
 
         public bool Move { get; } = plan.Move;
+
+        public VerifyMode Verify { get; } = context.Job.Request.Verify;
 
         public int ItemsDone { get; set; }
 
