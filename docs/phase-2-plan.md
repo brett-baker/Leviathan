@@ -80,9 +80,10 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [x] **B4. Verify policy.** xxHash3 (`System.IO.Hashing`): full verify up to 4 GB, sampled above (first/last 64 MB + 16 random
   4 MB blocks), full verify per job/destination option; cross-volume move deletes the source only after verify passes.
   Done: `VerifyPolicy.Decide` (moves always checked, copies when a network location is involved or Full is asked; Full up to 4 GB else sampled), `HashFileVerifier` (xxHash3; a full check reuses the hash made while copying so only the target is read back; sampled = first/last 64 MB + 16 random 4 MB blocks, same blocks for the same file), `JobRequest.Verify` (Default / Full / Off; Off never applies to moves), contract minor 2. A bad copy is removed and a move keeps its original. Server-side copies are now verified too (both sides read). Not done: choosing the policy per destination in settings (C5b), reporting the method used in the job report (B5).
-- [ ] **B5. Failure handling.** Transient errors → Waiting with countdown, automatic resume when the share returns (default keep
+- [x] **B5. Failure handling.** Transient errors → Waiting with countdown, automatic resume when the share returns (default keep
   trying 30 minutes); permanent errors → one prompt with Skip / Retry / Skip all like this; safe rename for names invalid on
   the destination; end-of-job report.
+  Done: transient drops -> Waiting with `RetryAt` (countdown) and a 30-minute limit that then fails the job (kept work stays); permanent errors (access denied, disk full, invalid name, failed verify) -> `JobPrompt` in the snapshot, answered with `AnswerPromptAsync` (Skip / Retry / Skip all like this), or `OnError = SkipAndReport`; names a network share would refuse are changed at plan time (`SafeNames`) and listed in the report; `JobReport` (counts, every item with its reason, notes) kept 7 days (`GetReportAsync`). Not done: the prompt UI and the countdown display (C3), a Skip-all choice survives only within one run, the app submits with SkipAndReport until C3 exists.
 - [ ] **B6. Replace Phase 1's basic copy/move** with the engine; contract version bump if the request shape changes.
 
 ### C. Queue and UI (§12.3, §12.6)

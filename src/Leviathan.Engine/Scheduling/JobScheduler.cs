@@ -92,6 +92,7 @@ public sealed class JobScheduler
                 {
                     job.State = JobState.Running;
                     job.WaitingReason = null;
+                job.RetryAt = null;
                     started.Add(job);
                     touched.Add(job.Id);
                 }
@@ -125,6 +126,7 @@ public sealed class JobScheduler
             job.Error = error;
             job.FinishedAt = _time.GetUtcNow();
             job.WaitingReason = null;
+                job.RetryAt = null;
             job.Forced = false;
             ReleaseColor(job.ColorIndex);
             return true;
@@ -132,7 +134,7 @@ public sealed class JobScheduler
     }
 
     /// <summary>Returns a running job to the queue in the Waiting state (share offline; retries automatically).</summary>
-    public void MarkWaiting(Guid jobId, string reason) =>
+    public void MarkWaiting(Guid jobId, string reason, DateTimeOffset? retryAt = null) =>
         Update(jobId, job =>
         {
             if (job.State != JobState.Running)
@@ -142,6 +144,7 @@ public sealed class JobScheduler
 
             job.State = JobState.Waiting;
             job.WaitingReason = reason;
+            job.RetryAt = retryAt;
             return true;
         });
 
@@ -172,6 +175,7 @@ public sealed class JobScheduler
 
             job.State = JobState.Paused;
             job.WaitingReason = null;
+                job.RetryAt = null;
             return true;
         });
         return previous;
@@ -213,6 +217,7 @@ public sealed class JobScheduler
                 job.State = JobState.Cancelled;
                 job.FinishedAt = _time.GetUtcNow();
                 job.WaitingReason = null;
+                job.RetryAt = null;
                 ReleaseColor(job.ColorIndex);
             }
 

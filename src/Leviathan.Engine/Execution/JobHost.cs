@@ -30,8 +30,15 @@ public sealed class JobHost : IAsyncDisposable
     private readonly ConcurrentDictionary<Guid, RunState> _running = new();
     private readonly ConcurrentDictionary<Guid, JobContext> _progress = new();
     private readonly ConcurrentDictionary<Guid, int> _retryAttempts = new();
+    private readonly ConcurrentDictionary<Guid, long> _waitSince = new();
+    private readonly ConcurrentDictionary<Guid, long> _runStarted = new();
+    private readonly TimeSpan _waitLimit;
+    private readonly IJobReportStore? _reports;
     private readonly ConcurrentDictionary<Guid, long> _lastPublished = new();
     private Task? _loop;
+
+    /// <summary>How long a job keeps waiting for a share that does not answer before it fails (spec §12.2).</summary>
+    public static readonly TimeSpan DefaultWaitLimit = TimeSpan.FromMinutes(30);
 
     /// <summary>Creates the host.</summary>
     public JobHost(
@@ -40,8 +47,12 @@ public sealed class JobHost : IAsyncDisposable
         IJobJournal journal,
         TimeProvider? time = null,
         ILogger<JobHost>? logger = null,
-        BackoffPolicy? retryBackoff = null)
+        BackoffPolicy? retryBackoff = null,
+        TimeSpan? waitLimit = null,
+        IJobReportStore? reports = null)
     {
+        _reports = reports;
+        _waitLimit = waitLimit ?? DefaultWaitLimit;
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(executors);
         ArgumentNullException.ThrowIfNull(journal);
@@ -123,6 +134,9 @@ public sealed class JobHost : IAsyncDisposable
     /// <summary>What happened to each item of a job so far, or null when the job is unknown or has no results yet.</summary>
     public JobResult? GetResult(Guid jobId) =>
         _scheduler.Find(jobId) is null ? null : new JobResult(jobId, _progress.TryGetValue(jobId, out var context) ? context.Results : []);
+
+    /// <summary>The report of a finished job, or null when it has none (still running, expired, or no report store).</summary>
+    public JobReport? GetReport(Guid jobId) => _reports?.TryLoad(jobId);
 
     /// <summary>Pauses a job; a running job's executor is stopped and can resume later.</summary>
     public void Pause(Guid jobId)
@@ -231,6 +245,8 @@ public sealed class JobHost : IAsyncDisposable
             SpeedHistory = ctx?.Speed.History() ?? [],
             Remaining = job.State == JobState.Running ? remaining : null,
             WaitingReason = job.WaitingReason,
+            RetryAt = job.RetryAt,
+            Prompt = ctx?.PendingPrompt,
             CurrentItem = ctx?.CurrentItem,
             Error = job.Error,
             CreatedAt = job.CreatedAt,
@@ -284,6 +300,7 @@ public sealed class JobHost : IAsyncDisposable
             if (_time.GetElapsedTime(lastPrune) > TimeSpan.FromMinutes(10))
             {
                 _scheduler.PruneFinished(FinishedRetention);
+                _reports?.Prune(FinishedRetention, _time.GetUtcNow());
                 lastPrune = _time.GetTimestamp();
             }
         }
@@ -299,7 +316,8 @@ public sealed class JobHost : IAsyncDisposable
         }
 
         var cts = CancellationTokenSource.CreateLinkedTokenSource(stopping);
-        var context = _progress.GetOrAdd(job.Id, _ => new JobContext(job, new SpeedMeter(_time), OnProgress));
+        var context = _progress.GetOrAdd(job.Id, _ => new JobContext(job, new SpeedMeter(_time), OnProgress, PublishNow));
+        _runStarted[job.Id] = _time.GetTimestamp();
         var completion = Task.Run(() => RunAsync(job, executor, context, cts), CancellationToken.None);
         _running[job.Id] = new RunState(cts, completion);
     }
@@ -315,6 +333,7 @@ public sealed class JobHost : IAsyncDisposable
             }
 
             _retryAttempts.TryRemove(job.Id, out _);
+            _waitSince.TryRemove(job.Id, out _);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -326,11 +345,34 @@ public sealed class JobHost : IAsyncDisposable
         }
         catch (LocationException ex) when (ex.IsTransient)
         {
-            var attempt = _retryAttempts.AddOrUpdate(job.Id, 0, (_, a) => a + 1);
-            var delay = _retryBackoff.GetDelay(attempt);
-            _logger.LogWarning(ex, "Job {JobId} waiting {Delay} for {Location}", job.Id, delay, ex.Location);
-            _scheduler.MarkWaiting(job.Id, $"Waiting for {ex.Location.Server ?? ex.Location.Root} — retrying in {Math.Ceiling(delay.TotalSeconds)} s");
-            _ = RequeueLaterAsync(job.Id, delay);
+            var now = _time.GetTimestamp();
+            // A run that got somewhere (a minute or more) before the drop starts a fresh wait: the limit is for a share that stays away.
+            if (!_waitSince.TryGetValue(job.Id, out var since) || (_runStarted.TryGetValue(job.Id, out var started) && _time.GetElapsedTime(started, now) > TimeSpan.FromMinutes(1)))
+            {
+                since = now;
+                _waitSince[job.Id] = now;
+                _retryAttempts.TryRemove(job.Id, out _);
+            }
+
+            var server = ex.Location.Server ?? ex.Location.Root;
+            if (_time.GetElapsedTime(since, now) >= _waitLimit)
+            {
+                _waitSince.TryRemove(job.Id, out _);
+                _retryAttempts.TryRemove(job.Id, out _);
+                _logger.LogWarning(ex, "Job {JobId} gave up waiting for {Location}", job.Id, ex.Location);
+                if (_scheduler.Find(job.Id)?.State == JobState.Running)
+                {
+                    _scheduler.MarkFinished(job.Id, JobState.Failed, $"{server} did not come back within {Math.Round(_waitLimit.TotalMinutes)} minutes. What was copied is kept; run the job again to continue.");
+                }
+            }
+            else
+            {
+                var attempt = _retryAttempts.AddOrUpdate(job.Id, 0, (_, a) => a + 1);
+                var delay = _retryBackoff.GetDelay(attempt);
+                _logger.LogWarning(ex, "Job {JobId} waiting {Delay} for {Location}", job.Id, delay, ex.Location);
+                _scheduler.MarkWaiting(job.Id, $"Waiting for {server}: retrying in {Math.Ceiling(delay.TotalSeconds)} s", _time.GetUtcNow() + delay);
+                _ = RequeueLaterAsync(job.Id, delay);
+            }
         }
         catch (Exception ex)
         {
@@ -369,6 +411,16 @@ public sealed class JobHost : IAsyncDisposable
         }
     }
 
+    private void PublishNow(JobContext context)
+    {
+        _lastPublished[context.Job.Id] = _time.GetTimestamp();
+        JobChanged?.Invoke(this, Snapshot(context.Job));
+    }
+
+    /// <summary>Delivers the user's answer to the question a job is waiting on; false when there is no such question.</summary>
+    public bool AnswerPrompt(Guid jobId, Guid promptId, ErrorDecision decision) =>
+        _progress.TryGetValue(jobId, out var context) && context.Answer(promptId, decision);
+
     private void OnProgress(JobContext context)
     {
         var now = _time.GetTimestamp();
@@ -399,6 +451,12 @@ public sealed class JobHost : IAsyncDisposable
         }
 
         _journal.Append(new JournalRecord { Type = JournalRecordType.StateChanged, JobId = job.Id, At = _time.GetUtcNow(), State = job.State });
+        if (job.IsFinished && _reports is not null)
+        {
+            _progress.TryGetValue(job.Id, out var finishedContext);
+            _reports.Save(JobReports.Build(job, finishedContext, _time.GetUtcNow()));
+        }
+
         JobChanged?.Invoke(this, Snapshot(job));
     }
 

@@ -55,6 +55,9 @@ public sealed class ScheduledJob
     /// <summary>Why the job is not running, when queued or waiting.</summary>
     public string? WaitingReason { get; internal set; }
 
+    /// <summary>When a Waiting job will try again, so the UI can count down.</summary>
+    public DateTimeOffset? RetryAt { get; internal set; }
+
     /// <summary>Error summary for failed jobs.</summary>
     public string? Error { get; internal set; }
 

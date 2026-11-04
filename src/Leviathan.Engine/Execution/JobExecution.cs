@@ -31,13 +31,68 @@ public sealed class JobContext
 {
     private readonly Lock _lock = new();
     private readonly List<ItemOutcome> _results = [];
+    private readonly List<string> _notes = [];
     private readonly Action<JobContext> _onProgress;
+    private readonly Action<JobContext> _onPrompt;
+    private TaskCompletionSource<ErrorDecision>? _answer;
 
-    internal JobContext(ScheduledJob job, SpeedMeter speed, Action<JobContext> onProgress)
+    internal JobContext(ScheduledJob job, SpeedMeter speed, Action<JobContext> onProgress, Action<JobContext>? onPrompt = null)
     {
         Job = job;
         Speed = speed;
         _onProgress = onProgress;
+        _onPrompt = onPrompt ?? onProgress;
+    }
+
+    /// <summary>The question the job is waiting on, or null.</summary>
+    public JobPrompt? PendingPrompt { get; private set; }
+
+    /// <summary>
+    /// Asks the user what to do about an item that failed for a permanent reason (spec §12.2) and waits for the answer. The question is
+    /// published at once (not throttled like progress) and shows in the job's snapshot until it is answered or the job is stopped.
+    /// </summary>
+    public async Task<ErrorDecision> AskAsync(ErrorKind kind, string item, string message, CancellationToken cancellationToken)
+    {
+        var answer = new TaskCompletionSource<ErrorDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_lock)
+        {
+            _answer = answer;
+            PendingPrompt = new JobPrompt(Guid.NewGuid(), kind, item, message);
+        }
+
+        _onPrompt(this);
+        using var registration = cancellationToken.Register(() => answer.TrySetCanceled(cancellationToken));
+        try
+        {
+            return await answer.Task.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                _answer = null;
+                PendingPrompt = null;
+            }
+
+            _onPrompt(this);
+        }
+    }
+
+    /// <summary>Delivers the user's answer; false when that question is no longer pending.</summary>
+    public bool Answer(Guid promptId, ErrorDecision decision)
+    {
+        TaskCompletionSource<ErrorDecision>? answer;
+        lock (_lock)
+        {
+            if (PendingPrompt?.Id != promptId)
+            {
+                return false;
+            }
+
+            answer = _answer;
+        }
+
+        return answer?.TrySetResult(decision) == true;
     }
 
     /// <summary>The job being run.</summary>
@@ -69,6 +124,31 @@ public sealed class JobContext
             lock (_lock)
             {
                 return [.. _results];
+            }
+        }
+    }
+
+    /// <summary>Things worth knowing that are not failures (names changed for the destination, streams a share could not take); they go into the job's report.</summary>
+    public IReadOnlyList<string> Notes
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _notes];
+            }
+        }
+    }
+
+    /// <summary>Adds a note to the report; the same note twice is kept once, so a resumed job does not repeat itself.</summary>
+    public void AddNote(string note)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(note);
+        lock (_lock)
+        {
+            if (!_notes.Contains(note))
+            {
+                _notes.Add(note);
             }
         }
     }

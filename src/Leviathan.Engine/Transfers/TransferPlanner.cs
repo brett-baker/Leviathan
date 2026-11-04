@@ -72,7 +72,9 @@ public sealed class TransferPlanner
             return new PlanItem(source.Value, null, ItemStatus.Failed, $"{source.Name} no longer exists.", 0, []);
         }
 
-        var target = destinationFolder.Combine(source.Name);
+        var network = destinationFolder.IsNetwork;
+        var renamed = new List<string>();
+        var target = destinationFolder.Combine(TargetName(source.Name, network, renamed));
         var exists = _fs.File.Exists(Io(target)) || _fs.Directory.Exists(Io(target));
         var samePlace = source.Equals(target);
         if (samePlace && move)
@@ -90,30 +92,30 @@ public sealed class TransferPlanner
         var kindMismatch = exists && isFolder != _fs.Directory.Exists(Io(target));
         if (samePlace || (exists && (conflict == ConflictPolicy.KeepBoth || kindMismatch)))
         {
-            target = UniqueName(destinationFolder, source.Name, isFolder);
+            target = UniqueName(destinationFolder, network ? SafeNames.Sanitize(source.Name) : source.Name, isFolder);
             exists = false;
         }
 
         if (move && SameVolume(source, target) && !exists)
         {
             var size = Measure(source);
-            return new PlanItem(source.Value, target.Value, ItemStatus.Done, null, size, [new PlanStep(PlanOp.RenameItem, source.Value, target.Value, size, TransferPath.Rename)]);
+            return new PlanItem(source.Value, target.Value, ItemStatus.Done, RenamedNote(renamed), size, [new PlanStep(PlanOp.RenameItem, source.Value, target.Value, size, TransferPath.Rename)]);
         }
 
         var steps = new List<PlanStep>();
         if (isFolder)
         {
-            PlanFolder(source, target, move, conflict, steps, ct);
+            PlanFolder(source, target, move, conflict, steps, network, renamed, ct);
         }
         else
         {
             steps.Add(new PlanStep(PlanOp.CopyFile, source.Value, target.Value, _fs.FileInfo.New(Io(source)).Length, Choose(source, target, move)));
         }
 
-        return new PlanItem(source.Value, target.Value, ItemStatus.Done, null, steps.Sum(s => s.Size), steps);
+        return new PlanItem(source.Value, target.Value, ItemStatus.Done, RenamedNote(renamed), steps.Sum(s => s.Size), steps);
     }
 
-    private void PlanFolder(LocationPath source, LocationPath target, bool move, ConflictPolicy conflict, List<PlanStep> steps, CancellationToken ct)
+    private void PlanFolder(LocationPath source, LocationPath target, bool move, ConflictPolicy conflict, List<PlanStep> steps, bool network, List<string> renamed, CancellationToken ct)
     {
         steps.Add(new PlanStep(PlanOp.CreateFolder, source.Value, target.Value, 0, TransferPath.ChunkedCopy));
         foreach (var entry in _fs.Directory.EnumerateFileSystemEntries(Io(source)))
@@ -121,10 +123,10 @@ public sealed class TransferPlanner
             ct.ThrowIfCancellationRequested();
             var name = _fs.Path.GetFileName(entry);
             var child = source.Combine(name);
-            var childTarget = target.Combine(name);
+            var childTarget = target.Combine(TargetName(name, network, renamed));
             if (_fs.Directory.Exists(entry))
             {
-                PlanFolder(child, childTarget, move, conflict, steps, ct);
+                PlanFolder(child, childTarget, move, conflict, steps, network, renamed, ct);
                 continue;
             }
 
@@ -137,7 +139,7 @@ public sealed class TransferPlanner
 
                 if (conflict == ConflictPolicy.KeepBoth)
                 {
-                    childTarget = UniqueName(target, name, isFolder: false);
+                    childTarget = UniqueName(target, network ? SafeNames.Sanitize(name) : name, isFolder: false);
                 }
             }
 
@@ -149,6 +151,23 @@ public sealed class TransferPlanner
             steps.Add(new PlanStep(PlanOp.RemoveFolder, source.Value, target.Value, 0, TransferPath.Rename));
         }
     }
+
+    /// <summary>The name to write: on a network destination, a name the share would refuse is changed to the closest valid one (spec §12.2).</summary>
+    private static string TargetName(string name, bool network, List<string> renamed)
+    {
+        if (!network || SafeNames.IsValid(name))
+        {
+            return name;
+        }
+
+        var safe = SafeNames.Sanitize(name);
+        renamed.Add($"{name} -> {safe}");
+        return safe;
+    }
+
+    private static string? RenamedNote(List<string> renamed) => renamed.Count == 0
+        ? null
+        : $"{renamed.Count} name(s) changed to be valid on the destination: {string.Join("; ", renamed.Take(3))}{(renamed.Count > 3 ? "; ..." : string.Empty)}";
 
     private long Measure(LocationPath source)
     {

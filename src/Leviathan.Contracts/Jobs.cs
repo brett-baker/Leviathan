@@ -56,6 +56,55 @@ public enum ConflictPolicy
     Skip,
 }
 
+/// <summary>What to do when an item fails for a reason that retrying later will not fix (access denied, disk full, invalid name; spec §12.2).</summary>
+public enum ErrorMode
+{
+    /// <summary>Ask once, with Skip / Retry / Skip all like this.</summary>
+    Ask,
+
+    /// <summary>Skip the item, carry on, and list it in the job's report.</summary>
+    SkipAndReport,
+}
+
+/// <summary>The user's answer to a <see cref="JobPrompt"/>.</summary>
+public enum ErrorDecision
+{
+    /// <summary>Leave this item undone and continue with the next.</summary>
+    Skip,
+
+    /// <summary>Try the same step again, for example after making room or fixing permissions.</summary>
+    Retry,
+
+    /// <summary>Skip this item and every later one that fails for the same reason without asking again.</summary>
+    SkipAllLikeThis,
+}
+
+/// <summary>Why an item could not be done, in a form the prompt and "skip all like this" can use.</summary>
+public enum ErrorKind
+{
+    /// <summary>Anything else.</summary>
+    Other,
+
+    /// <summary>Access was denied.</summary>
+    AccessDenied,
+
+    /// <summary>The destination is full.</summary>
+    DiskFull,
+
+    /// <summary>The destination file system does not accept the name.</summary>
+    InvalidName,
+
+    /// <summary>The copy did not match the original.</summary>
+    VerifyFailed,
+}
+
+/// <summary>A question a running job is waiting on (spec §12.2): "Skip / Retry / Skip all like this".</summary>
+/// <param name="Id">Identifies the question; the answer must quote it.</param>
+/// <param name="Kind">The reason, used by "skip all like this".</param>
+/// <param name="Item">The file or folder involved.</param>
+/// <param name="Message">What went wrong, in words.</param>
+public sealed record JobPrompt(Guid Id, ErrorKind Kind, string Item, string Message);
+
 /// <summary>How a copy is checked against its source (spec §12.1 step 6, §3.5 item 4).</summary>
 public enum VerifyMode
 {
@@ -98,6 +147,26 @@ public enum ItemStatus
 /// <param name="Status">Done, skipped or failed.</param>
 /// <param name="Error">Why it failed.</param>
 public sealed record ItemOutcome(string Source, string? Result, ItemStatus Status, string? Error = null);
+
+/// <summary>
+/// What a finished job did, kept for seven days (spec §12.3 "Reports"): counts, every item with its outcome and reason, and notes such
+/// as names that were changed to be valid on the destination.
+/// </summary>
+/// <param name="JobId">The job.</param>
+/// <param name="Title">The job's title, such as "Move 312 items to \nas\media\keep".</param>
+/// <param name="Kind">What kind of job it was.</param>
+/// <param name="State">How it ended: Completed, Failed or Cancelled.</param>
+/// <param name="FinishedAt">When it ended.</param>
+/// <param name="BytesDone">Bytes moved.</param>
+/// <param name="Done">Items done.</param>
+/// <param name="Skipped">Items skipped.</param>
+/// <param name="Failed">Items that failed.</param>
+/// <param name="Items">One entry per item handled.</param>
+/// <param name="Notes">Things worth knowing that are not failures.</param>
+/// <param name="Error">The job's error summary, when it failed as a whole.</param>
+public sealed record JobReport(
+    Guid JobId, string Title, JobKind Kind, JobState State, DateTimeOffset FinishedAt, long BytesDone,
+    int Done, int Skipped, int Failed, IReadOnlyList<ItemOutcome> Items, IReadOnlyList<string> Notes, string? Error);
 
 /// <summary>The per-item results of a finished (or running) job.</summary>
 /// <param name="JobId">The job.</param>
@@ -170,6 +239,9 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
     /// <summary>What to do with a name that is already taken (copy, move, link).</summary>
     public ConflictPolicy Conflict { get; init; } = ConflictPolicy.KeepBoth;
 
+    /// <summary>What to do when an item fails for a reason retrying later will not fix (copy and move).</summary>
+    public ErrorMode OnError { get; init; } = ErrorMode.Ask;
+
     /// <summary>How hard to check copies against their sources (copy and move, spec §12.1 step 6).</summary>
     public VerifyMode Verify { get; init; } = VerifyMode.Default;
 
@@ -236,6 +308,12 @@ public sealed record JobSnapshot
 
     /// <summary>Why a queued or waiting job is not running, e.g. "Waiting: 1 job per NAS volume".</summary>
     public string? WaitingReason { get; init; }
+
+    /// <summary>When a Waiting job tries again (the countdown of "Waiting for \nas, retrying in 8 s", spec §12.2); null otherwise.</summary>
+    public DateTimeOffset? RetryAt { get; init; }
+
+    /// <summary>A question the job is waiting for the user to answer (spec §12.2), or null.</summary>
+    public JobPrompt? Prompt { get; init; }
 
     /// <summary>Current item, e.g. the file being copied.</summary>
     public string? CurrentItem { get; init; }

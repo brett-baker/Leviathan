@@ -120,6 +120,9 @@ public sealed class WorkerService : IWorkerService
     public Task<JobResult?> GetResultAsync(Guid jobId, CancellationToken cancellationToken) => Task.FromResult(_host.GetResult(jobId));
 
     /// <inheritdoc />
+    public Task<JobReport?> GetReportAsync(Guid jobId, CancellationToken cancellationToken) => Task.FromResult(_host.GetReport(jobId));
+
+    /// <inheritdoc />
     public Task PauseAsync(Guid jobId, CancellationToken cancellationToken) => Run(() => _host.Pause(jobId));
 
     /// <inheritdoc />
@@ -139,6 +142,13 @@ public sealed class WorkerService : IWorkerService
 
     /// <inheritdoc />
     public Task RunNowAsync(Guid jobId, CancellationToken cancellationToken) => Run(() => _host.RunNow(jobId));
+
+    /// <inheritdoc />
+    public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision, CancellationToken cancellationToken)
+    {
+        _host.AnswerPrompt(jobId, promptId, decision);
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public Task PauseAllAsync(CancellationToken cancellationToken) => Run(_host.PauseAll);

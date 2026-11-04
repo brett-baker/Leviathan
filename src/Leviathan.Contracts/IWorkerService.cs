@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 2;
+    public const int Minor = 3;
 }
 
 /// <summary>Information the worker reports about itself.</summary>
@@ -36,6 +36,9 @@ public interface IWorkerService
     /// <summary>What happened to each item of a job so far, or null when the job is unknown (undo is built from this).</summary>
     Task<JobResult?> GetResultAsync(Guid jobId, CancellationToken cancellationToken);
 
+    /// <summary>The report of a finished job (kept for 7 days), or null when there is none.</summary>
+    Task<JobReport?> GetReportAsync(Guid jobId, CancellationToken cancellationToken);
+
     /// <summary>Pauses a queued or running job.</summary>
     Task PauseAsync(Guid jobId, CancellationToken cancellationToken);
 
@@ -56,6 +59,9 @@ public interface IWorkerService
 
     /// <summary>Starts a queued job immediately, above the limits.</summary>
     Task RunNowAsync(Guid jobId, CancellationToken cancellationToken);
+
+    /// <summary>Answers the question a job is waiting on (<see cref="JobSnapshot.Prompt"/>). An answer to a question that is gone is ignored.</summary>
+    Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision, CancellationToken cancellationToken);
 
     /// <summary>Pauses every job.</summary>
     Task PauseAllAsync(CancellationToken cancellationToken);

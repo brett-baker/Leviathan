@@ -69,6 +69,7 @@ builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers
 
 builder.Services.AddSingleton(_ => new JobScheduler(new ConcurrencyLimits()));
 builder.Services.AddSingleton<IJobJournal>(sp => new FileJobJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "jobs.journal")));
+builder.Services.AddSingleton<Leviathan.Engine.Execution.IJobReportStore>(sp => new Leviathan.Engine.Execution.FileJobReportStore(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "reports")));
 builder.Services.AddSingleton<JobHost>();
 builder.Services.AddSingleton<Leviathan.Core.Resilience.IHostAddressResolver, Leviathan.Core.Resilience.DnsHostAddressResolver>();
 builder.Services.AddSingleton<Leviathan.Core.Resilience.ServerIdentityMap>();

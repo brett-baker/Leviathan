@@ -189,7 +189,7 @@ public sealed class VerificationTests
     {
         var fs = Disk();
 
-        var (state, items) = await RunAsync(fs, new JobRequest(JobKind.Move, [@"C:\src\f.bin"], @"D:\other"));
+        var (state, items) = await RunAsync(fs, new JobRequest(JobKind.Move, [@"C:\src\f.bin"], @"D:\other") { OnError = ErrorMode.SkipAndReport });
 
         Assert.Equal(JobState.Failed, state);
         Assert.Equal(ItemStatus.Failed, Assert.Single(items).Status);
@@ -203,7 +203,7 @@ public sealed class VerificationTests
     {
         var fs = Disk();
 
-        var (state, _) = await RunAsync(fs, new JobRequest(JobKind.Move, [@"C:\src\f.bin"], @"D:\other") { Verify = VerifyMode.Off });
+        var (state, _) = await RunAsync(fs, new JobRequest(JobKind.Move, [@"C:\src\f.bin"], @"D:\other") { Verify = VerifyMode.Off, OnError = ErrorMode.SkipAndReport });
 
         Assert.Equal(JobState.Failed, state);
         Assert.True(fs.File.Exists(@"C:\src\f.bin"));
@@ -216,7 +216,7 @@ public sealed class VerificationTests
         var full = Disk();
 
         var (defaultState, _) = await RunAsync(plain, new JobRequest(JobKind.Copy, [@"C:\src\f.bin"], @"D:\other"));
-        var (fullState, items) = await RunAsync(full, new JobRequest(JobKind.Copy, [@"C:\src\f.bin"], @"D:\other") { Verify = VerifyMode.Full });
+        var (fullState, items) = await RunAsync(full, new JobRequest(JobKind.Copy, [@"C:\src\f.bin"], @"D:\other") { Verify = VerifyMode.Full, OnError = ErrorMode.SkipAndReport });
 
         Assert.Equal(JobState.Completed, defaultState);
         Assert.Equal(JobState.Failed, fullState);

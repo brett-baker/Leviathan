@@ -64,7 +64,12 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
 
         try
         {
-            var job = new JobRequest(request.Mode == TransferMode.Move ? JobKind.Move : JobKind.Copy, [.. request.Sources.Select(s => s.Value)], request.Destination.Value);
+            var job = new JobRequest(request.Mode == TransferMode.Move ? JobKind.Move : JobKind.Copy, [.. request.Sources.Select(s => s.Value)], request.Destination.Value)
+            {
+                // The Operations panel cannot show the Skip / Retry / Skip all question yet (slice C3); until it can, a job that hits a
+                // permanent error skips the item and lists it in its report instead of waiting for an answer nobody can give.
+                OnError = ErrorMode.SkipAndReport,
+            };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(job.Kind, request.Sources, request.Destination, false);
             if (_early.TryRemove(snapshot.Id, out var early))

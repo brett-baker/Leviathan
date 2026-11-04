@@ -8,6 +8,9 @@ using Leviathan.Engine.Execution;
 
 namespace Leviathan.Engine.Transfers;
 
+/// <summary>A finished copy that did not match its source (spec §12.1 step 6).</summary>
+public sealed class VerifyFailedException(string message) : IOException(message);
+
 /// <summary>
 /// Copies and moves files and folders on local disks and Windows shares (spec §12.1). The job is planned first by
 /// <see cref="TransferPlanner"/> (every file, its resolved name and its fastest path), then run step by step. Data goes to
@@ -94,6 +97,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         }
 
         var failures = new List<string>();
+        var skipAll = new HashSet<ErrorKind>();
         for (var itemIndex = 0; itemIndex < plan.Items.Count; itemIndex++)
         {
             var item = plan.Items[itemIndex];
@@ -111,6 +115,11 @@ public sealed class CopyMoveExecutor : IJobExecutor
             }
             else
             {
+                if (item.Note is { } note)
+                {
+                    context.AddNote($"{LocationPath.Parse(item.Source).Name}: {note}");
+                }
+
                 try
                 {
                     for (var stepIndex = 0; stepIndex < item.Steps.Count; stepIndex++)
@@ -124,7 +133,22 @@ public sealed class CopyMoveExecutor : IJobExecutor
                         else
                         {
                             progress.Confirmed.TryGetValue((itemIndex, stepIndex), out var confirmed);
-                            await RunStepAsync(run, step, confirmed, bytes => _journal.FileConfirmed(plan.JobId, itemIndex, stepIndex, bytes), cancellationToken).ConfigureAwait(false);
+                            while (true)
+                            {
+                                try
+                                {
+                                    await RunStepAsync(run, step, confirmed, bytes => _journal.FileConfirmed(plan.JobId, itemIndex, stepIndex, bytes), cancellationToken).ConfigureAwait(false);
+                                    break;
+                                }
+                                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && !IsTransient(ex, destination))
+                                {
+                                    // A reason retrying later will not fix: ask once, or skip and report (spec §12.2).
+                                    if (!await ShouldRetryAsync(context, request, skipAll, item.Source, ex, cancellationToken).ConfigureAwait(false))
+                                    {
+                                        throw;
+                                    }
+                                }
+                            }
                         }
 
                         _journal.StepDone(plan.JobId, itemIndex, stepIndex);
@@ -164,6 +188,45 @@ public sealed class CopyMoveExecutor : IJobExecutor
     }
 
     private static string Io(LocationPath path) => path.ToWin32Path();
+
+    private static bool IsTransient(Exception exception, LocationPath destination) =>
+        exception is IOException io && LocationErrors.Wrap(io, destination.IsNetwork ? destination : LocationPath.Parse(@"C:\")).IsTransient;
+
+    /// <summary>Why an item failed, for the prompt and for "skip all like this".</summary>
+    public static ErrorKind Classify(Exception exception) => exception switch
+    {
+        UnauthorizedAccessException => ErrorKind.AccessDenied,
+        VerifyFailedException => ErrorKind.VerifyFailed,
+        IOException io => LocationErrors.Win32CodeFromHResult(io.HResult) switch
+        {
+            LocationErrors.AccessDenied => ErrorKind.AccessDenied,
+            39 or 112 => ErrorKind.DiskFull,
+            123 or 161 or 206 => ErrorKind.InvalidName,
+            _ => ErrorKind.Other,
+        },
+        _ => ErrorKind.Other,
+    };
+
+    /// <summary>
+    /// What to do about an item that failed for a permanent reason: skip it when the job is set to skip and report or the user already
+    /// chose "skip all like this" for the reason; otherwise ask, once, and wait for Skip / Retry / Skip all like this (spec §12.2).
+    /// </summary>
+    private static async Task<bool> ShouldRetryAsync(JobContext context, JobRequest request, HashSet<ErrorKind> skipAll, string item, Exception error, CancellationToken ct)
+    {
+        var kind = Classify(error);
+        if (request.OnError == ErrorMode.SkipAndReport || skipAll.Contains(kind))
+        {
+            return false;
+        }
+
+        var decision = await context.AskAsync(kind, item, error.Message, ct).ConfigureAwait(false);
+        if (decision == ErrorDecision.SkipAllLikeThis)
+        {
+            skipAll.Add(kind);
+        }
+
+        return decision == ErrorDecision.Retry;
+    }
 
     /// <summary>True when a saved plan was made for this very request, so continuing it is the same job.</summary>
     private static bool Matches(TransferPlan plan, JobRequest request) =>
@@ -291,7 +354,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         if (method != VerifyMethod.None && !await _verifier.VerifyAsync(Io(source), Io(target), method, result.SourceHash, ct).ConfigureAwait(false))
         {
             TryDelete(Io(target));
-            throw new IOException($"The copy of {source.Name} did not match the original, so the {(run.Move ? "original was kept" : "copy was removed")}.");
+            throw new VerifyFailedException($"The copy of {source.Name} did not match the original, so the {(run.Move ? "original was kept" : "copy was removed")}.");
         }
 
         if (run.Move)
