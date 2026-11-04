@@ -679,6 +679,45 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     public Task ReloadAsync(CancellationToken cancellationToken, bool forceFresh = false) =>
         Location is null ? Task.CompletedTask : LoadAsync(Location, cancellationToken, forceFresh);
 
+    /// <summary>
+    /// Takes items out of the list that a running delete has already removed, without listing the folder again, so the rows vanish
+    /// while the job runs and the scroll position, selection and focus stay where they are (spec §3.2, §12.5). UI thread only.
+    /// </summary>
+    public void RemoveGone(IReadOnlyCollection<LocationPath> gone)
+    {
+        ArgumentNullException.ThrowIfNull(gone);
+        if (gone.Count == 0 || Entries.Count == 0)
+        {
+            return;
+        }
+
+        var wanted = gone as ISet<LocationPath> ?? new HashSet<LocationPath>(gone);
+        var rows = new List<FileEntry>(gone.Count);
+        foreach (var entry in Entries)
+        {
+            if (wanted.Contains(entry.Location))
+            {
+                rows.Add(entry);
+            }
+        }
+
+        Entries.RemoveRange(rows);
+    }
+
+    /// <summary>
+    /// Looks at the folder again behind the rows and applies only the difference, the way a change seen by the watcher does: for
+    /// after a copy, move or delete ended, and for shares, which are not watched (spec §3.3). Unlike <see cref="ReloadAsync"/> the
+    /// rows are not replaced, so the view does not jump back to the top. UI thread only.
+    /// </summary>
+    public void RefreshInPlace()
+    {
+        if (Location is { } location)
+        {
+            Cache?.Invalidate(location);
+            RequestRefresh();
+        }
+    }
+
     /// <summary>Cancels the listing in progress, if any. The state becomes <see cref="FolderLoadState.Cancelled"/>.</summary>
     public void Cancel() => _current?.Cancel();
 

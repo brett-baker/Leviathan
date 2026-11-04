@@ -23,17 +23,68 @@ public sealed partial class MainWindow
     private void OnItemsDropped(object? sender, ItemDropRequest request) =>
         Run(CommandIds.DropItems, request.Destination.Value, new ItemDrop(request.Sources, request.Modifiers));
 
-    /// <summary>A copy or move the worker was running ended: say how it went and refresh the folder if it was touched.</summary>
+    private static readonly TimeSpan DeletedBatchEvery = TimeSpan.FromMilliseconds(250);
+
+    private readonly List<Core.Paths.LocationPath> _deletedWaiting = [];
+    private bool _deletedFlushQueued;
+
+    /// <summary>
+    /// A running delete removed some items: take them out of the list now, a few times a second, so the rows go while the job works
+    /// and the view stays where it is (a 40,000-row list is not rebuilt for every report).
+    /// </summary>
+    private void OnItemsDeleted(object? sender, IReadOnlyList<Core.Paths.LocationPath> gone)
+    {
+        bool start;
+        lock (_deletedWaiting)
+        {
+            _deletedWaiting.AddRange(gone);
+            start = !_deletedFlushQueued;
+            _deletedFlushQueued = true;
+        }
+
+        if (!start)
+        {
+            return;
+        }
+
+        _ = Task.Delay(DeletedBatchEvery).ContinueWith(_ => OnUi(FlushDeleted), TaskScheduler.Default);
+    }
+
+    private void FlushDeleted()
+    {
+        List<Core.Paths.LocationPath> batch;
+        lock (_deletedWaiting)
+        {
+            batch = [.. _deletedWaiting];
+            _deletedWaiting.Clear();
+            _deletedFlushQueued = false;
+        }
+
+        // Every tab showing a folder the items were in loses the rows, not just the selected one.
+        foreach (var tab in _viewModel.Tabs.Tabs)
+        {
+            var here = tab.History.Current;
+            var inHere = batch.Where(p => p.Parent == here).ToList();
+            if (inHere.Count > 0)
+            {
+                tab.Folder.RemoveGone(inHere);
+            }
+        }
+    }
+
+    /// <summary>A copy, move or delete the worker was running ended: say how it went and bring the folder up to date where it was touched.</summary>
     private void OnTransferFinished(object? sender, TransferFinished finished) => OnUi(() =>
     {
         var message = finished.Describe();
 
-        if (_bound is { } tab)
+        // In place, never a reload: a reload replaces every row and sends the view back to the top (shares are not watched, so this
+        // is also how new and removed items show up there).
+        foreach (var tab in _viewModel.Tabs.Tabs)
         {
             var here = tab.History.Current;
             if (here == finished.Destination || finished.Sources.Any(s => s.Parent == here))
             {
-                Run(CommandIds.NavReload);
+                tab.Folder.RefreshInPlace();
             }
         }
 

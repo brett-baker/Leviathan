@@ -65,6 +65,7 @@ public sealed partial class MainWindow : Window, IShellActions
         host.Undo.Changed += OnUndoChanged;
         host.FileClipboard.Changed += OnClipboardChanged;
         host.Transfers.Finished += OnTransferFinished;
+        host.Transfers.ItemsDeleted += OnItemsDeleted;
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -949,6 +950,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
+        App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;
         App.Host.AppearanceChanged -= OnAppearanceChanged;

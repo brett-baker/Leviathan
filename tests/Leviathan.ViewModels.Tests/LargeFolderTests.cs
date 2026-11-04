@@ -243,6 +243,41 @@ public sealed class LargeFolderTests
     }
 
     [Fact]
+    public async Task RemoveGone_TakesOnlyThoseRowsOut_AndKeepsTheRestInOrder()
+    {
+        // A running delete removes rows from the list while it works, without listing the folder again (so the view keeps its place).
+        var (folder, provider, _) = Make();
+        provider.Send(Files(0, 100));
+        provider.Complete();
+        await folder.LoadAsync(P(@"C:\big"), CancellationToken.None);
+
+        folder.RemoveGone([P(@"C:\big\f000003.txt"), P(@"C:\big\f000050.txt"), P(@"C:\big\elsewhere.txt")]);
+
+        Assert.Equal(98, folder.Entries.Count);
+        Assert.DoesNotContain(folder.Entries, e => e.Name is "f000003.txt" or "f000050.txt");
+        Assert.Equal("f000002.txt", folder.Entries[2].Name);
+        Assert.Equal("f000004.txt", folder.Entries[3].Name);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task RemoveGone_RaisesOneChange_NotOnePerRow()
+    {
+        var (folder, provider, _) = Make();
+        provider.Send(Files(0, 1000));
+        provider.Complete();
+        await folder.LoadAsync(P(@"C:\big"), CancellationToken.None);
+        var changes = 0;
+        folder.Entries.CollectionChanged += (_, _) => changes++;
+
+        folder.RemoveGone([.. Enumerable.Range(0, 500).Select(i => P($@"C:\big\f{i:D6}.txt"))]);
+
+        Assert.Equal(500, folder.Entries.Count);
+        Assert.True(changes <= 2, $"{changes} change notifications");
+        folder.Dispose();
+    }
+
+    [Fact]
     public void ChangingTheFilter_OfAnAlreadySortedFolder_DoesNotSortAgain()
     {
         // Showing or hiding items and typing in the filter box used to sort every row afresh on the UI thread (300 to 500 ms for

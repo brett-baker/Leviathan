@@ -50,6 +50,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     /// <summary>Raised on a thread-pool thread when a job ends.</summary>
     public event EventHandler<TransferFinished>? Finished;
 
+    /// <summary>Raised on a thread-pool thread while a delete runs, with the items it has removed since the last time.</summary>
+    public event EventHandler<IReadOnlyList<LocationPath>>? ItemsDeleted;
+
     /// <summary>Raised on a thread-pool thread when a delete to the Recycle Bin or a share's recycle folder ended, with what went where.</summary>
     public event EventHandler<IReadOnlyList<ViewModels.Undo.ItemMove>>? DeleteCompleted;
 
@@ -136,6 +139,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
 
     private void OnJobChanged(object? sender, JobSnapshot snapshot)
     {
+        AnnounceDeleted(snapshot);
         if (snapshot.State is not (JobState.Completed or JobState.Failed or JobState.Cancelled) || snapshot.Kind is not (JobKind.Copy or JobKind.Move or JobKind.Delete))
         {
             return;
@@ -155,6 +159,31 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
 
             _early[snapshot.Id] = snapshot;
         }
+    }
+
+    // A delete works through its items in the order given, so the first ItemsDone of them are gone. Tell the views as the job runs,
+    // not only at the end, so the rows leave the list while it works.
+    private void AnnounceDeleted(JobSnapshot snapshot)
+    {
+        if (snapshot.Kind != JobKind.Delete || !_jobs.TryGetValue(snapshot.Id, out var p))
+        {
+            return;
+        }
+
+        List<LocationPath> gone;
+        lock (p)
+        {
+            var upTo = Math.Min(snapshot.ItemsDone, p.Sources.Count);
+            if (upTo <= p.Announced)
+            {
+                return;
+            }
+
+            gone = [.. p.Sources.Skip(p.Announced).Take(upTo - p.Announced)];
+            p.Announced = upTo;
+        }
+
+        ItemsDeleted?.Invoke(this, gone);
     }
 
     private void Handle(JobSnapshot snapshot)
@@ -188,5 +217,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
         }
     }
 
-    private sealed record Pending(JobKind Kind, IReadOnlyList<LocationPath> Sources, LocationPath? Destination, bool Permanent);
+    private sealed record Pending(JobKind Kind, IReadOnlyList<LocationPath> Sources, LocationPath? Destination, bool Permanent)
+    {
+        /// <summary>How many of the sources of a delete the views were already told about.</summary>
+        public int Announced { get; set; }
+    }
 }
