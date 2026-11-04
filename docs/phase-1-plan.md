@@ -243,7 +243,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
   `tests/Leviathan.Benchmarks` and the `--gate` mode.
 - [x] **H3. Coverage pass** on `Leviathan.ViewModels` (≥ 85 % lines), and a stress pass: 100,000-item folder, long paths,
   odd names, dead share while browsing.
-- [ ] **H4. Gate and wrap-up:** run the gate numbers, write `docs/phase-1.md` (delivered, verified with counts, unverified,
+- [x] **H4. Gate and wrap-up:** run the gate numbers, write `docs/phase-1.md` (delivered, verified with counts, unverified,
   deviations), update `README.md` status, tag `phase-1`, push, stop for Brett's review.
 
 ## Gate (from the build plan)
