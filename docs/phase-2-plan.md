@@ -102,7 +102,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   clear completed); queue ETA.
 - [x] **C4. Hub positions and chip** (already built in I7; confirmed in code and `StatusHubTests`: the chip opens Operations, placement/size are remembered, a popped-out hub is restored as a fly-up; the total sparkline in the chip is C5; live-job check by eye is Brett's). The status-bar operations chip with total sparkline opens the hub on Operations; fly-up
   (default), docked bottom, docked right and pop-out (built in I7) checked with live jobs; position remembered.
-- [ ] **C5. Speed sparklines.** Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
+- [x] **C5. Speed sparklines** (done: `Sparkline` geometry + `SparklineView`; running rows and the status-bar chip). Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
 - [ ] **C5b. Status hub additions.** Quick settings: running jobs per NAS volume, bandwidth limit and schedule, verify policy;
   Background: share crawls, change polling, offline-cache refresh; Activity: copy/move/delete entries link to their jobs and reports.
 - [ ] **C6. Conflict dialog** (§12.4): one dialog per job, Replace / Skip / Keep both / if newer / if larger / if different

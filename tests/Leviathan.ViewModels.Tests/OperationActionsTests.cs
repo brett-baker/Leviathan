@@ -355,3 +355,51 @@ public sealed class OperationActionsTests
         Assert.Contains("denied", view.ToText());
     }
 }
+
+public sealed class SparklineTests
+{
+    [Fact]
+    public void Points_ScaleTheFastestSampleToTheTop_NewestOnTheRight()
+    {
+        var points = Sparkline.Points([0, 50, 100], 20, 10);
+
+        Assert.Equal([(0d, 10d), (10d, 5d), (20d, 0d)], points);
+    }
+
+    [Fact]
+    public void Points_NeedTwoSamples_AndASize()
+    {
+        Assert.Empty(Sparkline.Points([5], 20, 10));
+        Assert.Empty(Sparkline.Points([1, 2], 0, 10));
+    }
+
+    [Fact]
+    public void Points_OfAFlatZeroLine_SitOnTheBottom()
+    {
+        Assert.All(Sparkline.Points([0, 0, 0], 10, 10), p => Assert.Equal(10, p.Y));
+    }
+
+    [Fact]
+    public void Points_WithACeiling_KeepTheScaleSteady()
+    {
+        Assert.Equal(7.5, Sparkline.Points([25, 25], 10, 10, ceiling: 100)[0].Y);
+    }
+
+    [Fact]
+    public void Sum_LinesTheHistoriesUpAtTheirNewestEnd()
+    {
+        Assert.Equal([1d, 12d, 23d], Sparkline.Sum([[1, 2, 3], [10, 20]]));
+        Assert.Empty(Sparkline.Sum([]));
+    }
+
+    [Fact]
+    public void TotalSpeedHistory_AddsTheRunningJobsOnly()
+    {
+        var model = new OperationsModel();
+        model.Apply(new JobSnapshot { Id = Guid.NewGuid(), Kind = JobKind.Copy, Lane = JobLane.Operations, Title = "a", State = JobState.Running, Priority = JobPriority.Normal, SpeedHistory = [1, 2] });
+        model.Apply(new JobSnapshot { Id = Guid.NewGuid(), Kind = JobKind.Copy, Lane = JobLane.Operations, Title = "b", State = JobState.Queued, Priority = JobPriority.Normal, SpeedHistory = [100, 100] });
+
+        Assert.Equal([1d, 2d], model.TotalSpeedHistory);
+        Assert.Equal([1d, 2d], model.Entries.First(e => e.State == JobState.Running).Speeds);
+    }
+}

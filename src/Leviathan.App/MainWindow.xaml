@@ -387,6 +387,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ProgressRing Width="12" Height="12" IsActive="True" />
             <TextBlock x:Name="OperationsText" Style="{StaticResource CaptionTextBlockStyle}" />
+            <local:SparklineView x:Name="OperationsSparkline" Width="48" Height="14" VerticalAlignment="Center" Visibility="Collapsed" />
           </StackPanel>
         </Button>
         <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"

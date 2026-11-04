@@ -339,6 +339,7 @@ public sealed partial class MainWindow
         var summary = operations.Summary;
         OperationsPart.Visibility = summary.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         OperationsText.Text = summary;
+        OperationsSparkline.Values = operations.TotalSpeedHistory;
         var failures = operations.UnseenFailures;
         FailurePart.Visibility = failures > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (failures > 0)

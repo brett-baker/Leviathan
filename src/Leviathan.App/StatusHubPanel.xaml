@@ -36,8 +36,11 @@
             </StackPanel>
           </StackPanel>
         </StackPanel>
-        <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(Entry.State), Mode=OneWay}" VerticalAlignment="Top"
-                   Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Top" HorizontalAlignment="Right">
+          <TextBlock Text="{x:Bind local:HubFormat.StateText(Entry.State), Mode=OneWay}" HorizontalAlignment="Right"
+                     Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <local:SparklineView Values="{x:Bind Entry.Speeds, Mode=OneWay}" HorizontalAlignment="Right" />
+        </StackPanel>
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
           <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnRetryFailedClick" Padding="6,2" MinHeight="0" MinWidth="0"
                   Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanRetryFailed), Mode=OneWay}" ToolTipService.ToolTip="Run the items that failed again" AutomationProperties.Name="Retry failed">

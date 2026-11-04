@@ -18,9 +18,10 @@ namespace Leviathan.ViewModels.Hub;
 /// <param name="Priority">How soon the job runs among the queued ones.</param>
 /// <param name="Prompt">The question the job waits on (Skip / Retry / Skip all like this), or null.</param>
 /// <param name="RetryAt">When a job that waits for a share tries again, or null.</param>
+/// <param name="Speeds">Speed samples of a running job, one per second, for its sparkline; null otherwise.</param>
 public sealed record OperationEntry(
     Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "",
-    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal, JobPrompt? Prompt = null, DateTimeOffset? RetryAt = null)
+    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal, JobPrompt? Prompt = null, DateTimeOffset? RetryAt = null, IReadOnlyList<double>? Speeds = null)
 {
     /// <summary>The job is stopped on a question only the user can answer (spec §12.2).</summary>
     public bool HasPrompt => Prompt is not null;
@@ -243,6 +244,18 @@ public sealed class OperationsModel(TimeProvider? time = null)
         }
     }
 
+    /// <summary>The total speed of the running jobs, one sample per second, for the sparkline in the status bar chip (spec §12.6).</summary>
+    public IReadOnlyList<double> TotalSpeedHistory
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return Sparkline.Sum(_jobs.Values.Where(j => j.Job.State == JobState.Running).Select(j => j.Job.SpeedHistory));
+            }
+        }
+    }
+
     /// <summary>Jobs running now (waiting for a share and paused ones count: they hold a place).</summary>
     public int ActiveCount
     {
@@ -395,7 +408,8 @@ public sealed class OperationsModel(TimeProvider? time = null)
             job.QueuePosition,
             job.Priority,
             job.Prompt,
-            job.State == JobState.Waiting ? job.RetryAt : null);
+            job.State == JobState.Waiting ? job.RetryAt : null,
+            job.State == JobState.Running ? job.SpeedHistory : null);
     }
 
     /// <summary>"Waiting for \\nas, retrying in 8 s" (spec §12.2): the reason the job gave, then the seconds left until it tries again.</summary>
