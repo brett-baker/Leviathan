@@ -68,8 +68,9 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 ### B. Copy/move engine (§12.1, §12.2)
 
-- [ ] **B1. Planner.** Enumerate sources into the journal before copying; free-space check at the destination; fastest path per
+- [x] **B1. Planner.** Enumerate sources into the journal before copying; free-space check at the destination; fastest path per
   item: same-volume rename, same-server `CopyFile2` (server-side copy), otherwise chunked copier. Unit tests with fakes.
+  Done as `TransferPlanner` (plan = items with resolved names and a path per file, exact totals), `TransferPlan` + `ITransferPlanStore` (JSON file per job, atomic; saved before the first byte, deleted when the job ends) and `CopyMoveExecutor` now running the plan step by step. Existing behaviour and tests unchanged. Not yet: `ServerSideCopy` is chosen but runs through the chunked copier until `CopyFile2` lands (B2); a restart plans afresh, resuming from the saved plan needs the per-file journal (B3).
 - [ ] **B2. Chunked copier.** `IFileCopier` with adaptive buffers, unbuffered I/O for files over 256 MB, writes to
   `*.leviathan-part`, renames when complete; preserves timestamps, attributes and alternate data streams (tags), ACLs optional.
 - [ ] **B3. Resume journal.** Per-file confirmed-bytes records; resume from the last confirmed chunk after a network drop,
