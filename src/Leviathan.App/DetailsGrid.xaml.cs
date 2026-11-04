@@ -90,7 +90,13 @@ public sealed partial class DetailsGrid : UserControl
     internal double RowWidth => Math.Max((Layout?.TotalWidth ?? 0) + 4, Scroller.ViewportWidth - 8);
 
     /// <summary>Gives the rows to the repeater when this view is the one on screen, and takes them away when it is not.</summary>
-    internal void SetActive(bool active) => Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+    internal void SetActive(bool active)
+    {
+        using (UiTrace.Begin("DetailsGrid.SetActive", 3))
+        {
+            Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+        }
+    }
 
     /// <summary>Shows <paramref name="tab"/>, or nothing for null.</summary>
     internal void Bind(TabViewModel? tab)
@@ -222,7 +228,10 @@ public sealed partial class DetailsGrid : UserControl
         if (args.Element is GridRow row && _tab is not null && args.Index >= 0 && args.Index < _tab.Items.Rows.Count)
         {
             _realized.Add(row);
-            row.Bind(_tab.Items.Rows[args.Index]);
+            using (UiTrace.Begin("DetailsGrid.RowBind", 4))
+            {
+                row.Bind(_tab.Items.Rows[args.Index]);
+            }
         }
     }
 

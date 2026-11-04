@@ -50,7 +50,7 @@ public sealed class LargeFolderViewTests : IAsyncLifetime
         var list = _app.PointOf("ListSwitch");
         var details = _app.PointOf("DetailsSwitch");
         Mouse.Click(_app.PointOf("FileList"));
-        Keyboard.TypeSimultaneously(FlaUI.Core.WindowsAPI.VirtualKeyShort.CONTROL, FlaUI.Core.WindowsAPI.VirtualKeyShort.KEY_A);
+        Keyboard.Type(FlaUI.Core.WindowsAPI.VirtualKeyShort.END);
         Thread.Sleep(1000);
         var steps = new (string Name, System.Drawing.Point Where)[] { ("thumbnails", thumbs), ("list", list), ("details", details), ("list", list), ("thumbnails", thumbs), ("details", details) };
         var worst = new List<(string Name, long Took)>();
@@ -66,6 +66,7 @@ public sealed class LargeFolderViewTests : IAsyncLifetime
             Thread.Sleep(1500);
         }
 
+        File.Copy(_app.TracePath, Path.Combine(Path.GetTempPath(), "leviathan-last-trace.txt"), overwrite: true);
         Assert.True(worst.All(w => w.Took <= 1500), string.Join(" | ", worst.Select(w => $"{w.Name}: {w.Took} ms")));
     }
 }

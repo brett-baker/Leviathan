@@ -110,6 +110,19 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
         }
     }
 
+    /// <summary>Cancels a queued or running job; a copy keeps what it finished, and a delete stops before the next item.</summary>
+    public async Task CancelAsync(Guid jobId)
+    {
+        try
+        {
+            await Task.Run(() => Connection().CancelAsync(jobId)).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
+        {
+            // The worker is gone or the job just ended: there is nothing left to cancel.
+        }
+    }
+
     private WorkerConnection Connection()
     {
         if (_connection is null)

@@ -71,6 +71,9 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Sets how many jobs run at once (Quick settings).</summary>
     public Task SetLimitsAsync(ConcurrencyLimits limits) => _client.Service.SetLimitsAsync(limits, _closing.Token);
 
+    /// <summary>Cancels a queued or running job (the Operations tab).</summary>
+    public Task CancelAsync(Guid jobId) => _client.Service.CancelAsync(jobId, _closing.Token);
+
     /// <summary>Pauses a job (the Background tab).</summary>
     public Task PauseAsync(Guid jobId) => _client.Service.PauseAsync(jobId, _closing.Token);
 

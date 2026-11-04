@@ -88,6 +88,7 @@ public sealed partial class MainWindow
             panel.PlaceRequested += (_, placement) => hub.Place(placement);
             panel.AllSettingsRequested += (_, _) => Run(CommandIds.SettingsOpen);
             panel.GoToRequested += (_, where) => Run(CommandIds.NavGo, where);
+            panel.CancelJobRequested += async (_, id) => await App.Host.Transfers.CancelAsync(id);
             panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
             panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
             ApplyHubPlacement();

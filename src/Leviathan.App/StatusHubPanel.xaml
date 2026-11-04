@@ -14,6 +14,7 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Border Width="4" CornerRadius="2" Background="{x:Bind local:HubFormat.Color(ColorIndex)}" />
         <StackPanel Grid.Column="1" Spacing="3">
@@ -27,6 +28,11 @@
         </StackPanel>
         <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(State)}" VerticalAlignment="Top"
                    Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <!-- Cancel a queued or running job (spec 12.6: row actions). -->
+        <Button Grid.Column="3" Tag="{x:Bind Id}" Click="OnCancelJobClick" Padding="6,2" MinHeight="0" MinWidth="0" VerticalAlignment="Top"
+                Visibility="{x:Bind local:HubFormat.ShowBar(IsActive)}" ToolTipService.ToolTip="Cancel this job" AutomationProperties.Name="Cancel job">
+          <FontIcon Glyph="&#xE711;" FontSize="12" />
+        </Button>
       </Grid>
     </DataTemplate>
 

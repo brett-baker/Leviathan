@@ -84,7 +84,13 @@ public sealed partial class FlowView : UserControl
     private int Size => _tab?.ThumbnailSize ?? ItemFlow.DefaultThumbnailSize;
 
     /// <summary>Gives the rows to the repeater when this view is the one on screen, and takes them away when it is not.</summary>
-    internal void SetActive(bool active) => Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+    internal void SetActive(bool active)
+    {
+        using (UiTrace.Begin("FlowView.SetActive", 3))
+        {
+            Repeater.ItemsSource = active ? _tab?.Items.Rows : null;
+        }
+    }
 
     /// <summary>Shows <paramref name="tab"/>, or nothing for null.</summary>
     internal void Bind(TabViewModel? tab)

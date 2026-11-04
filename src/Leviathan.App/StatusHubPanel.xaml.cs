@@ -119,6 +119,17 @@ internal sealed partial class StatusHubPanel : UserControl
     /// <summary>A row of the Activity log was clicked: go to its place.</summary>
     internal event EventHandler<string>? GoToRequested;
 
+    /// <summary>The cancel button of a job's row was clicked.</summary>
+    internal event EventHandler<Guid>? CancelJobRequested;
+
+    private void OnCancelJobClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            CancelJobRequested?.Invoke(this, id);
+        }
+    }
+
     /// <summary>"Undo last" was clicked.</summary>
     internal event EventHandler? UndoRequested;
 
