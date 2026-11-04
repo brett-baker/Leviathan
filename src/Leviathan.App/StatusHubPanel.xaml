@@ -25,10 +25,28 @@
                        Visibility="{x:Bind local:HubFormat.ShowBar(Entry.IsActive), Mode=OneWay}" />
           <TextBlock Text="{x:Bind Entry.Detail, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <!-- The job stopped on an error it cannot decide for itself (spec 12.2): Skip / Retry / Skip all like this. -->
+          <StackPanel Spacing="4" Visibility="{x:Bind local:HubFormat.ShowBar(Entry.HasPrompt), Mode=OneWay}">
+            <TextBlock Text="{x:Bind Entry.PromptText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                       Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Content="Skip" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptSkipClick" Padding="10,3" MinHeight="0" />
+              <Button Content="Retry" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptRetryClick" Padding="10,3" MinHeight="0" />
+              <Button Content="Skip all like this" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptSkipAllClick" Padding="10,3" MinHeight="0" />
+            </StackPanel>
+          </StackPanel>
         </StackPanel>
         <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(Entry.State), Mode=OneWay}" VerticalAlignment="Top"
                    Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnRetryFailedClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanRetryFailed), Mode=OneWay}" ToolTipService.ToolTip="Run the items that failed again" AutomationProperties.Name="Retry failed">
+            <FontIcon Glyph="&#xE72C;" FontSize="12" />
+          </Button>
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnReportClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.HasReport), Mode=OneWay}" ToolTipService.ToolTip="Show what happened to each item" AutomationProperties.Name="Show report">
+            <FontIcon Glyph="&#xE9D9;" FontSize="12" />
+          </Button>
           <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPauseJobClick" Padding="6,2" MinHeight="0" MinWidth="0"
                   Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanPause), Mode=OneWay}" ToolTipService.ToolTip="Pause this job" AutomationProperties.Name="Pause job">
             <FontIcon Glyph="&#xE769;" FontSize="12" />

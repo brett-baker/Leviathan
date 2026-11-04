@@ -304,7 +304,31 @@ public sealed partial class MainWindow
                 {
                     App.Host.Operations.MarkFailuresSeen();
                 }
+
+                ShowNewPrompts(hub);
             });
+        }
+    }
+
+    private readonly HashSet<Guid> _promptsShown = [];
+
+    // A job stopped on "Skip / Retry / Skip all like this" waits for the user; bring the Operations tab up once for each new question
+    // so it is not missed (the strip's red tip says the same, but is easy to overlook).
+    private void ShowNewPrompts(StatusHubModel hub)
+    {
+        var fresh = App.Host.Operations.OpenPrompts.Where(_promptsShown.Add).Any();
+        if (!fresh)
+        {
+            return;
+        }
+
+        if (!hub.IsOpen)
+        {
+            Run(CommandIds.HubToggle, parameter: HubTab.Operations);
+        }
+        else
+        {
+            hub.Tab = HubTab.Operations;
         }
     }
 

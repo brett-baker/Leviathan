@@ -164,9 +164,10 @@ public sealed record ItemOutcome(string Source, string? Result, ItemStatus Statu
 /// <param name="Items">One entry per item handled.</param>
 /// <param name="Notes">Things worth knowing that are not failures.</param>
 /// <param name="Error">The job's error summary, when it failed as a whole.</param>
+/// <param name="Destination">Where the job put things (copy and move), so "Retry failed" can run the same job again for the items that failed; null for other kinds.</param>
 public sealed record JobReport(
     Guid JobId, string Title, JobKind Kind, JobState State, DateTimeOffset FinishedAt, long BytesDone,
-    int Done, int Skipped, int Failed, IReadOnlyList<ItemOutcome> Items, IReadOnlyList<string> Notes, string? Error);
+    int Done, int Skipped, int Failed, IReadOnlyList<ItemOutcome> Items, IReadOnlyList<string> Notes, string? Error, string? Destination = null);
 
 /// <summary>The per-item results of a finished (or running) job.</summary>
 /// <param name="JobId">The job.</param>

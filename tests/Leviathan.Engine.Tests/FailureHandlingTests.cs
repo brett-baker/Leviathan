@@ -318,13 +318,14 @@ public sealed class FailureHandlingTests
     {
         var fs = new MockFileSystem();
         var store = new FileJobReportStore(fs, @"C:\r");
-        var report = new JobReport(Guid.NewGuid(), "Copy 1 item", JobKind.Copy, JobState.Failed, DateTimeOffset.UtcNow, 123, 0, 0, 1, [new ItemOutcome("a", null, ItemStatus.Failed, "denied")], ["note"], "1 of 1 failed");
+        var report = new JobReport(Guid.NewGuid(), "Copy 1 item", JobKind.Copy, JobState.Failed, DateTimeOffset.UtcNow, 123, 0, 0, 1, [new ItemOutcome("a", null, ItemStatus.Failed, "denied")], ["note"], "1 of 1 failed", @"\\nas\media");
 
         store.Save(report);
         var loaded = store.TryLoad(report.JobId);
 
         Assert.NotNull(loaded);
         Assert.Equal(report.Items, loaded.Items);
+        Assert.Equal(@"\\nas\media", loaded.Destination);
         Assert.Equal(JobState.Failed, loaded.State);
         store.Prune(TimeSpan.FromDays(7), DateTimeOffset.UtcNow);
         Assert.NotNull(store.TryLoad(report.JobId));

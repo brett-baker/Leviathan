@@ -29,6 +29,18 @@ public sealed class OperationActionsTests
 
         public Task ResumeAllAsync() => Log("resumeall", Guid.Empty);
 
+        public JobReport? Report { get; set; }
+
+        public List<(Guid Job, Guid Prompt, ErrorDecision Decision)> Answers { get; } = [];
+
+        public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision)
+        {
+            Answers.Add((jobId, promptId, decision));
+            return Task.CompletedTask;
+        }
+
+        public Task<JobReport?> GetReportAsync(Guid jobId) => Task.FromResult(Report);
+
         private Task Log(string what, Guid id)
         {
             Calls.Add($"{what}:{id:N}"[..(what.Length + 9)]);
@@ -232,5 +244,114 @@ public sealed class OperationActionsTests
         OperationLines.Sync(lines, model.Groups);
 
         Assert.Empty(lines);
+    }
+
+    private static JobSnapshot Prompted(Guid id, Guid promptId) => Job(JobState.Running, id) with { Prompt = new JobPrompt(promptId, ErrorKind.AccessDenied, @"C:\a\b.txt", "Access is denied") };
+
+    [Fact]
+    public void AJobWithAQuestion_AsksForAttention_AndSaysWhat()
+    {
+        var entry = ModelOf(Prompted(Guid.NewGuid(), Guid.NewGuid())).Entries.Single();
+
+        Assert.True(entry.HasPrompt);
+        Assert.True(entry.NeedsAttention);
+        Assert.Equal("Needs an answer: Access is denied", entry.Detail);
+        Assert.Contains(@"C:\a\b.txt", entry.PromptText);
+    }
+
+    [Theory]
+    [InlineData(ErrorDecision.Skip)]
+    [InlineData(ErrorDecision.Retry)]
+    [InlineData(ErrorDecision.SkipAllLikeThis)]
+    public async Task Answer_QuotesTheQuestionOfTheJob(ErrorDecision decision)
+    {
+        var job = Guid.NewGuid();
+        var prompt = Guid.NewGuid();
+        var control = new FakeControl();
+
+        var sent = await new OperationActions(control).AnswerAsync(ModelOf(Prompted(job, prompt)).Entries.Single(), decision);
+
+        Assert.True(sent);
+        Assert.Equal([(job, prompt, decision)], control.Answers);
+    }
+
+    [Fact]
+    public async Task Answer_ToAJobWithoutAQuestion_DoesNothing()
+    {
+        var control = new FakeControl();
+
+        var sent = await new OperationActions(control).AnswerAsync(ModelOf(Job(JobState.Running)).Entries.Single(), ErrorDecision.Skip);
+
+        Assert.False(sent);
+        Assert.Empty(control.Answers);
+    }
+
+    [Fact]
+    public void AWaitingJob_CountsDownToItsNextTry_AndTheCountdownFollowsTheClock()
+    {
+        var clock = new Leviathan.Testing.ManualTimeProvider();
+        var model = new OperationsModel(clock);
+        model.Apply(Job(JobState.Waiting) with { WaitingReason = @"Waiting for \nas", RetryAt = clock.GetUtcNow().AddSeconds(8) });
+
+        Assert.Equal(@"Waiting for \nas, retrying in 8 s", model.Entries.Single().Detail);
+        clock.Advance(TimeSpan.FromSeconds(3));
+        Assert.Equal(@"Waiting for \nas, retrying in 5 s", model.Entries.Single().Detail);
+        clock.Advance(TimeSpan.FromSeconds(6));
+        Assert.Equal(@"Waiting for \nas, retrying now", model.Entries.Single().Detail);
+    }
+
+    [Fact]
+    public void ARunningJob_HasNoRetryTime_EvenIfTheSnapshotCarriesOne()
+    {
+        var model = ModelOf(Job(JobState.Running) with { RetryAt = DateTimeOffset.UtcNow.AddSeconds(5) });
+
+        Assert.Null(model.Entries.Single().RetryAt);
+    }
+
+    private static JobReport ReportOf(JobKind kind, string? destination, params ItemOutcome[] items) =>
+        new(Guid.NewGuid(), "Copy 3 items", kind, JobState.Failed, DateTimeOffset.UtcNow, 2048, items.Count(i => i.Status == ItemStatus.Done), items.Count(i => i.Status == ItemStatus.Skipped), items.Count(i => i.Status == ItemStatus.Failed), items, ["Renamed a:b to a_b"], null, destination);
+
+    [Fact]
+    public void ReportView_ListsFailuresFirst_WithTheirReasons_AndCountsThem()
+    {
+        var view = new OperationReportView(ReportOf(
+            JobKind.Copy, @"\nas\media",
+            new ItemOutcome(@"C:\in\ok.txt", @"\nas\media\ok.txt", ItemStatus.Done),
+            new ItemOutcome(@"C:\in\locked.txt", null, ItemStatus.Failed, "Access is denied"),
+            new ItemOutcome(@"C:\in\same.txt", null, ItemStatus.Skipped)));
+
+        Assert.Equal(["locked.txt", "same.txt", "ok.txt"], view.Lines.Select(l => l.Name));
+        Assert.Equal("Access is denied", view.Lines[0].Detail);
+        Assert.StartsWith("1 done · 1 skipped · 1 failed · ", view.Summary);
+        Assert.Equal([@"C:\in\locked.txt"], view.FailedSources);
+        Assert.Equal(@"C:\in", view.SourceFolder);
+    }
+
+    [Theory]
+    [InlineData(JobKind.Copy, @"\nas\media", true, true)]
+    [InlineData(JobKind.Copy, null, true, false)]
+    [InlineData(JobKind.Delete, null, true, true)]
+    [InlineData(JobKind.Copy, @"\nas\media", false, false)]
+    [InlineData(JobKind.Extract, @"C:\out", true, false)]
+    public void ReportView_OffersRetryOnlyWhenSomethingFailedAndTheJobCanRunAgain(JobKind kind, string? destination, bool failed, bool expected)
+    {
+        var view = new OperationReportView(ReportOf(kind, destination, new ItemOutcome(@"C:\in\a.txt", null, failed ? ItemStatus.Failed : ItemStatus.Done, failed ? "denied" : null)));
+
+        Assert.Equal(expected, view.CanRetryFailed);
+    }
+
+    [Fact]
+    public async Task LoadReport_GivesTheViewOfWhatTheWorkerKept_OrNullWhenItHasNone()
+    {
+        var control = new FakeControl();
+        var actions = new OperationActions(control);
+
+        Assert.Null(await actions.LoadReportAsync(Guid.NewGuid()));
+        control.Report = ReportOf(JobKind.Delete, null, new ItemOutcome(@"C:\in\a.txt", null, ItemStatus.Failed, "denied"));
+
+        var view = await actions.LoadReportAsync(Guid.NewGuid());
+
+        Assert.NotNull(view);
+        Assert.Contains("denied", view.ToText());
     }
 }

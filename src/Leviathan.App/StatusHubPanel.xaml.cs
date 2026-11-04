@@ -424,6 +424,7 @@ internal sealed partial class StatusHubPanel : UserControl
         QueueEtaText.Text = eta ?? string.Empty;
         QueueEtaText.Visibility = eta is null ? Visibility.Collapsed : Visibility.Visible;
         UpdateOperationButtons();
+        SyncCountdownTimer();
     }
 
     private IReadOnlyList<OperationEntry> SelectedOperations() =>
@@ -499,6 +500,127 @@ internal sealed partial class StatusHubPanel : UserControl
         if (sender is FrameworkElement { Tag: Guid id })
         {
             await RunOnAsync(OperationAction.Remove, id);
+        }
+    }
+
+    private async Task AnswerAsync(object sender, ErrorDecision decision)
+    {
+        if (sender is FrameworkElement { Tag: Guid id } && EntryOf(id) is { } entry)
+        {
+            await App.Host.JobActions.AnswerAsync(entry, decision);
+        }
+    }
+
+    private async void OnPromptSkipClick(object sender, RoutedEventArgs e) => await AnswerAsync(sender, ErrorDecision.Skip);
+
+    private async void OnPromptRetryClick(object sender, RoutedEventArgs e) => await AnswerAsync(sender, ErrorDecision.Retry);
+
+    private async void OnPromptSkipAllClick(object sender, RoutedEventArgs e) => await AnswerAsync(sender, ErrorDecision.SkipAllLikeThis);
+
+    private async void OnRetryFailedClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id } && await App.Host.JobActions.LoadReportAsync(id) is { } report)
+        {
+            await App.Host.Transfers.RetryFailedAsync(report, CancellationToken.None);
+        }
+    }
+
+    private async void OnReportClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            await ShowReportAsync(id);
+        }
+    }
+
+    // The report of a finished job (spec §12.3): counts, then every item with its reason, failures first, with the ways on from there.
+    private async Task ShowReportAsync(Guid id)
+    {
+        var report = await App.Host.JobActions.LoadReportAsync(id);
+        if (report is null)
+        {
+            var gone = new ContentDialog { XamlRoot = XamlRoot, Title = "No report", Content = "The worker no longer has a report for this job. Reports are kept for seven days.", CloseButtonText = "Close" };
+            await gone.ShowAsync();
+            return;
+        }
+
+        var list = new ListView { SelectionMode = ListViewSelectionMode.None, MaxHeight = 360, MinWidth = 520 };
+        list.ItemsSource = report.Lines.Select(l => $"{l.Glyph}  {l.Name}{(l.Detail.Length > 0 ? "   —   " + l.Detail : string.Empty)}").ToList();
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(new TextBlock { Text = report.Summary, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        if (report.Error is { Length: > 0 } error)
+        {
+            panel.Children.Add(new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        }
+
+        foreach (var note in report.Notes)
+        {
+            panel.Children.Add(new TextBlock { Text = note, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        }
+
+        panel.Children.Add(list);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = report.Title,
+            Content = panel,
+            CloseButtonText = "Close",
+            PrimaryButtonText = report.CanRetryFailed ? "Retry failed" : string.Empty,
+            SecondaryButtonText = "Copy",
+        };
+        var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        string? go = null;
+        if (report.Destination is { } destination)
+        {
+            var link = new HyperlinkButton { Content = "Show destination", Padding = new Thickness(0) };
+            link.Click += (_, _) => { go = destination; dialog.Hide(); };
+            links.Children.Add(link);
+        }
+
+        if (report.SourceFolder is { } source)
+        {
+            var link = new HyperlinkButton { Content = "Show source folder", Padding = new Thickness(0) };
+            link.Click += (_, _) => { go = source; dialog.Hide(); };
+            links.Children.Add(link);
+        }
+
+        if (links.Children.Count > 0)
+        {
+            panel.Children.Add(links);
+        }
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            await App.Host.Transfers.RetryFailedAsync(report, CancellationToken.None);
+        }
+        else if (result == ContentDialogResult.Secondary)
+        {
+            CopyToClipboard(report.ToText());
+        }
+        else if (go is not null)
+        {
+            GoToRequested?.Invoke(this, go);
+        }
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _countdownTimer;
+
+    // A job that waits for a share counts down to its next try: refresh once a second while one does.
+    private void SyncCountdownTimer()
+    {
+        var counting = _lines.OfType<OperationRow>().Any(r => r.Entry.RetryAt is not null);
+        if (counting && _countdownTimer is null)
+        {
+            _countdownTimer = DispatcherQueue.CreateTimer();
+            _countdownTimer.Interval = TimeSpan.FromSeconds(1);
+            _countdownTimer.Tick += (_, _) => RefreshOperations();
+            _countdownTimer.Start();
+        }
+        else if (!counting && _countdownTimer is not null)
+        {
+            _countdownTimer.Stop();
+            _countdownTimer = null;
         }
     }
 

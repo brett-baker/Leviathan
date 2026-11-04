@@ -27,6 +27,25 @@ internal sealed class WorkerJobControl(Func<WorkerConnection?> worker) : IJobCon
 
     public Task ResumeAllAsync() => Call(w => w.ResumeAllAsync());
 
+    public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision) => Call(w => w.AnswerPromptAsync(jobId, promptId, decision));
+
+    public async Task<JobReport?> GetReportAsync(Guid jobId)
+    {
+        if (worker() is not { } connection)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await Task.Run(() => connection.GetReportAsync(jobId)).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
+        {
+            return null;
+        }
+    }
+
     private async Task Call(Func<WorkerConnection, Task> action)
     {
         if (worker() is not { } connection)

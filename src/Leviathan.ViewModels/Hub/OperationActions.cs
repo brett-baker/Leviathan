@@ -58,6 +58,12 @@ public interface IJobControl
 
     /// <summary>Resumes every paused job.</summary>
     Task ResumeAllAsync();
+
+    /// <summary>Answers the question a job waits on.</summary>
+    Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision);
+
+    /// <summary>The report of a finished job, or null when the worker has none (it keeps them seven days).</summary>
+    Task<JobReport?> GetReportAsync(Guid jobId);
 }
 
 /// <summary>
@@ -124,6 +130,26 @@ public sealed class OperationActions(IJobControl control)
         }
 
         return targets.Count;
+    }
+
+    /// <summary>Answers the question <paramref name="entry"/> waits on (Skip, Retry or Skip all like this). Returns false when it waits on none.</summary>
+    public async Task<bool> AnswerAsync(OperationEntry entry, ErrorDecision decision)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (entry.Prompt is not { } prompt)
+        {
+            return false;
+        }
+
+        await control.AnswerPromptAsync(entry.Id, prompt.Id, decision).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>The report of a finished job, as the viewer shows it; null when there is none any more.</summary>
+    public async Task<OperationReportView?> LoadReportAsync(Guid jobId)
+    {
+        var report = await control.GetReportAsync(jobId).ConfigureAwait(false);
+        return report is null ? null : new OperationReportView(report);
     }
 
     /// <summary>Pauses every unfinished job (the toolbar's "Pause all").</summary>

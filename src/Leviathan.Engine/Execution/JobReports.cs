@@ -17,7 +17,7 @@ public static class JobReports
         return new JobReport(
             job.Id, job.Title, job.Request.Kind, job.State, job.FinishedAt ?? finishedAt, context?.BytesDone ?? 0,
             items.Count(i => i.Status == ItemStatus.Done), items.Count(i => i.Status == ItemStatus.Skipped), items.Count(i => i.Status == ItemStatus.Failed),
-            items, context?.Notes ?? [], job.Error);
+            items, context?.Notes ?? [], job.Error, job.Request.Destination);
     }
 }
 

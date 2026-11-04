@@ -95,6 +95,12 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Resumes every paused job.</summary>
     public Task ResumeAllAsync() => _client.Service.ResumeAllAsync(_closing.Token);
 
+    /// <summary>Answers the question a job waits on (Skip / Retry / Skip all like this).</summary>
+    public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision) => _client.Service.AnswerPromptAsync(jobId, promptId, decision, _closing.Token);
+
+    /// <summary>The report of a finished job, or null.</summary>
+    public Task<JobReport?> GetReportAsync(Guid jobId) => _client.Service.GetReportAsync(jobId, _closing.Token);
+
     /// <summary>Changes how soon a queued job runs.</summary>
     public Task SetPriorityAsync(Guid jobId, JobPriority priority) => _client.Service.SetPriorityAsync(jobId, priority, _closing.Token);
 

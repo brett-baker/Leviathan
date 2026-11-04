@@ -16,10 +16,21 @@ namespace Leviathan.ViewModels.Hub;
 /// <param name="Tooltip">The strip line's tooltip: name, percent, bytes, speed and time left.</param>
 /// <param name="QueuePosition">Place in the queue (0 = next), or -1 when the job is not queued.</param>
 /// <param name="Priority">How soon the job runs among the queued ones.</param>
+/// <param name="Prompt">The question the job waits on (Skip / Retry / Skip all like this), or null.</param>
+/// <param name="RetryAt">When a job that waits for a share tries again, or null.</param>
 public sealed record OperationEntry(
     Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "",
-    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal)
+    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal, JobPrompt? Prompt = null, DateTimeOffset? RetryAt = null)
 {
+    /// <summary>The job is stopped on a question only the user can answer (spec §12.2).</summary>
+    public bool HasPrompt => Prompt is not null;
+
+    /// <summary>The question's text: what went wrong with which item.</summary>
+    public string PromptText => Prompt is { } p ? $"{p.Message}{Environment.NewLine}{p.Item}" : string.Empty;
+
+    /// <summary>The job ended with items that failed (that is what Failed means), so "Retry failed" has something to do.</summary>
+    public bool CanRetryFailed => State == JobState.Failed;
+
     /// <summary>The group of the list the job sits in.</summary>
     public OperationGroupKind Group => State switch
     {
@@ -79,8 +90,10 @@ public sealed record OperationGroup(OperationGroupKind Kind, string Title, IRead
 /// <see cref="Changed"/> is raised after every change and readers take <see cref="Entries"/>, a snapshot, so the model needs no
 /// UI thread of its own.
 /// </summary>
-public sealed class OperationsModel
+public sealed class OperationsModel(TimeProvider? time = null)
 {
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+
     /// <summary>How many finished jobs the list keeps.</summary>
     public const int FinishedKept = 50;
 
@@ -151,13 +164,14 @@ public sealed class OperationsModel
         {
             lock (_gate)
             {
+                var now = _time.GetUtcNow();
                 return
                 [
                     .. _jobs.Values
                         .OrderBy(j => IsActive(j.Job.State) ? 0 : 1)
                         .ThenBy(j => j.Job.State == JobState.Queued ? 1 : 0)
                         .ThenBy(j => IsActive(j.Job.State) ? j.Order : -j.Order)
-                        .Select(j => ToEntry(j.Job, _seenFailures.Contains(j.Job.Id))),
+                        .Select(j => ToEntry(j.Job, _seenFailures.Contains(j.Job.Id), now)),
                 ];
             }
         }
@@ -213,6 +227,18 @@ public sealed class OperationsModel
                     < 3600 => $"Everything finishes in about {Math.Ceiling(time.TotalMinutes):0} min",
                     _ => $"Everything finishes in about {time.TotalHours:0.#} h",
                 };
+            }
+        }
+    }
+
+    /// <summary>The questions jobs wait on now (their ids), so the window can bring the Operations tab up once for each new one (spec §12.2).</summary>
+    public IReadOnlyList<Guid> OpenPrompts
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _jobs.Values.Where(j => IsActive(j.Job.State) && j.Job.Prompt is not null).Select(j => j.Job.Prompt!.Id)];
             }
         }
     }
@@ -346,7 +372,7 @@ public sealed class OperationsModel
         }
     }
 
-    private static OperationEntry ToEntry(JobSnapshot job, bool failureSeen)
+    private static OperationEntry ToEntry(JobSnapshot job, bool failureSeen, DateTimeOffset now)
     {
         // Copies know their bytes; a delete (or any job that only counts items) is measured over the whole batch by items, so the bar
         // runs from 0 to 100 once for the job instead of sweeping endlessly.
@@ -354,20 +380,35 @@ public sealed class OperationsModel
             : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100)
             : job.ItemsTotal > 0 ? Math.Clamp(100.0 * job.ItemsDone / job.ItemsTotal, 0, 100)
             : null;
-        var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && job.Error is not null;
+        var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && (job.Error is not null || job.Prompt is not null);
         return new OperationEntry(
             job.Id,
             job.Title,
             job.State,
             percent,
-            DetailOf(job),
+            DetailOf(job, now),
             IsActive(job.State),
             job.State == JobState.Failed,
             job.ColorIndex,
             needsAttention,
             TooltipOf(job, percent),
             job.QueuePosition,
-            job.Priority);
+            job.Priority,
+            job.Prompt,
+            job.State == JobState.Waiting ? job.RetryAt : null);
+    }
+
+    /// <summary>"Waiting for \\nas, retrying in 8 s" (spec §12.2): the reason the job gave, then the seconds left until it tries again.</summary>
+    internal static string WaitingText(string? reason, DateTimeOffset? retryAt, DateTimeOffset now)
+    {
+        var text = reason ?? "Waiting for the location to answer";
+        if (retryAt is not { } at)
+        {
+            return text;
+        }
+
+        var seconds = (int)Math.Ceiling((at - now).TotalSeconds);
+        return seconds <= 0 ? $"{text}, retrying now" : seconds < 60 ? $"{text}, retrying in {seconds} s" : $"{text}, retrying in {Math.Ceiling(seconds / 60.0):0} min";
     }
 
     private static string TooltipOf(JobSnapshot job, double? percent)
@@ -407,8 +448,13 @@ public sealed class OperationsModel
         return $"{job.Title}{Environment.NewLine}{string.Join(" · ", parts)}";
     }
 
-    private static string DetailOf(JobSnapshot job)
+    private static string DetailOf(JobSnapshot job, DateTimeOffset now)
     {
+        if (job.Prompt is { } prompt && job.State is JobState.Running or JobState.Waiting)
+        {
+            return $"Needs an answer: {prompt.Message}";
+        }
+
         var items = job.ItemsTotal > 0 && job.BytesTotal <= 0 ? $"{job.ItemsDone:N0} of {job.ItemsTotal:N0} items" : job.ItemsDone > 0 ? $"{job.ItemsDone:N0} items · " : string.Empty;
         var itemsOnly = job.ItemsTotal > 0 && job.BytesTotal <= 0 && job.BytesDone == 0;
         var size = itemsOnly ? string.Empty
@@ -416,7 +462,7 @@ public sealed class OperationsModel
         return job.State switch
         {
             JobState.Queued => job.WaitingReason ?? "Queued",
-            JobState.Waiting => job.WaitingReason ?? "Waiting for the location to answer",
+            JobState.Waiting => WaitingText(job.WaitingReason, job.RetryAt, now),
             JobState.Paused => "Paused",
             JobState.Failed => job.Error ?? "Failed",
             JobState.Cancelled => "Cancelled",
