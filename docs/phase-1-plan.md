@@ -241,7 +241,7 @@ existing slice names stay as they are; work order is E, F, I, G, H.
   watchdog fails the test on any stall over 50 ms.
 - [x] **H2. Benchmarks:** cold start to first folder, new tab, 10,000-item folder first rows through the view model, added to
   `tests/Leviathan.Benchmarks` and the `--gate` mode.
-- [ ] **H3. Coverage pass** on `Leviathan.ViewModels` (≥ 85 % lines), and a stress pass: 100,000-item folder, long paths,
+- [x] **H3. Coverage pass** on `Leviathan.ViewModels` (≥ 85 % lines), and a stress pass: 100,000-item folder, long paths,
   odd names, dead share while browsing.
 - [ ] **H4. Gate and wrap-up:** run the gate numbers, write `docs/phase-1.md` (delivered, verified with counts, unverified,
   deviations), update `README.md` status, tag `phase-1`, push, stop for Brett's review.
