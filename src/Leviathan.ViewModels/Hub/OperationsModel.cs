@@ -12,7 +12,10 @@ namespace Leviathan.ViewModels.Hub;
 /// <param name="IsActive">True while the job is not finished.</param>
 /// <param name="IsFailed">True for a job that failed.</param>
 /// <param name="ColorIndex">The job's colour in the strip under the address bar (0 to 7), or -1.</param>
-public sealed record OperationEntry(Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex);
+/// <param name="NeedsAttention">True while the job has failed items nobody has looked at yet: the red tip of its strip line (spec §12.6).</param>
+/// <param name="Tooltip">The strip line's tooltip: name, percent, bytes, speed and time left.</param>
+public sealed record OperationEntry(
+    Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "");
 
 /// <summary>
 /// The jobs of the user's operations (copies, moves, deletes, ...) as the Operations tab of the status hub lists them (spec §12.6,
@@ -96,7 +99,7 @@ public sealed class OperationsModel
                         .OrderBy(j => IsActive(j.Job.State) ? 0 : 1)
                         .ThenBy(j => j.Job.State == JobState.Queued ? 1 : 0)
                         .ThenByDescending(j => j.Order)
-                        .Select(j => ToEntry(j.Job)),
+                        .Select(j => ToEntry(j.Job, _seenFailures.Contains(j.Job.Id))),
                 ];
             }
         }
@@ -208,15 +211,59 @@ public sealed class OperationsModel
         }
     }
 
-    private static OperationEntry ToEntry(JobSnapshot job) => new(
-        job.Id,
-        job.Title,
-        job.State,
-        job.State == JobState.Completed ? 100 : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100) : null,
-        DetailOf(job),
-        IsActive(job.State),
-        job.State == JobState.Failed,
-        job.ColorIndex);
+    private static OperationEntry ToEntry(JobSnapshot job, bool failureSeen)
+    {
+        double? percent = job.State == JobState.Completed ? 100 : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100) : null;
+        var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && job.Error is not null;
+        return new OperationEntry(
+            job.Id,
+            job.Title,
+            job.State,
+            percent,
+            DetailOf(job),
+            IsActive(job.State),
+            job.State == JobState.Failed,
+            job.ColorIndex,
+            needsAttention,
+            TooltipOf(job, percent));
+    }
+
+    private static string TooltipOf(JobSnapshot job, double? percent)
+    {
+        var parts = new List<string>();
+        parts.Add(percent is { } p ? $"{p:0}%" : "counting items");
+        if (job.BytesTotal > 0)
+        {
+            parts.Add($"{DisplayFormat.Size(job.BytesDone)} of {DisplayFormat.Size(job.BytesTotal)}");
+        }
+
+        switch (job.State)
+        {
+            case JobState.Paused:
+                parts.Add("paused");
+                break;
+            case JobState.Waiting:
+                parts.Add(job.WaitingReason ?? "waiting for the location");
+                break;
+            case JobState.Failed:
+                parts.Add(job.Error ?? "failed");
+                break;
+            default:
+                if (job.BytesPerSecond > 0)
+                {
+                    parts.Add(DisplayFormat.Size((long)job.BytesPerSecond) + "/s");
+                }
+
+                if (job.Remaining is { } left)
+                {
+                    parts.Add(Remaining(left));
+                }
+
+                break;
+        }
+
+        return $"{job.Title}{Environment.NewLine}{string.Join(" · ", parts)}";
+    }
 
     private static string DetailOf(JobSnapshot job)
     {

@@ -11,20 +11,11 @@ namespace Leviathan.App;
 /// <summary>Static helpers the Operations list template binds to.</summary>
 internal static class HubFormat
 {
-    private static readonly Windows.UI.Color[] Palette =
-    [
-        Windows.UI.Color.FromArgb(255, 0x0F, 0x6C, 0xBD),
-        Windows.UI.Color.FromArgb(255, 0x10, 0x7C, 0x10),
-        Windows.UI.Color.FromArgb(255, 0xC1, 0x9C, 0x00),
-        Windows.UI.Color.FromArgb(255, 0xCA, 0x50, 0x10),
-        Windows.UI.Color.FromArgb(255, 0x87, 0x64, 0xB8),
-        Windows.UI.Color.FromArgb(255, 0x03, 0x83, 0x87),
-        Windows.UI.Color.FromArgb(255, 0xD1, 0x34, 0x38),
-        Windows.UI.Color.FromArgb(255, 0x5C, 0x6B, 0xC0),
-    ];
-
-    public static Brush Color(int index) =>
-        new SolidColorBrush(index is >= 0 and < 8 ? Palette[index] : Windows.UI.Color.FromArgb(255, 0x8A, 0x8A, 0x8A));
+    public static Brush Color(int index)
+    {
+        var argb = JobPalette.Argb(index);
+        return new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb));
+    }
 
     public static double Value(double? percent) => percent ?? 0;
 

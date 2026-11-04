@@ -33,6 +33,7 @@ public sealed partial class MainWindow
     private HubWindow? _hubWindow;
     private int _operationsDirty;
     private int _activityDirty;
+    private ActivityStripModel? _stripModel;
 
     private void InitHub()
     {
@@ -47,6 +48,15 @@ public sealed partial class MainWindow
         Root.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnPointerPressedForHub), true);
         Icons.Bind(HubChevron, static (b, i) => b.Content = i, "chevron-up", 12);
         UpdateOperationsPart();
+        _stripModel = new ActivityStripModel(App.Host.Operations);
+        Strip.JobRequested += (_, _) =>
+        {
+            // A click opens the Operations panel; when it is already showing, it stays open.
+            if (!(_viewModel.Hub.IsOpen && _viewModel.Hub.Tab == HubTab.Operations))
+            {
+                Run(CommandIds.HubToggle, parameter: HubTab.Operations);
+            }
+        };
 
         // The panel (four tabs of XAML) is not part of cold start (spec 3.1): it is built a moment after the window is up, while
         // nothing is happening, or at once if the hub was left open or is opened before that.
@@ -282,6 +292,7 @@ public sealed partial class MainWindow
             {
                 Interlocked.Exchange(ref _operationsDirty, 0);
                 UpdateOperationsPart();
+                Strip.Update(_stripModel!.Lines);
                 _hubPanel?.RefreshOperations();
                 var hub = _viewModel.Hub;
                 if (hub.IsOpen && hub.Tab == HubTab.Operations && App.Host.Operations.UnseenFailures > 0)

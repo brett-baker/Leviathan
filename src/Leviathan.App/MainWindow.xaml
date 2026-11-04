@@ -16,6 +16,7 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
@@ -104,8 +105,11 @@
       <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" PlaceholderText="Search (Phase 4)" IsEnabled="False" QueryIcon="Find" />
     </Grid>
 
-    <!-- Row 2: command bar (spec 6): New and the clipboard group, context actions that follow the selection, then view controls. -->
-    <Grid Grid.Row="2" Padding="8,0,8,4" ColumnSpacing="8">
+    <!-- Row 2: the activity strip (spec 12.6): thin progress lines of the running jobs; no height when nothing runs. -->
+    <local:ActivityStrip x:Name="Strip" Grid.Row="2" />
+
+    <!-- Row 3: command bar (spec 6): New and the clipboard group, context actions that follow the selection, then view controls. -->
+    <Grid Grid.Row="3" Padding="8,0,8,4" ColumnSpacing="8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
@@ -186,8 +190,8 @@
       </StackPanel>
     </Grid>
 
-    <!-- Row 3: sidebar | file view | preview pane (spec 4). -->
-    <Grid x:Name="BodyArea" Grid.Row="3">
+    <!-- Row 4: sidebar | file view | preview pane (spec 4). -->
+    <Grid x:Name="BodyArea" Grid.Row="4">
     <Grid.RowDefinitions>
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
@@ -321,9 +325,9 @@
     </Grid>
     </Grid>
 
-    <!-- Row 4: status bar (spec 16). -->
+    <!-- Row 5: status bar (spec 16). -->
     <!-- Parts with nothing to say are collapsed; clicking a part acts on it. -->
-    <Grid x:Name="StatusBar" Grid.Row="4" Padding="8,2" ColumnSpacing="4">
+    <Grid x:Name="StatusBar" Grid.Row="5" Padding="8,2" ColumnSpacing="4">
       <Grid.Resources>
         <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
           <Setter Property="Background" Value="Transparent" />
@@ -406,7 +410,7 @@
     </Grid>
 
     <!-- The settings sheet (spec 17.2, D36) rises over the window from the bottom; the sheet itself is made the first time it is opened. -->
-    <Grid x:Name="SettingsLayer" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed">
+    <Grid x:Name="SettingsLayer" Grid.Row="1" Grid.RowSpan="5" Visibility="Collapsed">
       <Border x:Name="SettingsScrim" Background="#66000000" Tapped="OnSettingsScrimTapped" />
     </Grid>
   </Grid>
