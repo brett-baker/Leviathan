@@ -8,7 +8,7 @@
     xmlns:activity="using:Leviathan.ViewModels.Activity">
 
   <UserControl.Resources>
-    <DataTemplate x:Key="OperationTemplate" x:DataType="hub:OperationEntry">
+    <DataTemplate x:Key="OperationRowTemplate" x:DataType="hub:OperationRow">
       <Grid ColumnSpacing="10" Padding="4,6">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
@@ -16,25 +16,46 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <Border Width="4" CornerRadius="2" Background="{x:Bind local:HubFormat.Color(ColorIndex)}" />
+        <Border Width="4" CornerRadius="2" Background="{x:Bind local:HubFormat.Color(Entry.ColorIndex), Mode=OneWay}" />
         <StackPanel Grid.Column="1" Spacing="3">
-          <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
-          <ProgressBar Value="{x:Bind local:HubFormat.Value(Percent)}" Maximum="100"
-                       IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Percent, State)}"
-                       ShowError="{x:Bind IsFailed}"
-                       Visibility="{x:Bind local:HubFormat.ShowBar(IsActive)}" />
-          <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+          <TextBlock Text="{x:Bind Entry.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+          <ProgressBar Value="{x:Bind local:HubFormat.Value(Entry.Percent), Mode=OneWay}" Maximum="100"
+                       IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Entry.Percent, Entry.State), Mode=OneWay}"
+                       ShowError="{x:Bind Entry.IsFailed, Mode=OneWay}"
+                       Visibility="{x:Bind local:HubFormat.ShowBar(Entry.IsActive), Mode=OneWay}" />
+          <TextBlock Text="{x:Bind Entry.Detail, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
-        <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(State)}" VerticalAlignment="Top"
+        <TextBlock Grid.Column="2" Text="{x:Bind local:HubFormat.StateText(Entry.State), Mode=OneWay}" VerticalAlignment="Top"
                    Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <!-- Cancel a queued or running job (spec 12.6: row actions). -->
-        <Button Grid.Column="3" Tag="{x:Bind Id}" Click="OnCancelJobClick" Padding="6,2" MinHeight="0" MinWidth="0" VerticalAlignment="Top"
-                Visibility="{x:Bind local:HubFormat.ShowBar(IsActive)}" ToolTipService.ToolTip="Cancel this job" AutomationProperties.Name="Cancel job">
-          <FontIcon Glyph="&#xE711;" FontSize="12" />
-        </Button>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPauseJobClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanPause), Mode=OneWay}" ToolTipService.ToolTip="Pause this job" AutomationProperties.Name="Pause job">
+            <FontIcon Glyph="&#xE769;" FontSize="12" />
+          </Button>
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnResumeJobClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanResume), Mode=OneWay}" ToolTipService.ToolTip="Resume this job" AutomationProperties.Name="Resume job">
+            <FontIcon Glyph="&#xE768;" FontSize="12" />
+          </Button>
+          <!-- Cancel a queued or running job; take a finished one off the list (spec 12.6: row actions). -->
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnCancelJobClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.CanCancel), Mode=OneWay}" ToolTipService.ToolTip="Cancel this job" AutomationProperties.Name="Cancel job">
+            <FontIcon Glyph="&#xE711;" FontSize="12" />
+          </Button>
+          <Button Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnRemoveJobClick" Padding="6,2" MinHeight="0" MinWidth="0"
+                  Visibility="{x:Bind local:HubFormat.ShowBar(Entry.HasReport), Mode=OneWay}" ToolTipService.ToolTip="Remove from the list" AutomationProperties.Name="Remove job">
+            <FontIcon Glyph="&#xE74D;" FontSize="12" />
+          </Button>
+        </StackPanel>
       </Grid>
     </DataTemplate>
+
+    <DataTemplate x:Key="OperationHeaderTemplate" x:DataType="hub:OperationHeader">
+      <TextBlock Text="{x:Bind Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="2,10,0,2" />
+    </DataTemplate>
+
+    <local:OperationTemplateSelector x:Key="OperationSelector" Row="{StaticResource OperationRowTemplate}" Header="{StaticResource OperationHeaderTemplate}" />
+
 
     <DataTemplate x:Key="ActivityTemplate" x:DataType="activity:ActivityEntry">
       <Grid ColumnSpacing="12" Padding="4,5">
@@ -149,6 +170,7 @@
         <Grid x:Name="OperationsPage" RowSpacing="6">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
           <Grid ColumnSpacing="8">
@@ -156,11 +178,31 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="OperationsSummary" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <Button x:Name="ClearButton" Grid.Column="1" Content="Clear completed" Click="OnClearClick" />
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock x:Name="OperationsSummary" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="QueueEtaText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <Button x:Name="PauseAllOpsButton" Content="Pause all" Click="OnPauseAllJobsClick" />
+              <Button x:Name="ResumeAllOpsButton" Content="Resume all" Click="OnResumeAllJobsClick" />
+              <Button x:Name="ClearButton" Content="Clear completed" Click="OnClearClick" />
+            </StackPanel>
           </Grid>
-          <ListView x:Name="OperationList" Grid.Row="1" SelectionMode="None" ItemTemplate="{StaticResource OperationTemplate}" />
-          <TextBlock x:Name="NothingText" Grid.Row="1" Text="Nothing is running. Copies, moves and deletes appear here."
+          <!-- Acts on the selected jobs (Ctrl and Shift select several); each button is on when it fits at least one of them. -->
+          <ScrollViewer Grid.Row="1" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <Button x:Name="OpPauseButton" Content="Pause" Tag="Pause" Click="OnSelectionActionClick" />
+              <Button x:Name="OpResumeButton" Content="Resume" Tag="Resume" Click="OnSelectionActionClick" />
+              <Button x:Name="OpRunNowButton" Content="Run now" Tag="RunNow" Click="OnSelectionActionClick" ToolTipService.ToolTip="Start now, above the limits" />
+              <Button x:Name="OpUpButton" Content="Move up" Tag="MoveUp" Click="OnSelectionActionClick" />
+              <Button x:Name="OpDownButton" Content="Move down" Tag="MoveDown" Click="OnSelectionActionClick" />
+              <Button x:Name="OpCancelButton" Content="Cancel" Tag="Cancel" Click="OnSelectionActionClick" />
+              <Button x:Name="OpRemoveButton" Content="Remove" Tag="Remove" Click="OnSelectionActionClick" ToolTipService.ToolTip="Take off the list" />
+            </StackPanel>
+          </ScrollViewer>
+          <ListView x:Name="OperationList" Grid.Row="2" SelectionMode="Extended" ItemTemplateSelector="{StaticResource OperationSelector}"
+                    SelectionChanged="OnOperationSelectionChanged" RightTapped="OnOperationRightTapped" />
+          <TextBlock x:Name="NothingText" Grid.Row="2" Text="Nothing is running. Copies, moves and deletes appear here."
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
         </Grid>
         <Grid x:Name="ActivityPage" RowSpacing="6" Visibility="Collapsed">

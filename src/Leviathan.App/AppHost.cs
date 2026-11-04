@@ -308,6 +308,11 @@ internal sealed class AppHost
         state == Leviathan.Engine.Supervision.SupervisedState.Disabled ? disabledReason ?? purpose : purpose,
         state == Leviathan.Engine.Supervision.SupervisedState.Disabled);
 
+    private WorkerJobControl? _jobControl;
+
+    /// <summary>The Operations tab's pause, cancel, remove, move and priority actions on the worker's jobs.</summary>
+    internal OperationActions JobActions => new(_jobControl ??= new WorkerJobControl(() => WorkerLazy.IsValueCreated ? WorkerLazy.Value : null));
+
     /// <summary>Pauses a background job.</summary>
     public Task PauseJobAsync(Guid id) => WorkerLazy.IsValueCreated ? WorkerLazy.Value.PauseAsync(id) : Task.CompletedTask;
 

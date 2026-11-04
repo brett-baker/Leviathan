@@ -23,7 +23,6 @@ internal static class HubFormat
     public static bool Indeterminate(double? percent, JobState state) => state == JobState.Running && percent is null;
 
     public static Visibility ShowBar(bool active) => active ? Visibility.Visible : Visibility.Collapsed;
-
     public static string When(DateTimeOffset time)
     {
         var local = time.ToLocalTime();
@@ -70,6 +69,18 @@ internal static class HubFormat
         JobState.Cancelled => "Cancelled",
         _ => string.Empty,
     };
+}
+
+/// <summary>Picks the template of a line of the Operations list: a group heading or a job.</summary>
+internal sealed partial class OperationTemplateSelector : DataTemplateSelector
+{
+    public DataTemplate? Row { get; set; }
+
+    public DataTemplate? Header { get; set; }
+
+    protected override DataTemplate? SelectTemplateCore(object item) => item is OperationHeader ? Header : Row;
+
+    protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => SelectTemplateCore(item);
 }
 
 /// <summary>
@@ -392,15 +403,151 @@ internal sealed partial class StatusHubPanel : UserControl
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
     }
 
-    /// <summary>Lists the operations again (the worker reported a change).</summary>
+    private readonly System.Collections.ObjectModel.ObservableCollection<OperationListItem> _lines = [];
+    private bool _linesBound;
+
+    /// <summary>Lists the operations again (the worker reported a change). The lines are updated in place, so the scroll position and the selection stay.</summary>
     internal void RefreshOperations()
     {
-        var entries = _operations.Entries;
-        OperationList.ItemsSource = entries;
-        NothingText.Visibility = entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ClearButton.IsEnabled = entries.Any(e => !e.IsActive);
+        if (!_linesBound)
+        {
+            OperationList.ItemsSource = _lines;
+            _linesBound = true;
+        }
+
+        OperationLines.Sync(_lines, _operations.Groups);
+        var any = _lines.Count > 0;
+        NothingText.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
         var summary = _operations.Summary;
-        OperationsSummary.Text = summary.Length == 0 ? (entries.Count == 0 ? string.Empty : "Nothing running") : summary;
+        OperationsSummary.Text = summary.Length == 0 ? (any ? "Nothing running" : string.Empty) : summary;
+        var eta = _operations.QueueEta;
+        QueueEtaText.Text = eta ?? string.Empty;
+        QueueEtaText.Visibility = eta is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateOperationButtons();
+    }
+
+    private IReadOnlyList<OperationEntry> SelectedOperations() =>
+        [.. OperationList.SelectedItems.OfType<OperationRow>().Select(r => r.Entry)];
+
+    private OperationEntry? EntryOf(Guid id) => _lines.OfType<OperationRow>().Select(r => r.Entry).FirstOrDefault(e => e.Id == id);
+
+    // Each button is on when its action fits at least one of the selected jobs; with nothing selected the toolbar is off.
+    private void UpdateOperationButtons()
+    {
+        var selected = SelectedOperations();
+        foreach (var (button, action) in new[]
+        {
+            (OpPauseButton, OperationAction.Pause), (OpResumeButton, OperationAction.Resume), (OpRunNowButton, OperationAction.RunNow),
+            (OpUpButton, OperationAction.MoveUp), (OpDownButton, OperationAction.MoveDown), (OpCancelButton, OperationAction.Cancel),
+            (OpRemoveButton, OperationAction.Remove),
+        })
+        {
+            button.IsEnabled = OperationActions.CanDo(action, selected);
+        }
+
+        var all = _lines.OfType<OperationRow>().Select(r => r.Entry).ToList();
+        PauseAllOpsButton.IsEnabled = all.Any(e => e.CanPause);
+        ResumeAllOpsButton.IsEnabled = all.Any(e => e.CanResume);
+        ClearButton.IsEnabled = all.Any(e => !e.IsActive);
+    }
+
+    private void OnOperationSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // The group headings are lines of the list but not jobs: they cannot be selected.
+        foreach (var header in e.AddedItems.OfType<OperationHeader>())
+        {
+            OperationList.SelectedItems.Remove(header);
+        }
+
+        UpdateOperationButtons();
+    }
+
+    private async void OnSelectionActionClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string name } && Enum.TryParse<OperationAction>(name, out var action))
+        {
+            await App.Host.JobActions.RunAsync(action, SelectedOperations());
+        }
+    }
+
+    private async Task RunOnAsync(OperationAction action, Guid id)
+    {
+        if (EntryOf(id) is { } entry)
+        {
+            await App.Host.JobActions.RunAsync(action, [entry]);
+        }
+    }
+
+    private async void OnPauseJobClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            await RunOnAsync(OperationAction.Pause, id);
+        }
+    }
+
+    private async void OnResumeJobClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            await RunOnAsync(OperationAction.Resume, id);
+        }
+    }
+
+    private async void OnRemoveJobClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            await RunOnAsync(OperationAction.Remove, id);
+        }
+    }
+
+    private async void OnPauseAllJobsClick(object sender, RoutedEventArgs e) => await App.Host.JobActions.PauseAllAsync();
+
+    private async void OnResumeAllJobsClick(object sender, RoutedEventArgs e) => await App.Host.JobActions.ResumeAllAsync();
+
+    // Right-click: the menu acts on the selection; a job that is not selected becomes the selection first, as in a file list.
+    private void OnOperationRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+    {
+        if ((e.OriginalSource as FrameworkElement)?.DataContext is not OperationRow row)
+        {
+            return;
+        }
+
+        if (!OperationList.SelectedItems.Contains(row))
+        {
+            OperationList.SelectedItems.Clear();
+            OperationList.SelectedItems.Add(row);
+        }
+
+        var selected = SelectedOperations();
+        var menu = new MenuFlyout();
+        foreach (var (text, action) in new[]
+        {
+            ("Pause", OperationAction.Pause), ("Resume", OperationAction.Resume), ("Run now", OperationAction.RunNow),
+            ("Move up", OperationAction.MoveUp), ("Move down", OperationAction.MoveDown), ("Cancel", OperationAction.Cancel),
+            ("Remove from the list", OperationAction.Remove),
+        })
+        {
+            var what = action;
+            var item = new MenuFlyoutItem { Text = text, IsEnabled = OperationActions.CanDo(what, selected) };
+            item.Click += async (_, _) => await App.Host.JobActions.RunAsync(what, SelectedOperations());
+            menu.Items.Add(item);
+        }
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var priority = new MenuFlyoutSubItem { Text = "Priority", IsEnabled = selected.Any(s => s.IsActive) };
+        foreach (var (text, value) in new[] { ("Low", JobPriority.Low), ("Normal", JobPriority.Normal), ("High", JobPriority.High) })
+        {
+            var chosen = value;
+            var item = new MenuFlyoutItem { Text = text };
+            item.Click += async (_, _) => await App.Host.JobActions.SetPriorityAsync(chosen, SelectedOperations());
+            priority.Items.Add(item);
+        }
+
+        menu.Items.Add(priority);
+        menu.ShowAt(OperationList, e.GetPosition(OperationList));
+        e.Handled = true;
     }
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e) => Sync();

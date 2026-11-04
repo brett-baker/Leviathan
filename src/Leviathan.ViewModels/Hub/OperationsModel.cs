@@ -14,8 +14,63 @@ namespace Leviathan.ViewModels.Hub;
 /// <param name="ColorIndex">The job's colour in the strip under the address bar (0 to 7), or -1.</param>
 /// <param name="NeedsAttention">True while the job has failed items nobody has looked at yet: the red tip of its strip line (spec §12.6).</param>
 /// <param name="Tooltip">The strip line's tooltip: name, percent, bytes, speed and time left.</param>
+/// <param name="QueuePosition">Place in the queue (0 = next), or -1 when the job is not queued.</param>
+/// <param name="Priority">How soon the job runs among the queued ones.</param>
 public sealed record OperationEntry(
-    Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "");
+    Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "",
+    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal)
+{
+    /// <summary>The group of the list the job sits in.</summary>
+    public OperationGroupKind Group => State switch
+    {
+        JobState.Queued => OperationGroupKind.Queued,
+        JobState.Running or JobState.Paused or JobState.Waiting => OperationGroupKind.Running,
+        _ => OperationGroupKind.Finished,
+    };
+
+    /// <summary>The worker can pause it (spec §12.6).</summary>
+    public bool CanPause => State is JobState.Queued or JobState.Waiting or JobState.Running;
+
+    /// <summary>It is paused and can go on.</summary>
+    public bool CanResume => State == JobState.Paused;
+
+    /// <summary>It can be started now, above the limits.</summary>
+    public bool CanRunNow => State is JobState.Queued or JobState.Paused or JobState.Waiting;
+
+    /// <summary>It has not finished, so it can be cancelled.</summary>
+    public bool CanCancel => IsActive;
+
+    /// <summary>It is not running, so it can be taken off the list (a queued or paused job is dropped without running).</summary>
+    public bool CanRemove => State != JobState.Running;
+
+    /// <summary>It is queued and not first, so it can go earlier.</summary>
+    public bool CanMoveUp => State == JobState.Queued && QueuePosition > 0;
+
+    /// <summary>It is queued, so it can go later (the worker keeps it at the end when it is last already).</summary>
+    public bool CanMoveDown => State == JobState.Queued && QueuePosition >= 0;
+
+    /// <summary>It is finished and some of it failed or was cancelled: the report says which items.</summary>
+    public bool HasReport => State is JobState.Failed or JobState.Cancelled or JobState.Completed;
+}
+
+/// <summary>The groups of the Operations list, in the order they are shown.</summary>
+public enum OperationGroupKind
+{
+    /// <summary>Running, waiting for a share and paused jobs: they hold a place.</summary>
+    Running,
+
+    /// <summary>Jobs waiting for a slot.</summary>
+    Queued,
+
+    /// <summary>Completed, failed and cancelled jobs, newest first.</summary>
+    Finished,
+}
+
+/// <summary>One group of the Operations list with its heading.</summary>
+/// <param name="Kind">Which group.</param>
+/// <param name="Title">The heading, e.g. "Queued (3)".</param>
+/// <param name="Entries">The jobs, in the order shown.</param>
+public sealed record OperationGroup(OperationGroupKind Kind, string Title, IReadOnlyList<OperationEntry> Entries);
 
 /// <summary>
 /// The jobs of the user's operations (copies, moves, deletes, ...) as the Operations tab of the status hub lists them (spec §12.6,
@@ -104,6 +159,60 @@ public sealed class OperationsModel
                         .ThenBy(j => IsActive(j.Job.State) ? j.Order : -j.Order)
                         .Select(j => ToEntry(j.Job, _seenFailures.Contains(j.Job.Id))),
                 ];
+            }
+        }
+    }
+
+    /// <summary>The list in three groups (Running, Queued, Completed and failed); empty groups are left out (spec §12.6).</summary>
+    public IReadOnlyList<OperationGroup> Groups
+    {
+        get
+        {
+            var entries = Entries;
+            var groups = new List<OperationGroup>(3);
+            foreach (var (kind, name) in new[] { (OperationGroupKind.Running, "Running"), (OperationGroupKind.Queued, "Queued"), (OperationGroupKind.Finished, "Completed and failed") })
+            {
+                var inGroup = entries.Where(e => e.Group == kind).ToList();
+                if (inGroup.Count > 0)
+                {
+                    groups.Add(new OperationGroup(kind, $"{name} ({inGroup.Count})", inGroup));
+                }
+            }
+
+            return groups;
+        }
+    }
+
+    /// <summary>
+    /// How long everything unfinished will take at the current speed, e.g. "Everything finishes in about 12 min", or null while it cannot be
+    /// said (a job's size is still being counted, nothing moves, or fewer than two jobs are unfinished).
+    /// </summary>
+    public string? QueueEta
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var open = _jobs.Values.Select(j => j.Job).Where(j => IsActive(j.State)).ToList();
+                if (open.Count < 2 || open.Any(j => j.BytesTotal <= 0))
+                {
+                    return null;
+                }
+
+                var speed = open.Where(j => j.State == JobState.Running).Sum(j => j.BytesPerSecond);
+                if (speed <= 0)
+                {
+                    return null;
+                }
+
+                var left = open.Sum(j => Math.Max(0, j.BytesTotal - j.BytesDone));
+                var time = TimeSpan.FromSeconds(left / speed);
+                return time.TotalSeconds switch
+                {
+                    < 60 => "Everything finishes in under a minute",
+                    < 3600 => $"Everything finishes in about {Math.Ceiling(time.TotalMinutes):0} min",
+                    _ => $"Everything finishes in about {time.TotalHours:0.#} h",
+                };
             }
         }
     }
@@ -256,7 +365,9 @@ public sealed class OperationsModel
             job.State == JobState.Failed,
             job.ColorIndex,
             needsAttention,
-            TooltipOf(job, percent));
+            TooltipOf(job, percent),
+            job.QueuePosition,
+            job.Priority);
     }
 
     private static string TooltipOf(JobSnapshot job, double? percent)

@@ -80,6 +80,21 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Resumes a paused job.</summary>
     public Task ResumeAsync(Guid jobId) => _client.Service.ResumeAsync(jobId, _closing.Token);
 
+    /// <summary>Takes a job that is not running off the worker's list (the Operations tab).</summary>
+    public Task RemoveAsync(Guid jobId) => _client.Service.RemoveAsync(jobId, _closing.Token);
+
+    /// <summary>Starts a queued or paused job now, above the limits.</summary>
+    public Task RunNowAsync(Guid jobId) => _client.Service.RunNowAsync(jobId, _closing.Token);
+
+    /// <summary>Moves a queued job to a place in the queue (0 = next).</summary>
+    public Task MoveAsync(Guid jobId, int queuePosition) => _client.Service.MoveAsync(jobId, queuePosition, _closing.Token);
+
+    /// <summary>Pauses every unfinished job.</summary>
+    public Task PauseAllAsync() => _client.Service.PauseAllAsync(_closing.Token);
+
+    /// <summary>Resumes every paused job.</summary>
+    public Task ResumeAllAsync() => _client.Service.ResumeAllAsync(_closing.Token);
+
     /// <summary>Changes how soon a queued job runs.</summary>
     public Task SetPriorityAsync(Guid jobId, JobPriority priority) => _client.Service.SetPriorityAsync(jobId, priority, _closing.Token);
 
