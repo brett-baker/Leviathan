@@ -968,13 +968,19 @@ public static partial class WindowCommands
         {
             var tab = Current()!;
             var items = tab.Selection.SelectedEntries.Select(e => e.Location).ToList();
-            if (permanent)
+            var what = items.Count == 1 ? items[0].Name : $"these {items.Count} items";
+
+            // Plain Delete on a drive with no Recycle Bin (a USB stick) is permanent, so it is confirmed like Shift+Del (spec §12.5).
+            var noBin = !permanent && await deleter!.BehaviorAsync(items, ct) == Core.Platform.DeleteBehavior.PermanentAfterConfirmation;
+            if (permanent || noBin)
             {
-                var what = items.Count == 1 ? items[0].Name : $"these {items.Count} items";
-                if (!await shell.ConfirmAsync("Delete permanently?", $"{what} will be deleted for good and cannot be restored.", "Delete"))
+                var why = noBin ? "This drive has no Recycle Bin. " : string.Empty;
+                if (!await shell.ConfirmAsync("Delete permanently?", $"{why}{what} will be deleted for good and cannot be restored.", "Delete"))
                 {
                     return;
                 }
+
+                permanent = true;
             }
 
             shell.ShowMessage((await deleter!.DeleteAsync(items, permanent, ct)).Message);

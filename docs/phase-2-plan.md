@@ -112,7 +112,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 - [x] **D1. Recycle-folder detection** (done: `RecycleFolders` in the engine; D2 still owes the Delete vs Shift+Delete table per location type and the manifest reader for Restore).** Per share: Synology `#recycle` (when DSM Recycle Bin is enabled for that shared folder),
   QNAP `@Recycle`, else `.leviathan-trash` at the highest writable folder; cached per share.
-- [ ] **D2. Soft delete and manifest.** Rename into the recycle folder (instant), manifest with original path and time; Delete vs
+- [x] **D2. Soft delete and manifest** (done: `DeletePolicy` table, worker refuses a silent permanent delete, mapped drives soft-delete through their share, the window confirms on drives without a bin; Ctrl+Z already restores from the reported trashed path; the manifest reader belongs to D3). Rename into the recycle folder (instant), manifest with original path and time; Delete vs
   Shift+Delete table per location type; Ctrl+Z restores.
 - [ ] **D3. Soft-delete bin view.** All soft-deleted items across shares, restore, purge now; automatic purge by age (30 days)
   and size cap as background jobs with reports.

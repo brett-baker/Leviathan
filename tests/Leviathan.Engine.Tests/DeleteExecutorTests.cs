@@ -84,6 +84,25 @@ public sealed class DeleteExecutorTests
         return (host.Snapshot(host.Scheduler.Find(job.Id)!), host.GetResult(job.Id)!.Items);
     }
 
+    private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunOnDrivesAsync(MockFileSystem fs, FakeBin bin, Leviathan.Testing.FakeVolumeInfo volumes, params string[] sources)
+    {
+        await using var host = new JobHost(new JobScheduler(), [new DeleteExecutor(fs, bin, new FixedTime(), volumes: volumes)], new InMemoryJobJournal());
+        host.Start();
+        var job = host.Submit(new JobRequest(JobKind.Delete, sources, null), JobLane.Operations, null, "test");
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!host.Scheduler.Find(job.Id)!.IsFinished)
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException();
+            }
+
+            await Task.Delay(5);
+        }
+
+        return (host.Snapshot(host.Scheduler.Find(job.Id)!), host.GetResult(job.Id)!.Items);
+    }
+
     private static MockFileSystem Disk()
     {
         var fs = new MockFileSystem();
@@ -260,6 +279,69 @@ public sealed class DeleteExecutorTests
 
         Assert.Equal(@"\\nas\media\#recycle\show\ep1 (2).mkv", items[0].Result);
         Assert.Equal("older", fs.File.ReadAllText(@"\\nas\media\#recycle\show\ep1.mkv"));
+    }
+
+    [Fact]
+    public async Task Delete_OnAFixedDrive_StillUsesTheRecycleBin()
+    {
+        var fs = Disk();
+        var bin = new FakeBin(fs);
+        var volumes = new Leviathan.Testing.FakeVolumeInfo().With(@"C:\", "OS", DriveKind.Fixed, 100, 50);
+
+        var (job, _) = await RunOnDrivesAsync(fs, bin, volumes, @"C:\a\1.txt");
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal([@"C:\a\1.txt"], bin.Recycled);
+    }
+
+    [Fact]
+    public async Task Delete_OnAMappedDrive_IsASoftDeleteThroughTheShare_NeverTheWindowsBin()
+    {
+        var fs = Disk();
+        fs.AddFile(@"Y:\show\ep2.mkv", new MockFileData("v2"));
+        fs.AddFile(@"\\nas\media\show\ep2.mkv", new MockFileData("v2"));
+        var bin = new FakeBin(fs);
+        var volumes = new Leviathan.Testing.FakeVolumeInfo().With(@"Y:\", "media", DriveKind.Network, 100, 50, network: @"\\nas\media");
+
+        var (job, items) = await RunOnDrivesAsync(fs, bin, volumes, @"Y:\show\ep2.mkv");
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Empty(bin.Recycled);
+        Assert.Equal(@"Y:\show\ep2.mkv", items[0].Source);
+        Assert.StartsWith(@"\\nas\media\.leviathan-trash\", items[0].Result, StringComparison.Ordinal);
+        Assert.False(fs.File.Exists(@"\\nas\media\show\ep2.mkv"));
+    }
+
+    [Fact]
+    public async Task Delete_OnAMappedDrive_WhoseShareIsUnknown_LeavesTheItemAlone()
+    {
+        var fs = Disk();
+        fs.AddFile(@"Y:\show\ep2.mkv", new MockFileData("v2"));
+        var volumes = new Leviathan.Testing.FakeVolumeInfo().With(@"Y:\", "media", DriveKind.Network, 100, 50);
+
+        var (job, items) = await RunOnDrivesAsync(fs, new FakeBin(fs), volumes, @"Y:\show\ep2.mkv");
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains("Shift+Delete", items[0].Error, StringComparison.Ordinal);
+        Assert.True(fs.File.Exists(@"Y:\show\ep2.mkv"));
+    }
+
+    [Theory]
+    [InlineData(DriveKind.Removable)]
+    [InlineData(DriveKind.Unknown)]
+    public async Task Delete_OnADriveWithNoBin_IsRefused_NotQuietlyMadePermanent(DriveKind kind)
+    {
+        var fs = Disk();
+        fs.AddFile(@"E:\photo.jpg", new MockFileData("p"));
+        var bin = new FakeBin(fs);
+        var volumes = new Leviathan.Testing.FakeVolumeInfo().With(@"E:\", "USB", kind, 100, 50);
+
+        var (job, items) = await RunOnDrivesAsync(fs, bin, volumes, @"E:\photo.jpg");
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains("no Recycle Bin", items[0].Error, StringComparison.Ordinal);
+        Assert.True(fs.File.Exists(@"E:\photo.jpg"));
+        Assert.Empty(bin.Recycled);
     }
 
     [Fact]

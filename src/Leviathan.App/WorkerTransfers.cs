@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Leviathan.Contracts;
 using Leviathan.Core.Paths;
+using Leviathan.Core.Platform;
 using Leviathan.ViewModels.Transfers;
 
 namespace Leviathan.App;
@@ -52,6 +53,30 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
 
     /// <summary>Where the verify policy of the settings is read from (set once the settings exist); copies are checked the default way until then.</summary>
     public Func<VerifyMode> VerifySource { get; set; } = () => VerifyMode.Default;
+
+    /// <summary>Tells what kind of drive a letter is, for the Delete table of spec §12.5; every drive is taken to have a Recycle Bin until it is set.</summary>
+    public IVolumeInfo? Volumes { get; set; }
+
+    /// <inheritdoc />
+    public async Task<DeleteBehavior> BehaviorAsync(IReadOnlyList<LocationPath> items, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (Volumes is not { } volumes)
+        {
+            return DeleteBehavior.RecycleBin;
+        }
+
+        // One question per drive letter, not per item, and none for a share: a UNC path is always a soft delete.
+        var behaviors = new List<DeleteBehavior>();
+        foreach (var group in items.GroupBy(i => i.Kind == LocationKind.Drive ? char.ToUpperInvariant(i.Root[0]).ToString() : i.Root, StringComparer.OrdinalIgnoreCase))
+        {
+            var first = group.First();
+            var drive = first.Kind == LocationKind.Drive ? await volumes.GetDriveAsync(first, cancellationToken).ConfigureAwait(false) : null;
+            behaviors.Add(DeletePolicy.Decide(first, drive));
+        }
+
+        return DeletePolicy.Strictest(behaviors);
+    }
 
     /// <summary>Where the "keep Leviathan's own trash on shares" setting is read from; on until the settings exist.</summary>
     public Func<bool> KeepOwnTrashSource { get; set; } = () => true;

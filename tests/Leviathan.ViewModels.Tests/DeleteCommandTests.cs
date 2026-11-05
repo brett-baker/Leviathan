@@ -10,6 +10,11 @@ public sealed class DeleteCommandTests
     {
         public List<(IReadOnlyList<LocationPath> Items, bool Permanent)> Calls { get; } = [];
 
+        public Leviathan.Core.Platform.DeleteBehavior Behavior { get; set; } = Leviathan.Core.Platform.DeleteBehavior.RecycleBin;
+
+        public Task<Leviathan.Core.Platform.DeleteBehavior> BehaviorAsync(IReadOnlyList<LocationPath> items, CancellationToken cancellationToken) =>
+            Task.FromResult(Behavior);
+
         public Task<TransferOutcome> DeleteAsync(IReadOnlyList<LocationPath> items, bool permanent, CancellationToken cancellationToken)
         {
             Calls.Add((items, permanent));
@@ -38,6 +43,43 @@ public sealed class DeleteCommandTests
         Assert.Equal(h.Tab.Items.Rows[0].Location, Assert.Single(call.Items));
         Assert.Empty(h.Shell.Confirmations);
         Assert.Equal("Deleting…", h.Shell.Messages[^1]);
+    }
+
+    [Fact]
+    public async Task Delete_WhereThereIsNoBin_AsksFirst_ThenDeletesForGood()
+    {
+        var deleter = new RecordingDeleter { Behavior = Leviathan.Core.Platform.DeleteBehavior.PermanentAfterConfirmation };
+        var h = await SelectedAsync(deleter);
+
+        await h.Run(CommandIds.EditDelete);
+
+        Assert.True(Assert.Single(deleter.Calls).Permanent);
+        Assert.Contains("no Recycle Bin", h.Shell.Confirmations[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Delete_WhereThereIsNoBin_DoesNothingWhenDeclined()
+    {
+        var deleter = new RecordingDeleter { Behavior = Leviathan.Core.Platform.DeleteBehavior.PermanentAfterConfirmation };
+        var h = await SelectedAsync(deleter);
+        h.Shell.Confirm = false;
+
+        await h.Run(CommandIds.EditDelete);
+
+        Assert.Single(h.Shell.Confirmations);
+        Assert.Empty(deleter.Calls);
+    }
+
+    [Fact]
+    public async Task Delete_OnAShare_IsStillNotAsked()
+    {
+        var deleter = new RecordingDeleter { Behavior = Leviathan.Core.Platform.DeleteBehavior.SoftDelete };
+        var h = await SelectedAsync(deleter);
+
+        await h.Run(CommandIds.EditDelete);
+
+        Assert.False(Assert.Single(deleter.Calls).Permanent);
+        Assert.Empty(h.Shell.Confirmations);
     }
 
     [Fact]

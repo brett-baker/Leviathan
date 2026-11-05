@@ -137,4 +137,10 @@ public interface IVolumeInfo
     /// instead of delaying the others or the caller (spec §3.3).
     /// </summary>
     Task<IReadOnlyList<DriveDetails>> GetDrivesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asks about the one drive that <paramref name="location"/> is on, with the same timeout, or null when it is not on a drive letter.
+    /// Used by delete (spec §12.5) so it does not wait for every other drive to answer.
+    /// </summary>
+    Task<DriveDetails?> GetDriveAsync(LocationPath location, CancellationToken cancellationToken);
 }

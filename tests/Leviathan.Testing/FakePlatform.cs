@@ -41,4 +41,12 @@ public sealed class FakeVolumeInfo : IVolumeInfo
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<IReadOnlyList<DriveDetails>>([.. _drives]);
     }
+
+    /// <inheritdoc />
+    public Task<DriveDetails?> GetDriveAsync(LocationPath location, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var letter = location.Kind == LocationKind.Drive && location.Root.Length > 0 ? char.ToUpperInvariant(location.Root[0]) : '\0';
+        return Task.FromResult(_drives.FirstOrDefault(d => char.ToUpperInvariant(d.Root.Root[0]) == letter));
+    }
 }

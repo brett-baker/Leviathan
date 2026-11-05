@@ -649,6 +649,7 @@ internal sealed class AppHost
         }
 
         transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
+        transfers.Volumes = host.Volumes;
         transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;
         return host;
     }

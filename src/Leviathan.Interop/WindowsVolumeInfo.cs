@@ -48,6 +48,18 @@ public sealed class WindowsVolumeInfo : IVolumeInfo
         return [.. results.Where(r => r is not null).Select(r => r!)];
     }
 
+    /// <inheritdoc />
+    public Task<DriveDetails?> GetDriveAsync(LocationPath location, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        if (location.Kind != LocationKind.Drive || location.Root.Length < 2 || !char.IsAsciiLetter(location.Root[0]))
+        {
+            return Task.FromResult<DriveDetails?>(null);
+        }
+
+        return QueryAsync($"{char.ToUpperInvariant(location.Root[0])}:\\", cancellationToken);
+    }
+
     private async Task<DriveDetails?> QueryAsync(string root, CancellationToken cancellationToken)
     {
         if (!LocationPath.TryParse(root, out var location))

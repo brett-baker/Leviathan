@@ -52,4 +52,11 @@ public interface IDeleteService
 {
     /// <summary>Starts the delete and returns once it is queued.</summary>
     Task<TransferOutcome> DeleteAsync(IReadOnlyList<LocationPath> items, bool permanent, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What plain Delete would do with these items (spec §12.5), the most careful answer when they differ, so the window can ask for a
+    /// confirmation before a delete that has no bin. Defaults to the Recycle Bin for services that do not know.
+    /// </summary>
+    Task<Leviathan.Core.Platform.DeleteBehavior> BehaviorAsync(IReadOnlyList<LocationPath> items, CancellationToken cancellationToken) =>
+        Task.FromResult(Leviathan.Core.Platform.DeleteBehavior.RecycleBin);
 }

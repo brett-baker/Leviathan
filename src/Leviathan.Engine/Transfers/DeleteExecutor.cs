@@ -25,14 +25,17 @@ public sealed class DeleteExecutor : IJobExecutor
     private readonly IRecycleBin _bin;
     private readonly TimeProvider _time;
     private readonly RecycleFolders _folders;
+    private readonly IVolumeInfo? _volumes;
 
     /// <summary>Creates the executor.</summary>
     /// <param name="fileSystem">The disk.</param>
     /// <param name="recycleBin">The Windows Recycle Bin for local drives.</param>
     /// <param name="time">Clock.</param>
     /// <param name="recycleFolders">Finds (and remembers) each share's recycle folder; a new one when null.</param>
-    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null, RecycleFolders? recycleFolders = null)
+    /// <param name="volumes">Tells what kind of drive a drive letter is, so plain Delete follows the table of spec §12.5; when null every drive letter is trusted to have a Recycle Bin.</param>
+    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null, RecycleFolders? recycleFolders = null, IVolumeInfo? volumes = null)
     {
+        _volumes = volumes;
         _folders = recycleFolders ?? new RecycleFolders(fileSystem);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(recycleBin);
@@ -102,14 +105,35 @@ public sealed class DeleteExecutor : IJobExecutor
             return new ItemOutcome(source.Value, null, ItemStatus.Done);
         }
 
-        if (source.Kind == LocationKind.Unc)
+        // Plain Delete follows the table of spec §12.5. The Windows Recycle Bin call is silent, and on a drive with no bin it deletes for
+        // good, so a mapped drive is soft-deleted through its share and a drive without a bin is refused: the window asks the user first
+        // and then sends a permanent delete.
+        var target = source;
+        if (source.Kind == LocationKind.Drive && _volumes is not null)
         {
-            if (RecycleFolders.IsInsideBin(source))
+            var drive = await _volumes.GetDriveAsync(source, ct).ConfigureAwait(false);
+            switch (DeletePolicy.Decide(source, drive))
+            {
+                case DeleteBehavior.PermanentAfterConfirmation:
+                    return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"{source.Name} is on a drive with no Recycle Bin. Use Shift+Delete to delete it permanently.");
+                case DeleteBehavior.SoftDelete:
+                    if (!TryShareEquivalent(source, drive, out target))
+                    {
+                        return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"Leviathan cannot tell which share {source.Root} points at, so {source.Name} was left alone. Use Shift+Delete to delete it permanently.");
+                    }
+
+                    break;
+            }
+        }
+
+        if (target.Kind == LocationKind.Unc)
+        {
+            if (RecycleFolders.IsInsideBin(target))
             {
                 return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"{source.Name} is already in a recycle folder. Use Shift+Delete to delete it permanently.");
             }
 
-            var trashed = SoftDelete(source, keepOwnTrash);
+            var trashed = SoftDelete(target, keepOwnTrash);
             if (trashed is null)
             {
                 // Leviathan's own folder is off and no NAS bin is visible: delete on the share and let the NAS's own recycling (if on)
@@ -126,6 +150,24 @@ public sealed class DeleteExecutor : IJobExecutor
         await _bin.RecycleAsync(source, ct).ConfigureAwait(false);
         var recycled = RecycleBinIndex.FindRecycled(_fs, source, started);
         return new ItemOutcome(source.Value, recycled?.Value, ItemStatus.Done);
+    }
+
+    // Y:\show\ep1.mkv on a drive mapped to \\nas\media becomes \\nas\media\show\ep1.mkv, where the share's recycle folder lives.
+    private static bool TryShareEquivalent(LocationPath source, DriveDetails? drive, out LocationPath share)
+    {
+        share = source;
+        if (drive?.NetworkPath is not { Length: > 0 } network || !LocationPath.TryParse(network, out var root) || root.Kind != LocationKind.Unc)
+        {
+            return false;
+        }
+
+        foreach (var segment in source.Segments)
+        {
+            root = root.Combine(segment);
+        }
+
+        share = root;
+        return true;
     }
 
     private void DeletePermanently(LocationPath source, bool isFolder)

@@ -1,3 +1,4 @@
+using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 
 namespace Leviathan.Interop.Tests;
@@ -51,6 +52,19 @@ public sealed class WindowsPlatformTests
         Assert.InRange(system.FreeBytes, 0, system.TotalBytes);
         Assert.Equal("NTFS", system.FileSystem, ignoreCase: true);
         Assert.True(system.IsResponsive);
+    }
+
+    [Fact]
+    public async Task GetDriveAsync_AnswersForTheOneDrive_AndNothingForAShare()
+    {
+        var volumes = new WindowsVolumeInfo();
+        var system = LocationPath.Parse(Path.Combine(Environment.SystemDirectory, "drivers"));
+
+        var drive = await volumes.GetDriveAsync(system, CancellationToken.None);
+
+        Assert.Equal(DriveKind.Fixed, drive!.Kind);
+        Assert.Equal(DeleteBehavior.RecycleBin, DeletePolicy.Decide(system, drive));
+        Assert.Null(await volumes.GetDriveAsync(LocationPath.Parse(@"\\nas\media\a.mkv"), CancellationToken.None));
     }
 
     [Fact]
