@@ -116,6 +116,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             {
                 ApplyView();
             }
+            else if (e.PropertyName == nameof(FolderViewModel.OfflineListing))
+            {
+                OnPropertyChanged(nameof(IsOffline));
+            }
             else if (e.PropertyName == nameof(FolderViewModel.State))
             {
                 if (Folder.State is FolderLoadState.Loaded)
@@ -158,7 +162,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public string Title => CustomTitle ?? History.Current.Name;
 
     /// <summary>True when the share is not responding: the strip shows a warning badge (spec §4.1).</summary>
-    public bool IsOffline => Folder.State == FolderLoadState.Offline;
+    public bool IsOffline => Folder.State == FolderLoadState.Offline || Folder.OfflineListing is not null;
 
     /// <summary>True while a listing is in progress: the strip shows a thin progress line (spec §4.1).</summary>
     public bool IsBusy => Folder.State == FolderLoadState.Loading;

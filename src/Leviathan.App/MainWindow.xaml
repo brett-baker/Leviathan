@@ -275,11 +275,20 @@
       <Grid Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- A share that does not answer (spec 3.3, 8.6): its last saved listing is shown greyed under this banner. -->
+        <InfoBar x:Name="OfflineBar" Grid.Row="0" Severity="Warning" IsOpen="False" IsClosable="False" Margin="8,8,8,0">
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button x:Name="OfflineRetryButton" Content="Retry" Click="OnOfflineRetryClick" />
+            <Button x:Name="OfflineToggleButton" Content="Work offline" Click="OnOfflineToggleClick" />
+          </StackPanel>
+        </InfoBar>
+
         <!-- Drive and share summary (spec 8.7), above the normal list at the top of a drive or share. -->
-        <Border x:Name="DriveCard" Visibility="Collapsed" Margin="8,8,8,0" Padding="16,12" CornerRadius="6"
+        <Border x:Name="DriveCard" Grid.Row="1" Visibility="Collapsed" Margin="8,8,8,0" Padding="16,12" CornerRadius="6"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
           <Grid ColumnSpacing="16">
             <Grid.ColumnDefinitions>
@@ -302,10 +311,10 @@
           </Grid>
         </Border>
 
-        <local:DetailsGrid x:Name="FileList" Grid.Row="1" />
-        <local:FlowView x:Name="FlowList" Grid.Row="1" Visibility="Collapsed" />
+        <local:DetailsGrid x:Name="FileList" Grid.Row="2" />
+        <local:FlowView x:Name="FlowList" Grid.Row="2" Visibility="Collapsed" />
 
-        <StackPanel x:Name="StatePanel" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
+        <StackPanel x:Name="StatePanel" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
           <ProgressRing x:Name="StateRing" IsActive="False" Width="28" Height="28" />
           <ContentControl x:Name="StateIcon" HorizontalAlignment="Center" IsTabStop="False" />
           <TextBlock x:Name="StateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />

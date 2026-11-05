@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Leviathan.Core.Model;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
+using Leviathan.Core.Resilience;
 using Leviathan.ViewModels.Views;
 
 namespace Leviathan.ViewModels.Folders;
@@ -161,6 +162,13 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ListingNotice? _notice;
 
+    /// <summary>
+    /// Set while the rows are the last saved listing of a share that could not be reached (spec §3.3 offline cache): the window greys
+    /// the rows and shows a banner with Retry and Work offline. Null when the rows come from a successful listing.
+    /// </summary>
+    [ObservableProperty]
+    private OfflineInfo? _offlineListing;
+
     /// <summary>Creates the view model.</summary>
     /// <param name="providers">Where listings come from.</param>
     /// <param name="ui">The UI thread.</param>
@@ -277,6 +285,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             Message = null;
             IsRetryable = false;
             Notice = null;
+            OfflineListing = null;
             _busy = false;
             Kind = FolderKind.General;
             State = FolderLoadState.Loading;
@@ -316,9 +325,35 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         {
             // Rows that arrived before the failure stay on screen with the message.
             var failure = ex as LocationException ?? LocationErrors.Wrap(ex, location);
-            PostIfCurrent(generation, () => pump.Drain(() => ShowFailure(failure)));
+
+            // A share that does not answer still shows its last saved listing, greyed, under a banner (spec §3.3 offline cache).
+            // Only when nothing arrived first: a listing cut short in the middle keeps the rows it has and its message.
+            CachedListing? saved = null;
+            if (all.Count == 0 && failure.IsTransient && Cache is not null)
+            {
+                saved = await Cache.TryGetAsync(key, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            if (saved is null)
+            {
+                PostIfCurrent(generation, () => pump.Drain(() => ShowFailure(failure)));
+                return;
+            }
+
+            pump.Add(saved.Entries);
+            PostIfCurrent(generation, () => pump.Drain(() =>
+            {
+                Kind = saved.Kind;
+                Message = failure.Message;
+                IsRetryable = true;
+                OfflineListing = OfflineOf(location, saved, failure);
+                State = saved.Entries.Count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+            }));
         }
     }
+
+    private static OfflineInfo OfflineOf(LocationPath location, CachedListing saved, LocationException failure) =>
+        new(ShareHealthRegistry.ServerOf(location) ?? location.Root, saved.ListedAt, failure.WorkingOffline);
 
     /// <summary>Shows a cached listing at once and starts checking it against the real folder in the background.</summary>
     private async Task ShowCachedAsync(LocationPath location, ListingOptions options, ListingKey key, CachedListing cached, UpdatePump pump, int generation, CancellationTokenSource source, long started)
@@ -335,6 +370,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             Message = null;
             IsRetryable = false;
             Kind = cached.Kind;
+            OfflineListing = null;
             State = FolderLoadState.Loading;
             _busy = !trusted;
             Notice = trusted ? null : ListingNotice.Checking(cached.Source, age);
@@ -384,6 +420,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             Cache?.Put(key, fresh.ToArray(), _time.GetUtcNow(), kind, changed: !diff.IsEmpty);
             PostIfCurrent(generation, () =>
             {
+                OfflineListing = null;
                 Entries.RemoveRange(diff.Remove);
                 pump.Add(diff.Add);
                 pump.Drain(() =>
@@ -410,7 +447,17 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             var age = _time.GetUtcNow() - cached.ListedAt;
             PostIfCurrent(generation, () =>
             {
-                Notice = ListingNotice.RefreshFailed(failure.Message, age);
+                if (failure.IsTransient)
+                {
+                    // The share does not answer: the cached rows are greyed under the offline banner instead of a footer note.
+                    Notice = null;
+                    OfflineListing = OfflineOf(location, cached, failure);
+                }
+                else
+                {
+                    Notice = ListingNotice.RefreshFailed(failure.Message, age);
+                }
+
                 Settled();
             });
         }

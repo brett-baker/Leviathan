@@ -465,7 +465,7 @@ public sealed class CachedFolderTests
         provider.Items.AddRange([File("a"), File("b")]);
         await folder.LoadAsync(Folder, CancellationToken.None);
         time.Advance(TimeSpan.FromHours(3));
-        provider.Fail = new LocationException(LocationError.Unreachable, Folder, "The share stopped answering.");
+        provider.Fail = new LocationException(LocationError.Unknown, Folder, "The folder could not be read.");
 
         await folder.LoadAsync(Folder, CancellationToken.None);
         await folder.Revalidation;
@@ -473,9 +473,111 @@ public sealed class CachedFolderTests
         Assert.Equal(2, folder.Entries.Count);
         Assert.Equal(FolderLoadState.Loaded, folder.State);
         Assert.Equal(ListingNoticeKind.RefreshFailed, folder.Notice!.Kind);
-        Assert.Contains("The share stopped answering", folder.Notice.Text, StringComparison.Ordinal);
+        Assert.Contains("The folder could not be read", folder.Notice.Text, StringComparison.Ordinal);
         Assert.Contains("3 hours ago", folder.Notice.Text, StringComparison.Ordinal);
+        Assert.Null(folder.OfflineListing);
         folder.Dispose();
+    }
+
+    private static readonly LocationPath Share = LocationPath.Parse(@"\\nas\media\shows");
+
+    [Fact]
+    public async Task AShareThatStopsAnswering_KeepsItsCachedRows_UnderTheOfflineBanner_NotAFooterNote()
+    {
+        var (folder, provider, time, _) = Make();
+        provider.Items.AddRange([File("a"), File("b")]);
+        await folder.LoadAsync(Share, CancellationToken.None);
+        time.Advance(TimeSpan.FromHours(3));
+        provider.Fail = new LocationException(LocationError.Unreachable, Share, "The share stopped answering.");
+
+        await folder.LoadAsync(Share, CancellationToken.None);
+        await folder.Revalidation;
+
+        Assert.Equal(2, folder.Entries.Count);
+        Assert.Null(folder.Notice);
+        Assert.Equal(new OfflineInfo("nas", time.GetUtcNow().AddHours(-3), false), folder.OfflineListing);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task ReloadingADeadShare_ShowsTheLastListing_GreyedUnderTheBanner_AndRecoversWhenItAnswers()
+    {
+        var (folder, provider, time, _) = Make();
+        provider.Items.AddRange([File("a"), File("b")]);
+        await folder.LoadAsync(Share, CancellationToken.None);
+        var listedAt = time.GetUtcNow();
+        time.Advance(TimeSpan.FromMinutes(20));
+        provider.Fail = new LocationException(LocationError.Unreachable, Share, "nas is not responding.");
+
+        await folder.LoadAsync(Share, CancellationToken.None, forceFresh: true);
+
+        Assert.Equal(FolderLoadState.Loaded, folder.State);
+        Assert.Equal(2, folder.Entries.Count);
+        Assert.Equal("nas is not responding.", folder.Message);
+        Assert.True(folder.IsRetryable);
+        Assert.Equal(new OfflineInfo("nas", listedAt, false), folder.OfflineListing);
+
+        provider.Fail = null;
+        await folder.LoadAsync(Share, CancellationToken.None, forceFresh: true);
+
+        Assert.Null(folder.OfflineListing);
+        Assert.Equal(FolderLoadState.Loaded, folder.State);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task WorkingOffline_IsRemembered_SoTheBannerCanOfferGoingOnline()
+    {
+        var (folder, provider, time, _) = Make();
+        provider.Items.Add(File("a"));
+        await folder.LoadAsync(Share, CancellationToken.None);
+        time.Advance(TimeSpan.FromMinutes(5));
+        provider.Fail = new LocationException(LocationError.Unreachable, Share, "Working offline with nas.") { WorkingOffline = true };
+
+        await folder.LoadAsync(Share, CancellationToken.None, forceFresh: true);
+
+        Assert.True(folder.OfflineListing!.WorkingOffline);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task ADeadShareNeverSeenBefore_HasNothingToShow_SoItKeepsTheBigNotRespondingState()
+    {
+        var (folder, provider, _, _) = Make();
+        provider.Fail = new LocationException(LocationError.Unreachable, Share, "nas is not responding.");
+
+        await folder.LoadAsync(Share, CancellationToken.None);
+
+        Assert.Equal(FolderLoadState.Offline, folder.State);
+        Assert.Null(folder.OfflineListing);
+        Assert.Empty(folder.Entries);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task AFolderThatCannotBeFound_DoesNotFallBackToTheOldListing()
+    {
+        var (folder, provider, time, _) = Make();
+        provider.Items.Add(File("a"));
+        await folder.LoadAsync(Share, CancellationToken.None);
+        time.Advance(TimeSpan.FromMinutes(5));
+        provider.Fail = new LocationException(LocationError.NotFound, Share, "The folder is gone.");
+
+        await folder.LoadAsync(Share, CancellationToken.None, forceFresh: true);
+
+        Assert.Equal(FolderLoadState.NotFound, folder.State);
+        Assert.Null(folder.OfflineListing);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public void TheBannerText_SaysWhenTheListingWasMade_TodayAsATime_ElsewhenWithTheDate()
+    {
+        var now = new DateTimeOffset(2026, 11, 5, 15, 30, 0, TimeSpan.Zero);
+        var utc = TimeZoneInfo.Utc;
+
+        Assert.Equal(@"nas is not responding — showing the listing as of 14:02", new OfflineInfo("nas", now.AddMinutes(-88), false).Text(now, utc));
+        Assert.Equal("Working offline with nas — showing the listing as of 2026-11-03 09:00", new OfflineInfo("nas", new DateTimeOffset(2026, 11, 3, 9, 0, 0, TimeSpan.Zero), true).Text(now, utc));
     }
 
     [Fact]

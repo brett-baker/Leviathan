@@ -455,14 +455,19 @@ internal sealed class AppHost
     /// <summary>Health of every network server seen, for the tree, tab banners and status bar (spec 3.3).</summary>
     public ShareHealthRegistry ShareHealth { get; init; } = null!;
 
+    /// <summary>The servers the user chose to "Work offline" with: their folders come from the offline cache without touching the network (spec 3.3).</summary>
+    public WorkOfflineRegistry WorkOffline { get; init; } = null!;
+
     public static AppHost Create(IUiContext ui)
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var home = LocationPath.TryParse(profile, out var parsed) ? parsed : LocationPath.Parse(@"C:\");
         UiTrace.Mark("AppHost.Create begins");
         // Every network listing feeds the server's health and an unreachable server fails fast (spec 3.3).
-        var shareHealth = new ShareHealthRegistry(new ServerIdentityMap(new DnsHostAddressResolver()));
-        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(new LocalLocationProvider(), shareHealth)]);
+        var identities = new ServerIdentityMap(new DnsHostAddressResolver());
+        var shareHealth = new ShareHealthRegistry(identities);
+        var workOffline = new WorkOfflineRegistry(identities);
+        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(new LocalLocationProvider(), shareHealth, offline: workOffline)]);
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -587,6 +592,7 @@ internal sealed class AppHost
             new RenameService(disk))
         {
             ShareHealth = shareHealth,
+            WorkOffline = workOffline,
             Transfers = transfers,
             Undo = undo,
             Listings = listings,

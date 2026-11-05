@@ -1,3 +1,4 @@
+using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,6 +13,43 @@ namespace Leviathan.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>The rows of a share that does not answer are greyed (spec §3.3), so they cannot be mistaken for a fresh listing.</summary>
+    private const double OfflineRowsOpacity = 0.55;
+
+    // The banner above the rows (spec §3.3, §8.6): "\\nas is not responding — showing the listing as of 14:02", with Retry and
+    // Work offline (or Go online, when the user already chose to work offline). Hidden while the rows are a live listing.
+    private void UpdateOfflineBanner()
+    {
+        var info = _bound?.Folder.OfflineListing;
+        OfflineBar.IsOpen = info is not null;
+        var opacity = info is null ? 1.0 : OfflineRowsOpacity;
+        FileList.Opacity = opacity;
+        FlowList.Opacity = opacity;
+        if (info is null)
+        {
+            return;
+        }
+
+        OfflineBar.Title = info.WorkingOffline ? "Working offline" : "Not responding";
+        OfflineBar.Message = info.Text(DateTimeOffset.UtcNow);
+        OfflineToggleButton.Content = info.WorkingOffline ? "Go online" : "Work offline";
+    }
+
+    private void OnOfflineRetryClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavReload);
+
+    // Work offline stops all network calls to the server until the user goes online again; going online (or Retry on a server that
+    // is back) lists the folder for real. Offline mode lasts for this run.
+    private void OnOfflineToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (_bound?.Folder is not { OfflineListing: { } info, Location: { } location })
+        {
+            return;
+        }
+
+        App.Host.WorkOffline.Set(location, !info.WorkingOffline);
+        Run(CommandIds.NavReload);
+    }
+
     private void ShowListingNotice(ListingNotice? notice)
     {
         if (notice is null)

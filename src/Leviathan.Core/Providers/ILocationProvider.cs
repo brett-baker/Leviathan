@@ -97,6 +97,9 @@ public sealed class LocationException : IOException
     /// <summary>The location involved.</summary>
     public LocationPath Location { get; }
 
+    /// <summary>True when the server was not asked at all because the user chose to work offline with it (spec §3.3).</summary>
+    public bool WorkingOffline { get; init; }
+
     /// <summary>True when retrying later may succeed (network drops, timeouts).</summary>
     public bool IsTransient => Error is LocationError.Unreachable or LocationError.Timeout;
 }

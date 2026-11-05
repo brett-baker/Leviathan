@@ -18,14 +18,17 @@ public sealed class HealthTrackingLocationProvider : ILocationProvider
     private readonly TimeProvider _time;
 
     /// <summary>Creates the wrapper.</summary>
-    public HealthTrackingLocationProvider(ILocationProvider inner, ShareHealthRegistry registry, TimeProvider? time = null)
+    public HealthTrackingLocationProvider(ILocationProvider inner, ShareHealthRegistry registry, TimeProvider? time = null, WorkOfflineRegistry? offline = null)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(registry);
         _inner = inner;
         _registry = registry;
         _time = time ?? TimeProvider.System;
+        _offline = offline;
     }
+
+    private readonly WorkOfflineRegistry? _offline;
 
     /// <inheritdoc />
     public string Name => _inner.Name;
@@ -45,6 +48,12 @@ public sealed class HealthTrackingLocationProvider : ILocationProvider
             }
 
             yield break;
+        }
+
+        // Working offline by choice: the network is not touched and the server's health is left alone (nothing was tried).
+        if (_offline?.IsOffline(location) == true)
+        {
+            throw new LocationException(LocationError.Unreachable, location, $"Working offline with {server}.") { WorkingOffline = true };
         }
 
         var tracker = _registry.For(server);

@@ -631,6 +631,7 @@ public sealed partial class MainWindow : Window, IShellActions
         StateIcon.Content = glyph.Length == 0 ? null : Icons.OfGlyph(glyph, 32);
         StateIcon.Visibility = glyph.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         RetryButton.Visibility = retry ? Visibility.Visible : Visibility.Collapsed;
+        UpdateOfflineBanner();
     }
 
     private void UpdateStatus()
