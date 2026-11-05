@@ -150,6 +150,27 @@ public sealed class PollingFolderWatcherTests
     }
 
     [Fact]
+    public void Watching_CountsTheFoldersBeingWatched_AndNotLocalOnes()
+    {
+        var folder = new Folder();
+        var watcher = Make(new ManualTimeProvider(), folder);
+        Assert.Equal(0, watcher.Watching);
+
+        var first = watcher.Watch(Share, () => { });
+        var second = watcher.Watch(Share, () => { });
+        Assert.Equal(2, watcher.Watching);
+
+        first.Dispose();
+        first.Dispose();
+        Assert.Equal(1, watcher.Watching);
+
+        second.Dispose();
+        Assert.Equal(0, watcher.Watching);
+
+        new PollingFolderWatcher { IsPollable = static _ => false }.Watch(LocationPath.Parse(@"C:\data"), () => { }).Dispose();
+    }
+
+    [Fact]
     public async Task LocalFolders_AreNotPolled()
     {
         var time = new ManualTimeProvider();

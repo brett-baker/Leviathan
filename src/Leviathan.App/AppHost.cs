@@ -539,10 +539,12 @@ internal sealed class AppHost
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
         UiTrace.Mark("AppHost: listing cache");
+        // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
+        var polling = new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable };
+        background.Network = () => new NetworkStats(polling.Watching, listings.FolderCount, listings.EntryCount, listings.MaxEntries);
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new CompositeFolderWatcher(
             new LocalFolderWatcher(),
-            // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
-            new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable }));
+            polling));
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
         NewItemService newItems;
@@ -582,7 +584,8 @@ internal sealed class AppHost
             done.Describe(),
             ActivityKind.Message,
             (done.Destination ?? (done.Sources.Count > 0 ? done.Sources[0].Parent : null))?.Value,
-            done.Job.State != Leviathan.Contracts.JobState.Completed);
+            done.Job.State != Leviathan.Contracts.JobState.Completed,
+            done.Job.Id);
         var windows = new WindowManager(services);
         IconService icons;
         using (UiTrace.Begin("AppHost: icon packs"))

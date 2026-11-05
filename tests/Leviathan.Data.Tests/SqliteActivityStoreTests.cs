@@ -72,6 +72,50 @@ public sealed class SqliteActivityStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task TheJobAnEntryIsAbout_ComesBack_AndAnEntryWithoutOneHasNone()
+    {
+        var job = Guid.NewGuid();
+        var first = Open();
+        await first.AppendAsync([Entry("plain", TimeSpan.FromMinutes(2)), Entry("Copied 3 files", TimeSpan.FromMinutes(1)) with { JobId = job }], CancellationToken.None);
+
+        var loaded = await Open().LoadAsync(Now.AddDays(-1), 100, CancellationToken.None);
+
+        Assert.Equal(job, loaded[0].JobId);
+        Assert.Null(loaded[1].JobId);
+    }
+
+    [Fact]
+    public async Task AVersion1File_GainsTheJobColumn_AndKeepsItsHistory()
+    {
+        Directory.CreateDirectory(_folder);
+        using (var connection = new SqliteConnection($"Data Source={DbPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE activity (id INTEGER PRIMARY KEY AUTOINCREMENT, time INTEGER NOT NULL, session TEXT NOT NULL, kind INTEGER NOT NULL,
+                    command TEXT NOT NULL, summary TEXT NOT NULL, target TEXT NULL, location TEXT NULL, is_error INTEGER NOT NULL);
+                INSERT INTO activity (time, session, kind, command, summary, target, location, is_error)
+                VALUES (@time, '00000000000000000000000000000001', 1, 'edit.delete', 'kept from before', NULL, NULL, 0);
+                PRAGMA user_version = 1;
+                """;
+            command.Parameters.AddWithValue("@time", (Now - TimeSpan.FromHours(1)).UtcTicks);
+            command.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        var store = Open();
+        var job = Guid.NewGuid();
+        await store.AppendAsync([Entry("new", TimeSpan.Zero) with { JobId = job }], CancellationToken.None);
+
+        var loaded = await store.LoadAsync(Now.AddDays(-1), 100, CancellationToken.None);
+
+        Assert.Equal(["new", "kept from before"], loaded.Select(e => e.Summary));
+        Assert.Equal(job, loaded[0].JobId);
+        Assert.Null(loaded[1].JobId);
+    }
+
+    [Fact]
     public async Task Load_HonoursTheStartAndTheLimit()
     {
         var store = Open();

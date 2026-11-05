@@ -295,6 +295,10 @@
               <TextBlock x:Name="ThumbText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
             <StackPanel Spacing="4">
+              <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />
+              <TextBlock x:Name="NetworkText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
               <TextBlock Text="Programs this app runs" Style="{StaticResource BodyStrongTextBlockStyle}" />
               <ItemsControl x:Name="ProcessList" ItemTemplate="{StaticResource ProcessTemplate}" />
             </StackPanel>

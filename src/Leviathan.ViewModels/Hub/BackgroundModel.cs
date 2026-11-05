@@ -26,6 +26,13 @@ public sealed record BackgroundTaskEntry(Guid Id, string Title, JobState State, 
 /// <param name="CanReenable">True when the user can switch it back on.</param>
 public sealed record ProcessEntry(string Name, string State, int? ProcessId, int Restarts, string Detail, bool CanReenable = false);
 
+/// <summary>What the app does in the background for network folders (spec §16.1, §3.3).</summary>
+/// <param name="Watched">Network folders being watched for changes by polling.</param>
+/// <param name="CachedFolders">Folder listings held in memory (kept on disk too, so a share can be shown while it is away).</param>
+/// <param name="CachedItems">Items in those listings.</param>
+/// <param name="ItemCapacity">The most items the cache holds.</param>
+public sealed record NetworkStats(int Watched, int CachedFolders, int CachedItems, int ItemCapacity);
+
 /// <summary>Everything the Background tab shows at one moment.</summary>
 /// <param name="Tasks">Background jobs, active first.</param>
 /// <param name="FolderSizes">The folder-size line: running, queued and the rate.</param>
@@ -33,7 +40,8 @@ public sealed record ProcessEntry(string Name, string State, int? ProcessId, int
 /// <param name="Processes">Worker and shell host.</param>
 /// <param name="AnyActive">True when any job is running, queued or paused.</param>
 /// <param name="AllPaused">True when every active job is paused.</param>
-public sealed record BackgroundView(IReadOnlyList<BackgroundTaskEntry> Tasks, string FolderSizes, string Thumbnails, IReadOnlyList<ProcessEntry> Processes, bool AnyActive, bool AllPaused);
+/// <param name="Network">The network line: folders watched for changes and the listings kept for offline use.</param>
+public sealed record BackgroundView(IReadOnlyList<BackgroundTaskEntry> Tasks, string FolderSizes, string Thumbnails, IReadOnlyList<ProcessEntry> Processes, bool AnyActive, bool AllPaused, string Network = "Not in use");
 
 /// <summary>
 /// What the Background tab of the status hub shows (spec §16.1): the worker's background lane (folder sizes, later metadata
@@ -69,6 +77,9 @@ public sealed class BackgroundModel
         _processes = processes ?? [];
         _time = time ?? TimeProvider.System;
     }
+
+    /// <summary>Reads the network numbers; set once the folder cache and the watcher exist (they are made after this model).</summary>
+    public Func<NetworkStats?>? Network { get; set; }
 
     /// <summary>Raised after a job changed, on whatever thread delivered the snapshot.</summary>
     public event EventHandler? Changed;
@@ -149,7 +160,24 @@ public sealed class BackgroundModel
             ThumbnailLine(_thumbnails()),
             [.. _processes.Select(read => read())],
             active > 0,
-            active > 0 && paused == active);
+            active > 0 && paused == active,
+            NetworkLine(Network?.Invoke()));
+    }
+
+    private static string NetworkLine(NetworkStats? stats)
+    {
+        if (stats is null)
+        {
+            return "Not in use";
+        }
+
+        var watching = stats.Watched == 0
+            ? "No network folder watched"
+            : $"Watching {stats.Watched} network folder{(stats.Watched == 1 ? string.Empty : "s")} for changes";
+        var kept = stats.CachedFolders == 0
+            ? "no listings kept for offline use"
+            : $"{stats.CachedFolders:N0} folder listing{(stats.CachedFolders == 1 ? string.Empty : "s")} kept for offline use ({stats.CachedItems:N0} of {stats.ItemCapacity:N0} items)";
+        return $"{watching} · {kept}";
     }
 
     private static string FolderSizeLine(int running, int queued, int paused, int finishedRecently)

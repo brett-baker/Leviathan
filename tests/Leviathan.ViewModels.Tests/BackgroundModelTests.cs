@@ -183,6 +183,22 @@ public sealed class BackgroundModelTests
     }
 
     [Fact]
+    public void NetworkLine_SaysWhatIsWatchedAndWhatIsKeptForOfflineUse()
+    {
+        var model = new BackgroundModel();
+        Assert.Equal("Not in use", model.View().Network);
+
+        model.Network = () => new NetworkStats(0, 0, 0, 200_000);
+        Assert.Equal("No network folder watched · no listings kept for offline use", model.View().Network);
+
+        model.Network = () => new NetworkStats(1, 1, 10, 200_000);
+        Assert.Equal("Watching 1 network folder for changes · 1 folder listing kept for offline use (10 of 200,000 items)", model.View().Network);
+
+        model.Network = () => new NetworkStats(3, 12, 5400, 200_000);
+        Assert.Equal("Watching 3 network folders for changes · 12 folder listings kept for offline use (5,400 of 200,000 items)", model.View().Network);
+    }
+
+    [Fact]
     public void Changed_IsRaisedForABackgroundJob_NotForAnOperation()
     {
         var model = new BackgroundModel();

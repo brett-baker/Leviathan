@@ -40,7 +40,8 @@ public enum ActivityKind
 /// <param name="Target">What it acted on (a path, a name), or null.</param>
 /// <param name="Location">A folder or item the entry can jump to, or null.</param>
 /// <param name="IsError">True for a failure shown to the user.</param>
-public sealed record ActivityEntry(long Id, DateTimeOffset Time, Guid Session, ActivityKind Kind, string Command, string Summary, string? Target, string? Location, bool IsError = false);
+/// <param name="JobId">The copy, move or delete the entry is about; clicking the row opens that job's report (spec §16.1), or null.</param>
+public sealed record ActivityEntry(long Id, DateTimeOffset Time, Guid Session, ActivityKind Kind, string Command, string Summary, string? Target, string? Location, bool IsError = false, Guid? JobId = null);
 
 /// <summary>What the Activity tab shows: a kind, some text, and whether earlier sessions are included.</summary>
 /// <param name="Kind">Only this kind, or null for all.</param>
@@ -122,10 +123,10 @@ public sealed class ActivityLog : IDisposable
     }
 
     /// <summary>Records something the app did or said (a finished or failed copy, an error), with a place to jump to.</summary>
-    public void Note(string summary, ActivityKind kind = ActivityKind.Message, string? location = null, bool isError = false)
+    public void Note(string summary, ActivityKind kind = ActivityKind.Message, string? location = null, bool isError = false, Guid? jobId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
-        Append(new ActivityEntry(0, _time.GetUtcNow(), Session, kind, "message", summary, null, location, isError));
+        Append(new ActivityEntry(0, _time.GetUtcNow(), Session, kind, "message", summary, null, location, isError, jobId));
     }
 
     /// <summary>

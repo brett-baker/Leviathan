@@ -130,6 +130,20 @@ public sealed class ActivityLogTests
     }
 
     [Fact]
+    public void Note_ForAJob_KeepsTheJobSoTheRowCanOpenItsReport()
+    {
+        var log = new ActivityLog();
+        var job = Guid.NewGuid();
+
+        log.Note("Copied 3 files to D:\\x", location: @"D:\x", jobId: job);
+        log.Note("Something else");
+
+        var entries = log.Find();
+        Assert.Null(entries[0].JobId);
+        Assert.Equal(job, entries[1].JobId);
+    }
+
+    [Fact]
     public void Find_FiltersByKind_AndSearchesSummaryTargetAndCommand_IgnoringCase()
     {
         var log = new ActivityLog();

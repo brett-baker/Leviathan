@@ -301,6 +301,7 @@ internal sealed partial class StatusHubPanel : UserControl
         var view = _background.View();
         FolderSizeText.Text = view.FolderSizes;
         ThumbText.Text = view.Thumbnails;
+        NetworkText.Text = view.Network;
         PauseAllButton.IsEnabled = view.AnyActive && !view.AllPaused;
         ResumeAllButton.IsEnabled = view.AllPaused || _background.PausedIds().Count > 0;
         TasksEmpty.Visibility = view.Tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -426,11 +427,17 @@ internal sealed partial class StatusHubPanel : UserControl
         RefreshActivity();
     }
 
-    private void OnActivityItemClick(object sender, ItemClickEventArgs e)
+    // A copy, move or delete opens its report (which has the ways on to the folders); anything else jumps to its place.
+    private async void OnActivityItemClick(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is ActivityEntry { Location: { Length: > 0 } where })
+        switch (e.ClickedItem)
         {
-            GoToRequested?.Invoke(this, where);
+            case ActivityEntry { JobId: { } job }:
+                await ShowReportAsync(job);
+                break;
+            case ActivityEntry { Location: { Length: > 0 } where }:
+                GoToRequested?.Invoke(this, where);
+                break;
         }
     }
 

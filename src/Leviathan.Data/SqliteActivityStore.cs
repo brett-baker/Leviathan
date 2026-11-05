@@ -13,7 +13,7 @@ namespace Leviathan.Data;
 public sealed class SqliteActivityStore : IActivityStore, IDisposable
 {
     /// <summary>The schema version of the file; a file with another one is recreated.</summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     private readonly string _path;
     private readonly Lock _openGate = new();
@@ -39,9 +39,10 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO activity (time, session, kind, command, summary, target, location, is_error)
-                VALUES ($time, $session, $kind, $command, $summary, $target, $location, $error);
+                INSERT INTO activity (time, session, kind, command, summary, target, location, is_error, job)
+                VALUES ($time, $session, $kind, $command, $summary, $target, $location, $error, $job);
                 """;
+            var job = command.Parameters.Add("$job", SqliteType.Text);
             var time = command.Parameters.Add("$time", SqliteType.Integer);
             var session = command.Parameters.Add("$session", SqliteType.Text);
             var kind = command.Parameters.Add("$kind", SqliteType.Integer);
@@ -61,6 +62,7 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
                 target.Value = (object?)entry.Target ?? DBNull.Value;
                 location.Value = (object?)entry.Location ?? DBNull.Value;
                 error.Value = entry.IsError ? 1 : 0;
+                job.Value = entry.JobId is { } id ? id.ToString("N", CultureInfo.InvariantCulture) : DBNull.Value;
                 command.ExecuteNonQuery();
             }
 
@@ -76,7 +78,7 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
             using var connection = Open();
             using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT time, session, kind, command, summary, target, location, is_error
+                SELECT time, session, kind, command, summary, target, location, is_error, job
                 FROM activity WHERE time >= $since ORDER BY time DESC, id DESC LIMIT $limit;
                 """;
             command.Parameters.AddWithValue("$since", since.UtcTicks);
@@ -95,7 +97,8 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
                     reader.GetString(4),
                     reader.IsDBNull(5) ? null : reader.GetString(5),
                     reader.IsDBNull(6) ? null : reader.GetString(6),
-                    reader.GetInt32(7) != 0));
+                    reader.GetInt32(7) != 0,
+                    !reader.IsDBNull(8) && Guid.TryParseExact(reader.GetString(8), "N", out var jobId) ? jobId : null));
             }
 
             return list;
@@ -193,7 +196,13 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
         command.ExecuteNonQuery();
         command.CommandText = "PRAGMA user_version;";
         var version = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
-        if (version != SchemaVersion)
+        if (version == 1)
+        {
+            // Version 1 lacked the job column; the history is worth keeping, so add the column instead of starting again.
+            command.CommandText = $"ALTER TABLE activity ADD COLUMN job TEXT NULL; PRAGMA user_version = {SchemaVersion};";
+            command.ExecuteNonQuery();
+        }
+        else if (version != SchemaVersion)
         {
             command.CommandText = $"""
                 DROP TABLE IF EXISTS activity;
@@ -206,7 +215,8 @@ public sealed class SqliteActivityStore : IActivityStore, IDisposable
                     summary   TEXT NOT NULL,
                     target    TEXT NULL,
                     location  TEXT NULL,
-                    is_error  INTEGER NOT NULL
+                    is_error  INTEGER NOT NULL,
+                    job       TEXT NULL
                 );
                 CREATE INDEX ix_activity_time ON activity (time);
                 PRAGMA user_version = {SchemaVersion};

@@ -52,9 +52,15 @@ public sealed class PollingFolderWatcher : IFolderWatcher
         }
 
         var source = new CancellationTokenSource();
+        Interlocked.Increment(ref _watching);
         _ = Task.Run(() => PollAsync(folder, changed, source.Token));
-        return new Subscription(source);
+        return new Subscription(source, () => Interlocked.Decrement(ref _watching));
     }
+
+    private int _watching;
+
+    /// <summary>How many network folders are being watched now; the Background tab of the status hub shows it (spec §16.1).</summary>
+    public int Watching => Volatile.Read(ref _watching);
 
     private async Task PollAsync(LocationPath folder, Action changed, CancellationToken ct)
     {
@@ -134,10 +140,18 @@ public sealed class PollingFolderWatcher : IFolderWatcher
         return Task.FromResult<DateTime?>(info.Exists ? info.LastWriteTimeUtc : null);
     }
 
-    private sealed class Subscription(CancellationTokenSource source) : IDisposable
+    private sealed class Subscription(CancellationTokenSource source, Action ended) : IDisposable
     {
+        private int _disposed;
+
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            {
+                return;
+            }
+
+            ended();
             source.Cancel();
             source.Dispose();
         }
