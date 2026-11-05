@@ -171,23 +171,58 @@ public static class SidebarSections
         IEnumerable<FavoriteEntry> favorites,
         IEnumerable<SidebarPlace> common,
         IEnumerable<DriveDetails> drives,
-        IEnumerable<CloudProviderInfo> cloud)
+        IEnumerable<CloudProviderInfo> cloud,
+        IEnumerable<SavedConnection>? servers = null,
+        IEnumerable<NearbyDevice>? nearby = null,
+        bool searching = false)
     {
         ArgumentNullException.ThrowIfNull(favorites);
         ArgumentNullException.ThrowIfNull(common);
         ArgumentNullException.ThrowIfNull(drives);
         ArgumentNullException.ThrowIfNull(cloud);
         var driveList = drives.ToList();
+        var saved = (servers ?? []).ToList();
         return
         [
             new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })], "Press Ctrl+D to pin a folder"),
             new SidebarSection("Common folders", [.. common]),
             new SidebarSection("Tags", [], "Tags arrive in Phase 3"),
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]),
-            new SidebarSection("Network", [.. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)], "No network locations yet"),
+            new SidebarSection(
+                "Network",
+                [.. saved.Select(ServerPlace), .. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)],
+                "No network locations yet")
+            {
+                Groups = [NearbyGroup(nearby, saved, searching)],
+                ActionTitle = "Add connection…",
+            },
             new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud))]),
         ];
     }
+
+    /// <summary>The title of the heading for devices found on the network.</summary>
+    public const string NearbyTitle = "Nearby";
+
+    /// <summary>The Nearby group (spec §7.1): devices found by discovery, minus the ones already saved. Says "Searching…" until something turns up.</summary>
+    public static SidebarGroup NearbyGroup(IEnumerable<NearbyDevice>? devices, IEnumerable<SavedConnection> saved, bool searching)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        var known = saved.Select(s => SavedConnectionList.Normalize(s.Host)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var places = (devices ?? [])
+            .Where(d => SavedConnectionList.IsValidHost(d.Host) && !known.Contains(SavedConnectionList.Normalize(d.Host)))
+            .DistinctBy(d => SavedConnectionList.Normalize(d.Host), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(d => d.Title, StringComparer.OrdinalIgnoreCase)
+            .Select(d => new SidebarPlace(d.Title, LocationPath.Parse(@"\\" + SavedConnectionList.Normalize(d.Host)), SidebarIcon.Server, d.Host) { Server = SavedConnectionList.Normalize(d.Host) })
+            .ToList();
+        return new SidebarGroup(NearbyTitle, places, searching ? "Searching…" : "No devices found");
+    }
+
+    private static SidebarPlace ServerPlace(SavedConnection server) =>
+        new(server.Title, server.Location, SidebarIcon.Server, server.Title == server.Host ? string.Empty : server.Host)
+        {
+            Server = server.Host,
+            IsSaved = true,
+        };
 
     private static SidebarPlace DrivePlace(DriveDetails drive)
     {

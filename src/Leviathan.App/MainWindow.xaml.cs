@@ -104,6 +104,8 @@ public sealed partial class MainWindow : Window, IShellActions
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
         host.Favorites.Changed += OnFavoritesChanged;
+        host.SavedServers.Changed += OnSavedServersChanged;
+        host.ShareHealth.HealthChanged += OnShareHealthChanged;
         Address.FavoriteToggleRequested += (_, _) => Run(CommandIds.FavoriteToggle);
         Address.FavoriteMenuRequested += OnAddressFavoriteMenu;
         FlowList.ItemInvoked += OnFileInvoked;
@@ -539,9 +541,28 @@ public sealed partial class MainWindow : Window, IShellActions
             if (e.PropertyName == nameof(FolderViewModel.State))
             {
                 ScheduleSidebarChildren();
+                RememberServer();
             }
         });
     }
+
+    // A server whose share opened for real (not from the offline cache) is one the user has connected to, so it joins Network (spec 7.1).
+    private void RememberServer()
+    {
+        if (_bound?.Folder is { Location: { Kind: Core.Paths.LocationKind.Unc, Server: { } server }, State: FolderLoadState.Loaded or FolderLoadState.Empty, OfflineListing: null })
+        {
+            App.Host.SavedServers.Add(server);
+        }
+    }
+
+    private void OnSavedServersChanged(object? sender, EventArgs e) => OnUi(RebuildSidebar);
+
+    private void OnShareHealthChanged(object? sender, (string Server, Core.Resilience.ShareHealth Health) e) => OnUi(RefreshServerHealth);
+
+    private void RefreshServerHealth() => _sidebar.RefreshHealth(HealthOfServer);
+
+    private static Core.Resilience.ShareHealth HealthOfServer(string host) =>
+        Core.Paths.LocationPath.TryParse(@"\\" + host, out var root) ? App.Host.ShareHealth.HealthOf(root) : Core.Resilience.ShareHealth.Unknown;
 
     private bool _sidebarChildrenPending;
 
@@ -835,7 +856,7 @@ public sealed partial class MainWindow : Window, IShellActions
     private void RebuildSidebar()
     {
         var host = App.Host;
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders));
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
@@ -885,8 +906,11 @@ public sealed partial class MainWindow : Window, IShellActions
 
         switch (node.Kind)
         {
-            case SidebarNodeKind.Section:
+            case SidebarNodeKind.Section or SidebarNodeKind.Group:
                 await _sidebar.ToggleAsync(node, _closing.Token);
+                break;
+            case SidebarNodeKind.Action:
+                await AddConnectionAsync();
                 break;
             case SidebarNodeKind.Message when node.IsRetry:
                 await _sidebar.RetryAsync(node, _closing.Token);
@@ -951,6 +975,13 @@ public sealed partial class MainWindow : Window, IShellActions
             var rename = new MenuFlyoutItem { Text = "Rename…" };
             rename.Click += async (_, _) => await RenameFavoriteAsync(where, node.Title);
             menu.Items.Add(rename);
+        }
+
+        if (node is { IsSaved: true, Server: { } host })
+        {
+            var remove = new MenuFlyoutItem { Text = "Remove from Network" };
+            remove.Click += (_, _) => RemoveServerFromTree(host);
+            menu.Items.Add(remove);
         }
 
         menu.ShowAt((FrameworkElement)e.OriginalSource, e.GetPosition((FrameworkElement)e.OriginalSource));
@@ -1027,6 +1058,8 @@ public sealed partial class MainWindow : Window, IShellActions
         TabsView.LayoutUpdated -= OnTabsLayoutUpdated;
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
+        App.Host.SavedServers.Changed -= OnSavedServersChanged;
+        App.Host.ShareHealth.HealthChanged -= OnShareHealthChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
         App.Host.Icons.Changed -= OnIconsChanged;

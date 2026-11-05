@@ -46,4 +46,11 @@ public interface IShareConnector
     /// and connects with what the user types. Runs off the calling thread; may take as long as the user does.
     /// </summary>
     Task<ConnectResult> SignInAsync(LocationPath location, nint owner, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Maps <paramref name="driveLetter"/> to the share <paramref name="shareRoot"/> (<c>\\server\share</c>) and remembers the mapping for
+    /// the next sign-in (Add connection "map as drive letter", spec §7.1), using the credentials Windows holds. A letter already in use
+    /// is <see cref="ConnectOutcome.Failed"/>.
+    /// </summary>
+    Task<ConnectResult> MapDriveAsync(char driveLetter, string shareRoot, CancellationToken cancellationToken);
 }

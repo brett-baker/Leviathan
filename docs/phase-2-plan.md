@@ -61,7 +61,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   last-write time + listing diff), cancelled when the folder is no longer shown.
 - [x] **A5. Credentials and reconnect** (done: `IShareConnector` + `WindowsShareConnector`, `ReconnectingLocationProvider`, "Sign in…" on the state panel; the Win32 calls and the dialog are unverified against a real disconnected drive or sign-in, Brett's lab run; not done: worker-side reconnect, mapped-drive health tracking). Windows Credential Manager for stored credentials; reconnect disconnected mapped drives
   on first use; Leviathan never stores passwords (§3.3).
-- [ ] **A6. Network section of the tree** (§7.1): saved servers with health dots, shares, mapped drives, Add connection dialog
+- [ ] **A6. Network section of the tree** (part 1 done: `ServerSharesProvider` + `WindowsShareEnumerator`, `SavedConnectionList`, health dots, Add connection… with optional drive letter; by eye needs a run against a real NAS, Brett's lab. Part 2 not done: Nearby discovery, below) (§7.1): saved servers with health dots, shares, mapped drives, Add connection dialog
   (SMB now; SFTP/FTP/NFS fields arrive in Phase 4), "Nearby" discovery via WS-Discovery and mDNS `_smb._tcp` in the background.
 - [ ] **A7. Throughput tuning (§3.5).** Measure throughput per share, adaptive buffer size (1–4 MB at 1 Gb/s, up to 8 MB on
   faster links), negotiated link speed in the status bar.

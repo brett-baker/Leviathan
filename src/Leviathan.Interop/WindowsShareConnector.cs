@@ -55,6 +55,19 @@ public sealed class WindowsShareConnector : IShareConnector
         return done.Task.WaitAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public Task<ConnectResult> MapDriveAsync(char driveLetter, string shareRoot, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(shareRoot);
+        if (!char.IsAsciiLetter(driveLetter) || !shareRoot.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ConnectResult(ConnectOutcome.Failed, "A drive letter and a \\\\server\\share path are needed."));
+        }
+
+        var local = char.ToUpperInvariant(driveLetter) + ":";
+        return Task.Run(() => Connect(local, shareRoot, userName: null, password: null, remember: true), cancellationToken);
+    }
+
     private static ConnectResult Reconnect(char driveLetter)
     {
         if (!char.IsAsciiLetter(driveLetter))
@@ -73,7 +86,7 @@ public sealed class WindowsShareConnector : IShareConnector
         return Connect(local, remote, userName: null, password: null);
     }
 
-    private static unsafe ConnectResult Connect(string? local, string remote, string? userName, string? password)
+    private static unsafe ConnectResult Connect(string? local, string remote, string? userName, string? password, bool remember = false)
     {
         fixed (char* remotePtr = remote)
         fixed (char* localPtr = local)
@@ -84,10 +97,12 @@ public sealed class WindowsShareConnector : IShareConnector
                 lpRemoteName = remotePtr,
                 lpLocalName = local is null ? default : localPtr,
             };
-            var error = PInvoke.WNetAddConnection2W(resource, password, userName, 0);
+            // CONNECT_UPDATE_PROFILE makes Windows bring the drive back at the next sign-in.
+            var error = PInvoke.WNetAddConnection2W(resource, password, userName, remember ? NET_CONNECT_FLAGS.CONNECT_UPDATE_PROFILE : 0);
             return (int)error switch
             {
                 NoError => new ConnectResult(ConnectOutcome.Connected),
+                AlreadyAssigned when remember => new ConnectResult(ConnectOutcome.Failed, $"{local} is already in use. Pick another drive letter."),
                 AlreadyAssigned => new ConnectResult(ConnectOutcome.NotNeeded),
                 SessionCredentialConflict => new ConnectResult(ConnectOutcome.Failed, "Windows already has a connection to this server under another user name. Disconnect it first (net use \\\\server /delete), then sign in again."),
                 _ => new ConnectResult(ConnectOutcome.Failed, new Win32Exception((int)error).Message),

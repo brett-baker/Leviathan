@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
+using Leviathan.Core.Resilience;
 using Leviathan.ViewModels.Folders;
 
 namespace Leviathan.ViewModels.Sidebar;
@@ -22,6 +23,12 @@ public enum SidebarNodeKind
 
     /// <summary>A grey line of text: an empty section or "Not responding". When it carries a retry, clicking it retries.</summary>
     Message,
+
+    /// <summary>A collapsible heading inside a section that holds places directly, such as "Nearby" (spec §7.1). It has no location and nothing to list.</summary>
+    Group,
+
+    /// <summary>A line that does something when clicked instead of going somewhere, such as "Add connection…" (spec §7.1).</summary>
+    Action,
 }
 
 /// <summary>The icon a row shows; the UI maps it to a glyph.</summary>
@@ -65,6 +72,9 @@ public enum SidebarIcon
 
     /// <summary>A pinned folder.</summary>
     Favorite,
+
+    /// <summary>A server (NAS, PC) whose children are its shares.</summary>
+    Server,
 }
 
 /// <summary>An entry the sidebar is built from.</summary>
@@ -81,13 +91,32 @@ public sealed record SidebarPlace(string Title, LocationPath Location, SidebarIc
 
     /// <summary>Icon colour as <c>#RRGGBB</c>, or null for the theme's.</summary>
     public string? Accent { get; init; }
+
+    /// <summary>For a server: the host name (<c>diskstation</c>), which makes the row show a health dot and offer Remove. Null for everything else.</summary>
+    public string? Server { get; init; }
+
+    /// <summary>True for a server the user saved (it can be removed); false for one that is only listed under Nearby.</summary>
+    public bool IsSaved { get; init; }
 }
+
+/// <summary>A collapsible heading inside a section, such as "Nearby" (spec §7.1), with its places and what to say when it has none.</summary>
+/// <param name="Title">Heading.</param>
+/// <param name="Places">Entries; may change later through <see cref="SidebarTree.UpdateGroupAsync"/>.</param>
+/// <param name="EmptyText">Shown when there are no entries.</param>
+public sealed record SidebarGroup(string Title, IReadOnlyList<SidebarPlace> Places, string EmptyText);
 
 /// <summary>A section and its entries.</summary>
 /// <param name="Title">Header text.</param>
 /// <param name="Places">Entries.</param>
 /// <param name="EmptyText">Shown when there are no entries, or null to hide the section when empty.</param>
-public sealed record SidebarSection(string Title, IReadOnlyList<SidebarPlace> Places, string? EmptyText = null);
+public sealed record SidebarSection(string Title, IReadOnlyList<SidebarPlace> Places, string? EmptyText = null)
+{
+    /// <summary>Collapsible headings after the places, such as Nearby under Network.</summary>
+    public IReadOnlyList<SidebarGroup> Groups { get; init; } = [];
+
+    /// <summary>Text of a last line that does something when clicked ("Add connection…"), or null for none.</summary>
+    public string? ActionTitle { get; init; }
+}
 
 /// <summary>One row of the sidebar tree.</summary>
 public sealed partial class SidebarNode : ObservableObject
@@ -100,6 +129,10 @@ public sealed partial class SidebarNode : ObservableObject
 
     [ObservableProperty]
     private bool _isSelected;
+
+    /// <summary>The server's health for the dot beside its icon, or null for rows that are not servers (spec §7.1).</summary>
+    [ObservableProperty]
+    private ShareHealth? _health;
 
     /// <summary>Creates a node.</summary>
     public SidebarNode(SidebarNodeKind kind, string title, LocationPath? location = null, SidebarIcon icon = SidebarIcon.Folder)
@@ -152,6 +185,12 @@ public sealed partial class SidebarNode : ObservableObject
     /// <summary>True for a message row that retries its parent when clicked.</summary>
     public bool IsRetry { get; init; }
 
+    /// <summary>For a server row: the host name. Null for everything else.</summary>
+    public string? Server { get; init; }
+
+    /// <summary>True for a server the user saved, which can be removed.</summary>
+    public bool IsSaved { get; init; }
+
     internal CancellationTokenSource? Loading { get; set; }
 
     /// <summary>Bumped when the node's rows are inserted or removed, so an insert in progress can tell it was overtaken.</summary>
@@ -203,8 +242,11 @@ public sealed class SidebarTree
     /// <summary>Raised when <see cref="Selected"/> changes.</summary>
     public event EventHandler? SelectionChanged;
 
-    /// <summary>Replaces the whole tree with <paramref name="sections"/>. Sections without entries and without empty text are left out.</summary>
-    public void SetSections(IEnumerable<SidebarSection> sections)
+    /// <summary>
+    /// Replaces the whole tree with <paramref name="sections"/>. Sections without entries and without empty text are left out.
+    /// <paramref name="healthOf"/> gives the health dot of each server row (by host name); null shows no dots until <see cref="RefreshHealth"/>.
+    /// </summary>
+    public void SetSections(IEnumerable<SidebarSection> sections, Func<string, ShareHealth>? healthOf = null)
     {
         ArgumentNullException.ThrowIfNull(sections);
         foreach (var node in _roots)
@@ -217,28 +259,32 @@ public sealed class SidebarTree
         _selected = null;
         foreach (var section in sections)
         {
-            if (section.Places.Count == 0 && section.EmptyText is null)
+            if (section.Places.Count == 0 && section.Groups.Count == 0 && section.EmptyText is null)
             {
                 continue;
             }
 
             var header = new SidebarNode(SidebarNodeKind.Section, section.Title) { IsExpanded = true, CanExpand = true };
-            if (section.Places.Count == 0)
+            if (section.Places.Count == 0 && section.Groups.Count == 0)
             {
                 AddChild(header, new SidebarNode(SidebarNodeKind.Message, section.EmptyText!));
             }
 
             foreach (var place in section.Places)
             {
-                AddChild(header, new SidebarNode(SidebarNodeKind.Place, place.Title, place.Location, place.Icon)
-                {
-                    Detail = place.Detail,
-                    UsedFraction = place.UsedFraction,
-                    IsLowOnSpace = place.IsLowOnSpace,
-                    Glyph = place.Glyph,
-                    Accent = place.Accent,
-                    CanExpand = true,
-                });
+                AddChild(header, PlaceNode(place, healthOf));
+            }
+
+            foreach (var group in section.Groups)
+            {
+                var node = new SidebarNode(SidebarNodeKind.Group, group.Title) { CanExpand = true, IsLoaded = true };
+                AddChild(header, node);
+                FillGroup(node, group, healthOf);
+            }
+
+            if (section.ActionTitle is not null)
+            {
+                AddChild(header, new SidebarNode(SidebarNodeKind.Action, section.ActionTitle));
             }
 
             _roots.Add(header);
@@ -246,6 +292,84 @@ public sealed class SidebarTree
             foreach (var row in Flatten(header.Children))
             {
                 Rows.Add(row);
+            }
+        }
+    }
+
+    private static SidebarNode PlaceNode(SidebarPlace place, Func<string, ShareHealth>? healthOf) =>
+        new(SidebarNodeKind.Place, place.Title, place.Location, place.Icon)
+        {
+            Detail = place.Detail,
+            UsedFraction = place.UsedFraction,
+            IsLowOnSpace = place.IsLowOnSpace,
+            Glyph = place.Glyph,
+            Accent = place.Accent,
+            Server = place.Server,
+            IsSaved = place.IsSaved,
+            CanExpand = true,
+            Health = place.Server is null ? null : healthOf?.Invoke(place.Server) ?? ShareHealth.Unknown,
+        };
+
+    private static void FillGroup(SidebarNode group, SidebarGroup source, Func<string, ShareHealth>? healthOf)
+    {
+        group.Children.Clear();
+        if (source.Places.Count == 0)
+        {
+            AddChild(group, new SidebarNode(SidebarNodeKind.Message, source.EmptyText));
+            return;
+        }
+
+        foreach (var place in source.Places)
+        {
+            AddChild(group, PlaceNode(place, healthOf));
+        }
+    }
+
+    /// <summary>
+    /// Replaces the places of the group called <paramref name="title"/> (such as Nearby) while the tree stays as it is: the group keeps
+    /// its expanded state and only its own rows change, so a device that turns up never moves what the user is looking at.
+    /// </summary>
+    public async Task UpdateGroupAsync(string title, SidebarGroup source, Func<string, ShareHealth>? healthOf = null)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(source);
+        var group = Flatten(_roots, expandedOnly: false).FirstOrDefault(n => n.Kind == SidebarNodeKind.Group && n.Title == title);
+        if (group is null)
+        {
+            return;
+        }
+
+        var wasExpanded = group.IsExpanded;
+        if (wasExpanded)
+        {
+            group.RowGeneration++;
+            RemoveDescendantRows(group);
+        }
+
+        foreach (var gone in group.Children)
+        {
+            CancelLoading(gone);
+        }
+
+        FillGroup(group, source, healthOf);
+        if (wasExpanded)
+        {
+            await InsertDescendantRowsAsync(group).ConfigureAwait(true);
+        }
+
+        ReapplySelection();
+    }
+
+    /// <summary>Sets the health dot of every server row from <paramref name="healthOf"/> (by host name). Cheap: no rows move.</summary>
+    public void RefreshHealth(Func<string, ShareHealth> healthOf)
+    {
+        ArgumentNullException.ThrowIfNull(healthOf);
+        foreach (var node in Flatten(_roots, expandedOnly: false).Where(n => n.Server is not null))
+        {
+            var health = healthOf(node.Server!);
+            if (node.Health != health)
+            {
+                node.Health = health;
             }
         }
     }

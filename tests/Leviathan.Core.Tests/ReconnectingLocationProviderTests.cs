@@ -33,6 +33,9 @@ public sealed class ReconnectingLocationProviderTests
 
         public Task<ConnectResult> SignInAsync(LocationPath location, nint owner, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectResult(ConnectOutcome.Cancelled));
+
+        public Task<ConnectResult> MapDriveAsync(char driveLetter, string shareRoot, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectResult(ConnectOutcome.Connected));
     }
 
     /// <summary>Fails with <see cref="Failure"/> until <see cref="Healthy"/> is set, then lists one batch.</summary>

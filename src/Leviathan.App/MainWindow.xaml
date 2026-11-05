@@ -253,6 +253,10 @@
               <ContentControl Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" IsTabStop="False"
                               Content="{x:Bind local:SidebarFormat.IconOf(Icon, Glyph, Accent)}"
                               Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
+              <Ellipse Grid.Column="2" Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                       Fill="{x:Bind local:SidebarFormat.HealthBrush(Health), Mode=OneWay}"
+                       Visibility="{x:Bind local:SidebarFormat.HasHealth(Health), Mode=OneWay}"
+                       ToolTipService.ToolTip="{x:Bind local:SidebarFormat.HealthText(Health), Mode=OneWay}" />
               <ProgressRing Grid.Column="2" Width="14" Height="14" IsActive="True" HorizontalAlignment="Center"
                             Visibility="{x:Bind local:SidebarFormat.IsLoading(Kind)}" />
               <StackPanel Grid.Column="3" Margin="6,0,0,0" Spacing="2">

@@ -13,6 +13,7 @@ internal static class SidebarFormat
 
     public static string Glyph(SidebarIcon icon) => icon switch
     {
+        SidebarIcon.Server => "",
         SidebarIcon.Home => "",
         SidebarIcon.Desktop => "",
         SidebarIcon.Documents => "",
@@ -68,6 +69,31 @@ internal static class SidebarFormat
     public static Visibility IsSection(SidebarNodeKind kind) => Show(kind == SidebarNodeKind.Section);
 
     public static Visibility IsItem(SidebarNodeKind kind) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder);
+
+    /// <summary>The dot beside a server's icon shows for servers only (spec 7.1).</summary>
+    public static Visibility HasHealth(Core.Resilience.ShareHealth? health) => Show(health is not null);
+
+    /// <summary>Green online, amber slow, red offline, blue when a sign-in is needed, grey when not known yet.</summary>
+    public static Brush HealthBrush(Core.Resilience.ShareHealth? health) => health switch
+    {
+        Core.Resilience.ShareHealth.Online => Solid(0x16, 0xC6, 0x0C),
+        Core.Resilience.ShareHealth.Slow => Solid(0xFF, 0xB9, 0x00),
+        Core.Resilience.ShareHealth.Unreachable => Solid(0xE7, 0x48, 0x56),
+        Core.Resilience.ShareHealth.AuthenticationRequired => Solid(0x00, 0x78, 0xD4),
+        _ => Solid(0x8A, 0x8A, 0x8A),
+    };
+
+    /// <summary>The tooltip of the dot.</summary>
+    public static string HealthText(Core.Resilience.ShareHealth? health) => health switch
+    {
+        Core.Resilience.ShareHealth.Online => "Online",
+        Core.Resilience.ShareHealth.Slow => "Slow",
+        Core.Resilience.ShareHealth.Unreachable => "Offline",
+        Core.Resilience.ShareHealth.AuthenticationRequired => "Sign-in required",
+        _ => "Not checked yet",
+    };
+
+    private static SolidColorBrush Solid(byte r, byte g, byte b) => new(Windows.UI.Color.FromArgb(0xFF, r, g, b));
 
     public static Visibility IsLoading(SidebarNodeKind kind) => Show(kind == SidebarNodeKind.Loading);
 

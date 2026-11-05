@@ -322,6 +322,13 @@ public sealed class LocationPath : IEquatable<LocationPath>
     public bool Contains(LocationPath other)
     {
         ArgumentNullException.ThrowIfNull(other);
+
+        // A server's root (\\nas) holds all of its shares.
+        if (Kind == LocationKind.Unc && Share is null)
+        {
+            return other.Kind == LocationKind.Unc && RootComparer.Equals(other.Server, Server);
+        }
+
         if (other.Kind != Kind || !RootComparer.Equals(other.Root, Root) || other._segments.Length < _segments.Length)
         {
             return false;

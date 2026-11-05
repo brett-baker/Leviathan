@@ -455,6 +455,9 @@ internal sealed class AppHost
     /// <summary>Health of every network server seen, for the tree, tab banners and status bar (spec 3.3).</summary>
     public ShareHealthRegistry ShareHealth { get; init; } = null!;
 
+    /// <summary>The servers listed under Network in the tree: added by Add connection and by opening a share (spec 7.1).</summary>
+    public SavedConnectionList SavedServers { get; init; } = null!;
+
     /// <summary>The servers the user chose to "Work offline" with: their folders come from the offline cache without touching the network (spec 3.3).</summary>
     public WorkOfflineRegistry WorkOffline { get; init; } = null!;
 
@@ -472,8 +475,11 @@ internal sealed class AppHost
         var workOffline = new WorkOfflineRegistry(identities);
         // A disconnected mapped drive is reconnected with the credentials Windows holds the first time it is used (spec 3.3).
         var connector = new WindowsShareConnector();
-        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(
-            new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline)]);
+        // A server's own root (\\nas) lists its shares, so servers open and expand like drives (spec 7.1).
+        var providers = new LocationProviderRegistry([
+            new HealthTrackingLocationProvider(
+                new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
+            new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline)]);
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -601,6 +607,7 @@ internal sealed class AppHost
             new RenameService(disk))
         {
             ShareHealth = shareHealth,
+            SavedServers = new SavedConnectionList(new JsonSavedConnectionsStorage(Path.Combine(data, "servers.json"))),
             WorkOffline = workOffline,
             Connector = connector,
             Transfers = transfers,
