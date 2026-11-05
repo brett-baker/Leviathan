@@ -110,7 +110,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 ### D. Soft delete (§12.5)
 
-- [ ] **D1. Recycle-folder detection.** Per share: Synology `#recycle` (when DSM Recycle Bin is enabled for that shared folder),
+- [x] **D1. Recycle-folder detection** (done: `RecycleFolders` in the engine; D2 still owes the Delete vs Shift+Delete table per location type and the manifest reader for Restore).** Per share: Synology `#recycle` (when DSM Recycle Bin is enabled for that shared folder),
   QNAP `@Recycle`, else `.leviathan-trash` at the highest writable folder; cached per share.
 - [ ] **D2. Soft delete and manifest.** Rename into the recycle folder (instant), manifest with original path and time; Delete vs
   Shift+Delete table per location type; Ctrl+Z restores.

@@ -16,20 +16,24 @@ namespace Leviathan.Engine.Transfers;
 public sealed class DeleteExecutor : IJobExecutor
 {
     /// <summary>The hidden folder at the root of a share where Leviathan keeps what was soft-deleted and its manifest.</summary>
-    public const string TrashFolder = ".leviathan-trash";
+    public const string TrashFolder = RecycleFolders.TrashFolder;
 
     /// <summary>The manifest of soft deletes in <see cref="TrashFolder"/>: one JSON line per item with its original path.</summary>
     public const string ManifestFile = "manifest.jsonl";
 
-    private static readonly string[] ShareRecycleFolders = ["#recycle", "@Recycle"];
-
     private readonly IFileSystem _fs;
     private readonly IRecycleBin _bin;
     private readonly TimeProvider _time;
+    private readonly RecycleFolders _folders;
 
     /// <summary>Creates the executor.</summary>
-    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null)
+    /// <param name="fileSystem">The disk.</param>
+    /// <param name="recycleBin">The Windows Recycle Bin for local drives.</param>
+    /// <param name="time">Clock.</param>
+    /// <param name="recycleFolders">Finds (and remembers) each share's recycle folder; a new one when null.</param>
+    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null, RecycleFolders? recycleFolders = null)
     {
+        _folders = recycleFolders ?? new RecycleFolders(fileSystem);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(recycleBin);
         _fs = fileSystem;
@@ -100,6 +104,11 @@ public sealed class DeleteExecutor : IJobExecutor
 
         if (source.Kind == LocationKind.Unc)
         {
+            if (RecycleFolders.IsInsideBin(source))
+            {
+                return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"{source.Name} is already in a recycle folder. Use Shift+Delete to delete it permanently.");
+            }
+
             var trashed = SoftDelete(source);
             return new ItemOutcome(source.Value, trashed.Value, ItemStatus.Done);
         }
@@ -147,17 +156,15 @@ public sealed class DeleteExecutor : IJobExecutor
     /// <summary>Moves <paramref name="source"/> into the share's recycle folder and records where it came from. Returns where it is now.</summary>
     private LocationPath SoftDelete(LocationPath source)
     {
-        var shareRoot = LocationPath.Parse(source.Root);
         var now = _time.GetUtcNow();
-        var shareBin = ShareRecycleFolders.Select(shareRoot.Combine).FirstOrDefault(p => _fs.Directory.Exists(Io(p)));
-        var trashRoot = shareRoot.Combine(TrashFolder);
-        EnsureTrashFolder(trashRoot);
+        var recycle = _folders.Resolve(source);
+        var trashRoot = recycle.TrashRoot;
 
         LocationPath target;
-        if (shareBin is not null)
+        if (recycle.Kind != RecycleKind.Leviathan)
         {
             // The share's own bin keeps the folder structure, as its web UI expects.
-            var folder = shareBin;
+            var folder = recycle.Folder;
             foreach (var segment in source.Segments.Take(source.Segments.Count - 1))
             {
                 folder = folder.Combine(segment);
@@ -185,19 +192,6 @@ public sealed class DeleteExecutor : IJobExecutor
         var line = JsonSerializer.Serialize(new { original = source.Value, trashed = target.Value, at = now }) + "\n";
         _fs.File.AppendAllText(Io(trashRoot.Combine(ManifestFile)), line);
         return target;
-    }
-
-    private void EnsureTrashFolder(LocationPath trashRoot)
-    {
-        if (_fs.Directory.Exists(Io(trashRoot)))
-        {
-            return;
-        }
-
-        _fs.Directory.CreateDirectory(Io(trashRoot));
-
-        // Hidden, so other tools and Leviathan's own listings do not show it by default (spec §12.5).
-        _fs.DirectoryInfo.New(Io(trashRoot)).Attributes = FileAttributes.Directory | FileAttributes.Hidden;
     }
 
     private LocationPath Unique(LocationPath folder, string name)

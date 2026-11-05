@@ -182,6 +182,33 @@ public sealed class DeleteExecutorTests
     }
 
     [Fact]
+    public async Task ShareDelete_OfSomethingAlreadyInABin_IsRefused_NotMovedIntoAnotherBin()
+    {
+        var fs = Disk();
+        fs.AddFile(@"\\nas\media\#recycle\show\old.mkv", new MockFileData("o"));
+
+        var (job, items) = await RunAsync(fs, new FakeBin(fs), @"\\nas\media\#recycle\show\old.mkv");
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains("already in a recycle folder", items[0].Error, StringComparison.Ordinal);
+        Assert.True(fs.File.Exists(@"\\nas\media\#recycle\show\old.mkv"));
+    }
+
+    [Fact]
+    public async Task ShareDelete_WhereNothingCanBeWrittenTo_FailsThatItem_AndKeepsIt()
+    {
+        var fs = Disk();
+        fs.AddFile(@"\\nas\media\.leviathan-trash", new MockFileData("blocked"));
+        fs.AddFile(@"\\nas\media\show\.leviathan-trash", new MockFileData("blocked"));
+
+        var (job, items) = await RunAsync(fs, new FakeBin(fs), @"\\nas\media\show\ep1.mkv");
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains("Shift+Delete", items[0].Error, StringComparison.Ordinal);
+        Assert.True(fs.File.Exists(@"\\nas\media\show\ep1.mkv"));
+    }
+
+    [Fact]
     public async Task ShareDelete_OfTheSameNameTwice_DoesNotOverwriteWhatIsInTheShareBin()
     {
         var fs = Disk();
