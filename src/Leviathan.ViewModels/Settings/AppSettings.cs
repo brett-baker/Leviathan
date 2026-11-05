@@ -104,12 +104,45 @@ public sealed record PerformanceSettings
     /// <summary>Make thumbnails of files on network drives. Each one means reading the file over the network.</summary>
     public bool ThumbnailsOnNetwork { get; init; } = true;
 
+    /// <summary>A speed limit for everything the worker moves, in MB per second; 0 = none (spec §12.3).</summary>
+    public int BandwidthMBps { get; init; }
+
+    /// <summary>Use a different limit from <see cref="ScheduleFrom"/> to <see cref="ScheduleTo"/>, such as unlimited at night.</summary>
+    public bool ScheduleEnabled { get; init; }
+
+    /// <summary>When the scheduled limit starts, as a time of day.</summary>
+    public TimeSpan ScheduleFrom { get; init; } = TimeSpan.FromHours(22);
+
+    /// <summary>When the scheduled limit ends; earlier than the start means it runs past midnight.</summary>
+    public TimeSpan ScheduleTo { get; init; } = TimeSpan.FromHours(6);
+
+    /// <summary>The limit during the schedule, in MB per second; 0 = unlimited.</summary>
+    public int ScheduleMBps { get; init; }
+
+    /// <summary>How hard copies are checked against their sources (spec §12.1 step 6); moves are always checked.</summary>
+    public Leviathan.Contracts.VerifyMode Verify { get; init; } = Leviathan.Contracts.VerifyMode.Default;
+
+    /// <summary>The limits as the worker takes them: the default limit plus the scheduled window when it is on.</summary>
+    public Leviathan.Contracts.BandwidthSettings ToBandwidth()
+    {
+        var bytes = Math.Max(0, BandwidthMBps) * 1_000_000L;
+        var windows = ScheduleEnabled && ScheduleFrom != ScheduleTo
+            ? new[] { new Leviathan.Contracts.BandwidthWindow(ScheduleFrom, ScheduleTo, Math.Max(0, ScheduleMBps) * 1_000_000L) }
+            : null;
+        return new Leviathan.Contracts.BandwidthSettings { Global = new Leviathan.Contracts.BandwidthRule(bytes, windows) };
+    }
+
     /// <summary>The same settings with every number inside its limits (a hand-edited file cannot ask for 500 threads).</summary>
     public PerformanceSettings Clamped() => this with
     {
         MaxBackgroundJobs = Math.Clamp(MaxBackgroundJobs, 1, 8),
         MaxRunningJobs = Math.Clamp(MaxRunningJobs, 1, 16),
         MaxPerDevice = Math.Clamp(MaxPerDevice, 1, 4),
+        BandwidthMBps = Math.Clamp(BandwidthMBps, 0, 100_000),
+        ScheduleMBps = Math.Clamp(ScheduleMBps, 0, 100_000),
+        Verify = Enum.IsDefined(Verify) ? Verify : Leviathan.Contracts.VerifyMode.Default,
+        ScheduleFrom = ScheduleFrom < TimeSpan.Zero || ScheduleFrom >= TimeSpan.FromDays(1) ? TimeSpan.FromHours(22) : ScheduleFrom,
+        ScheduleTo = ScheduleTo < TimeSpan.Zero || ScheduleTo >= TimeSpan.FromDays(1) ? TimeSpan.FromHours(6) : ScheduleTo,
     };
 }
 

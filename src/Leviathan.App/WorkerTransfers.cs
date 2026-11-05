@@ -45,7 +45,13 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     private WorkerConnection? _connection;
 
     /// <summary>Creates the service; <paramref name="worker"/> is called on first use.</summary>
-    public WorkerTransfers(Func<WorkerConnection> worker) => _worker = worker;
+    public WorkerTransfers(Func<WorkerConnection> worker)
+    {
+        _worker = worker;
+    }
+
+    /// <summary>Where the verify policy of the settings is read from (set once the settings exist); copies are checked the default way until then.</summary>
+    public Func<VerifyMode> VerifySource { get; set; } = () => VerifyMode.Default;
 
     /// <summary>Raised on a thread-pool thread when a job ends.</summary>
     public event EventHandler<TransferFinished>? Finished;
@@ -72,6 +78,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
                 // A permanent error stops the job on the Skip / Retry / Skip all like this question, which the Operations tab shows
                 // (spec §12.2); the strip's red tip says a job waits for an answer.
                 OnError = ErrorMode.Ask,
+                Verify = VerifySource(),
             };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(job.Kind, request.Sources, request.Destination, false);

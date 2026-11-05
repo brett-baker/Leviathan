@@ -190,6 +190,16 @@ internal sealed partial class StatusHubPanel : UserControl
             BackgroundBox.Value = performance.MaxBackgroundJobs;
             NetworkSizesSwitch.IsOn = performance.FolderSizesOnNetwork;
             NetworkThumbsSwitch.IsOn = performance.ThumbnailsOnNetwork;
+            BandwidthBox.Value = performance.BandwidthMBps;
+            ScheduleSwitch.IsOn = performance.ScheduleEnabled;
+            ScheduleGrid.Visibility = performance.ScheduleEnabled ? Visibility.Visible : Visibility.Collapsed;
+            ScheduleFromPicker.SelectedTime = performance.ScheduleFrom;
+            ScheduleToPicker.SelectedTime = performance.ScheduleTo;
+            ScheduleBox.Value = performance.ScheduleMBps;
+            foreach (var item in VerifyBox.Items.OfType<ComboBoxItem>().Where(i => (string?)i.Tag == performance.Verify.ToString()))
+            {
+                VerifyBox.SelectedItem = item;
+            }
         }
         finally
         {
@@ -221,6 +231,49 @@ internal sealed partial class StatusHubPanel : UserControl
         var sizes = NetworkSizesSwitch.IsOn;
         var thumbnails = NetworkThumbsSwitch.IsOn;
         await SaveQuickAsync(p => p with { FolderSizesOnNetwork = sizes, ThumbnailsOnNetwork = thumbnails });
+    }
+
+    private async void OnQuickSpeedChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_ready || _loadingQuick || double.IsNaN(args.NewValue))
+        {
+            return;
+        }
+
+        var limit = (int)BandwidthBox.Value;
+        var scheduled = (int)ScheduleBox.Value;
+        await SaveQuickAsync(p => p with { BandwidthMBps = limit, ScheduleMBps = scheduled });
+    }
+
+    private async void OnQuickSpeedToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loadingQuick)
+        {
+            return;
+        }
+
+        var on = ScheduleSwitch.IsOn;
+        await SaveQuickAsync(p => p with { ScheduleEnabled = on });
+    }
+
+    private async void OnQuickScheduleTimeChanged(TimePicker sender, TimePickerSelectedValueChangedEventArgs args)
+    {
+        if (!_ready || _loadingQuick || ScheduleFromPicker.SelectedTime is not { } from || ScheduleToPicker.SelectedTime is not { } to)
+        {
+            return;
+        }
+
+        await SaveQuickAsync(p => p with { ScheduleFrom = from, ScheduleTo = to });
+    }
+
+    private async void OnVerifyChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _loadingQuick || VerifyBox.SelectedItem is not ComboBoxItem { Tag: string name } || !Enum.TryParse<VerifyMode>(name, out var mode))
+        {
+            return;
+        }
+
+        await SaveQuickAsync(p => p with { Verify = mode });
     }
 
     private static async Task SaveQuickAsync(Func<Leviathan.ViewModels.Settings.PerformanceSettings, Leviathan.ViewModels.Settings.PerformanceSettings> change)

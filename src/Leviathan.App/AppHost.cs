@@ -258,6 +258,7 @@ internal sealed class AppHost
         try
         {
             await connection.SetLimitsAsync(new ConcurrencyLimits(performance.MaxRunningJobs, performance.MaxPerDevice, performance.MaxBackgroundJobs));
+            await connection.SetBandwidthAsync(performance.ToBandwidth());
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
         {
@@ -612,6 +613,7 @@ internal sealed class AppHost
             host.StartApplyingSettings(ui);
         }
 
+        transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
         return host;
     }
 }

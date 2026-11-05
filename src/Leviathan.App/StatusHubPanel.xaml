@@ -318,9 +318,26 @@
                           ToolTipService.ToolTip="Each folder means walking the whole share. Turn off to spare a slow NAS." />
             <ToggleSwitch x:Name="NetworkThumbsSwitch" Header="Make thumbnails of files" Toggled="OnQuickToggled"
                           ToolTipService.ToolTip="Each thumbnail means reading the file over the network." />
-            <TextBlock Text="Not yet" Style="{StaticResource BodyStrongTextBlockStyle}" />
-            <TextBlock Text="How often shares are checked for changes, and a limit on copy speed with a schedule, arrive with the network and operations work of Phase 2."
-                       TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="Copy speed" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <NumberBox x:Name="BandwidthBox" Header="Limit for all copies and moves (MB/s, 0 = none)" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Inline" SmallChange="10"
+                       ValueChanged="OnQuickSpeedChanged" ToolTipService.ToolTip="Leaves room on the network for everything else. The slowest limit that applies wins." />
+            <ToggleSwitch x:Name="ScheduleSwitch" Header="A different limit at set times" Toggled="OnQuickSpeedToggled" />
+            <Grid x:Name="ScheduleGrid" ColumnSpacing="16">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TimePicker x:Name="ScheduleFromPicker" Header="From" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
+              <TimePicker x:Name="ScheduleToPicker" Grid.Column="1" Header="To" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
+              <NumberBox x:Name="ScheduleBox" Grid.Column="2" Header="Limit then (MB/s, 0 = none)" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Inline" SmallChange="10"
+                         ValueChanged="OnQuickSpeedChanged" />
+            </Grid>
+            <ComboBox x:Name="VerifyBox" Header="Check copies against the original" SelectionChanged="OnVerifyChanged" MinWidth="320">
+              <ComboBoxItem Content="Moves and network copies (recommended)" Tag="Default" />
+              <ComboBoxItem Content="Every file in full" Tag="Full" />
+              <ComboBoxItem Content="Moves only" Tag="Off" />
+            </ComboBox>
             <HyperlinkButton Content="All settings…" Click="OnAllSettingsClick" Padding="0" />
           </StackPanel>
         </ScrollViewer>
