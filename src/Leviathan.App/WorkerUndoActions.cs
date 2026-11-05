@@ -7,7 +7,7 @@ namespace Leviathan.App;
 /// Does undo and redo in the worker (spec §12.1, §12.5): putting items back is a restore job and redoing a delete is a delete job,
 /// so both are journaled like any other file operation, and the UI thread never touches the disk.
 /// </summary>
-internal sealed class WorkerUndoActions(Func<WorkerConnection> worker) : IUndoActions
+internal sealed class WorkerUndoActions(Func<WorkerConnection> worker, Func<bool>? keepOwnTrash = null) : IUndoActions
 {
     private static readonly TimeSpan Limit = TimeSpan.FromSeconds(60);
 
@@ -17,7 +17,7 @@ internal sealed class WorkerUndoActions(Func<WorkerConnection> worker) : IUndoAc
 
     /// <inheritdoc />
     public Task<StepResult> DeleteAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken) =>
-        RunAsync(new JobRequest(JobKind.Delete, paths, null) { DeleteMode = DeleteMode.RecycleBin }, cancellationToken);
+        RunAsync(new JobRequest(JobKind.Delete, paths, null) { DeleteMode = DeleteMode.RecycleBin, KeepOwnTrash = keepOwnTrash?.Invoke() ?? true }, cancellationToken);
 
     private async Task<StepResult> RunAsync(JobRequest request, CancellationToken cancellationToken)
     {

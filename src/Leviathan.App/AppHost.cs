@@ -553,7 +553,7 @@ internal sealed class AppHost
             newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
         }
         var transfers = new WorkerTransfers(() => worker.Value);
-        var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value));
+        var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
 
         // Our own copies, moves and deletes change folders the cache remembers (spec §3.1): forget them before any view reloads.
@@ -649,6 +649,7 @@ internal sealed class AppHost
         }
 
         transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
+        transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;
         return host;
     }
 }

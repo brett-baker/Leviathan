@@ -50,6 +50,18 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public async Task KeepOwnTrashOnShares_IsOnByDefault_AndTurningItOffSurvivesAReload()
+    {
+        var (store, fs, _) = Make();
+        Assert.True((await store.LoadAsync(CancellationToken.None)).Files.KeepOwnTrashOnShares);
+
+        await store.UpdateAsync(s => s with { Files = s.Files with { KeepOwnTrashOnShares = false } }, CancellationToken.None);
+
+        var reloaded = await new SettingsStore(fs, Path).LoadAsync(CancellationToken.None);
+        Assert.False(reloaded.Files.KeepOwnTrashOnShares);
+    }
+
+    [Fact]
     public async Task UpdateAsync_LeavesNoTempFileBehind()
     {
         var (store, fs, _) = Make();

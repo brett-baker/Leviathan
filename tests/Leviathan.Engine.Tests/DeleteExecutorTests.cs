@@ -62,11 +62,14 @@ public sealed class DeleteExecutorTests
     private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunAsync(MockFileSystem fs, FakeBin bin, params string[] sources) =>
         await RunAsync(fs, bin, DeleteMode.RecycleBin, sources);
 
-    private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunAsync(MockFileSystem fs, FakeBin bin, DeleteMode mode, params string[] sources)
+    private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunAsync(MockFileSystem fs, FakeBin bin, DeleteMode mode, params string[] sources) =>
+        await RunAsync(fs, bin, mode, keepOwnTrash: true, sources);
+
+    private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunAsync(MockFileSystem fs, FakeBin bin, DeleteMode mode, bool keepOwnTrash, params string[] sources)
     {
         await using var host = new JobHost(new JobScheduler(), [new DeleteExecutor(fs, bin, new FixedTime())], new InMemoryJobJournal());
         host.Start();
-        var job = host.Submit(new JobRequest(JobKind.Delete, sources, null) { DeleteMode = mode }, JobLane.Operations, null, "test");
+        var job = host.Submit(new JobRequest(JobKind.Delete, sources, null) { DeleteMode = mode, KeepOwnTrash = keepOwnTrash }, JobLane.Operations, null, "test");
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (!host.Scheduler.Find(job.Id)!.IsFinished)
         {
@@ -179,6 +182,45 @@ public sealed class DeleteExecutorTests
 
         Assert.Equal(@"\\nas\media\#recycle\show\ep1.mkv", items[0].Result);
         Assert.Equal("v", fs.File.ReadAllText(@"\\nas\media\#recycle\show\ep1.mkv"));
+    }
+
+    [Fact]
+    public async Task ShareDelete_WithOwnTrashOff_AndAVisibleNasBin_UsesTheNasBin_AndWritesNoManifestOrFolderOfOurs()
+    {
+        var fs = Disk();
+        fs.AddDirectory(@"\\nas\media\#recycle");
+
+        var (job, items) = await RunAsync(fs, new FakeBin(fs), DeleteMode.RecycleBin, keepOwnTrash: false, @"\\nas\media\show\ep1.mkv");
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(@"\\nas\media\#recycle\show\ep1.mkv", items[0].Result);
+        Assert.False(fs.Directory.Exists(@"\\nas\media\.leviathan-trash"));
+    }
+
+    [Fact]
+    public async Task ShareDelete_WithOwnTrashOff_AndNoVisibleBin_DeletesOnTheShare_ForTheNasToKeep()
+    {
+        var fs = Disk();
+
+        var (job, items) = await RunAsync(fs, new FakeBin(fs), DeleteMode.RecycleBin, keepOwnTrash: false, @"\\nas\media\show\ep1.mkv");
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.False(fs.File.Exists(@"\\nas\media\show\ep1.mkv"));
+        Assert.Equal(ItemStatus.Done, items[0].Status);
+        Assert.Null(items[0].Result);
+        Assert.False(fs.Directory.Exists(@"\\nas\media\.leviathan-trash"));
+    }
+
+    [Fact]
+    public async Task ShareDelete_WithOwnTrashOff_StillRefusesSomethingAlreadyInABin()
+    {
+        var fs = Disk();
+        fs.AddFile(@"\\nas\media\#recycle\show\old.mkv", new MockFileData("o"));
+
+        var (job, _) = await RunAsync(fs, new FakeBin(fs), DeleteMode.RecycleBin, keepOwnTrash: false, @"\\nas\media\#recycle\show\old.mkv");
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.True(fs.File.Exists(@"\\nas\media\#recycle\show\old.mkv"));
     }
 
     [Fact]

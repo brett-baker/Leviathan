@@ -284,6 +284,12 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
     /// <summary>Where deleted items go (delete only).</summary>
     public DeleteMode DeleteMode { get; init; } = DeleteMode.RecycleBin;
 
+    /// <summary>
+    /// Delete on a network share: when true (the default) an item with no visible NAS recycle folder goes into Leviathan's hidden
+    /// <c>.leviathan-trash</c>. When false it is deleted on the share itself, for the NAS's own bin to catch, and cannot be undone.
+    /// </summary>
+    public bool KeepOwnTrash { get; init; } = true;
+
     /// <summary>The new name (rename only): a name, not a path.</summary>
     public string? NewName { get; init; }
 

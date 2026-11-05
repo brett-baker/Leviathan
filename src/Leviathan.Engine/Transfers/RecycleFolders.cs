@@ -20,8 +20,8 @@ public enum RecycleKind
 /// <summary>Where one soft delete puts an item.</summary>
 /// <param name="Kind">Whose folder it is.</param>
 /// <param name="Folder">The folder items go into: the share's own bin, or <paramref name="TrashRoot"/> itself.</param>
-/// <param name="TrashRoot">The <c>.leviathan-trash</c> folder that holds the manifest (always Leviathan's, so Restore works in every case).</param>
-public sealed record RecycleFolder(RecycleKind Kind, LocationPath Folder, LocationPath TrashRoot);
+/// <param name="TrashRoot">The <c>.leviathan-trash</c> folder that holds the manifest (always Leviathan's, so Restore works in every case); null when the user turned Leviathan's own folder off and only the NAS's bin is used.</param>
+public sealed record RecycleFolder(RecycleKind Kind, LocationPath Folder, LocationPath? TrashRoot);
 
 /// <summary>
 /// Finds the folder a network item is soft-deleted into (spec §12.5): the share's own Synology <c>#recycle</c> or QNAP
@@ -53,6 +53,26 @@ public sealed class RecycleFolders(IFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(share);
         _known.TryRemove(share.Root, out _);
+    }
+
+    /// <summary>
+    /// The share's own bin (Synology or QNAP) if the signed-in user can see one, else null. Creates nothing and writes no manifest: used
+    /// when the user turned Leviathan's own folder off because the NAS already recycles deletes (and may hide its bin from this user).
+    /// </summary>
+    public RecycleFolder? FindShareBin(LocationPath source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var shareRoot = LocationPath.Parse(source.Root);
+        foreach (var (name, kind) in ShareBins)
+        {
+            var bin = shareRoot.Combine(name);
+            if (fileSystem.Directory.Exists(bin.ToWin32Path()))
+            {
+                return new RecycleFolder(kind, bin, null);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

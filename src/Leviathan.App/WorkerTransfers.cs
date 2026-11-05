@@ -53,6 +53,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     /// <summary>Where the verify policy of the settings is read from (set once the settings exist); copies are checked the default way until then.</summary>
     public Func<VerifyMode> VerifySource { get; set; } = () => VerifyMode.Default;
 
+    /// <summary>Where the "keep Leviathan's own trash on shares" setting is read from; on until the settings exist.</summary>
+    public Func<bool> KeepOwnTrashSource { get; set; } = () => true;
+
     /// <summary>Raised on a thread-pool thread when a job ends.</summary>
     public event EventHandler<TransferFinished>? Finished;
 
@@ -106,7 +109,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
         ArgumentNullException.ThrowIfNull(items);
         try
         {
-            var job = new JobRequest(JobKind.Delete, [.. items.Select(i => i.Value)], null) { DeleteMode = permanent ? DeleteMode.Permanent : DeleteMode.RecycleBin };
+            var job = new JobRequest(JobKind.Delete, [.. items.Select(i => i.Value)], null) { DeleteMode = permanent ? DeleteMode.Permanent : DeleteMode.RecycleBin, KeepOwnTrash = KeepOwnTrashSource() };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(JobKind.Delete, items, null, permanent);
             if (_early.TryRemove(snapshot.Id, out var early))

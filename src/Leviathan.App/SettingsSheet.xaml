@@ -143,6 +143,10 @@
                   <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
                   <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
                 </StackPanel>
+                <StackPanel Spacing="4">
+                  <ToggleSwitch x:Name="OwnTrashSwitch" Header="Keep a hidden recycle folder on network shares" Toggled="OnFilesToggled" />
+                  <TextBlock Text="Deleted items go to the NAS's own recycle folder (Synology #recycle, QNAP @Recycle) when you can see it, otherwise to a hidden .leviathan-trash so they can be undone. Turn off if your NAS already keeps deletes but hides its bin from you: items then are deleted on the share for the NAS to keep, and Leviathan cannot undo or restore them." Style="{StaticResource SettingNote}" />
+                </StackPanel>
               </StackPanel>
 
               <!-- Tabs and windows -->

@@ -142,6 +142,7 @@ internal sealed partial class SettingsSheet : UserControl
             HiddenSwitch.IsOn = settings.Files.ShowHidden;
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
+            OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
             LastTabSwitch.IsOn = settings.Tabs.LastTabResetsToHome;
             FillIconPacks(settings.Appearance.IconPack);
             ThemeButtons.SelectedIndex = (int)settings.Appearance.Theme;
@@ -369,7 +370,8 @@ internal sealed partial class SettingsSheet : UserControl
         var hidden = HiddenSwitch.IsOn;
         var system = SystemSwitch.IsOn;
         var sizes = SizesSwitch.IsOn;
-        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes } });
+        var ownTrash = OwnTrashSwitch.IsOn;
+        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash } });
     }
 
     private async void OnTabsToggled(object sender, RoutedEventArgs e)

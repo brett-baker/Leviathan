@@ -160,6 +160,12 @@ public sealed record FilesSettings
 
     /// <summary>Show folder sizes in the Size column (computed lazily by the folder-size service).</summary>
     public bool ShowFolderSizes { get; init; } = true;
+
+    /// <summary>
+    /// Keep Leviathan's own hidden <c>.leviathan-trash</c> on network shares (spec §12.5). Turn off when the NAS already recycles deletes
+    /// and Leviathan just cannot see its bin: items then go into a visible NAS bin, or are deleted on the share for the NAS to keep.
+    /// </summary>
+    public bool KeepOwnTrashOnShares { get; init; } = true;
 }
 
 /// <summary>Tabs and windows page (spec §4.1, §17.2).</summary>

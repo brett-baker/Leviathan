@@ -41,7 +41,29 @@ public sealed class RecycleFoldersTests
 
         Assert.Equal(kind, folder.Kind);
         Assert.Equal($@"\\nas\media\{name}", folder.Folder.Value);
-        Assert.Equal(@"\\nas\media\.leviathan-trash", folder.TrashRoot.Value);
+        Assert.Equal(@"\\nas\media\.leviathan-trash", folder.TrashRoot!.Value);
+    }
+
+    [Fact]
+    public void FindShareBin_ReturnsTheNasBin_WithoutCreatingAnythingOfOurs()
+    {
+        var fs = Share();
+        fs.AddDirectory(@"\\nas\media\#recycle");
+
+        var folder = new RecycleFolders(fs).FindShareBin(P(@"\\nas\media\show\ep1.mkv"));
+
+        Assert.Equal(RecycleKind.Synology, folder!.Kind);
+        Assert.Null(folder.TrashRoot);
+        Assert.False(fs.Directory.Exists(@"\\nas\media\.leviathan-trash"));
+    }
+
+    [Fact]
+    public void FindShareBin_WhenTheBinIsHiddenFromThisUser_IsNull_AndStillCreatesNothing()
+    {
+        var fs = Share();
+
+        Assert.Null(new RecycleFolders(fs).FindShareBin(P(@"\\nas\media\show\ep1.mkv")));
+        Assert.False(fs.Directory.Exists(@"\\nas\media\.leviathan-trash"));
     }
 
     [Fact]

@@ -59,7 +59,7 @@ public sealed class DeleteExecutor : IJobExecutor
             ItemOutcome outcome;
             try
             {
-                outcome = await DeleteOneAsync(source, request.DeleteMode, cancellationToken).ConfigureAwait(false);
+                outcome = await DeleteOneAsync(source, request.DeleteMode, request.KeepOwnTrash, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -81,7 +81,7 @@ public sealed class DeleteExecutor : IJobExecutor
 
     private static string Io(LocationPath path) => path.ToWin32Path();
 
-    private async Task<ItemOutcome> DeleteOneAsync(LocationPath source, DeleteMode mode, CancellationToken ct)
+    private async Task<ItemOutcome> DeleteOneAsync(LocationPath source, DeleteMode mode, bool keepOwnTrash, CancellationToken ct)
     {
         var isFolder = _fs.Directory.Exists(Io(source));
         if (!isFolder && !_fs.File.Exists(Io(source)))
@@ -109,7 +109,15 @@ public sealed class DeleteExecutor : IJobExecutor
                 return new ItemOutcome(source.Value, null, ItemStatus.Failed, $"{source.Name} is already in a recycle folder. Use Shift+Delete to delete it permanently.");
             }
 
-            var trashed = SoftDelete(source);
+            var trashed = SoftDelete(source, keepOwnTrash);
+            if (trashed is null)
+            {
+                // Leviathan's own folder is off and no NAS bin is visible: delete on the share and let the NAS's own recycling (if on)
+                // keep it. There is nothing here to undo, which the empty result says.
+                DeletePermanently(source, isFolder);
+                return new ItemOutcome(source.Value, null, ItemStatus.Done);
+            }
+
             return new ItemOutcome(source.Value, trashed.Value, ItemStatus.Done);
         }
 
@@ -153,13 +161,20 @@ public sealed class DeleteExecutor : IJobExecutor
         }
     }
 
-    /// <summary>Moves <paramref name="source"/> into the share's recycle folder and records where it came from. Returns where it is now.</summary>
-    private LocationPath SoftDelete(LocationPath source)
+    /// <summary>
+    /// Moves <paramref name="source"/> into the share's recycle folder and records where it came from. Returns where it is now, or null
+    /// when Leviathan's own folder is off and the share has no bin to use (the caller then deletes it on the share).
+    /// </summary>
+    private LocationPath? SoftDelete(LocationPath source, bool keepOwnTrash)
     {
         var now = _time.GetUtcNow();
-        var recycle = _folders.Resolve(source);
-        var trashRoot = recycle.TrashRoot;
+        var recycle = keepOwnTrash ? _folders.Resolve(source) : _folders.FindShareBin(source);
+        if (recycle is null)
+        {
+            return null;
+        }
 
+        var trashRoot = recycle.TrashRoot;
         LocationPath target;
         if (recycle.Kind != RecycleKind.Leviathan)
         {
@@ -175,7 +190,7 @@ public sealed class DeleteExecutor : IJobExecutor
         }
         else
         {
-            var batch = trashRoot.Combine($"{now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}");
+            var batch = trashRoot!.Combine($"{now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}");
             _fs.Directory.CreateDirectory(Io(batch));
             target = batch.Combine(source.Name);
         }
@@ -189,8 +204,12 @@ public sealed class DeleteExecutor : IJobExecutor
             _fs.File.Move(Io(source), Io(target));
         }
 
-        var line = JsonSerializer.Serialize(new { original = source.Value, trashed = target.Value, at = now }) + "\n";
-        _fs.File.AppendAllText(Io(trashRoot.Combine(ManifestFile)), line);
+        if (trashRoot is not null)
+        {
+            var line = JsonSerializer.Serialize(new { original = source.Value, trashed = target.Value, at = now }) + "\n";
+            _fs.File.AppendAllText(Io(trashRoot.Combine(ManifestFile)), line);
+        }
+
         return target;
     }
 
