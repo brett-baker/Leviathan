@@ -33,6 +33,8 @@ is in progress and a clear summary at the end of it.
      another process or the shell.
    - Build with zero warnings, run the **whole** test suite, and run the app when the slice touches UI or process behaviour.
    - Commit (see "Commits and pushing"), tick the slice in the plan.
+   - **End the slice by asking Brett what next** (see "Slice-end choices and UAT playbooks"): continue, generate a
+     playbook, or tweak something he found. Do not start the next slice until he answers.
 3. **Finish the phase.**
    - Run the phase gate from `docs/build-plan.md` and record the numbers.
    - Write `docs/phase-N.md` in the same shape as `docs/phase-0.md`: what was delivered, how it was verified (with
@@ -43,6 +45,33 @@ is in progress and a clear summary at the end of it.
 
 If a gate fails, fix it before finishing the phase. If it cannot be met, say so plainly in `docs/phase-N.md` and in the
 summary, with the measured number and what would close the gap.
+
+## Slice-end choices and UAT playbooks
+
+Passing tests show a slice is technically correct; a playbook shows Brett whether it is **fit for purpose**. When a slice is
+committed and pushed, close the turn with these choices (the `wrap_up` question and buttons):
+
+1. **Continue to the next slice** (name it).
+2. **Generate a playbook** for the slice just finished.
+3. **Tweak something I found** (Brett describes it; it follows the slice → test → commit → push loop).
+
+Offer the playbook for every slice whose result a person can see or use. For a slice with nothing to click or run (pure
+engine, contracts, refactors), say so and offer continue first. If Brett picks the playbook, write it, commit and push it, then
+ask again.
+
+**Playbook rules** (`docs/uat/<slice-id>-<short-name>.md`; start from `docs/uat/TEMPLATE.md`):
+
+- Plain and short: a goal line, setup, numbered steps each with the **expected result**, then **Known edge cases** (what is
+  deliberately not handled, what looks odd but is right, what is unverified).
+- **Never real data.** Steps use the folders built by `tools/New-UatFixtures.ps1` (`%LOCALAPPDATA%\Temp\leviathan-uat\uat\…`:
+  odd names, long paths, hidden/read-only, a 6 GiB sparse file, conflicts, 10,000 items, bulk copy, empty targets). If a slice
+  needs a file kind the fixtures lack, extend the script in the same commit.
+- **Network steps** use `-Share` (an SMB share `\\localhost\LeviathanUat` on this machine) or are marked `[lab]` and aimed at a
+  dedicated test share Brett names or the G1 containers. Never Brett's real shares (Y:, Z:, `\\192.168.1.10`).
+- Say which steps need the app running with `LEVIATHAN_DATA_DIR` pointed at a scratch folder, so UAT does not touch his real
+  settings, favourites or saved servers.
+- Record in the playbook what Brett should look at that tests cannot judge: layout, wording, colour, feel, speed.
+- A slice's playbook is retroactive-friendly: if an earlier slice has none, it can be written later on request.
 
 ## Definition of done (every commit)
 
