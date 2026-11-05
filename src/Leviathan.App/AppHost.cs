@@ -1,5 +1,6 @@
 using System.IO.Abstractions;
 using Leviathan.Contracts;
+using Leviathan.Core.Discovery;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 using Leviathan.Core.Providers;
@@ -458,6 +459,9 @@ internal sealed class AppHost
     /// <summary>The servers listed under Network in the tree: added by Add connection and by opening a share (spec 7.1).</summary>
     public SavedConnectionList SavedServers { get; init; } = null!;
 
+    /// <summary>Devices found on the network by WS-Discovery and mDNS, for Network ▸ Nearby; searching runs in the background (spec 7.1).</summary>
+    public NearbyService Nearby { get; init; } = null!;
+
     /// <summary>The servers the user chose to "Work offline" with: their folders come from the offline cache without touching the network (spec 3.3).</summary>
     public WorkOfflineRegistry WorkOffline { get; init; } = null!;
 
@@ -587,6 +591,7 @@ internal sealed class AppHost
         var sessionStore = new JsonFileStore<SessionFile>(disk, Path.Combine(data, "session.json"));
         var catalog = new ProfileCatalog(new JsonFileStore<ProfilesFile>(disk, Path.Combine(data, "profiles.json")));
         var recorder = new SessionRecorder(windows, sessionStore, ui);
+        var multicast = new UdpMulticastTransport();
         UiTrace.Mark("AppHost: stores");
         var host = new AppHost(
             windows,
@@ -608,6 +613,7 @@ internal sealed class AppHost
         {
             ShareHealth = shareHealth,
             SavedServers = new SavedConnectionList(new JsonSavedConnectionsStorage(Path.Combine(data, "servers.json"))),
+            Nearby = new NearbyService([new MdnsDiscovery(multicast), new WsDiscovery(multicast)]),
             WorkOffline = workOffline,
             Connector = connector,
             Transfers = transfers,

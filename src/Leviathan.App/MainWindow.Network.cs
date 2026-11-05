@@ -117,5 +117,38 @@ public sealed partial class MainWindow
         return Enumerable.Range('D', 'Z' - 'D' + 1).Select(c => (char)c).Where(c => !used.Contains(c));
     }
 
+    private async Task StartNearbyAsync()
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3), _closing.Token);
+            await App.Host.Nearby.RefreshAsync(_closing.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
+    }
+
+    // Devices turn up one by one while a search runs; only the Nearby rows change, so the rest of the tree stays where it is.
+    private void OnNearbyChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        var nearby = App.Host.Nearby;
+        var group = SidebarSections.NearbyGroup(nearby.Devices, App.Host.SavedServers.Items, nearby.IsSearching);
+        _ = UpdateNearbyAsync(group);
+    });
+
+    private async Task UpdateNearbyAsync(SidebarGroup group)
+    {
+        try
+        {
+            await _sidebar.UpdateGroupAsync(SidebarSections.NearbyTitle, group, HealthOfServer);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
+    }
+
     private static void RemoveServerFromTree(string host) => App.Host.SavedServers.Remove(host);
 }

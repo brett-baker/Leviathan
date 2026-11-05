@@ -105,6 +105,7 @@ public sealed partial class MainWindow : Window, IShellActions
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
         host.Favorites.Changed += OnFavoritesChanged;
         host.SavedServers.Changed += OnSavedServersChanged;
+        host.Nearby.Changed += OnNearbyChanged;
         host.ShareHealth.HealthChanged += OnShareHealthChanged;
         Address.FavoriteToggleRequested += (_, _) => Run(CommandIds.FavoriteToggle);
         Address.FavoriteMenuRequested += OnAddressFavoriteMenu;
@@ -850,13 +851,16 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         App.ReportReady(ReadyPart.Sidebar);
+
+        // Look for devices on the network once the window is up, a few seconds later so start-up is not competing with it (spec 7.1).
+        _ = StartNearbyAsync();
     }
 
     /// <summary>Builds the tree from the data read at startup and the current favorites; expanded folders are not kept, the tree follows the current folder again.</summary>
     private void RebuildSidebar()
     {
         var host = App.Host;
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items), HealthOfServer);
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
@@ -908,6 +912,12 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             case SidebarNodeKind.Section or SidebarNodeKind.Group:
                 await _sidebar.ToggleAsync(node, _closing.Token);
+                if (node is { Kind: SidebarNodeKind.Group, IsExpanded: true })
+                {
+                    // Opening Nearby looks again (at most every 30 s), so a NAS switched on a minute ago shows up.
+                    _ = App.Host.Nearby.RefreshAsync(_closing.Token);
+                }
+
                 break;
             case SidebarNodeKind.Action:
                 await AddConnectionAsync();
@@ -1059,6 +1069,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.StallsChanged -= OnStallsChanged;
         App.Host.CloudFoldersChanged -= OnCloudFoldersChanged;
         App.Host.SavedServers.Changed -= OnSavedServersChanged;
+        App.Host.Nearby.Changed -= OnNearbyChanged;
         App.Host.ShareHealth.HealthChanged -= OnShareHealthChanged;
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
