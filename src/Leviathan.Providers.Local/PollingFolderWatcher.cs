@@ -30,7 +30,11 @@ public sealed class PollingFolderWatcher : IFolderWatcher
     public TimeSpan StatTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
     /// <summary>Decides whether a location is polled at all; replaced in tests.</summary>
-    public Func<LocationPath, bool> IsPollable { get; init; } = static folder => folder.IsNetwork || MappedDrives.IsMappedDrive(folder);
+    public Func<LocationPath, bool> IsPollable { get; init; } = static folder => IsFolderOnNetwork(folder);
+
+    // A server on its own (\\nas) lists shares, not files: there is no folder to stat (it has no Win32 path), and the share list rarely changes.
+    private static bool IsFolderOnNetwork(LocationPath folder) =>
+        !(folder.Kind == LocationKind.Unc && folder.Share is null) && (folder.IsNetwork || MappedDrives.IsMappedDrive(folder));
 
     /// <summary>
     /// Decides, before each question, whether the server may be asked now: false while it is unreachable or the user works offline

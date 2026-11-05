@@ -49,6 +49,27 @@ public sealed class AddressBarTests
         Assert.Equal(@"Z:\a", PathFormats.Format(P(@"Z:\a"), CopyAsFormat.Unc));
     }
 
+    // A Nearby device opens a server on its own (\\diskstation). It has no folder to stat; its shares are listed when it opens.
+    // Regression for crash signature 7eba42c912b8: ToWin32Path threw "Unc locations have no Win32 path" from the real probe.
+    [Fact]
+    public async Task Resolve_AServerOnItsOwn_Navigates_WithoutAskingTheProbe()
+    {
+        var resolver = new AddressResolver(new FakeProbe([], failure: new InvalidOperationException("the probe must not be asked")));
+
+        var result = await resolver.ResolveAsync(@"\\diskstation", null, CancellationToken.None);
+
+        Assert.Equal(AddressOutcome.Navigate, result.Outcome);
+        Assert.Equal(P(@"\\diskstation"), result.Folder);
+    }
+
+    [Fact]
+    public async Task RealProbe_AServerOnItsOwn_IsAFolder_NotACrash()
+    {
+        var probe = new FileSystemEntryProbe(new System.IO.Abstractions.TestingHelpers.MockFileSystem());
+
+        Assert.Equal(FileEntryKind.Folder, await probe.GetKindAsync(P(@"\\diskstation"), CancellationToken.None));
+    }
+
     [Fact]
     public async Task Resolve_Folder_Navigates()
     {

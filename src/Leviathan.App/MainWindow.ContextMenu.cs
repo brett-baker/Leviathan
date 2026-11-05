@@ -86,7 +86,8 @@ public sealed partial class MainWindow
     private static ShellMenuRequest? ShellRequestFor(ViewModels.Tabs.TabViewModel tab, bool extended)
     {
         var here = tab.History.Current;
-        if (here.Kind is not (LocationKind.Drive or LocationKind.Unc))
+        // A server on its own (\\nas, the list of its shares) is not a folder the shell can build a menu for, and has no Win32 path.
+        if (here.Kind is not (LocationKind.Drive or LocationKind.Unc) || (here.Kind == LocationKind.Unc && here.Share is null))
         {
             return null;
         }

@@ -258,4 +258,16 @@ public sealed class PollingFolderWatcherTests
         await UntilAsync(() => folder.Asked == 1);
         Assert.Equal(1, folder.Asked);
     }
+
+    // Regression for crash signature 7eba42c912b8: opening a Nearby device (\\diskstation) started a poll whose first stat
+    // threw "Unc locations have no Win32 path" on a background task.
+    [Fact]
+    public void AServerOnItsOwn_ListsShares_AndIsNotPolled()
+    {
+        var watcher = new PollingFolderWatcher(new ManualTimeProvider());
+
+        using var subscription = watcher.Watch(LocationPath.Parse(@"\\diskstation"), () => { });
+
+        Assert.Equal(0, watcher.Watching);
+    }
 }

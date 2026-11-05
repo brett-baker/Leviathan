@@ -66,6 +66,13 @@ public sealed class AddressResolver
             return new AddressResult(AddressOutcome.Navigate, location);
         }
 
+        // A server on its own (\\diskstation, from Nearby or typed) is not a folder on disk: it has no Win32 path to stat, and its shares
+        // are listed when it opens. A server that does not answer fails there, with the usual message, not here.
+        if (location.Kind == LocationKind.Unc && location.Share is null)
+        {
+            return new AddressResult(AddressOutcome.Navigate, location);
+        }
+
         FileEntryKind? kind;
         try
         {

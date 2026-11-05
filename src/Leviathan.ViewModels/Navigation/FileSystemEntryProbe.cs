@@ -45,6 +45,12 @@ public sealed class FileSystemEntryProbe : IEntryProbe
 
     private FileEntryKind? Stat(LocationPath location)
     {
+        // A server with no share (\\nas) has no Win32 path; it holds shares, so it is a folder as far as navigation goes.
+        if (location.Kind == LocationKind.Unc && location.Share is null)
+        {
+            return FileEntryKind.Folder;
+        }
+
         var path = location.ToWin32Path();
         if (_fileSystem.Directory.Exists(path))
         {
