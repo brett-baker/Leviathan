@@ -520,7 +520,10 @@ internal sealed class AppHost
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
         UiTrace.Mark("AppHost: listing cache");
-        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new LocalFolderWatcher());
+        var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new CompositeFolderWatcher(
+            new LocalFolderWatcher(),
+            // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
+            new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable }));
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
         NewItemService newItems;

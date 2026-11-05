@@ -1,9 +1,9 @@
 namespace Leviathan.Core.Paths;
 
 /// <summary>
-/// Tells the app when a folder it shows changed behind its back (spec §3.1: a listing on screen follows the disk). Only places
-/// that can report changes cheaply are watched (local drives); network shares are checked when visited instead, because polling
-/// them would cost the traffic the cache exists to save (spec §3.3).
+/// Tells the app when a folder it shows changed behind its back (spec §3.1: a listing on screen follows the disk). Local drives
+/// report changes as they happen; network shares are polled with a single cheap stat of the folder's time, backing off while
+/// nothing changes, so they cost almost no traffic (spec §3.3).
 /// </summary>
 public interface IFolderWatcher
 {

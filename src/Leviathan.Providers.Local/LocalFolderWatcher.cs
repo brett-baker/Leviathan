@@ -3,8 +3,8 @@ using Leviathan.Core.Paths;
 namespace Leviathan.Providers.Local;
 
 /// <summary>
-/// Watches local folders with <see cref="FileSystemWatcher"/> (spec §3.1). Network locations and mapped drives are not watched:
-/// change notifications over SMB are unreliable and chatty, and those folders are checked when visited instead (spec §3.3).
+/// Watches local folders with <see cref="FileSystemWatcher"/> (spec §3.1). Network locations and mapped drives are left to
+/// <see cref="PollingFolderWatcher"/>: change notifications over SMB are unreliable and chatty (spec §3.3).
 /// Events are debounced (<see cref="ChangeDebouncer"/>); a watcher that fails (folder gone, buffer overflow) reports one change so
 /// the view looks again.
 /// </summary>

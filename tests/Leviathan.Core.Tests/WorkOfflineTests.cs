@@ -40,7 +40,7 @@ public sealed class WorkOfflineTests
     private static readonly LocationPath Share = LocationPath.Parse(@"\\diskstation\media\shows");
     private static readonly LocationPath Alias = LocationPath.Parse(@"\\nas.example.net\backup");
 
-    private static async Task ListAsync(ILocationProvider provider, LocationPath location)
+    private static async Task ListAsync(HealthTrackingLocationProvider provider, LocationPath location)
     {
         await foreach (var batch in provider.ListAsync(location, ListingOptions.Default, CancellationToken.None))
         {
