@@ -169,6 +169,10 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private OfflineInfo? _offlineListing;
 
+    /// <summary>True when the folder could not be listed because the share wants a sign-in: the window offers "Sign in…" (spec §3.3 Reconnect).</summary>
+    [ObservableProperty]
+    private bool _needsSignIn;
+
     /// <summary>Creates the view model.</summary>
     /// <param name="providers">Where listings come from.</param>
     /// <param name="ui">The UI thread.</param>
@@ -286,6 +290,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             IsRetryable = false;
             Notice = null;
             OfflineListing = null;
+            NeedsSignIn = false;
             _busy = false;
             Kind = FolderKind.General;
             State = FolderLoadState.Loading;
@@ -789,6 +794,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     private void ShowFailure(LocationException failure)
     {
         Message = failure.Message;
+        NeedsSignIn = failure.Error == LocationError.AuthenticationRequired;
         IsRetryable = failure.IsTransient || failure.Error == LocationError.AuthenticationRequired;
         State = failure.Error switch
         {

@@ -458,6 +458,9 @@ internal sealed class AppHost
     /// <summary>The servers the user chose to "Work offline" with: their folders come from the offline cache without touching the network (spec 3.3).</summary>
     public WorkOfflineRegistry WorkOffline { get; init; } = null!;
 
+    /// <summary>Reconnects mapped drives and signs in to shares through Windows' own dialogs and Credential Manager (spec 3.3).</summary>
+    public IShareConnector Connector { get; init; } = null!;
+
     public static AppHost Create(IUiContext ui)
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -467,7 +470,10 @@ internal sealed class AppHost
         var identities = new ServerIdentityMap(new DnsHostAddressResolver());
         var shareHealth = new ShareHealthRegistry(identities);
         var workOffline = new WorkOfflineRegistry(identities);
-        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(new LocalLocationProvider(), shareHealth, offline: workOffline)]);
+        // A disconnected mapped drive is reconnected with the credentials Windows holds the first time it is used (spec 3.3).
+        var connector = new WindowsShareConnector();
+        var providers = new LocationProviderRegistry([new HealthTrackingLocationProvider(
+            new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline)]);
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -596,6 +602,7 @@ internal sealed class AppHost
         {
             ShareHealth = shareHealth,
             WorkOffline = workOffline,
+            Connector = connector,
             Transfers = transfers,
             Undo = undo,
             Listings = listings,

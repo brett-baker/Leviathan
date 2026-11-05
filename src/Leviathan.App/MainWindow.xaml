@@ -321,6 +321,7 @@
           <TextBlock x:Name="StateDetail" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <Button x:Name="RetryButton" Content="Try again" HorizontalAlignment="Center" Click="OnRetryClick" Visibility="Collapsed" />
+          <Button x:Name="SignInButton" Content="Sign in…" HorizontalAlignment="Center" Click="OnSignInClick" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
       </Grid>
 

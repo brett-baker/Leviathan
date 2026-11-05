@@ -82,3 +82,11 @@ SetEvent
 CloseHandle
 SHOW_WINDOW_CMD
 AllowSetForegroundWindow
+WNetAddConnection2
+WNetCancelConnection2
+NETRESOURCEW
+CredUIPromptForCredentials
+CredUIConfirmCredentials
+CREDUI_INFOW
+CREDUI_FLAGS
+NET_CONNECT_FLAGS

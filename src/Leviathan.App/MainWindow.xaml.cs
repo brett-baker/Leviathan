@@ -674,7 +674,41 @@ public sealed partial class MainWindow : Window, IShellActions
         StateIcon.Content = glyph.Length == 0 ? null : Icons.OfGlyph(glyph, 32);
         StateIcon.Visibility = glyph.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         RetryButton.Visibility = retry ? Visibility.Visible : Visibility.Collapsed;
+        SignInButton.Visibility = tab?.Folder.NeedsSignIn == true && state == FolderLoadState.Offline ? Visibility.Visible : Visibility.Collapsed;
         UpdateOfflineBanner();
+    }
+
+    // The share wants credentials: Windows' own sign-in dialog opens (its "Remember my credentials" box saves them in Credential
+    // Manager, never in Leviathan), the user is connected with what they typed, and the folder is listed again (spec §3.3).
+    private async void OnSignInClick(object sender, RoutedEventArgs e)
+    {
+        if (_bound?.Folder.Location is not { } location)
+        {
+            return;
+        }
+
+        SignInButton.IsEnabled = false;
+        try
+        {
+            var result = await App.Host.Connector.SignInAsync(location, WinRT.Interop.WindowNative.GetWindowHandle(this), _closing.Token);
+            if (result.Succeeded)
+            {
+                Run(CommandIds.NavReload);
+            }
+            else if (result.Outcome == Core.Resilience.ConnectOutcome.Failed)
+            {
+                StateDetail.Text = result.Message ?? "Windows could not sign in.";
+                StateDetail.Visibility = Visibility.Visible;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
+        finally
+        {
+            SignInButton.IsEnabled = true;
+        }
     }
 
     private void UpdateStatus()

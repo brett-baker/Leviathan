@@ -555,6 +555,38 @@ public sealed class CachedFolderTests
     }
 
     [Fact]
+    public async Task AShareThatWantsASignIn_SaysSo_AndTheFlagGoesWhenItIsListedAgain()
+    {
+        var (folder, provider, _, _) = Make();
+        provider.Fail = new LocationException(LocationError.AuthenticationRequired, Share, "nas needs you to sign in.");
+
+        await folder.LoadAsync(Share, CancellationToken.None);
+
+        Assert.Equal(FolderLoadState.Offline, folder.State);
+        Assert.True(folder.NeedsSignIn);
+
+        provider.Fail = null;
+        provider.Items.Add(File("a"));
+        await folder.LoadAsync(Share, CancellationToken.None);
+
+        Assert.False(folder.NeedsSignIn);
+        Assert.Equal(FolderLoadState.Loaded, folder.State);
+        folder.Dispose();
+    }
+
+    [Fact]
+    public async Task AFolderThatIsJustUnreachable_DoesNotOfferASignIn()
+    {
+        var (folder, provider, _, _) = Make();
+        provider.Fail = new LocationException(LocationError.Unreachable, Share, "nas is not responding.");
+
+        await folder.LoadAsync(Share, CancellationToken.None);
+
+        Assert.False(folder.NeedsSignIn);
+        folder.Dispose();
+    }
+
+    [Fact]
     public async Task AFolderThatCannotBeFound_DoesNotFallBackToTheOldListing()
     {
         var (folder, provider, time, _) = Make();
