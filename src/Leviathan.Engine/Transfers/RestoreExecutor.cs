@@ -13,12 +13,16 @@ namespace Leviathan.Engine.Transfers;
 public sealed class RestoreExecutor : IJobExecutor
 {
     private readonly IFileSystem _fs;
+    private readonly BinRegistry? _bin;
 
     /// <summary>Creates the executor.</summary>
-    public RestoreExecutor(IFileSystem fileSystem)
+    /// <param name="fileSystem">The disk.</param>
+    /// <param name="bin">When given, a restored item's line is taken out of its trash folder's manifest, so the Soft-delete bin does not list it again.</param>
+    public RestoreExecutor(IFileSystem fileSystem, BinRegistry? bin = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _fs = fileSystem;
+        _bin = bin;
     }
 
     /// <inheritdoc />
@@ -104,6 +108,12 @@ public sealed class RestoreExecutor : IJobExecutor
             {
                 // The item is back; a stale record is harmless and Windows cleans it up.
             }
+        }
+
+        // The item left the bin: its manifest line goes too, whether it came from our trash folder or a NAS bin we recorded.
+        if (!onlyCase)
+        {
+            _bin?.Forget([source]);
         }
 
         return new ItemOutcome(source.Value, target.Value, ItemStatus.Done);

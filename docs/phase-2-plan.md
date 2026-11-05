@@ -114,8 +114,13 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   QNAP `@Recycle`, else `.leviathan-trash` at the highest writable folder; cached per share.
 - [x] **D2. Soft delete and manifest** (done: `DeletePolicy` table, worker refuses a silent permanent delete, mapped drives soft-delete through their share, the window confirms on drives without a bin; Ctrl+Z already restores from the reported trashed path; the manifest reader belongs to D3). Rename into the recycle folder (instant), manifest with original path and time; Delete vs
   Shift+Delete table per location type; Ctrl+Z restores.
-- [ ] **D3. Soft-delete bin view.** All soft-deleted items across shares, restore, purge now; automatic purge by age (30 days)
-  and size cap as background jobs with reports.
+- [ ] **D3. Soft-delete bin.** Split in two. **D3a (engine):** a registry of the trash folders Leviathan made, a scanner that
+  reads their manifests, a Purge job (explicit items, or by policy: age and size cap), Restore that prunes the manifest.
+  **D3b (view and schedule):** the Soft-delete bin view (Options menu), Restore and Purge buttons, retention settings (30 days,
+  size cap), a daily automatic purge job with a report. All soft-deleted items across shares, restore, purge now; automatic purge
+  by age (30 days) and size cap as background jobs with reports.
+  - [x] D3a (done: `BinRegistry`, `BinManifest`, `BinScanner`, `BinRetention`, `PurgeExecutor` and manifest pruning on Restore; contract 2.8. Nothing calls the policy purge yet: D3b schedules it).
+  - [ ] D3b
 
 ### E. Folder sizes in the UI (§12.7)
 

@@ -254,6 +254,11 @@ public enum JobLane
     Background,
 }
 
+/// <summary>When the automatic purge removes soft-deleted items (spec §12.5). A limit of zero or less is off.</summary>
+/// <param name="MaxAgeDays">Items deleted this many days ago or longer are purged.</param>
+/// <param name="MaxBytes">The oldest items go until the bin is under this size.</param>
+public sealed record PurgePolicy(int MaxAgeDays, long MaxBytes);
+
 /// <summary>A request to run a job.</summary>
 /// <param name="Kind">What to do.</param>
 /// <param name="Sources">Source locations, as full location strings.</param>
@@ -289,6 +294,12 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
     /// <c>.leviathan-trash</c>. When false it is deleted on the share itself, for the NAS's own bin to catch, and cannot be undone.
     /// </summary>
     public bool KeepOwnTrash { get; init; } = true;
+
+    /// <summary>
+    /// Purge only: when set, the job ignores <see cref="Sources"/> and empties the Soft-delete bin by this rule (the automatic purge,
+    /// spec §12.5). When null the job purges exactly the soft-deleted items in <see cref="Sources"/>.
+    /// </summary>
+    public PurgePolicy? PurgePolicy { get; init; }
 
     /// <summary>The new name (rename only): a name, not a path.</summary>
     public string? NewName { get; init; }

@@ -26,6 +26,7 @@ public sealed class DeleteExecutor : IJobExecutor
     private readonly TimeProvider _time;
     private readonly RecycleFolders _folders;
     private readonly IVolumeInfo? _volumes;
+    private readonly BinRegistry? _binRegistry;
 
     /// <summary>Creates the executor.</summary>
     /// <param name="fileSystem">The disk.</param>
@@ -33,9 +34,11 @@ public sealed class DeleteExecutor : IJobExecutor
     /// <param name="time">Clock.</param>
     /// <param name="recycleFolders">Finds (and remembers) each share's recycle folder; a new one when null.</param>
     /// <param name="volumes">Tells what kind of drive a drive letter is, so plain Delete follows the table of spec §12.5; when null every drive letter is trusted to have a Recycle Bin.</param>
-    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null, RecycleFolders? recycleFolders = null, IVolumeInfo? volumes = null)
+    /// <param name="bin">Remembers each trash folder used, so the Soft-delete bin can find the items (spec §12.5); not kept when null.</param>
+    public DeleteExecutor(IFileSystem fileSystem, IRecycleBin recycleBin, TimeProvider? time = null, RecycleFolders? recycleFolders = null, IVolumeInfo? volumes = null, BinRegistry? bin = null)
     {
         _volumes = volumes;
+        _binRegistry = bin;
         _folders = recycleFolders ?? new RecycleFolders(fileSystem);
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(recycleBin);
@@ -170,38 +173,7 @@ public sealed class DeleteExecutor : IJobExecutor
         return true;
     }
 
-    private void DeletePermanently(LocationPath source, bool isFolder)
-    {
-        if (!isFolder)
-        {
-            ClearReadOnly(Io(source));
-            _fs.File.Delete(Io(source));
-            return;
-        }
-
-        // A junction or symbolic link is removed itself; what it points at is never touched.
-        if (_fs.File.GetAttributes(Io(source)).HasFlag(FileAttributes.ReparsePoint))
-        {
-            _fs.Directory.Delete(Io(source), recursive: false);
-            return;
-        }
-
-        foreach (var file in _fs.Directory.EnumerateFiles(Io(source), "*", SearchOption.AllDirectories))
-        {
-            ClearReadOnly(file);
-        }
-
-        _fs.Directory.Delete(Io(source), recursive: true);
-    }
-
-    private void ClearReadOnly(string path)
-    {
-        var attributes = _fs.File.GetAttributes(path);
-        if (attributes.HasFlag(FileAttributes.ReadOnly))
-        {
-            _fs.File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
-        }
-    }
+    private void DeletePermanently(LocationPath source, bool isFolder) => PermanentDelete.Run(_fs, Io(source), isFolder);
 
     /// <summary>
     /// Moves <paramref name="source"/> into the share's recycle folder and records where it came from. Returns where it is now, or null
@@ -250,6 +222,7 @@ public sealed class DeleteExecutor : IJobExecutor
         {
             var line = JsonSerializer.Serialize(new { original = source.Value, trashed = target.Value, at = now }) + "\n";
             _fs.File.AppendAllText(Io(trashRoot.Combine(ManifestFile)), line);
+            _binRegistry?.Add(trashRoot);
         }
 
         return target;
