@@ -54,7 +54,39 @@ public enum ConflictPolicy
 
     /// <summary>Leave the existing item and skip the new one.</summary>
     Skip,
+
+    /// <summary>Ask once for the whole job (spec §12.4): the job lists every clash and waits for a <see cref="ConflictAnswer"/>. Not a valid answer itself.</summary>
+    Ask,
+
+    /// <summary>Replace the existing file only when the new one was modified later; otherwise leave it.</summary>
+    ReplaceIfNewer,
+
+    /// <summary>Replace the existing file only when the new one is larger; otherwise leave it.</summary>
+    ReplaceIfLarger,
+
+    /// <summary>Replace the existing file only when the contents differ (size, then checksum); identical files are left alone.</summary>
+    ReplaceIfDifferent,
 }
+
+/// <summary>One name clash a job asks about (spec §12.4): a file that would be written over an existing one.</summary>
+/// <param name="Source">The file being copied or moved.</param>
+/// <param name="Target">The existing file at the destination; answers are keyed by it.</param>
+/// <param name="SourceSize">Size of the new file.</param>
+/// <param name="SourceModified">When the new file was last modified.</param>
+/// <param name="TargetSize">Size of the existing file.</param>
+/// <param name="TargetModified">When the existing file was last modified.</param>
+public sealed record ConflictItem(string Source, string Target, long SourceSize, DateTimeOffset SourceModified, long TargetSize, DateTimeOffset TargetModified);
+
+/// <summary>The clashes a running job waits on (spec §12.4). One question for the whole job, not one per file.</summary>
+/// <param name="Id">Identifies the question; the answer must quote it.</param>
+/// <param name="Items">The clashes, up to a limit; the rest follow the default answer.</param>
+/// <param name="TotalCount">How many clashes there are in all.</param>
+public sealed record JobConflicts(Guid Id, IReadOnlyList<ConflictItem> Items, int TotalCount);
+
+/// <summary>The user's answer to <see cref="JobConflicts"/>: one rule for all clashes, with per-file overrides.</summary>
+/// <param name="ForAll">The rule for every clash not listed in <paramref name="Overrides"/>; never <see cref="ConflictPolicy.Ask"/>.</param>
+/// <param name="Overrides">Rules for single files, keyed by <see cref="ConflictItem.Target"/>.</param>
+public sealed record ConflictAnswer(ConflictPolicy ForAll, IReadOnlyDictionary<string, ConflictPolicy>? Overrides = null);
 
 /// <summary>What to do when an item fails for a reason that retrying later will not fix (access denied, disk full, invalid name; spec §12.2).</summary>
 public enum ErrorMode
@@ -318,6 +350,9 @@ public sealed record JobSnapshot
 
     /// <summary>A question the job is waiting for the user to answer (spec §12.2), or null.</summary>
     public JobPrompt? Prompt { get; init; }
+
+    /// <summary>The name clashes the job is waiting for an answer on (spec §12.4), or null.</summary>
+    public JobConflicts? Conflicts { get; init; }
 
     /// <summary>Current item, e.g. the file being copied.</summary>
     public string? CurrentItem { get; init; }

@@ -79,6 +79,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         else
         {
             plan = await Task.Run(() => _planner.Plan(context.Job.Id, request, cancellationToken), cancellationToken).ConfigureAwait(false);
+            plan = await ResolveClashesAsync(context, plan, request.Conflict, cancellationToken).ConfigureAwait(false);
             _journal.Delete(plan.JobId);
             _plans.Save(plan);
         }
@@ -191,6 +192,35 @@ public sealed class CopyMoveExecutor : IJobExecutor
     }
 
     private static string Io(LocationPath path) => path.ToWin32Path();
+
+    /// <summary>The most clashes sent to the dialog; any beyond it follow its "for all" rule (spec §12.4).</summary>
+    public const int MaxListedClashes = 1000;
+
+    /// <summary>
+    /// Settles the name clashes of a fresh plan before anything is copied (spec §12.4). With <see cref="ConflictPolicy.Ask"/> the job asks
+    /// once, listing every clash, and waits; a condition such as "if newer" given up front needs no question. The plan is saved only
+    /// after this, so a restart while the question is open asks it again.
+    /// </summary>
+    private async Task<TransferPlan> ResolveClashesAsync(JobContext context, TransferPlan plan, ConflictPolicy policy, CancellationToken ct)
+    {
+        if (!plan.Clashes.Any())
+        {
+            return plan;
+        }
+
+        ConflictAnswer answer;
+        if (policy == ConflictPolicy.Ask)
+        {
+            var clashes = await Task.Run(() => _planner.DescribeClashes(plan), ct).ConfigureAwait(false);
+            answer = await context.AskConflictsAsync([.. clashes.Take(MaxListedClashes)], clashes.Count, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            answer = new ConflictAnswer(policy);
+        }
+
+        return await Task.Run(() => _planner.ResolveClashes(plan, answer, ct), ct).ConfigureAwait(false);
+    }
 
     private static bool IsTransient(Exception exception, LocationPath destination) =>
         exception is IOException io && LocationErrors.Wrap(io, destination.IsNetwork ? destination : LocationPath.Parse(@"C:\")).IsTransient;

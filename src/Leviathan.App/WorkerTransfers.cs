@@ -79,6 +79,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
                 // (spec §12.2); the strip's red tip says a job waits for an answer.
                 OnError = ErrorMode.Ask,
                 Verify = VerifySource(),
+
+                // Name clashes are asked once for the whole job, with the list of files (spec §12.4). The job never overwrites on its own.
+                Conflict = ConflictPolicy.Ask,
             };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(job.Kind, request.Sources, request.Destination, false);

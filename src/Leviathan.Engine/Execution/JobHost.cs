@@ -247,6 +247,7 @@ public sealed class JobHost : IAsyncDisposable
             WaitingReason = job.WaitingReason,
             RetryAt = job.RetryAt,
             Prompt = ctx?.PendingPrompt,
+            Conflicts = ctx?.PendingConflicts,
             CurrentItem = ctx?.CurrentItem,
             Error = job.Error,
             CreatedAt = job.CreatedAt,
@@ -420,6 +421,10 @@ public sealed class JobHost : IAsyncDisposable
     /// <summary>Delivers the user's answer to the question a job is waiting on; false when there is no such question.</summary>
     public bool AnswerPrompt(Guid jobId, Guid promptId, ErrorDecision decision) =>
         _progress.TryGetValue(jobId, out var context) && context.Answer(promptId, decision);
+
+    /// <summary>Delivers the user's answer to the name clashes a job is waiting on; false when there is no such question.</summary>
+    public bool AnswerConflicts(Guid jobId, Guid promptId, ConflictAnswer answer) =>
+        _progress.TryGetValue(jobId, out var context) && context.AnswerConflicts(promptId, answer);
 
     private void OnProgress(JobContext context)
     {

@@ -62,6 +62,9 @@ public interface IJobControl
     /// <summary>Answers the question a job waits on.</summary>
     Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision);
 
+    /// <summary>Answers the name clashes a job waits on (spec §12.4).</summary>
+    Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer);
+
     /// <summary>The report of a finished job, or null when the worker has none (it keeps them seven days).</summary>
     Task<JobReport?> GetReportAsync(Guid jobId);
 }
@@ -142,6 +145,20 @@ public sealed class OperationActions(IJobControl control)
         }
 
         await control.AnswerPromptAsync(entry.Id, prompt.Id, decision).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>Answers the name clashes <paramref name="entry"/> waits on (spec §12.4). Returns false when it waits on none.</summary>
+    public async Task<bool> AnswerConflictsAsync(OperationEntry entry, ConflictAnswer answer)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(answer);
+        if (entry.Conflicts is not { } conflicts)
+        {
+            return false;
+        }
+
+        await control.AnswerConflictsAsync(entry.Id, conflicts.Id, answer).ConfigureAwait(false);
         return true;
     }
 

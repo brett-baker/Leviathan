@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 5;
+    public const int Minor = 6;
 }
 
 /// <summary>Information the worker reports about itself.</summary>
@@ -62,6 +62,9 @@ public interface IWorkerService
 
     /// <summary>Answers the question a job is waiting on (<see cref="JobSnapshot.Prompt"/>). An answer to a question that is gone is ignored.</summary>
     Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision, CancellationToken cancellationToken);
+
+    /// <summary>Answers the name clashes a job is waiting on (<see cref="JobSnapshot.Conflicts"/>). An answer to a question that is gone is ignored.</summary>
+    Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer, CancellationToken cancellationToken);
 
     /// <summary>Pauses every job.</summary>
     Task PauseAllAsync(CancellationToken cancellationToken);

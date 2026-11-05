@@ -40,7 +40,8 @@ public enum PlanOp
 /// <param name="Target">The destination path, already resolved for name clashes.</param>
 /// <param name="Size">Bytes this step moves, 0 for folders.</param>
 /// <param name="Path">How the bytes travel; only meaningful for file steps.</param>
-public sealed record PlanStep(PlanOp Op, string Source, string Target, long Size, TransferPath Path);
+/// <param name="Clash">True while the target is an existing file the job has not yet decided about (spec §12.4); the executor resolves every clash before it copies anything.</param>
+public sealed record PlanStep(PlanOp Op, string Source, string Target, long Size, TransferPath Path, bool Clash = false);
 
 /// <summary>What will happen to one top-level source.</summary>
 /// <param name="Source">The source as the user gave it.</param>
@@ -70,6 +71,10 @@ public sealed record TransferPlan(Guid JobId, bool Move, ConflictPolicy Conflict
     /// <summary>Bytes that must be written at the destination: everything except renames. Zero for a same-volume move.</summary>
     [JsonIgnore]
     public long BytesToWrite => Items.SelectMany(i => i.Steps).Where(s => s.Op == PlanOp.CopyFile && s.Path != TransferPath.Rename).Sum(s => s.Size);
+
+    /// <summary>The file steps that would overwrite an existing file and wait for a decision (spec §12.4).</summary>
+    [JsonIgnore]
+    public IEnumerable<PlanStep> Clashes => Items.SelectMany(i => i.Steps).Where(s => s.Clash);
 
     /// <summary>Number of files the job touches.</summary>
     [JsonIgnore]

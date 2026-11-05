@@ -41,6 +41,14 @@ public sealed class OperationActionsTests
 
         public Task<JobReport?> GetReportAsync(Guid jobId) => Task.FromResult(Report);
 
+        public List<(Guid Job, Guid Prompt, ConflictAnswer Answer)> ConflictAnswers { get; } = [];
+
+        public Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer)
+        {
+            ConflictAnswers.Add((jobId, promptId, answer));
+            return Task.CompletedTask;
+        }
+
         private Task Log(string what, Guid id)
         {
             Calls.Add($"{what}:{id:N}"[..(what.Length + 9)]);
@@ -273,6 +281,92 @@ public sealed class OperationActionsTests
 
         Assert.True(sent);
         Assert.Equal([(job, prompt, decision)], control.Answers);
+    }
+
+    private static ConflictItem Clash(string name, long size = 10, long existing = 20, int hoursNewer = 1) =>
+        new($@"C:\in\{name}", $@"D:\out\{name}", size, new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero).AddHours(hoursNewer), existing, new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
+
+    private static JobSnapshot Asking(Guid job, JobConflicts conflicts) => Job(JobState.Running, job) with { Conflicts = conflicts };
+
+    [Fact]
+    public void AJobWithClashes_NeedsAttention_SaysHowManyFiles_AndIsAnOpenQuestion()
+    {
+        var conflicts = new JobConflicts(Guid.NewGuid(), [Clash("a.txt"), Clash("b.txt")], 2);
+        var model = ModelOf(Asking(Guid.NewGuid(), conflicts));
+
+        var entry = model.Entries.Single();
+
+        Assert.True(entry.HasConflicts);
+        Assert.True(entry.NeedsAttention);
+        Assert.Equal("Needs an answer: 2 files already exist", entry.Detail);
+        Assert.Equal([conflicts.Id], model.OpenPrompts);
+    }
+
+    [Fact]
+    public async Task AnswerConflicts_QuotesTheQuestionOfTheJob_AndIgnoresJobsWithout()
+    {
+        var job = Guid.NewGuid();
+        var conflicts = new JobConflicts(Guid.NewGuid(), [Clash("a.txt")], 1);
+        var control = new FakeControl();
+        var actions = new OperationActions(control);
+        var answer = new ConflictAnswer(ConflictPolicy.Replace);
+
+        Assert.True(await actions.AnswerConflictsAsync(ModelOf(Asking(job, conflicts)).Entries.Single(), answer));
+        Assert.False(await actions.AnswerConflictsAsync(ModelOf(Job(JobState.Running)).Entries.Single(), answer));
+
+        Assert.Equal([(job, conflicts.Id, answer)], control.ConflictAnswers);
+    }
+
+    [Fact]
+    public void ConflictDialog_DefaultsToKeepBoth_AndSendsNoOverridesUntilAFileGetsItsOwnRule()
+    {
+        var model = new ConflictDialogModel(new JobConflicts(Guid.NewGuid(), [Clash("a.txt"), Clash("b.txt")], 2));
+
+        var plain = model.ToAnswer();
+        Assert.Equal(ConflictPolicy.KeepBoth, plain.ForAll);
+        Assert.Null(plain.Overrides);
+
+        model.ForAll = ConflictPolicy.Skip;
+        model.Rows[1].Rule = ConflictPolicy.Replace;
+        model.Rows[0].Rule = ConflictPolicy.Skip;
+        var answer = model.ToAnswer();
+
+        Assert.Equal(ConflictPolicy.Skip, answer.ForAll);
+        Assert.Equal(new KeyValuePair<string, ConflictPolicy>(@"D:\out\b.txt", ConflictPolicy.Replace), Assert.Single(answer.Overrides!));
+        Assert.Equal(2, model.OverrideCount);
+        model.ClearOverrides();
+        Assert.Equal(0, model.OverrideCount);
+    }
+
+    [Fact]
+    public void ConflictRow_RuleIndex_MapsTheListBoxToTheRule()
+    {
+        var row = new ConflictRow(Clash("a.txt"));
+
+        Assert.Equal(0, row.RuleIndex);
+        row.RuleIndex = 3;
+        Assert.Equal(ConflictPolicy.KeepBoth, row.Rule);
+        Assert.Equal(3, row.RuleIndex);
+        row.RuleIndex = 0;
+        Assert.Null(row.Rule);
+        Assert.Equal(ConflictRuleOption.All.Count + 1, ConflictRow.RuleChoices.Count);
+    }
+
+    [Theory]
+    [InlineData(10, 20, 1, "New one is newer, smaller")]
+    [InlineData(30, 20, -1, "New one is older, larger")]
+    [InlineData(20, 20, 0, "Same size and time")]
+    public void ConflictRow_Hint_SaysHowTheTwoFilesDiffer(long size, long existing, int hours, string expected) =>
+        Assert.Equal(expected, new ConflictRow(Clash("a.txt", size, existing, hours)).Hint);
+
+    [Fact]
+    public void ConflictDialog_SaysWhichClashesAreNotListed()
+    {
+        var model = new ConflictDialogModel(new JobConflicts(Guid.NewGuid(), [Clash("a.txt")], 1500));
+
+        Assert.Equal($"{1500:N0} files already exist in the destination", model.Title);
+        Assert.Contains($"{1499:N0} more are not listed", model.UnlistedText);
+        Assert.Equal(string.Empty, new ConflictDialogModel(new JobConflicts(Guid.NewGuid(), [Clash("a.txt")], 1)).UnlistedText);
     }
 
     [Fact]

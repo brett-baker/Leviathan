@@ -105,7 +105,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [x] **C5. Speed sparklines** (done: `Sparkline` geometry + `SparklineView`; running rows and the status-bar chip). Per-job sparkline from `SpeedHistory` next to the speed; total sparkline in the status-bar chip.
 - [~] **C5b. Status hub additions** (Quick settings done: jobs per drive/share existed; speed limit, night schedule and verify policy added and pushed to the worker. Still open: Background share crawls / change polling / offline-cache refresh, which wait for A3-A5, and Activity entries linking to jobs and reports). Quick settings: running jobs per NAS volume, bandwidth limit and schedule, verify policy;
   Background: share crawls, change polling, offline-cache refresh; Activity: copy/move/delete entries link to their jobs and reports.
-- [ ] **C6. Conflict dialog** (§12.4): one dialog per job, Replace / Skip / Keep both / if newer / if larger / if different
+- [x] **C6. Conflict dialog** (done: `Ask` and the conditional policies, one question per job, `ConflictDialogContent` with rule for all, per-file rules and a Compare flyout with thumbnails; the dialog by eye is Brett's) (§12.4): one dialog per job, Replace / Skip / Keep both / if newer / if larger / if different
   (checksum), Compare view with thumbnails and metadata, apply-to-all, per-file overrides.
 
 ### D. Soft delete (§12.5)

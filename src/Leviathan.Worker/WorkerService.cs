@@ -153,6 +153,13 @@ public sealed class WorkerService : IWorkerService
     }
 
     /// <inheritdoc />
+    public Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer, CancellationToken cancellationToken)
+    {
+        _host.AnswerConflicts(jobId, promptId, answer);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
     public Task PauseAllAsync(CancellationToken cancellationToken) => Run(_host.PauseAll);
 
     /// <inheritdoc />

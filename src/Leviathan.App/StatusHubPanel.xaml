@@ -35,6 +35,9 @@
               <Button Content="Skip all like this" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptSkipAllClick" Padding="10,3" MinHeight="0" />
             </StackPanel>
           </StackPanel>
+          <!-- The job found files that already exist (spec 12.4): one dialog for the whole job. -->
+          <Button Content="Resolve conflicts…" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnResolveConflictsClick" Padding="10,3" MinHeight="0"
+                  HorizontalAlignment="Left" Visibility="{x:Bind local:HubFormat.ShowBar(Entry.HasConflicts), Mode=OneWay}" />
         </StackPanel>
         <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Top" HorizontalAlignment="Right">
           <TextBlock Text="{x:Bind local:HubFormat.StateText(Entry.State), Mode=OneWay}" HorizontalAlignment="Right"

@@ -570,6 +570,40 @@ internal sealed partial class StatusHubPanel : UserControl
 
     private async void OnPromptSkipAllClick(object sender, RoutedEventArgs e) => await AnswerAsync(sender, ErrorDecision.SkipAllLikeThis);
 
+    private bool _conflictDialogOpen;
+
+    // The one conflict dialog of a job (spec §12.4). Cancel leaves the job waiting, so nothing is overwritten by closing the window.
+    private async void OnResolveConflictsClick(object sender, RoutedEventArgs e)
+    {
+        if (_conflictDialogOpen || sender is not FrameworkElement { Tag: Guid id } || EntryOf(id) is not { Conflicts: { } conflicts } entry)
+        {
+            return;
+        }
+
+        _conflictDialogOpen = true;
+        try
+        {
+            var model = new ConflictDialogModel(conflicts);
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = model.Title,
+                Content = new ConflictDialogContent(model),
+                PrimaryButtonText = "Continue",
+                CloseButtonText = "Decide later",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                await App.Host.JobActions.AnswerConflictsAsync(entry, model.ToAnswer());
+            }
+        }
+        finally
+        {
+            _conflictDialogOpen = false;
+        }
+    }
+
     private async void OnRetryFailedClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: Guid id } && await App.Host.JobActions.LoadReportAsync(id) is { } report)

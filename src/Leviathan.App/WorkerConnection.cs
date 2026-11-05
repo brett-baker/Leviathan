@@ -101,6 +101,9 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Answers the question a job waits on (Skip / Retry / Skip all like this).</summary>
     public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision) => _client.Service.AnswerPromptAsync(jobId, promptId, decision, _closing.Token);
 
+    /// <summary>Answers the name clashes a job waits on (spec §12.4).</summary>
+    public Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer) => _client.Service.AnswerConflictsAsync(jobId, promptId, answer, _closing.Token);
+
     /// <summary>The report of a finished job, or null.</summary>
     public Task<JobReport?> GetReportAsync(Guid jobId) => _client.Service.GetReportAsync(jobId, _closing.Token);
 

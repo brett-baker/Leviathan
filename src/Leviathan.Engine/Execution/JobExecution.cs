@@ -35,6 +35,7 @@ public sealed class JobContext
     private readonly Action<JobContext> _onProgress;
     private readonly Action<JobContext> _onPrompt;
     private TaskCompletionSource<ErrorDecision>? _answer;
+    private TaskCompletionSource<ConflictAnswer>? _conflictAnswer;
 
     internal JobContext(ScheduledJob job, SpeedMeter speed, Action<JobContext> onProgress, Action<JobContext>? onPrompt = null)
     {
@@ -76,6 +77,59 @@ public sealed class JobContext
 
             _onPrompt(this);
         }
+    }
+
+    /// <summary>The name clashes the job is waiting on, or null.</summary>
+    public JobConflicts? PendingConflicts { get; private set; }
+
+    /// <summary>
+    /// Asks the user once what to do about every name clash of the job (spec §12.4) and waits for the answer. Like <see cref="AskAsync"/>
+    /// it is published at once and shows in the job's snapshot until answered or the job is stopped.
+    /// </summary>
+    public async Task<ConflictAnswer> AskConflictsAsync(IReadOnlyList<ConflictItem> items, int totalCount, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var answer = new TaskCompletionSource<ConflictAnswer>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_lock)
+        {
+            _conflictAnswer = answer;
+            PendingConflicts = new JobConflicts(Guid.NewGuid(), items, totalCount);
+        }
+
+        _onPrompt(this);
+        using var registration = cancellationToken.Register(() => answer.TrySetCanceled(cancellationToken));
+        try
+        {
+            return await answer.Task.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                _conflictAnswer = null;
+                PendingConflicts = null;
+            }
+
+            _onPrompt(this);
+        }
+    }
+
+    /// <summary>Delivers the user's answer to the name clashes; false when that question is no longer pending or the answer is not usable.</summary>
+    public bool AnswerConflicts(Guid promptId, ConflictAnswer answer)
+    {
+        ArgumentNullException.ThrowIfNull(answer);
+        TaskCompletionSource<ConflictAnswer>? pending;
+        lock (_lock)
+        {
+            if (PendingConflicts?.Id != promptId || answer.ForAll == ConflictPolicy.Ask)
+            {
+                return false;
+            }
+
+            pending = _conflictAnswer;
+        }
+
+        return pending?.TrySetResult(answer) == true;
     }
 
     /// <summary>Delivers the user's answer; false when that question is no longer pending.</summary>

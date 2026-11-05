@@ -19,10 +19,14 @@ namespace Leviathan.ViewModels.Hub;
 /// <param name="Prompt">The question the job waits on (Skip / Retry / Skip all like this), or null.</param>
 /// <param name="RetryAt">When a job that waits for a share tries again, or null.</param>
 /// <param name="Speeds">Speed samples of a running job, one per second, for its sparkline; null otherwise.</param>
+/// <param name="Conflicts">The name clashes the job waits for an answer on, or null.</param>
 public sealed record OperationEntry(
     Guid Id, string Title, JobState State, double? Percent, string Detail, bool IsActive, bool IsFailed, int ColorIndex, bool NeedsAttention = false, string Tooltip = "",
-    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal, JobPrompt? Prompt = null, DateTimeOffset? RetryAt = null, IReadOnlyList<double>? Speeds = null)
+    int QueuePosition = -1, JobPriority Priority = JobPriority.Normal, JobPrompt? Prompt = null, DateTimeOffset? RetryAt = null, IReadOnlyList<double>? Speeds = null, JobConflicts? Conflicts = null)
 {
+    /// <summary>The job is stopped on name clashes it asks about once for the whole job (spec §12.4).</summary>
+    public bool HasConflicts => Conflicts is not null;
+
     /// <summary>The job is stopped on a question only the user can answer (spec §12.2).</summary>
     public bool HasPrompt => Prompt is not null;
 
@@ -239,7 +243,7 @@ public sealed class OperationsModel(TimeProvider? time = null)
         {
             lock (_gate)
             {
-                return [.. _jobs.Values.Where(j => IsActive(j.Job.State) && j.Job.Prompt is not null).Select(j => j.Job.Prompt!.Id)];
+                return [.. _jobs.Values.Where(j => IsActive(j.Job.State)).Select(j => j.Job.Prompt?.Id ?? j.Job.Conflicts?.Id).Where(id => id is not null).Select(id => id!.Value)];
             }
         }
     }
@@ -393,7 +397,7 @@ public sealed class OperationsModel(TimeProvider? time = null)
             : job.BytesTotal > 0 ? Math.Clamp(100.0 * job.BytesDone / job.BytesTotal, 0, 100)
             : job.ItemsTotal > 0 ? Math.Clamp(100.0 * job.ItemsDone / job.ItemsTotal, 0, 100)
             : null;
-        var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && (job.Error is not null || job.Prompt is not null);
+        var needsAttention = job.State == JobState.Failed ? !failureSeen : IsActive(job.State) && (job.Error is not null || job.Prompt is not null || job.Conflicts is not null);
         return new OperationEntry(
             job.Id,
             job.Title,
@@ -409,7 +413,8 @@ public sealed class OperationsModel(TimeProvider? time = null)
             job.Priority,
             job.Prompt,
             job.State == JobState.Waiting ? job.RetryAt : null,
-            job.State == JobState.Running ? job.SpeedHistory : null);
+            job.State == JobState.Running ? job.SpeedHistory : null,
+            job.Conflicts);
     }
 
     /// <summary>"Waiting for \\nas, retrying in 8 s" (spec §12.2): the reason the job gave, then the seconds left until it tries again.</summary>
@@ -464,6 +469,11 @@ public sealed class OperationsModel(TimeProvider? time = null)
 
     private static string DetailOf(JobSnapshot job, DateTimeOffset now)
     {
+        if (job.Conflicts is { } conflicts && job.State is JobState.Running or JobState.Waiting)
+        {
+            return conflicts.TotalCount == 1 ? "Needs an answer: 1 file already exists" : $"Needs an answer: {conflicts.TotalCount:N0} files already exist";
+        }
+
         if (job.Prompt is { } prompt && job.State is JobState.Running or JobState.Waiting)
         {
             return $"Needs an answer: {prompt.Message}";

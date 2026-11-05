@@ -29,6 +29,9 @@ internal sealed class WorkerJobControl(Func<WorkerConnection?> worker) : IJobCon
 
     public Task AnswerPromptAsync(Guid jobId, Guid promptId, ErrorDecision decision) => Call(w => w.AnswerPromptAsync(jobId, promptId, decision));
 
+    /// <inheritdoc />
+    public Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer) => Call(w => w.AnswerConflictsAsync(jobId, promptId, answer));
+
     public async Task<JobReport?> GetReportAsync(Guid jobId)
     {
         if (worker() is not { } connection)

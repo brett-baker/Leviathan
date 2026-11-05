@@ -64,6 +64,126 @@ public sealed class TransferPlanner
 
     private static string Io(LocationPath path) => path.ToWin32Path();
 
+    /// <summary>True for the policies that are settled after planning, once the clashes are known (spec §12.4).</summary>
+    public static bool DecidesLater(ConflictPolicy policy) =>
+        policy is ConflictPolicy.Ask or ConflictPolicy.ReplaceIfNewer or ConflictPolicy.ReplaceIfLarger or ConflictPolicy.ReplaceIfDifferent;
+
+    /// <summary>The clashes of <paramref name="plan"/> with both files' sizes and times, for the one question of the job (spec §12.4).</summary>
+    public IReadOnlyList<ConflictItem> DescribeClashes(TransferPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        var list = new List<ConflictItem>();
+        foreach (var step in plan.Clashes)
+        {
+            var source = _fs.FileInfo.New(Io(LocationPath.Parse(step.Source)));
+            var target = _fs.FileInfo.New(Io(LocationPath.Parse(step.Target)));
+            list.Add(new ConflictItem(step.Source, step.Target, source.Length, source.LastWriteTimeUtc, target.Length, target.LastWriteTimeUtc));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Settles every clash of <paramref name="plan"/> by <paramref name="answer"/> (spec §12.4): Replace keeps the step, Skip drops it,
+    /// Keep both gives the new file a free name, and the "if newer / larger / different" rules replace or skip by comparing the two files.
+    /// An item left with nothing to do is marked skipped, so the report says so. The result has no clashes left.
+    /// </summary>
+    public TransferPlan ResolveClashes(TransferPlan plan, ConflictAnswer answer, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(answer);
+        var items = new List<PlanItem>();
+        foreach (var item in plan.Items)
+        {
+            if (!item.Steps.Any(s => s.Clash))
+            {
+                items.Add(item);
+                continue;
+            }
+
+            var steps = new List<PlanStep>();
+            foreach (var step in item.Steps)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!step.Clash)
+                {
+                    steps.Add(step);
+                    continue;
+                }
+
+                var rule = answer.Overrides is not null && answer.Overrides.TryGetValue(step.Target, out var own) ? own : answer.ForAll;
+                var replace = rule switch
+                {
+                    ConflictPolicy.Replace => true,
+                    ConflictPolicy.ReplaceIfNewer => IsNewer(step),
+                    ConflictPolicy.ReplaceIfLarger => IsLarger(step),
+                    ConflictPolicy.ReplaceIfDifferent => IsDifferent(step, cancellationToken),
+                    _ => false,
+                };
+
+                if (replace)
+                {
+                    steps.Add(step with { Clash = false });
+                }
+                else if (rule == ConflictPolicy.KeepBoth)
+                {
+                    var target = LocationPath.Parse(step.Target);
+                    var folder = target.Parent ?? throw new InvalidOperationException($"{target.Name} has no folder.");
+                    steps.Add(step with { Target = UniqueName(folder, target.Name, isFolder: false).Value, Clash = false });
+                }
+            }
+
+            var wasFile = item.Steps.Any(s => s.Op == PlanOp.CopyFile);
+            var anyFile = steps.Any(s => s.Op == PlanOp.CopyFile);
+            var size = steps.Sum(s => s.Size);
+            if (wasFile && !anyFile && item.Steps.Count(s => s.Op == PlanOp.CopyFile) == item.Steps.Count(s => s.Clash))
+            {
+                items.Add(new PlanItem(item.Source, null, ItemStatus.Skipped, "Left as it was: the file already there was kept.", 0, []));
+            }
+            else
+            {
+                items.Add(item with { Size = size, Steps = steps });
+            }
+        }
+
+        return plan with { Items = items };
+    }
+
+    private bool IsNewer(PlanStep step) =>
+        _fs.FileInfo.New(Io(LocationPath.Parse(step.Source))).LastWriteTimeUtc > _fs.FileInfo.New(Io(LocationPath.Parse(step.Target))).LastWriteTimeUtc;
+
+    private bool IsLarger(PlanStep step) =>
+        _fs.FileInfo.New(Io(LocationPath.Parse(step.Source))).Length > _fs.FileInfo.New(Io(LocationPath.Parse(step.Target))).Length;
+
+    /// <summary>Different size means different; the same size is compared by SHA-256, so a touched but unchanged file is left alone.</summary>
+    private bool IsDifferent(PlanStep step, CancellationToken ct)
+    {
+        var source = Io(LocationPath.Parse(step.Source));
+        var target = Io(LocationPath.Parse(step.Target));
+        if (_fs.FileInfo.New(source).Length != _fs.FileInfo.New(target).Length)
+        {
+            return true;
+        }
+
+        return !Hash(source, ct).AsSpan().SequenceEqual(Hash(target, ct));
+    }
+
+    private byte[] Hash(string path, CancellationToken ct)
+    {
+        using var stream = _fs.File.OpenRead(path);
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var buffer = new byte[1024 * 1024];
+        int read;
+        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            sha.TransformBlock(buffer, 0, read, null, 0);
+        }
+
+        sha.TransformFinalBlock([], 0, 0);
+        return sha.Hash!;
+    }
+
     private PlanItem PlanTopLevel(LocationPath source, LocationPath destinationFolder, bool move, ConflictPolicy conflict, CancellationToken ct)
     {
         var isFolder = _fs.Directory.Exists(Io(source));
@@ -109,7 +229,7 @@ public sealed class TransferPlanner
         }
         else
         {
-            steps.Add(new PlanStep(PlanOp.CopyFile, source.Value, target.Value, _fs.FileInfo.New(Io(source)).Length, Choose(source, target, move)));
+            steps.Add(new PlanStep(PlanOp.CopyFile, source.Value, target.Value, _fs.FileInfo.New(Io(source)).Length, Choose(source, target, move), Clash: exists && DecidesLater(conflict)));
         }
 
         return new PlanItem(source.Value, target.Value, ItemStatus.Done, RenamedNote(renamed), steps.Sum(s => s.Size), steps);
@@ -130,6 +250,7 @@ public sealed class TransferPlanner
                 continue;
             }
 
+            var clash = false;
             if (_fs.File.Exists(Io(childTarget)))
             {
                 if (conflict == ConflictPolicy.Skip)
@@ -141,9 +262,13 @@ public sealed class TransferPlanner
                 {
                     childTarget = UniqueName(target, network ? SafeNames.Sanitize(name) : name, isFolder: false);
                 }
+                else
+                {
+                    clash = DecidesLater(conflict);
+                }
             }
 
-            steps.Add(new PlanStep(PlanOp.CopyFile, child.Value, childTarget.Value, _fs.FileInfo.New(entry).Length, Choose(child, childTarget, move)));
+            steps.Add(new PlanStep(PlanOp.CopyFile, child.Value, childTarget.Value, _fs.FileInfo.New(entry).Length, Choose(child, childTarget, move), clash));
         }
 
         if (move)
