@@ -368,6 +368,92 @@ public sealed class SidebarTree
         ReapplySelection();
     }
 
+    /// <summary>
+    /// Brings the tree in line with a folder that was just listed or changed (a folder was created, renamed, deleted or moved in it):
+    /// every row for <paramref name="parent"/> whose children were already listed gets exactly <paramref name="folders"/> as children,
+    /// without listing anything itself. Rows that stay keep their state (expanded, selected); a row that was empty gets its arrow back.
+    /// A row never expanded just learns whether it has an arrow. The caller passes the listing the file view already has, so
+    /// this costs the network nothing (spec §7.2 rule 1).
+    /// </summary>
+    /// <param name="parent">The folder whose subfolders are given.</param>
+    /// <param name="folders">Its visible subfolders.</param>
+    public async Task UpdateChildrenAsync(LocationPath parent, IReadOnlyList<LocationPath> folders)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(folders);
+        var nodes = Flatten(_roots, expandedOnly: false).Where(n => n.IsFolderLike && n.Location == parent).ToList();
+        foreach (var node in nodes)
+        {
+            await UpdateNodeAsync(node, folders).ConfigureAwait(true);
+        }
+    }
+
+    private async Task UpdateNodeAsync(SidebarNode node, IReadOnlyList<LocationPath> folders)
+    {
+        // An expand in progress lists the folder itself a moment from now.
+        if (node.Loading is not null || (node.IsExpanded && !node.IsLoaded))
+        {
+            return;
+        }
+
+        if (!node.IsLoaded)
+        {
+            if (folders.Count > 0 && !node.CanExpand)
+            {
+                node.CanExpand = true;
+            }
+
+            return;
+        }
+
+        var wanted = folders.DistinctBy(f => f).OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        var known = new Dictionary<LocationPath, SidebarNode>();
+        foreach (var child in node.Children.Where(c => c.Kind == SidebarNodeKind.Folder && c.Location is not null))
+        {
+            known.TryAdd(child.Location!, child);
+        }
+
+        if (wanted.Count == known.Count && node.Children.Count == known.Count && wanted.Select((f, i) => node.Children[i].Location == f).All(same => same))
+        {
+            return;
+        }
+
+        var wasExpanded = node.IsExpanded;
+        if (wasExpanded)
+        {
+            node.RowGeneration++;
+            RemoveDescendantRows(node);
+        }
+
+        var rebuilt = wanted.Select(f => known.GetValueOrDefault(f) ?? new SidebarNode(SidebarNodeKind.Folder, f.Name, f) { CanExpand = true }).ToList();
+        foreach (var gone in node.Children.Except(rebuilt))
+        {
+            CancelLoading(gone);
+        }
+
+        node.Children.Clear();
+        foreach (var child in rebuilt)
+        {
+            AddChild(node, child);
+        }
+
+        if (rebuilt.Count == 0)
+        {
+            // Nothing below any more: the arrow goes away, like a folder found empty when first opened (spec §7.2 rule 3).
+            node.CanExpand = false;
+            node.IsExpanded = false;
+            return;
+        }
+
+        node.CanExpand = true;
+        if (wasExpanded)
+        {
+            await InsertDescendantRowsAsync(node).ConfigureAwait(true);
+        }
+
+        ReapplySelection();
+    }
+
     /// <summary>Clicking a retry row lists its parent again.</summary>
     public async Task RetryAsync(SidebarNode retryRow, CancellationToken cancellationToken)
     {
@@ -466,14 +552,14 @@ public sealed class SidebarTree
         parent.Children.Add(child);
     }
 
-    private static IEnumerable<SidebarNode> Flatten(IEnumerable<SidebarNode> nodes)
+    private static IEnumerable<SidebarNode> Flatten(IEnumerable<SidebarNode> nodes, bool expandedOnly = true)
     {
         foreach (var node in nodes)
         {
             yield return node;
-            if (node.IsExpanded)
+            if (!expandedOnly || node.IsExpanded)
             {
-                foreach (var child in Flatten(node.Children))
+                foreach (var child in Flatten(node.Children, expandedOnly))
                 {
                     yield return child;
                 }

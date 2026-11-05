@@ -75,6 +75,116 @@ public sealed class SidebarTreeTests
     }
 
     [Fact]
+    public async Task UpdateChildren_AFolderCreatedInAnExpandedFolder_AppearsInOrder_WithoutListingAnything()
+    {
+        var (tree, source, _) = Make();
+        var drive = Row(tree, "Local Disk (C:)");
+        await tree.ExpandAsync(drive, CancellationToken.None);
+        var listed = source.Listed.Count;
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\Users"), P(@"C:\Windows"), P(@"C:\apps"), P(@"C:\New folder")]);
+
+        var rows = Titles(tree);
+        var at = Array.IndexOf(rows, "Local Disk (C:)");
+        Assert.Equal(["apps", "New folder", "Users", "Windows"], rows[(at + 1)..(at + 5)]);
+        Assert.Equal(2, Row(tree, "New folder").Depth);
+        Assert.True(Row(tree, "New folder").CanExpand);
+        Assert.Equal(listed, source.Listed.Count);
+    }
+
+    [Fact]
+    public async Task UpdateChildren_ARemovedFolder_LeavesTheTree_AndKeepsTheStateOfTheOthers()
+    {
+        var (tree, _, _) = Make();
+        var drive = Row(tree, "Local Disk (C:)");
+        await tree.ExpandAsync(drive, CancellationToken.None);
+        var users = Row(tree, "Users");
+        await tree.ExpandAsync(users, CancellationToken.None);
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\Users"), P(@"C:\Windows")]);
+
+        Assert.DoesNotContain("apps", Titles(tree));
+        Assert.Same(users, Row(tree, "Users"));
+        Assert.True(users.IsExpanded);
+        Assert.Contains("brett", Titles(tree));
+    }
+
+    [Fact]
+    public async Task UpdateChildren_ARenamedFolder_ReplacesTheOldRow()
+    {
+        var (tree, _, _) = Make();
+        await tree.ExpandAsync(Row(tree, "Local Disk (C:)"), CancellationToken.None);
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\Users"), P(@"C:\Windows"), P(@"C:\tools")]);
+
+        Assert.DoesNotContain("apps", Titles(tree));
+        Assert.Contains("tools", Titles(tree));
+    }
+
+    [Fact]
+    public async Task UpdateChildren_TheLastSubfolderGone_RemovesTheArrow_AndANewOneBringsItBack()
+    {
+        var (tree, source, _) = Make();
+        source.Folders[@"C:\"] = ["only"];
+        var drive = Row(tree, "Local Disk (C:)");
+        await tree.ExpandAsync(drive, CancellationToken.None);
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), []);
+        Assert.False(drive.CanExpand);
+        Assert.False(drive.IsExpanded);
+        Assert.DoesNotContain("only", Titles(tree));
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\fresh")]);
+        Assert.True(drive.CanExpand);
+        await tree.ExpandAsync(drive, CancellationToken.None);
+        Assert.Contains("fresh", Titles(tree));
+    }
+
+    [Fact]
+    public async Task UpdateChildren_ACollapsedButLoadedFolder_GetsItsChildrenForWhenItIsOpened()
+    {
+        var (tree, _, _) = Make();
+        var drive = Row(tree, "Local Disk (C:)");
+        await tree.ExpandAsync(drive, CancellationToken.None);
+        tree.Collapse(drive);
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\Users"), P(@"C:\added")]);
+        Assert.DoesNotContain("added", Titles(tree));
+        await tree.ExpandAsync(drive, CancellationToken.None);
+
+        Assert.Contains("added", Titles(tree));
+        Assert.DoesNotContain("apps", Titles(tree));
+    }
+
+    [Fact]
+    public async Task UpdateChildren_AFolderNeverOpenedInTheTree_OnlyLearnsWhetherItHasAnArrow()
+    {
+        var (tree, source, _) = Make();
+        var drive = Row(tree, "Local Disk (C:)");
+        var listed = source.Listed.Count;
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\Users")]);
+
+        Assert.False(drive.IsExpanded);
+        Assert.True(drive.CanExpand);
+        Assert.Equal(listed, source.Listed.Count);
+        Assert.DoesNotContain("Users", Titles(tree));
+    }
+
+    [Fact]
+    public async Task UpdateChildren_TheSameFolders_ChangeNothing()
+    {
+        var (tree, _, _) = Make();
+        await tree.ExpandAsync(Row(tree, "Local Disk (C:)"), CancellationToken.None);
+        var changes = 0;
+        tree.Rows.CollectionChanged += (_, _) => changes++;
+
+        await tree.UpdateChildrenAsync(P(@"C:\"), [P(@"C:\apps"), P(@"C:\Users"), P(@"C:\Windows")]);
+
+        Assert.Equal(0, changes);
+    }
+
+    [Fact]
     public async Task Expand_ShowsASpinnerAtOnce_ThenTheFoldersInOrder()
     {
         var (tree, source, _) = Make();

@@ -482,6 +482,7 @@ public sealed partial class MainWindow : Window, IShellActions
         if (_bound is not null)
         {
             _bound.Folder.PropertyChanged -= OnFolderPropertyChanged;
+            _bound.Folder.Entries.CollectionChanged -= OnFolderEntriesChanged;
             _bound.Items.PropertyChanged -= OnItemsPropertyChanged;
             _bound.Selection.Changed -= OnSelectionChanged;
             _bound.Address.PropertyChanged -= OnAddressLocationChanged;
@@ -506,6 +507,7 @@ public sealed partial class MainWindow : Window, IShellActions
         ApplyLayout();
         tab.Selection.Changed += OnSelectionChanged;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
+        tab.Folder.Entries.CollectionChanged += OnFolderEntriesChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;
         Address.Bind(tab);
         tab.Address.PropertyChanged += OnAddressLocationChanged;
@@ -534,7 +536,48 @@ public sealed partial class MainWindow : Window, IShellActions
             UpdateState();
             UpdateStatus();
             RefreshNavigationButtons();
+            if (e.PropertyName == nameof(FolderViewModel.State))
+            {
+                ScheduleSidebarChildren();
+            }
         });
+    }
+
+    private bool _sidebarChildrenPending;
+
+    private void OnFolderEntriesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => ScheduleSidebarChildren();
+
+    // The tree lists a folder's subfolders once, when it is opened; after that it hears about changes from the listing the file view
+    // already has (a folder created, renamed, deleted or moved there, or found by the change watcher), so no extra listing is made
+    // and a share is never asked for it (spec 7.2). Bursts of changes are folded into one update.
+    private void ScheduleSidebarChildren()
+    {
+        if (_sidebarChildrenPending)
+        {
+            return;
+        }
+
+        _sidebarChildrenPending = true;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => _ = UpdateSidebarChildrenAsync());
+    }
+
+    private async Task UpdateSidebarChildrenAsync()
+    {
+        _sidebarChildrenPending = false;
+        if (_bound?.Folder is not { Location: { } location, State: FolderLoadState.Loaded or FolderLoadState.Empty } folder || _sidebar.Rows.Count == 0)
+        {
+            return;
+        }
+
+        var folders = folder.Entries.Where(e => ViewModels.Folders.FileColumns.IsFolderLike(e) && !e.IsHidden).Select(e => e.Location).ToList();
+        try
+        {
+            await _sidebar.UpdateChildrenAsync(location, folders);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
     }
 
     private void OnAddressLocationChanged(object? sender, PropertyChangedEventArgs e)
