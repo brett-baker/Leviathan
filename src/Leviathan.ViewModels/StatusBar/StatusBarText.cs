@@ -51,7 +51,7 @@ public static class StatusBarText
     /// The place a network folder lives on and whether it answers: "\\nas\media". Local folders show nothing. Protocol version and
     /// round-trip time arrive with the share health tracker's measurements (Phase 2).
     /// </summary>
-    public static string Health(LocationPath location, bool offline)
+    public static string Health(LocationPath location, bool offline, long? linkBitsPerSecond = null)
     {
         ArgumentNullException.ThrowIfNull(location);
         if (!location.IsNetwork)
@@ -59,7 +59,13 @@ public static class StatusBarText
             return string.Empty;
         }
 
-        return offline ? $"{location.Root} · not responding" : location.Root;
+        if (offline)
+        {
+            return $"{location.Root} · not responding";
+        }
+
+        // The negotiated link speed of the adapter that reaches the server (spec 3.5): a 2.5 GbE card held to 1 Gb/s by a switch shows 1 Gb/s.
+        return linkBitsPerSecond is > 0 ? $"{location.Root} · {Core.Resilience.LinkSpeedProbe.Format(linkBitsPerSecond.Value)}" : location.Root;
     }
 
     /// <summary>The drive of <paramref name="drives"/> that holds <paramref name="location"/>, or null (network shares, shell folders).</summary>

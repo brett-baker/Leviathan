@@ -117,6 +117,38 @@ public sealed partial class MainWindow
         return Enumerable.Range('D', 'Z' - 'D' + 1).Select(c => (char)c).Where(c => !used.Contains(c));
     }
 
+    // The negotiated link speed to the server of a network folder for the status bar (spec 3.5). The first ask answers nothing and
+    // measures in the background; the status bar is redrawn when the answer is in, so nothing waits on name resolution.
+    private long? LinkSpeedOf(Core.Paths.LocationPath location)
+    {
+        if (location is not { Kind: Core.Paths.LocationKind.Unc, Server: { } server })
+        {
+            return null;
+        }
+
+        var probe = App.Host.LinkSpeed;
+        if (probe.Cached(server) is { Known: true } known)
+        {
+            return known.BitsPerSecond;
+        }
+
+        _ = MeasureLinkAsync(server);
+        return null;
+    }
+
+    private async Task MeasureLinkAsync(string server)
+    {
+        try
+        {
+            await App.Host.LinkSpeed.SpeedToAsync(server, _closing.Token);
+            OnUi(UpdateStatus);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
+    }
+
     private async Task StartNearbyAsync()
     {
         try

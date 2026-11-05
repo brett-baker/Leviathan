@@ -755,7 +755,7 @@ public sealed partial class MainWindow : Window, IShellActions
 
         ShowListingNotice(_bound.Folder.Notice);
 
-        var health = StatusBarText.Health(_bound.History.Current, _bound.IsOffline);
+        var health = StatusBarText.Health(_bound.History.Current, _bound.IsOffline, LinkSpeedOf(_bound.History.Current));
         HealthText.Text = health;
         HealthText.Visibility = health.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 

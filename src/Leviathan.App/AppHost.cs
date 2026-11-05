@@ -459,6 +459,9 @@ internal sealed class AppHost
     /// <summary>The servers listed under Network in the tree: added by Add connection and by opening a share (spec 7.1).</summary>
     public SavedConnectionList SavedServers { get; init; } = null!;
 
+    /// <summary>Negotiated link speed to servers, for the status bar (spec 3.5).</summary>
+    public LinkSpeedProbe LinkSpeed { get; } = new(new DnsHostAddressResolver(), new SystemAdapterTable());
+
     /// <summary>Devices found on the network by WS-Discovery and mDNS, for Network ▸ Nearby; searching runs in the background (spec 7.1).</summary>
     public NearbyService Nearby { get; init; } = null!;
 

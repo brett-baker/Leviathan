@@ -63,7 +63,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
   on first use; Leviathan never stores passwords (§3.3).
 - [x] **A6. Network section of the tree** (done: `ServerSharesProvider` + `WindowsShareEnumerator`, `SavedConnectionList`, health dots, Add connection… with optional drive letter, Nearby via `MdnsDiscovery` + `WsDiscovery` + `NearbyService`; by eye and against a real NAS is Brett's lab run; IPv6 discovery and SFTP/FTP/NFS entries come later) (§7.1): saved servers with health dots, shares, mapped drives, Add connection dialog
   (SMB now; SFTP/FTP/NFS fields arrive in Phase 4), "Nearby" discovery via WS-Discovery and mDNS `_smb._tcp` in the background.
-- [ ] **A7. Throughput tuning (§3.5).** Measure throughput per share, adaptive buffer size (1–4 MB at 1 Gb/s, up to 8 MB on
+- [x] **A7. Throughput tuning (done: buffers and per-destination memory already existed; added link speed in the status bar) (§3.5).** Measure throughput per share, adaptive buffer size (1–4 MB at 1 Gb/s, up to 8 MB on
   faster links), negotiated link speed in the status bar.
 
 ### B. Copy/move engine (§12.1, §12.2)

@@ -58,6 +58,9 @@ public sealed class StatusBarTextTests
         Assert.Equal(string.Empty, StatusBarText.Health(LocationPath.Parse(@"C:\a"), offline: false));
         Assert.Equal(@"\\nas\media", StatusBarText.Health(LocationPath.Parse(@"\\nas\media\x"), offline: false));
         Assert.Equal(@"\\nas\media · not responding", StatusBarText.Health(LocationPath.Parse(@"\\nas\media\x"), offline: true));
+        Assert.Equal(@"\\nas\media · 1 Gb/s", StatusBarText.Health(LocationPath.Parse(@"\\nas\media\x"), offline: false, linkBitsPerSecond: 1_000_000_000));
+        Assert.Equal(@"\\nas\media · not responding", StatusBarText.Health(LocationPath.Parse(@"\\nas\media"), offline: true, linkBitsPerSecond: 1_000_000_000));
+        Assert.Equal(string.Empty, StatusBarText.Health(LocationPath.Parse(@"C:\a"), offline: false, linkBitsPerSecond: 1_000_000_000));
     }
 
     [Fact]
