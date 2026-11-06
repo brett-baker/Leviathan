@@ -1,0 +1,74 @@
+{
+  "Container": "mov",
+  "ContainerName": "QuickTime / MOV",
+  "Duration": "00:00:02",
+  "BitRate": 105892,
+  "SizeBytes": null,
+  "Video": [
+    {
+      "Index": 0,
+      "Codec": "h264",
+      "Profile": "High",
+      "Width": 128,
+      "Height": 72,
+      "FrameRate": 24,
+      "BitRate": 24752,
+      "PixelFormat": "yuv420p",
+      "BitDepth": 8,
+      "Hdr": "None",
+      "IsCoverArt": false,
+      "Language": null,
+      "Title": null
+    }
+  ],
+  "Audio": [
+    {
+      "Index": 1,
+      "Codec": "aac",
+      "Channels": 1,
+      "ChannelLayout": "mono",
+      "SampleRate": 44100,
+      "BitRate": 69615,
+      "Language": null,
+      "Title": null,
+      "IsDefault": true
+    }
+  ],
+  "Subtitles": [],
+  "Chapters": [],
+  "Tags": {
+    "major_brand": "isom",
+    "minor_version": "512",
+    "compatible_brands": "isomiso2avc1mp41",
+    "encoder": "Lavf61.7.103"
+  },
+  "PrimaryVideo": {
+    "Index": 0,
+    "Codec": "h264",
+    "Profile": "High",
+    "Width": 128,
+    "Height": 72,
+    "FrameRate": 24,
+    "BitRate": 24752,
+    "PixelFormat": "yuv420p",
+    "BitDepth": 8,
+    "Hdr": "None",
+    "IsCoverArt": false,
+    "Language": null,
+    "Title": null
+  },
+  "PrimaryAudio": {
+    "Index": 1,
+    "Codec": "aac",
+    "Channels": 1,
+    "ChannelLayout": "mono",
+    "SampleRate": 44100,
+    "BitRate": 69615,
+    "Language": null,
+    "Title": null,
+    "IsDefault": true
+  },
+  "AudioLanguages": [],
+  "SubtitleLanguages": [],
+  "HasVideo": true
+}

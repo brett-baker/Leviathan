@@ -16,6 +16,10 @@
     <ProjectReference Include="..\Leviathan.Testing\Leviathan.Testing.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- ffprobe output of generated clips (tools/New-MediaSamples.ps1) and the parsed results the tests expect. -->
+    <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

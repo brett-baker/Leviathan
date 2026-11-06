@@ -1,0 +1,41 @@
+{
+  "Container": "flac",
+  "ContainerName": "raw FLAC",
+  "Duration": "00:00:02",
+  "BitRate": 129940,
+  "SizeBytes": null,
+  "Video": [],
+  "Audio": [
+    {
+      "Index": 0,
+      "Codec": "flac",
+      "Channels": 1,
+      "ChannelLayout": "mono",
+      "SampleRate": 44100,
+      "BitRate": null,
+      "Language": null,
+      "Title": null,
+      "IsDefault": false
+    }
+  ],
+  "Subtitles": [],
+  "Chapters": [],
+  "Tags": {
+    "encoder": "Lavf61.7.103"
+  },
+  "PrimaryVideo": null,
+  "PrimaryAudio": {
+    "Index": 0,
+    "Codec": "flac",
+    "Channels": 1,
+    "ChannelLayout": "mono",
+    "SampleRate": 44100,
+    "BitRate": null,
+    "Language": null,
+    "Title": null,
+    "IsDefault": false
+  },
+  "AudioLanguages": [],
+  "SubtitleLanguages": [],
+  "HasVideo": false
+}

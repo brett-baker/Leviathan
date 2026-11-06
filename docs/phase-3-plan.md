@@ -31,7 +31,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **A1. ffprobe runner** (done in `Leviathan.Media.Core`: `FfmpegLocator`, `SystemProcessRunner`, `FfprobeRunner`; the supervised `Leviathan.Media` process that hosts it arrives with A3/A4; 29 tests incl. the real ffprobe on generated clips) in `Leviathan.Media`: GPL ffmpeg build bundled (path configurable), `-show_format -show_streams
   -show_chapters -of json`, 10 s timeout, low priority, reads only headers on network files.
-- [ ] **A2. Parser and model** (`Leviathan.Media.Core`): container, streams (video/audio/subtitle), chapters, tags, HDR, frame
+- [x] **A2. Parser and model** (done: `MediaInfo` and `FfprobeParser` in `Leviathan.Media.Core`; snapshot tests over six real ffprobe outputs (`tools/New-MediaSamples.ps1` makes them), 59 tests in all; Dolby Vision is tested from a hand-written record, since it cannot be generated) (`Leviathan.Media.Core`): container, streams (video/audio/subtitle), chapters, tags, HDR, frame
   rate; snapshot tests (Verify) over the fixture set.
 - [ ] **A3. Cache and quarantine.** SQLite `media_metadata` keyed by path + size + mtime; a file that times out or crashes
   ffprobe is marked unreadable until it changes; Media process crash → restart, no retry loop.

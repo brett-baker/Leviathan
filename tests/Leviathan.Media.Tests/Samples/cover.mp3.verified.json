@@ -1,0 +1,59 @@
+{
+  "Container": "mp3",
+  "ContainerName": "MP2/3 (MPEG audio layer 2/3)",
+  "Duration": "00:00:02.0375510",
+  "BitRate": 67268,
+  "SizeBytes": null,
+  "Video": [
+    {
+      "Index": 1,
+      "Codec": "png",
+      "Profile": null,
+      "Width": 64,
+      "Height": 64,
+      "FrameRate": null,
+      "BitRate": null,
+      "PixelFormat": "rgb24",
+      "BitDepth": 8,
+      "Hdr": "None",
+      "IsCoverArt": true,
+      "Language": null,
+      "Title": null
+    }
+  ],
+  "Audio": [
+    {
+      "Index": 0,
+      "Codec": "mp3",
+      "Channels": 1,
+      "ChannelLayout": "mono",
+      "SampleRate": 44100,
+      "BitRate": 64000,
+      "Language": null,
+      "Title": null,
+      "IsDefault": false
+    }
+  ],
+  "Subtitles": [],
+  "Chapters": [],
+  "Tags": {
+    "title": "Tone",
+    "artist": "Test",
+    "encoder": "Lavf61.7.103"
+  },
+  "PrimaryVideo": null,
+  "PrimaryAudio": {
+    "Index": 0,
+    "Codec": "mp3",
+    "Channels": 1,
+    "ChannelLayout": "mono",
+    "SampleRate": 44100,
+    "BitRate": 64000,
+    "Language": null,
+    "Title": null,
+    "IsDefault": false
+  },
+  "AudioLanguages": [],
+  "SubtitleLanguages": [],
+  "HasVideo": false
+}

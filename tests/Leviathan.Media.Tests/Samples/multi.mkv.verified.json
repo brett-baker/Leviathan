@@ -1,0 +1,117 @@
+{
+  "Container": "matroska",
+  "ContainerName": "Matroska / WebM",
+  "Duration": "00:00:01.0210000",
+  "BitRate": 187243,
+  "SizeBytes": null,
+  "Video": [
+    {
+      "Index": 0,
+      "Codec": "h264",
+      "Profile": "High",
+      "Width": 128,
+      "Height": 72,
+      "FrameRate": 24,
+      "BitRate": null,
+      "PixelFormat": "yuv420p",
+      "BitDepth": 8,
+      "Hdr": "None",
+      "IsCoverArt": false,
+      "Language": null,
+      "Title": null
+    }
+  ],
+  "Audio": [
+    {
+      "Index": 1,
+      "Codec": "aac",
+      "Channels": 1,
+      "ChannelLayout": "mono",
+      "SampleRate": 44100,
+      "BitRate": null,
+      "Language": "eng",
+      "Title": "Stereo",
+      "IsDefault": true
+    },
+    {
+      "Index": 2,
+      "Codec": "aac",
+      "Channels": 1,
+      "ChannelLayout": "mono",
+      "SampleRate": 44100,
+      "BitRate": null,
+      "Language": "jpn",
+      "Title": null,
+      "IsDefault": false
+    }
+  ],
+  "Subtitles": [
+    {
+      "Index": 3,
+      "Codec": "subrip",
+      "Language": "eng",
+      "Title": null,
+      "IsForced": false,
+      "IsDefault": false
+    },
+    {
+      "Index": 4,
+      "Codec": "subrip",
+      "Language": "jpn",
+      "Title": null,
+      "IsForced": true,
+      "IsDefault": false
+    }
+  ],
+  "Chapters": [
+    {
+      "Start": "00:00:00",
+      "End": "00:00:01",
+      "Title": "Opening"
+    },
+    {
+      "Start": "00:00:01",
+      "End": "00:00:02",
+      "Title": "Ending"
+    }
+  ],
+  "Tags": {
+    "title": "Sample movie",
+    "ENCODER": "Lavf61.7.103"
+  },
+  "PrimaryVideo": {
+    "Index": 0,
+    "Codec": "h264",
+    "Profile": "High",
+    "Width": 128,
+    "Height": 72,
+    "FrameRate": 24,
+    "BitRate": null,
+    "PixelFormat": "yuv420p",
+    "BitDepth": 8,
+    "Hdr": "None",
+    "IsCoverArt": false,
+    "Language": null,
+    "Title": null
+  },
+  "PrimaryAudio": {
+    "Index": 1,
+    "Codec": "aac",
+    "Channels": 1,
+    "ChannelLayout": "mono",
+    "SampleRate": 44100,
+    "BitRate": null,
+    "Language": "eng",
+    "Title": "Stereo",
+    "IsDefault": true
+  },
+  "AudioLanguages": [
+    "eng",
+    "jpn"
+  ],
+  "SubtitleLanguages": [
+    "eng",
+    "jpn"
+  ],
+  "HasVideo": true
+}

@@ -1,0 +1,49 @@
+{
+  "Container": "matroska",
+  "ContainerName": "Matroska / WebM",
+  "Duration": "00:00:02",
+  "BitRate": 28384,
+  "SizeBytes": null,
+  "Video": [
+    {
+      "Index": 0,
+      "Codec": "hevc",
+      "Profile": "Main 10",
+      "Width": 128,
+      "Height": 72,
+      "FrameRate": 24,
+      "BitRate": null,
+      "PixelFormat": "yuv420p10le",
+      "BitDepth": 10,
+      "Hdr": "Hlg",
+      "IsCoverArt": false,
+      "Language": null,
+      "Title": null
+    }
+  ],
+  "Audio": [],
+  "Subtitles": [],
+  "Chapters": [],
+  "Tags": {
+    "ENCODER": "Lavf61.7.103"
+  },
+  "PrimaryVideo": {
+    "Index": 0,
+    "Codec": "hevc",
+    "Profile": "Main 10",
+    "Width": 128,
+    "Height": 72,
+    "FrameRate": 24,
+    "BitRate": null,
+    "PixelFormat": "yuv420p10le",
+    "BitDepth": 10,
+    "Hdr": "Hlg",
+    "IsCoverArt": false,
+    "Language": null,
+    "Title": null
+  },
+  "PrimaryAudio": null,
+  "AudioLanguages": [],
+  "SubtitleLanguages": [],
+  "HasVideo": true
+}
