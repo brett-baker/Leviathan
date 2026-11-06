@@ -148,8 +148,7 @@ public sealed class WindowsShareConnector : IShareConnector
                     passwordPtr,
                     (uint)password.Length,
                     &save,
-                    CREDUI_FLAGS.CREDUI_FLAGS_ALWAYS_SHOW_UI | CREDUI_FLAGS.CREDUI_FLAGS_EXPECT_CONFIRMATION | CREDUI_FLAGS.CREDUI_FLAGS_SHOW_SAVE_CHECK_BOX
-                    | CREDUI_FLAGS.CREDUI_FLAGS_SERVER_CREDENTIAL);
+                    SignInFlags);
                 if ((int)asked == Cancelled)
                 {
                     return new ConnectResult(ConnectOutcome.Cancelled);
@@ -176,6 +175,16 @@ public sealed class WindowsShareConnector : IShareConnector
     }
 
     private const string IpcShare = @"\IPC$";
+
+    /// <summary>
+    /// The flags of the Windows sign-in dialog. SERVER_CREDENTIAL makes Windows store what is typed as a network (domain) password, the
+    /// kind SMB uses. ALWAYS_SHOW_UI must not be here: Windows allows it only with GENERIC_CREDENTIALS and answers every other
+    /// combination with "Invalid flags" (error 1004) before it shows anything. INCORRECT_PASSWORD is what makes the dialog open even
+    /// when Windows holds an old login for the server, which is what failed to get us in, so Sign in can never end silently.
+    /// </summary>
+    internal const CREDUI_FLAGS SignInFlags =
+        CREDUI_FLAGS.CREDUI_FLAGS_SERVER_CREDENTIAL | CREDUI_FLAGS.CREDUI_FLAGS_EXPECT_CONFIRMATION
+        | CREDUI_FLAGS.CREDUI_FLAGS_SHOW_SAVE_CHECK_BOX | CREDUI_FLAGS.CREDUI_FLAGS_INCORRECT_PASSWORD;
 
     // \\server\share for a share path, the share a mapped drive points at, or \\server\IPC$ for a server on its own (the way to sign
     // in to a server before any share is chosen, as Explorer does: the session it opens is the one that then lists the shares).

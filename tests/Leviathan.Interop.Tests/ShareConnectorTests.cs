@@ -42,6 +42,20 @@ public sealed class ShareConnectorTests
     public void SignInTarget_IsTheServersIpcShare_OrTheShareItself(string location, string expected) =>
         Assert.Equal(expected, WindowsShareConnector.ShareRootOf(LocationPath.Parse(location)));
 
+    // Regression: Sign in failed with "Invalid flags" (Win32 1004) and no dialog. Found by calling CredUIPromptForCredentials with each
+    // combination: ALWAYS_SHOW_UI alone, or with SERVER_CREDENTIAL, is rejected; it is valid only with GENERIC_CREDENTIALS. The dialog
+    // itself needs a person, so this pins the rules the real calls showed.
+    [Fact]
+    public void SignInFlags_FollowWhatWindowsAccepts()
+    {
+        var flags = WindowsShareConnector.SignInFlags;
+
+        Assert.False(flags.HasFlag(Windows.Win32.Security.Credentials.CREDUI_FLAGS.CREDUI_FLAGS_ALWAYS_SHOW_UI));
+        Assert.False(flags.HasFlag(Windows.Win32.Security.Credentials.CREDUI_FLAGS.CREDUI_FLAGS_GENERIC_CREDENTIALS));
+        Assert.True(flags.HasFlag(Windows.Win32.Security.Credentials.CREDUI_FLAGS.CREDUI_FLAGS_SERVER_CREDENTIAL));
+        Assert.True(flags.HasFlag(Windows.Win32.Security.Credentials.CREDUI_FLAGS.CREDUI_FLAGS_EXPECT_CONFIRMATION));
+    }
+
     [Fact]
     public async Task SigningInToALocalFolder_ShowsNoDialog_AndHasNothingToDo()
     {
