@@ -4,6 +4,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <!-- On Windows the NAS copy benchmark uses the real Windows copier, so the project targets Windows there. -->
+    <TargetFramework Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(WindowsTargetFramework)</TargetFramework>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(DefineConstants);WINDOWS_TFM</DefineConstants>
     <RootNamespace>Leviathan.Benchmarks</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
@@ -12,5 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Interop\Leviathan.Interop.csproj" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>
 </Project>

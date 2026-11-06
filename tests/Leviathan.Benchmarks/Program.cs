@@ -10,6 +10,33 @@ using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Views;
 using Leviathan.ViewModels.Windows;
 
+// The NAS budgets (spec 3.1), run by hand against a share you name: --nas-rows <folder>, --nas-copy <folder> [MiB].
+var nasRows = Array.IndexOf(args, "--nas-rows");
+if (nasRows >= 0)
+{
+    return nasRows + 1 < args.Length ? NasGate.Rows(args[nasRows + 1]) : Usage();
+}
+
+var nasCopy = Array.IndexOf(args, "--nas-copy");
+if (nasCopy >= 0)
+{
+#if WINDOWS_TFM
+    return nasCopy + 1 < args.Length
+        ? await NasGate.CopyAsync(args[nasCopy + 1], nasCopy + 2 < args.Length && long.TryParse(args[nasCopy + 2], CultureInfo.InvariantCulture, out var mib) ? mib : 2048, args.Contains("--verify"))
+        : Usage();
+#else
+    Console.Error.WriteLine("--nas-copy needs Windows (it measures the Windows copier).");
+    return 2;
+#endif
+}
+
+static int Usage()
+{
+    Console.Error.WriteLine("--nas-rows <folder>          first rows of a listing (budget 400 ms for 10,000 items); read only");
+    Console.Error.WriteLine("--nas-copy <folder> [MiB] [--verify]   copy one large file into a new sub folder of <folder> (budget 105 MB/s); default 2048 MiB, --verify adds the read-back check");
+    return 64;
+}
+
 if (args.Contains("--gate"))
 {
     // The listing gate of Phase 0, then the view-model gates of Phase 1 (spec 3.1); --cold-start <Leviathan.exe> adds the real app's start.
