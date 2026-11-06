@@ -4,6 +4,14 @@
 #   samba     SMB on localhost:1445, share "leviathan" (user "lab", password "lab-only-test-password"; test values for this container only)
 #   toxiproxy API on localhost:8474; proxy listeners 2445 (-> samba:445), created by the tests, not here
 services:
+  # The named volume starts owned by root; the share user "lab" must be able to write to it.
+  share-permissions:
+    image: alpine:3.20
+    command: ["chmod", "0777", "/share"]
+    volumes:
+      - share:/share
+    working_dir: /
+
   samba:
     image: crazymax/samba:4.23.8
     ports:
@@ -14,6 +22,9 @@ services:
     volumes:
       - ./samba/config.yml:/data/config.yml:ro
       - share:/samba/leviathan
+    depends_on:
+      share-permissions:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "smbclient -L localhost -U lab%lab-only-test-password -c exit >/dev/null 2>&1 || exit 1"]
       interval: 3s

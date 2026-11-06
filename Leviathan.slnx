@@ -128,6 +128,8 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
+    <Project Path="tests/Leviathan.Chaos.Harness/Leviathan.Chaos.Harness.csproj" />
+    <Project Path="tests/Leviathan.Chaos.Tests/Leviathan.Chaos.Tests.csproj" />
     <Project Path="tests/Leviathan.UI.Tests/Leviathan.UI.Tests.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />

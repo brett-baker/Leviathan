@@ -124,12 +124,22 @@ public sealed class CopyMoveExecutor : IJobExecutor
                     context.AddNote($"{LocationPath.Parse(item.Source).Name}: {note}");
                 }
 
+                // Files of a folder that were skipped for a permanent reason (spec §12.2): the rest of the folder still copies.
+                var skippedFiles = new List<string>();
                 try
                 {
                     for (var stepIndex = 0; stepIndex < item.Steps.Count; stepIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var step = item.Steps[stepIndex];
+
+                        // After a move, the source folder goes only when every file in it arrived; a skipped file keeps it in place.
+                        if (step.Op == PlanOp.RemoveFolder && skippedFiles.Count > 0)
+                        {
+                            continue;
+                        }
+
+                        var stepSkipped = false;
                         if (progress.DoneSteps.Contains((itemIndex, stepIndex)) || AlreadyInPlace(step, plan.Move))
                         {
                             run.AddBytes(step.Op is PlanOp.CopyFile or PlanOp.RenameItem ? step.Size : 0);
@@ -147,18 +157,34 @@ public sealed class CopyMoveExecutor : IJobExecutor
                                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && !IsTransient(ex, destination))
                                 {
                                     // A reason retrying later will not fix: ask once, or skip and report (spec §12.2).
-                                    if (!await ShouldRetryAsync(context, request, skipAll, item.Source, ex, cancellationToken).ConfigureAwait(false))
+                                    if (await ShouldRetryAsync(context, request, skipAll, step.Source, ex, cancellationToken).ConfigureAwait(false))
+                                    {
+                                        continue;
+                                    }
+
+                                    // One file of a folder cannot stop the others; a single-step item has nothing else to carry on with.
+                                    if (item.Steps.Count == 1 || step.Op != PlanOp.CopyFile)
                                     {
                                         throw;
                                     }
+
+                                    skippedFiles.Add($"{LocationPath.Parse(step.Source).Name}: {ex.Message}");
+                                    stepSkipped = true;
+                                    break;
                                 }
                             }
                         }
 
-                        _journal.StepDone(plan.JobId, itemIndex, stepIndex);
+                        // A skipped file is not marked done, so a resumed job tries it again.
+                        if (!stepSkipped)
+                        {
+                            _journal.StepDone(plan.JobId, itemIndex, stepIndex);
+                        }
                     }
 
-                    outcome = new ItemOutcome(item.Source, item.Target, ItemStatus.Done);
+                    outcome = skippedFiles.Count == 0
+                        ? new ItemOutcome(item.Source, item.Target, ItemStatus.Done)
+                        : new ItemOutcome(item.Source, null, ItemStatus.Failed, $"{skippedFiles.Count} file(s) skipped. {string.Join(" ", skippedFiles.Take(3))}");
                 }
                 catch (IOException ex) when (LocationErrors.Wrap(ex, destination.IsNetwork ? destination : LocationPath.Parse(item.Source)) is { IsTransient: true } transient)
                 {

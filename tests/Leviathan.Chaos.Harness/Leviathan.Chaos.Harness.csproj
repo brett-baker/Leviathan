@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A stand-in for Leviathan.Worker that the chaos tests kill (spec §19.2): the real job host, copy executor and file journals
+       over a state folder given on the command line, without the pipe, the mutex or the user's own data folder. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.Chaos.Harness</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+  </ItemGroup>
+</Project>

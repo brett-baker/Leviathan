@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Chaos suite (spec 19.2), meant for the nightly run: kills the worker at random points and breaks disks and networks
+       mid-job, then checks that nothing is corrupt, nothing half-named is left, and every job resumes. -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Leviathan.Chaos.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\Leviathan.Chaos.Harness\Leviathan.Chaos.Harness.csproj" />
+    <ProjectReference Include="..\Leviathan.Testing\Leviathan.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The same lab fixture the integration tests use. -->
+    <Compile Include="..\Leviathan.Integration.Tests\Lab\NetworkLab.cs" Link="Lab\NetworkLab.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

@@ -103,6 +103,49 @@ public sealed class FailureHandlingTests
         Assert.Equal(JobKind.Copy, report.Kind);
     }
 
+    private static MockFileSystem DiskWithFolder()
+    {
+        var fs = Disk();
+        fs.AddFile(@"C:\tree\a.bin", new MockFileData(Data(5_000, 4)));
+        fs.AddFile(@"C:\tree\sub\b.bin", new MockFileData(Data(5_000, 5)));
+        fs.AddFile(@"C:\tree\sub\c.bin", new MockFileData(Data(5_000, 6)));
+        fs.AddFile(@"C:\tree\z.bin", new MockFileData(Data(5_000, 7)));
+        return fs;
+    }
+
+    [Fact]
+    public async Task SkipAndReport_OneBadFileInAFolder_DoesNotStopTheRestOfThatFolder()
+    {
+        var fs = DiskWithFolder();
+        await using var host = Start(fs, new FailingCopier(fs, (s, _) => Is(s, "b.bin") && s.Contains("tree", StringComparison.Ordinal) ? DiskFull() : null), new InMemoryJobReportStore());
+
+        var job = host.Submit(new JobRequest(JobKind.Copy, [@"C:\tree"], @"D:\dst") { OnError = ErrorMode.SkipAndReport }, JobLane.Operations, null, "copy");
+        Assert.True(await UntilAsync(() => host.GetReport(job.Id) is not null));
+
+        Assert.Equal(JobState.Failed, host.Scheduler.Find(job.Id)!.State);
+        Assert.True(fs.File.Exists(@"D:\dst\tree\a.bin"));
+        Assert.True(fs.File.Exists(@"D:\dst\tree\sub\c.bin"));
+        Assert.True(fs.File.Exists(@"D:\dst\tree\z.bin"));
+        Assert.False(fs.File.Exists(@"D:\dst\tree\sub\b.bin"));
+        Assert.Contains(host.GetReport(job.Id)!.Items, i => i.Status == ItemStatus.Failed && i.Error!.Contains("b.bin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Move_WithOneSkippedFile_MovesTheOthers_AndKeepsTheSourceFolderAndTheSkippedFile()
+    {
+        var fs = DiskWithFolder();
+        await using var host = Start(fs, new FailingCopier(fs, (s, _) => Is(s, "b.bin") && s.Contains("tree", StringComparison.Ordinal) ? Denied() : null), new InMemoryJobReportStore());
+
+        var job = host.Submit(new JobRequest(JobKind.Move, [@"C:\tree"], @"D:\dst") { OnError = ErrorMode.SkipAndReport }, JobLane.Operations, null, "move");
+        Assert.True(await UntilAsync(() => host.GetReport(job.Id) is not null));
+
+        Assert.True(fs.File.Exists(@"C:\tree\sub\b.bin"), "the skipped file must stay where it was");
+        Assert.True(fs.Directory.Exists(@"C:\tree\sub"), "the source folder must stay while a file in it was not moved");
+        Assert.True(fs.File.Exists(@"D:\dst\tree\a.bin"));
+        Assert.True(fs.File.Exists(@"D:\dst\tree\sub\c.bin"));
+        Assert.False(fs.File.Exists(@"C:\tree\a.bin"));
+    }
+
     [Fact]
     public async Task Ask_StopsOnTheBadFile_UntilTheUserAnswersSkip()
     {
