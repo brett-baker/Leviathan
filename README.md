@@ -6,13 +6,13 @@ The full specification lives in the **Leviathan File Manager — Software Specif
 
 ## Status
 
-**Phase 1 — Core browser** is built and waiting for review ([docs/phase-1.md](docs/phase-1.md): what is in it, how it was verified, and the open items, notably cold start at 1.3 s against a 600 ms budget). Phase 0 is in [docs/phase-0.md](docs/phase-0.md).
+**Phase 2 — NAS resiliency and operations engine** is built and waiting for review ([docs/phase-2.md](docs/phase-2.md): what is in it, how it was verified, the procedure for the NAS gates that need a person at the machine, and the open items: cold start about 1.0 s against 600 ms, the UI smoke tests, and the unticked Operations panel entry). Phase 1 is in [docs/phase-1.md](docs/phase-1.md) and Phase 0 in [docs/phase-0.md](docs/phase-0.md).
 
 | Phase | Scope | Gate |
 | --- | --- | --- |
 | 0 Foundations | Solution, interop, provider model, IPC, journal, diagnostics, test harness | 10,000-item folder: first rows < 100 ms (p95) |
-| **1 Core browser** | Window, tabs, address bar, tree, file views, clipboard, Recycle Bin | One week replacing Explorer for local work |
-| 2 NAS resiliency + operations | Share health, journaled copy/move, queue UI, soft delete, split pane | 50 GB NAS copy survives 3 cable pulls and a killed UI |
+| 1 Core browser | Window, tabs, address bar, tree, file views, clipboard, Recycle Bin | One week replacing Explorer for local work |
+| **2 NAS resiliency + operations** | Share health, journaled copy/move, queue UI, soft delete, split pane | 50 GB NAS copy survives 3 cable pulls and a killed UI |
 | 3 Media + triage | ffprobe, previews, libmpv/LibVLC, triage mode, tags | 100 NAS videos at < 10 s each |
 | 4 Search, space map, protocols | Everything/USN search, NAS index, space map, SFTP/FTP/NFS | Local search < 50 ms |
 | 5 Power features | Duplicates, bulk rename, archives, compare/sync, palette | Feature-complete after a month of use |
