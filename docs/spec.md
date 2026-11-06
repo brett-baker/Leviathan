@@ -45,7 +45,7 @@ Leviathan is a standalone Windows 11 file manager in WinUI 3 / .NET 10. It is bu
 | D16 | ffprobe scope | Lazy, visible items only, cached |
 | D17 | Triage keys | Keep = green tag, Discard = soft delete, 1–9 = tags |
 | D18 | Visual style | Fluent / Mica with Compact and Comfortable density |
-| D19 | Startup | Profiles of folder sets; one built-in profile is "Last session" |
+| D19 | Startup | Profiles of folder sets; one built-in profile is "Last session" (superseded by D37: profiles became workspaces) |
 | D20 | App structure | Not Aspire; multi-process desktop app (see §2) |
 | D21 | Operations queue | One persistent queue; global and per-device concurrency limits, editable live; Operations panel (§12.3, §12.6) |
 | D22 | Activity strip | 1–2 px line per running job, color-coded by type, under the tab strip |
@@ -63,6 +63,11 @@ Leviathan is a standalone Windows 11 file manager in WinUI 3 / .NET 10. It is bu
 | D34 | Status hub | A fly-up from the status bar with Operations, Activity, Background, Quick settings and Space tabs; it hosts the Operations panel (§16.1) |
 | D35 | Session activity log | Every user action in the session is logged and browsable in the status hub (§16.1) |
 | D36 | Settings surface | Settings open as a tall sheet rising from the bottom of the window, not a dialog (§17.2) |
+| D37 | Workspaces | Startup profiles are folded into **workspaces**: one saved arrangement of windows, tabs, split layouts and panes, loaded at startup or at any time. "Last session" is the built-in workspace (§17.1, replaces D19) |
+| D38 | Column view | A fourth view, Miller columns: one folder per column, user-resizable between a minimum and maximum width, as many columns as fit; the preview pane stays separate (§8.8) |
+| D39 | Terminal drawer | A **Terminal** tab in the status hub fly-up hosts a docked Windows Terminal running cmd, opened at the current folder (§16.2) |
+| D40 | Built-in tools | Copy path, Open terminal here and Open in editor are built-in commands, in the context menu, the command bar and the command palette (§15.7) |
+| D41 | Registry explorer | An optional, read-only **Registry** node in the sidebar, off by default; keys behave as folders and values as items (§7.3) |
 
 ## 2. Architecture
 
@@ -215,7 +220,7 @@ Layouts for the main window, split view with preview, triage mode, operations pa
 
 | Behaviour | Trigger | Detail |
 | --- | --- | --- |
-| New tab | Ctrl+T, + button, double-click empty strip | Opens the profile's "new tab" location (default: Home) |
+| New tab | Ctrl+T, + button, double-click empty strip | Opens the workspace's "new tab" location (default: Home) |
 | Open in new tab | Middle-click or Ctrl+click a folder (file view, tree, breadcrumb) | Opens in the background; Ctrl+Shift+click opens in the foreground |
 | Duplicate tab | Ctrl+Shift+K, tab context menu | Copies path, history, view mode, sort, split state and selection |
 | Close tab | Ctrl+W, middle-click tab, × | Last tab closes the window (setting: or resets to Home) |
@@ -224,7 +229,7 @@ Layouts for the main window, split view with preview, triage mode, operations pa
 | Tear off | Drag a tab out of the strip | New window in the same process at the drop point (D9) |
 | Merge | Drag a tab onto another window's strip | Moves the tab with its history |
 | Switch | Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+1–8, Ctrl+9 = last | Optional MRU order for Ctrl+Tab |
-| Pin tab | Tab context menu | Compact, icon only, left side, can't be closed by Ctrl+W, restored by every profile that saves it |
+| Pin tab | Tab context menu | Compact, icon only, left side, can't be closed by Ctrl+W, restored by every workspace that saves it |
 | Lock tab | Tab context menu | Navigating into a folder opens a new tab instead; good for a fixed "inbox" tab |
 | Color / rename tab | Tab context menu | Custom label and accent, e.g. "NAS inbox" in orange |
 | Close others / to the right | Tab context menu |  |
@@ -243,7 +248,7 @@ Modelled on tab groups in Microsoft Edge.
 - **Create:** right-click a tab → Add tab to new group (name it inline), or select several tabs (Ctrl+click) and add them together. Dragging a tab between two tabs of a group adds it; dragging it out removes it.
 - **Group menu** (right-click the label): rename, change colour, new tab in group, ungroup, close group, move group to new window.
 - **Drag the label** to move the whole group within the strip, out to a new window, or onto another window's strip.
-- Pinned tabs stay outside groups. Groups, their order, colours and collapsed state are saved in startup profiles and Last session (§17.1). Reopen closed tab (Ctrl+Shift+T) puts a tab back in its group, and closing a whole group can be reopened as a group.
+- Pinned tabs stay outside groups. Groups, their order, colours and collapsed state are saved in workspaces and Last session (§17.1). Reopen closed tab (Ctrl+Shift+T) puts a tab back in its group, and closing a whole group can be reopened as a group.
 - The all-tabs list shows tabs under their group headings.
 
 ### 4.2 Windows
@@ -355,6 +360,7 @@ The sidebar is one virtualized tree with collapsible top-level sections, in this
 | **Local** | Fixed disks, removable drives, optical, mounted VHDs, WSL distributions | Each drive shows a free-space bar and label |
 | **Network** | Saved servers, discovered devices, mapped drives, SFTP/FTP/NFS connections | See 7.1 |
 | **Internet** | OneDrive (personal and business), Google Drive, Dropbox, Box, iCloud, Synology Drive, Proton Drive, and other sync clients | Detected from the Windows cloud-provider registry, as Files does; shows sync status |
+| **Registry** | HKCR, HKCU, HKLM, HKU, HKCC | Optional, off by default, read-only (§7.3) |
 
 Every node has an icon (known folders get their own: Desktop, Documents, Downloads, Pictures, Videos, Recycle Bin; drives, NAS servers, shares and cloud drives each have a distinct icon) and an expand arrow when it can have children. Drives, servers and shares expand like folders, so the tree can be used to drill down anywhere. Drives also show a thin usage bar and "312 GB free of 1 TB" under their name.
 
@@ -375,6 +381,29 @@ Every node has an icon (known folders get their own: Desktop, Documents, Downloa
 
 **Look-ahead loading.** When a node is expanded, its children are listed and, in the background, so is the next level down (the children's children), one level only. Expanding a child is then instant, without ever walking the whole file structure. The look-ahead runs at low priority, stops when you navigate away, is cached with the folder's modified time, and on network shares is limited to one request at a time per share.
 
+### 7.3 Registry explorer (D41)
+
+An optional node that lets the tree and the file view browse the Windows registry, read-only. It is **off by default**: **Settings → Files and folders → Show Registry in the sidebar** adds a **Registry** section after Internet, and turning it off removes it (open registry tabs stay open until closed).
+
+**Model.** Keys are folders and values are items, so every existing control works without a special case.
+
+| Registry | Leviathan |
+| --- | --- |
+| Root: `HKEY_CLASSES_ROOT`, `HKEY_CURRENT_USER`, `HKEY_LOCAL_MACHINE`, `HKEY_USERS`, `HKEY_CURRENT_CONFIG` | The five children of the Registry node, shown as `HKCR`, `HKCU`, `HKLM`, `HKU`, `HKCC` with the long name in the tooltip |
+| A key | A folder; subkeys are its subfolders |
+| A value | An item in the key's list. Columns: **Name** (the default value is "(Default)"), **Type** (`REG_SZ`, `REG_EXPAND_SZ`, `REG_MULTI_SZ`, `REG_DWORD`, `REG_QWORD`, `REG_BINARY`, `REG_NONE`, others by number), **Data** (rendered: text, decimal and hex for numbers, up to 64 bytes of hex for binary, then "…"), **Size** (bytes), **Modified** (keys only, the key's last-write time) |
+
+- **Locations.** A registry location is a `LocationPath` of a new kind (`Registry`), written `registry:\HKCU\Software\Microsoft`; the contract version is bumped (§2.3). The address bar accepts that form and the common ones (`HKLM\SOFTWARE\Classes`, `HKEY_CURRENT_USER\Software`, `Computer\HKEY_LOCAL_MACHINE\…` as copied from Regedit); the breadcrumb, history, back / forward, up, tabs, split panes (§15.1), columns (§8.8) and workspaces (§17.1) work as for folders.
+- **Read-only.** There is no cut, paste, delete, rename, new, drag target or edit anywhere in the registry: those commands are disabled with a tooltip "The registry is read-only". Nothing in Leviathan writes to it, and the provider has no write method to call (the interface it implements is the read-only subset of `ILocationProvider`).
+- **What you can do:** open and browse; sort, filter and group the value list; **Copy path**, **Copy name**, **Copy data** (value data as text; binary as hex); **Open in Regedit** (jumps to the key by setting Regedit's last-key and launching it; this runs Regedit, not Leviathan, and may ask for elevation); **Export key to .reg…** (a read of the key and its subkeys written to a `.reg` file the user chooses, as a worker job with progress and cancel; the output matches Regedit's format); **Add to Favorites**. The preview pane shows the selected value's data in full: text, a hex dump for binary, a list for multi-string, with the key path and type above it.
+- **Permissions.** Reading uses the current user's rights; Leviathan never elevates for the registry. A key or subtree the user cannot read shows a lock overlay and the "Access denied" state of §8.6; the rest of the tree is unaffected. `HKLM\SECURITY`, `SAM` and similar are shown, locked.
+- **Both views.** The native 64-bit view is used. `WOW6432Node` appears as the key it is. A setting adds a "32-bit view" toggle later; it is not in this version.
+- **Scale and stability.** A key can have tens of thousands of subkeys or values (e.g. `HKCR`). Keys and values are enumerated in streaming batches with the same batching, cancellation and 16–50 ms UI cadence as folders (§3.2); a key being changed while it is listed is tolerated (a value that disappears is skipped). Registry calls are fast and local but still run off the UI thread, with a timeout. A reparse-like loop is impossible in the registry except through symbolic links (`REG_LINK`), which are shown as items and not followed.
+- **No indexing.** Registry locations are not part of search, the folder-size service, thumbnails, tags, soft delete, the listing cache or folder watching beyond a poll of the key's last-write time every 2 s while the key is shown (using `RegNotifyChangeKeyValue` when possible). The filter box (§6.3) works on the visible list.
+- **Out of scope in this version:** editing, remote registries, offline hives (`reg load`), searching the registry for text, and a 32-bit view toggle. Each is a candidate for later and each changes the "read-only" rule, so each needs its own decision.
+
+**Budgets and tests.** Opening a key with 10,000 subkeys shows the first rows within 100 ms; expanding a node in the tree never blocks the UI. Tests use an `IRegistry` interface with an in-memory fake in `tests/Leviathan.Testing` for the unit tests (paths, parsing of every address form, value rendering for every type, ordering, locked keys, huge keys, vanishing values), and integration tests against a scratch key under `HKCU\Software\LeviathanTests` that the test creates and deletes (never anything else).
+
 ## 8. File view
 
 ### 8.1 Layouts
@@ -386,6 +415,7 @@ Every node has an icon (known folders get their own: Desktop, Documents, Downloa
 | Tiles | Ctrl+Shift+4 | Medium thumbnail with 2–3 lines of metadata (e.g. duration and resolution for video) |
 | Thumbnails | Ctrl+Shift+2 | Grid; Ctrl+mouse wheel resizes from 64 to 512 px |
 | Gallery | Ctrl+Shift+1 | Large justified thumbnails for photo and video folders, with hover scrub |
+| Columns | Ctrl+Shift+3 | Miller columns: one folder per column, the path reads left to right (§8.8) |
 
 Layout, sort, grouping and columns are remembered per folder, with inheritance: a setting can apply to "this folder", "this folder and subfolders" or "all folders of this type" (Videos, Pictures, Music, Documents, General, detected from the content).
 
@@ -440,6 +470,38 @@ Opening a drive (or a NAS share root) shows a summary card above its normal file
 - Actions: Open space map, Find duplicates, Empty Recycle Bin, Open terminal here, Properties.
 - The list below shows each folder with its size and a "share of drive" bar, sorted by size by default.
 - The card can be hidden; that choice is remembered per drive.
+
+### 8.8 Column view (Miller columns) (D38)
+
+A fourth way to look at a folder, for tracing a deep path at a glance. Each column lists **one folder's contents**; selecting a folder in a column shows that folder's contents in a new column to its right, so the path from the root to the current item reads left to right.
+
+**Behaviour**
+
+- **Columns layout** (`Ctrl+Shift+3`, View ▾ → Columns) sits beside Details, List, Tiles, Thumbnails and Gallery in §8.1. It is chosen per folder like any other layout and inherits the same way. The tab's current folder is the **rightmost column that holds a folder you are in**; the columns to its left are its ancestors, each with the next one down highlighted.
+- **Selecting.** Click, or Up / Down, selects an item in a column. Selecting a **folder** opens its contents in the next column (replacing any columns beyond it). Selecting a **file** adds no column: the preview pane (§9) shows it, as for any layout. The last column never shows a built-in preview; the preview pane is the one place for that.
+- **Opening.** Enter, or a double-click, on a folder makes it the tab's folder: the address bar, history, title and status bar follow, and the columns re-anchor so the opened folder is the rightmost. Right / Left arrows move focus to the next / previous column (Right on a folder selects its first child, as in Finder); Alt+Up and the breadcrumb work as in every layout.
+- **Look-ahead.** Because the next column is listed as soon as a folder is selected, the existing look-ahead rule (§7.2) is not needed here; instead moving the selection with the keyboard waits 150 ms before listing, so holding Down in a column of 5,000 folders does not list 5,000 folders.
+- **Same rules as every list.** Every column is a normal virtualized list with the folder's sort, grouping, filter, hidden-file setting, tags, selection model, drag and drop, context menu and shortcuts. Cut, copy, paste, rename and delete act on the selection in the focused column. Multi-select works within one column.
+- **Network folders behave exactly like local ones**: one folder per column, listed in streaming batches (§3.1, §3.3), cached and watched as usual (§7.2). A column whose share is slow shows the loading state of §8.6 inside that column only; a dead share shows its error inside that column and never blocks the others. No column ever lists more than one folder, and never lists a whole tree.
+
+**Sizing and how many columns show**
+
+- Each column has a **width** the user can change by dragging the divider on its right edge; double-click a divider to fit the widest name in that column (measured from the visible rows only). Widths are in pixels.
+- A column is never narrower than the **minimum width** (default 160 px) or wider than the **maximum width** (default 480 px); both are settings (Files and folders → Column view). New columns open at the **default width** (default 240 px), or at the width the user last gave a column at that depth in this folder.
+- The number of columns that fit follows from the width of the file area: `visible = floor((area − dividers) / width)` for the columns at their current widths, always showing at least one. When there are more columns than fit, the view **scrolls horizontally** and keeps the rightmost columns (the ones that hold the current selection) in view, scrolling smoothly as the selection moves. Resizing the window or the preview pane, or splitting the tab (§15.1), re-flows the columns by the same rule without re-listing anything.
+- A column that has been scrolled out to the left is kept in memory (its listing is retained, bounded by the same 200,000-item listing cache as every folder, §3.1) so that scrolling back is instant.
+
+**Rendering**
+
+- Each row is the same as the Details view's name cell: icon (§4.3), name, tag dots, a chevron at the right of a folder row, and a sync / health badge where it applies. Size and date are not columns here; they appear in the tooltip, the preview pane and the status bar. An optional second line (setting) shows size and modified date.
+- The selected row in a column that is not the focused one is shown with a quiet highlight so the path stays readable.
+- Column headers show the folder's name; right-clicking a header offers Open in new tab, Open as the tab's folder, Copy path, and Close columns to the right.
+- Empty folders show "Empty" in the column; unreadable ones show the error of §8.6.
+
+**Budgets and tests**
+
+- First rows of a new column appear within 100 ms of selecting a local folder with 10,000 items, and within 400 ms on the reference NAS (§3.1). Selecting a folder never blocks the UI; a slower listing than the next selection is cancelled.
+- View-model tests cover: path-to-columns mapping, selecting a folder / file, replacing trailing columns, re-anchoring on open, width clamping, the visible-count formula, the 150 ms keyboard debounce (with `ManualTimeProvider`), cancellation when selection moves on, and a dead share in one column leaving the others usable. A UI smoke test covers resizing and horizontal scroll.
 
 ## 9. Preview and details pane
 
@@ -744,7 +806,7 @@ Any search can be saved and pinned to Favorites. A saved search behaves like a f
 
 - Ctrl+\\ splits the current tab vertically; Ctrl+Shift+\\ splits horizontally. Each pane has its own path, history, layout and selection; the address bar and command bar follow the focused pane.
 - F5 copies and F6 moves the selection to the other pane (through the normal queue). Ctrl+Shift+S swaps the panes; Alt+= makes the other pane show the same folder.
-- Split state is saved with the tab, the session and profiles.
+- Split state, including whether it is horizontal or vertical, is saved with the tab, Last session and workspaces (§17.1).
 
 * Split and single-pane buttons sit in the command bar (§6.3); closing the split keeps the focused pane.
 * The preview pane stays available in split view and follows the focused pane (§9).
@@ -778,12 +840,38 @@ Any search can be saved and pinned to Favorites. A saved search behaves like a f
 
 ### 15.6 Other suggested features
 
-- **Open terminal here** (Windows Terminal, PowerShell, cmd, WSL) from the command bar and context menu.
+- **Copy path, Open terminal here and Open in editor** are built-in commands everywhere; see §15.7.
 - **Command palette** (Ctrl+Shift+P) for every command, with its shortcut shown.
 - **Git status** overlay icons in repositories (optional; ported from Files).
 - **Quick move/copy targets:** up to 9 preset destinations bound to keys, usable everywhere (not only triage).
 - **Elevated operations:** when an action needs admin rights, only that action runs elevated through a small helper, not the whole app.
 - **Folder notes:** a short note attached to a folder, shown in the details pane.
+
+### 15.7 Always-available tools (D40)
+
+Three commands that are needed so often they are built in, always present and never hidden by file type. Each is in **all three places**: the right-click menu (§8.5), the command bar (§6) and the command palette (§15.6, Ctrl+Shift+P). One implementation backs the three, so a rule or a setting changed once applies everywhere, and each shows the same name, icon and shortcut.
+
+| Command | Shortcut | What it does |
+| --- | --- | --- |
+| **Copy path** | Ctrl+Shift+C | Puts the path of the selection (or of the current folder when nothing is selected) on the clipboard; a ▾ offers the variants |
+| **Open terminal here** | Ctrl+Alt+T | Opens the terminal drawer (§16.2) at the selected folder, the selected file's folder, or the current folder |
+| **Open in editor** | Ctrl+Alt+E | Opens the selected file in the editor, or a selected folder in Visual Studio Code |
+
+**Copy path variants.** The default is the full path, quoted when it contains spaces. The ▾ menu and the palette add: *Full path (as is)*, *Quoted*, *Name only*, *Name without extension*, *Parent folder*, *UNC form* (for a mapped drive, the `\\server\share\…` path behind it), *Forward slashes*, *`file:///` URL*, and *For each item, one per line* (for a multi-selection; the default for several items is one path per line). Long paths are copied without the `\\?\` prefix. For a registry location (§7.3) the path is `registry:\HKLM\…` and a *Regedit form* is added. The setting "Default copy format" picks which variant Ctrl+Shift+C uses. A brief "Copied" confirmation appears in the status bar; the copy is also recorded in the Activity tab (§16.1).
+
+**Open terminal here.**
+- Before the terminal drawer exists in a build, or when it is switched off, the command falls back to opening Windows Terminal in its own window; once the drawer exists, the drawer is the default and **Shift+click / Shift+Ctrl+Alt+T** opens the external window instead. The setting "Open terminal here uses" chooses *Drawer* (default) or *External window*.
+- The folder is the selected folder, else the folder of the selected file, else the current folder. For a network or other location with no usable working directory the drawer's rule of §16.2 applies. Not offered (disabled with a tooltip) for locations that are not folders on a file system, such as the registry, search results and archives.
+- Previously planned shell choices (PowerShell, cmd, WSL) remain a setting of the terminal (§16.2).
+
+**Open in editor.**
+- **The editor** is chosen in Settings → General → *Open in editor*: *Default app for the file type* (the default; the same app Enter would use), *Visual Studio Code* (found through its install location or `code` on PATH), or *Custom command* (a program and arguments with `{path}`, `{folder}` and `{name}` placeholders, validated before it can be saved).
+- For a **file**, *Default app* launches the app registered for the file type; if there is none, *Open with…* appears. For *Visual Studio Code*, the file opens in the last-used VS Code window.
+- For a **folder**, *Default app* has no editor to offer, so the command opens the folder in Visual Studio Code when it is installed and otherwise is disabled with the tooltip "Choose an editor in Settings". For a multi-selection of files, each file is opened (a confirmation above 10).
+- Files that Windows treats as programs (`.exe`, `.bat`, scripts) are opened for editing, not run; `.lnk` opens its target's folder. Nothing runs through the shell host, so a crash of a launched app cannot affect Leviathan. A launch that fails shows the reason in the status bar and logs it.
+- A file on a network share is passed by its UNC path; editors that cannot open it show their own error.
+
+**Resiliency and tests.** Launching happens off the UI thread through the existing `ILauncher` abstraction (Core, `Launching.cs`), with an in-memory fake. Unit tests cover: every copy variant for local, UNC, mapped, long and odd names; the folder rule for the terminal; the editor choice for file, folder, multi-selection and a missing VS Code; that the three places (menu, bar, palette) resolve to the same command ids; and the keyboard shortcuts. UAT playbooks (CLAUDE.md) cover the real clipboard, Windows Terminal and VS Code against the fixture folders.
 
 ## 16. Status bar
 
@@ -804,7 +892,7 @@ Left to right; each part can be hidden, and clicking a part acts on it.
 
 ### 16.1 Status hub (fly-up) (D34, D35)
 
-An expand chevron at the right end of the status bar (and Ctrl+Shift+O, or clicking the operations chip or background-work part) opens the **status hub**: a panel that flies up from the status bar over the bottom of the file view, about 40% of the window high (height draggable and remembered). It closes with Esc or a click outside, or stays open with its pin. Like the Operations panel (§12.6), it can be docked bottom or right, or popped out into its own window. It has five tabs:
+An expand chevron at the right end of the status bar (and Ctrl+Shift+O, or clicking the operations chip or background-work part) opens the **status hub**: a panel that flies up from the status bar over the bottom of the file view, about 40% of the window high (height draggable and remembered). It closes with Esc or a click outside, or stays open with its pin. Like the Operations panel (§12.6), it can be docked bottom or right, or popped out into its own window. It has six tabs (the sixth, Terminal, is added in the terminal-drawer phase; see §16.2):
 
 | Tab | Contents |
 | --- | --- |
@@ -813,29 +901,70 @@ An expand chevron at the right end of the status bar (and Ctrl+Shift+O, or click
 | **Background** | Every background task with progress and controls: folder-size calculation (current folder, queue length, rate), indexing and NAS crawls, metadata probing, thumbnail and contact-sheet generation, offline-cache refresh. Each can be paused, resumed or given priority; worker and process status (Worker, Media, ShellHost, Indexer: running, idle, restarts) |
 | **Quick settings** | The live knobs, applied at once: background threads / worker processes, running jobs (global and per NAS volume), bandwidth limit and schedule, folder-size calculation on/off for network shares, thumbnail generation on network files, polling interval; a link to the full settings sheet |
 | **Space** | A compact treemap of the current folder (§14) |
+| **Terminal** | A docked Windows Terminal running cmd, opened at the current folder (§16.2) |
 
 - The hub opens on the tab you used last; clicking a status-bar part opens the matching tab (operations chip → Operations, background work → Background, free space → Space).
 - A badge on the chevron shows failures waiting to be seen.
 
-## 17. Settings, startup profiles and keyboard
+### 16.2 Terminal drawer (D39)
 
-### 17.1 Startup profiles (D19)
+The **Terminal** tab of the status hub is a command prompt that is always one hotkey away and already in the folder you are looking at.
 
-A profile is a saved set of windows, each with its tabs, split panes, layouts and window positions.
+- **Open it** with **Ctrl+\`** (toggles the hub on the Terminal tab; Esc returns focus to the file view without closing the terminal), with **Open terminal here** (§15.7), or by clicking the Terminal tab. Because the hub is a fly-up over the bottom of the file view (§16.1), the terminal inherits its behaviour: height draggable and remembered, a pin to keep it open, docking at the bottom or the right, and a pop-out into its own window.
+- **What it hosts.** A **docked Windows Terminal** running **cmd.exe** to start. Terminal sessions keep running while the hub is closed or on another tab; reopening shows them as they were, with their scrollback.
+- **Starting folder.** A new terminal starts in the folder of the tab that was active when it was opened. The terminal does **not** follow later navigation on its own: an explicit **Go to current folder** button (and a palette command) sends `cd /d "<folder>"` to the focused terminal. Cmd cannot use a UNC path as its working directory, so for a share the terminal uses `pushd "\\server\share\folder"`, which maps a temporary drive letter, and a note in the terminal header says so. For locations that are not folders on a file system (the registry, search results, archives) the terminal opens in the user's home folder.
+- **Several terminals.** A small tab strip inside the Terminal tab holds more than one session; **+** adds one (at the current folder), **×** closes one. Closing the last one leaves the tab empty with "Open terminal here" offered.
+- **Shell.** cmd is the default. A setting offers *Windows PowerShell*, *PowerShell 7*, *WSL (default distribution)* and *Windows Terminal's default profile*; the choice applies to new terminals. A profile whose program is missing is not offered.
+- **Out of process, and never in the UI thread.** Terminals live in a separate process so that a hung shell, a runaway program or a crash cannot take down the app (§3.4): the host process is a child of `Leviathan.ShellHost` (or a dedicated `Leviathan.Terminal` process, decided in the first slice) supervised by `ProcessSupervisor`. A crash restarts only the terminal tab, which shows "The terminal host stopped. Restart" and keeps the other tabs working. Shells started by the user are the user's: closing Leviathan asks before ending sessions that still have a child process running.
+- **Feasibility comes first.** Embedding the Windows Terminal window inside another app's window is not an officially supported scenario. The first slice of the terminal phase is therefore a **spike** that proves, on this machine, whether Windows Terminal can be docked reliably (resize, focus, keyboard, DPI, dark / light, multiple monitors). If it cannot, the fallback is a terminal that Leviathan draws itself on top of a Windows pseudo console (ConPTY) with the Windows Terminal rendering component where its licence and packaging allow, or a docked-to-edge Windows Terminal window kept aligned beneath the app's window. The outcome and the reason are written to `docs/decisions.md` before any other slice starts; the user-visible behaviour above does not change.
+- **Not recorded.** Characters typed into a terminal are never logged; the Activity tab records only that a terminal was opened, where, and which shell.
+- **Budgets and tests.** Opening the drawer shows a prompt within 600 ms (shell start included); the hub and the file view stay responsive while a program floods the terminal with output (checked with the stall watchdog, §3.2). Unit tests cover command building (quoting, `pushd` for UNC, home fallback), the shell list and the session list; integration tests start the real cmd in a temp folder and read `cd` output back; chaos tests kill the terminal host while a program runs.
 
-- **Last session** is a built-in profile that is updated continuously (every change, debounced to every 2 s) and on exit, so it also survives a crash.
-- **Named profiles** (e.g. "NAS triage": one window with a locked inbox tab, a split tab local | NAS, and a Downloads tab) are created with "Save current windows as profile…".
-- Settings choose what happens at startup: open a specific profile, open Last session, or show a picker (with a "remember" checkbox).
-- Profiles can be opened at any time from the title bar menu or the command palette, either replacing the current windows or adding to them.
-- Tabs pointing to unreachable shares are restored in an offline state and retry in the background; they never delay startup.
+## 17. Settings, workspaces and keyboard
+
+### 17.1 Workspaces (D19, D37)
+
+A **workspace** is a saved arrangement of the application: the windows, and in each window its tabs, how each tab is split, the layout of every pane, and where things sit. Workspaces replace the startup profiles of earlier versions of this spec: the same idea, one name, and one place where the application's setup is remembered. A workspace is loaded at startup, or at any time. Opening a workspace is how "Project Alpha" brings up its local, network and cloud folders at once.
+
+**What a workspace remembers**
+
+| Level | Saved |
+| --- | --- |
+| Workspace | Name, optional icon and colour, description, created / saved times, the schema version |
+| Window | Position, size, monitor, maximized state; which tab is selected; sidebar width, collapsed state and which sections and nodes are expanded; preview pane open / width; status hub open / pinned / height / dock side / selected tab; tab groups (name, colour, collapsed) |
+| Tab | The location, its back / forward history, label, pin, lock, group, the layout (Details / List / Tiles / Thumbnails / Gallery / Columns), sort, grouping, filter, column set and widths, scroll position and selection (best effort) |
+| Split | Whether the tab is split, **horizontal or vertical** (side by side or top and bottom), the divider position, which pane has focus, and for each pane its own location, history, layout, sort and selection (§15.1) |
+| Column view | The widths of the columns by depth and the selected path (§8.8) |
+| Terminal | Whether the terminal drawer is open and the starting folder of each terminal; not their contents or history (§16.2) |
+
+Locations are saved as paths (local, UNC, mapped drive letters with their UNC form, cloud sync-client folders, and the registry when shown), never as credentials. A saved share is reconnected by Windows' own stored credentials; Leviathan stores no passwords.
+
+**Last session** is the built-in workspace. It is updated continuously (every change, debounced to every 2 s) and on exit, so it also survives a crash, and it cannot be deleted or renamed. It is the default thing loaded at startup.
+
+**Named workspaces** are created with **Save current windows as workspace…**: a name (unique ignoring case), an optional colour and icon, and a choice of **all windows** or **this window only**. A workspace can be renamed, duplicated, updated from what is open now (**Save over**), deleted, and exported to / imported from a `.leviathan-workspace.json` file (paths are portable between machines only where the drive letters and servers match; the importer lists any location that does not resolve on this machine before loading it).
+
+**Opening**
+
+- **At startup.** Settings → General → *Startup* is *Last session* (default), a specific workspace, *Nothing (one empty window)*, or *Ask* (a picker, with a "remember" checkbox). The command line `Leviathan.exe --workspace "Project Alpha"` opens one by name and is how a shortcut can start a workspace directly.
+- **At any time**, from the title bar menu, the Workspaces list in the command palette (Ctrl+Shift+P) or Ctrl+Alt+W (a picker). Three modes: **Replace** (close the current windows, open the workspace's), **Open in new windows** (add its windows to what is open), and **Add tabs to this window** (merge its tabs into the current window, in a new tab group named for the workspace). Replace always opens the new windows before closing the old ones, so the app never has zero windows (G1 rule).
+- A workspace that is open is shown with a check mark; an edited workspace shows a dot until saved over. Nothing is saved automatically into a named workspace; only Last session is automatic.
+
+**Resilience**
+
+- Tabs pointing to unreachable shares, drives that are not present or folders that no longer exist are restored in an **offline / missing** state (the location is kept, the tab shows the error of §3.3 or §8.6 and retries in the background) and never delay startup or opening. Cloud folders whose sync client is not running open as ordinary folders.
+- A workspace file that is damaged or from a newer build is skipped with a message, never half-loaded; the last good copy is kept as `.bak`, and every write is atomic (temp file, flush, rename; §17.2).
+- Opening is staged: windows and tabs appear first with placeholders, then each tab's listing streams in (§3.2). Opening a workspace with 50 tabs does not list 50 folders at once: only the selected tab of each window is listed immediately, the rest on first view, and network tabs after local ones.
+- **Migration.** Files written by earlier builds (`last-session.json`, `profiles.json`) are read and converted on first start into workspaces, keeping their windows, tabs and split state; the old files are left in place as `.migrated` backups. A newer schema version is never silently downgraded.
+
+**Tests.** Round trips for every level of the table above; split orientation and ratios; the three open modes against the window manager; migration from the old files (kept as fixtures); damaged, truncated and future-version files; missing and offline locations; export and import with unresolvable locations; the `--workspace` argument; a 50-tab workspace that opens without a UI stall over 50 ms.
 
 ### 17.2 Settings pages
 
 | Page | Main settings |
 | --- | --- |
-| General | Startup profile, single vs double click, confirmations, default "new tab" location |
+| General | Startup (Last session, a workspace, or ask), single vs double click, confirmations, default "new tab" location, Open in editor (§15.7), default copy format, Open terminal here uses |
 | Appearance | Theme (light / dark / system), density (Compact / Comfortable), accent, Mica on/off, icon size, font |
-| Files and folders | Show hidden / system files, extensions, folder sizes, natural sort, folder-view inheritance |
+| Files and folders | Show hidden / system files, extensions, folder sizes, natural sort, folder-view inheritance, column view widths (§8.8), Show Registry in the sidebar (§7.3) |
 | Tabs and windows | Tab behaviours from §4.1, Ctrl+Tab order, close-last-tab behaviour |
 | Network | Timeouts, retry policy, polling intervals, discovery on/off, offline cache size, saved connections |
 | Operations | Parallelism per destination, verify policy, bandwidth limits and schedule, conflict defaults |
@@ -844,6 +973,7 @@ A profile is a saved set of windows, each with its tabs, split panes, layouts an
 | Tags | Tag names, colors, order, keys; write Windows "Tags" property on/off |
 | Search and index | Indexer service status, NAS folders to index, schedule |
 | Keyboard | Every command with its shortcut; search, rebind, reset; import/export |
+| Terminal | Shell (cmd, PowerShell, PowerShell 7, WSL), hotkey, confirm on close with running programs (§16.2) |
 | Advanced | Diagnostics and log level, cache locations and sizes, reset, export/import all settings |
 
 Settings are a JSON file, written atomically, with an "Open settings file" option for power users. Every setting takes effect without a restart.
@@ -857,9 +987,9 @@ Settings are a JSON file, written atomically, with an "Open settings file" optio
 | Tabs | Ctrl+T new, Ctrl+W close, Ctrl+Shift+T reopen, Ctrl+Shift+K duplicate, Ctrl+Tab next, Ctrl+1–9 go to |
 | Navigation | Alt+Left/Right back/forward, Alt+Up parent, Ctrl+L address bar, F5 reload, Ctrl+P go to |
 | Files | Ctrl+C/X/V, F2 rename, Del delete, Shift+Del permanent, Ctrl+Shift+N new folder, Ctrl+Z/Y undo/redo, Alt+Enter properties |
-| View | Ctrl+Shift+1–6 layouts, Alt+P preview pane, Ctrl+\\ split, Ctrl+H hidden files, Space quick preview |
+| View | Ctrl+Shift+1–6 layouts (3 = Columns, §8.8), Alt+P preview pane, Ctrl+\\ split, Ctrl+H hidden files, Space quick preview |
 | Selection | Ctrl+A all, Ctrl+I invert, Ctrl+Shift+A none, 1–9 tags |
-| Tools | T triage, Ctrl+Shift+M space map, Ctrl+F search, Ctrl+Shift+P command palette, F5/F6 copy/move to other pane (when split) |
+| Tools | T triage, Ctrl+Shift+M space map, Ctrl+F search, Ctrl+Shift+P command palette, F5/F6 copy/move to other pane (when split), Ctrl+Shift+C copy path, Ctrl+Alt+T terminal here, Ctrl+Alt+E open in editor, Ctrl+` terminal drawer, Ctrl+Alt+W workspaces (§15.7, §16.2, §17.1) |
 
 When a key is shared (F5 is reload in a single pane, copy-to-other-pane in a split), the split-pane meaning wins only while split; the setting can change this.
 
@@ -990,6 +1120,18 @@ One folder per incident, e.g. `%LOCALAPPDATA%\\Leviathan\\crashes\\2026-11-01T14
 Each phase ends in a usable build and a gate that must pass before the next starts. NAS resiliency (Phase 2) is proven before media features are layered on top, because everything later depends on it.
 
 &#91;embedded content: roadmap · 6 phases, each with an exit gate\]
+
+**Phases 6 to 10 (extensions, after the original plan is solid).** They are built only after Phase 5's gate, in this order, one phase at a time, with the same gates and UAT playbooks:
+
+| Phase | Adds | Spec |
+| --- | --- | --- |
+| 6 | Workspaces (profiles folded in) | §17.1, D37 |
+| 7 | Column view | §8.8, D38 |
+| 8 | Terminal drawer | §16.2, D39 |
+| 9 | Always-available tools | §15.7, D40 |
+| 10 | Registry explorer (read-only) | §7.3, D41 |
+
+Considered and set aside for now (not specified, may return): a window-level dual pane with independent tab sets per side, smart folders spanning drives (saved searches in §13.2 stay the only virtual folders), deep Git integration (§15.6 keeps the optional status icons), and extra hash / properties presentation beyond §15.4.
 
 No dates yet: phase sizes depend on how much time you put in each week. Phase 1 is the first point where Leviathan can replace Explorer for local work; Phase 3 delivers the triage workflow.
 

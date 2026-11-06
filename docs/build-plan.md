@@ -131,6 +131,98 @@ containers; space-map layout tests.
 
 **Gate:** feature-complete against the spec after a month of daily use.
 
+## Phases 6 to 10 — Extensions (only after Phase 5's gate)
+
+Brett's rule: get the original concept solid first, then add these, **in this order**, one phase at a time with the same
+plan → slices → UAT playbook → gate → `docs/phase-N.md` → tag → stop. Each phase's first step is to write
+`docs/phase-N-plan.md` from the notes below. Set aside for now (see spec §21): window-level dual pane, smart folders across
+drives, deep Git integration, hash / properties extras.
+
+## Phase 6 — Workspaces
+
+**Spec:** §17.1 (D37), §4.1 (tabs, groups), §15.1 (split). Replaces the profile code of Phase 1 (G1).
+
+**Build:** `Workspace` model (schema-versioned) holding everything in the §17.1 table, including each tab's split orientation
+and ratio and each pane's own state; Last session as the built-in workspace; store with atomic writes, `.bak` copies and
+damaged / newer-schema handling; **migration** from `last-session.json` and `profiles.json` (kept as `.migrated`); Save
+current windows as workspace (all windows / this window), rename, duplicate, Save over, delete, export / import with an
+unresolvable-locations report; startup setting (Last session / a workspace / nothing / ask) and `--workspace` argument;
+open modes Replace, Open in new windows, Add tabs to this window; title-bar menu, picker (Ctrl+Alt+W) and command palette
+entries; staged opening (selected tab first, network tabs last); offline / missing tab state; dirty marker on an edited workspace.
+Slices: model + store + migration; capture and restore (window, tab, split, view); open modes + window manager; UI (menu, picker,
+settings, command line); import / export; polish.
+
+**Tests:** round trips per level; migration fixtures from real Phase 1–2 files; damaged / truncated / future files;
+offline and missing locations; the three open modes (never zero windows); `--workspace`; 50-tab open with no stall over 50 ms;
+FlaUI smoke: save, close, reopen restores a split in the right orientation.
+
+**Gate:** a 50-tab, 3-window workspace opens with the first window usable under 1 s; killing the app mid-save never loses
+the previous workspace; migration of the existing files is lossless.
+
+## Phase 7 — Column view
+
+**Spec:** §8.8 (D38), §8.1, §7.2 (listing rules), §3.1 budgets.
+
+**Build:** `ColumnsViewModel` (path-to-columns mapping, selection rules, re-anchoring, per-column listing with
+cancellation and the 150 ms keyboard debounce, width clamping and the visible-count formula); WinUI view: horizontally
+scrolling strip of virtualized lists with draggable dividers, min / max / default width settings, per-depth remembered
+widths, header context menu, quiet highlight for non-focused columns; Columns layout in the View menu, layout switcher and
+Ctrl+Shift+3, saved per folder and in workspaces; interplay with split panes, the preview pane and drag and drop.
+Slices: view model + tests; static view with one folder per column; selection and keyboard; resizing and re-flow; polish and
+network behaviour.
+
+**Tests:** per §8.8; a fault-injecting provider makes one column's share fail while the others work; FlaUI smoke for
+resize and horizontal scroll; stall watchdog during rapid keyboard selection.
+
+**Gate:** first rows of a new column < 100 ms (10,000 local items) and < 400 ms on the NAS; a 20-deep path stays smooth; no
+UI stall over 50 ms while holding Down in a 5,000-folder column.
+
+## Phase 8 — Terminal drawer
+
+**Spec:** §16.2 (D39), §16.1 (status hub), §3.4 (process isolation).
+
+**Build:** **Slice H1 is a feasibility spike** (dock Windows Terminal in the hub: resize, focus, keyboard, DPI, multi-monitor);
+its result and the chosen approach (docked Windows Terminal, or the ConPTY fallback in §16.2) go in `docs/decisions.md` before
+anything else. Then: terminal host process under `ProcessSupervisor`; Terminal tab in the hub with session strip, Go to
+current folder, `pushd` for UNC, home fallback, shell list setting, Ctrl+` toggle, pop-out and dock; close-confirmation
+when programs are running; crash isolation message; Activity entries (open / shell, never keystrokes).
+
+**Tests:** command building and quoting; session list; integration with real cmd in a temp folder; chaos: kill the host
+mid-program; stall watchdog while output floods; FlaUI smoke: hotkey opens a prompt in the current folder.
+
+**Gate:** drawer shows a prompt < 600 ms; killing the terminal host leaves the app and other hub tabs usable; no stall over
+50 ms during a 10 MB output flood.
+
+## Phase 9 — Always-available tools
+
+**Spec:** §15.7 (D40), §6, §8.5, §15.6 (command palette from Phase 5).
+
+**Build:** one command implementation each for Copy path (all variants, default-format setting), Open terminal here (drawer
+by default, external window with Shift) and Open in editor (default app / VS Code / custom command, validation, folder
+rule), registered once and surfaced in the right-click menu, the command bar and the command palette with matching names,
+icons and shortcuts; settings; Activity entries; disabled states with tooltips (registry, search results, archives).
+
+**Tests:** per §15.7, including "same command id in all three places" and every copy variant on the fixture folders.
+
+**Gate:** each command reachable from all three places and by its shortcut, in a split pane and in a multi-selection.
+
+## Phase 10 — Registry explorer (read-only)
+
+**Spec:** §7.3 (D41), §2.3 (contract bump for the `Registry` location kind).
+
+**Build:** `LocationKind.Registry` and address forms in `LocationPath` (contract Major bump); `IRegistry` with the real Win32
+implementation (CsWin32, streaming enumeration in batches) and an in-memory fake; `RegistryProvider` implementing the
+read-only subset; Registry sidebar section behind the Settings toggle; value columns and rendering for every type; preview
+of value data; read-only command states; Copy data, Open in Regedit, Export key to `.reg` (worker job); access-denied and
+huge-key handling; change detection by `RegNotifyChangeKeyValue` with a poll fallback; workspaces and columns support.
+
+**Tests:** address-form parsing; value rendering for every type; huge and vanishing keys; locked keys; scratch-key
+integration tests under `HKCU\Software\LeviathanTests`; export output compared to Regedit's format; proof that no write API is
+reachable (the provider type does not implement the write interfaces).
+
+**Gate:** a key with 10,000 subkeys shows rows < 100 ms; browsing `HKLM` as a standard user never errors the tree; a
+repository-wide search shows no registry write call in `src/`.
+
 ## Later (decide after Phase 4)
 
 - NAS agent in a container on the DS2419+ for server-side hashing, folder sizes and change notifications (spec §21).
