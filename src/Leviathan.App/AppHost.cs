@@ -570,7 +570,7 @@ internal sealed class AppHost
         background.Network = () => new NetworkStats(polling.Watching, listings.FolderCount, listings.EntryCount, listings.MaxEntries);
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new CompositeFolderWatcher(
             new LocalFolderWatcher(),
-            polling));
+            polling), new MediaInfoSource(() => built!.MediaHost));
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
         NewItemService newItems;

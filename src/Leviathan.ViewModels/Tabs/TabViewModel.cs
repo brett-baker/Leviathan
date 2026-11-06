@@ -21,10 +21,11 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="Home">The location a new tab opens (spec §4.1).</param>
 /// <param name="Recent">Folders visited recently, shared by all tabs; every navigation is recorded there.</param>
 /// <param name="FolderSizes">Where folder totals for the Size column come from; null shows no folder sizes.</param>
+/// <param name="MediaInfo">Where duration, resolution and the other media columns come from (the media process); null leaves them empty.</param>
 /// <param name="Options">Whether hidden and system items are listed; null lists neither.</param>
 /// <param name="Cache">Remembered folder listings shown at once and checked in the background; null lists every folder afresh.</param>
 /// <param name="Watcher">Reports changes to the folder on screen so its rows follow the disk; null leaves them as listed.</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null, IFolderWatcher? Watcher = null);
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null, IFolderWatcher? Watcher = null, IMediaInfoSource? MediaInfo = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -125,6 +126,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _explicitView = explicitView ?? FolderViewSettings.Default;
         Columns = new ColumnLayout(_explicitView.Columns, _explicitView.ColumnWidths);
         Sizes = new FolderSizeTracker(services.FolderSizes, services.Ui);
+        Media = new MediaInfoTracker(services.MediaInfo, services.Ui, services.Time);
 
         // Sorting by a folder's size, item count or file count: the view asks the tracker, and sorts again when a number arrives.
         Items.SetFolderMetrics(Sizes.ValueOf);
@@ -144,6 +146,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             }
             else if (e.PropertyName == nameof(FolderViewModel.State))
             {
+                // A new listing starts: whatever media information was being read for the old folder is cancelled (spec §9.3).
+                if (Folder.State is FolderLoadState.Loading)
+                {
+                    Media.SetFolder();
+                }
+
                 if (Folder.State is FolderLoadState.Loaded)
                 {
                     Sizes.Begin(Items.Rows);
@@ -335,6 +343,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Folder totals for the Size column.</summary>
     public FolderSizeTracker Sizes { get; }
+
+    /// <summary>Duration, resolution and the other media columns of the files shown, read lazily by the media process (spec §8.2, §9.3).</summary>
+    public MediaInfoTracker Media { get; }
 
     /// <summary>The breadcrumb address bar.</summary>
     public AddressBarViewModel Address { get; }
@@ -602,6 +613,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _services.ViewRules.Changed -= OnRulesChanged;
         Secondary?.Dispose();
         Sizes.Dispose();
+        Media.Dispose();
         Folder.Dispose();
     }
 

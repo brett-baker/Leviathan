@@ -35,7 +35,7 @@ Every slice follows `CLAUDE.md`.
   rate; snapshot tests (Verify) over the fixture set.
 - [x] **A3. Cache and quarantine** (done: `MediaMetadataService` in `Leviathan.Media.Core` and `SqliteMediaMetadataStore` in `Leviathan.Data` over the existing `media_metadata` table; 16 service tests and 9 store tests; the Media process that calls `RecoverFromCrash()` on start comes with A4). SQLite `media_metadata` keyed by path + size + mtime; a file that times out or crashes
   ffprobe is marked unreadable until it changes; Media process crash → restart, no retry loop.
-- [ ] **A4. Lazy probing.** Visible rows only, low priority, cancelled on navigate; sorting by a media column fills the whole
+- [x] **A4. Lazy probing** (done as A4a and A4b. A4a: the `Leviathan.Media` process, `IMediaService` (contract minor 10), `MediaClient`, `MediaHostConnection` (on demand, restarted, disabled after three crashes in five minutes), listed in the Background tab; 6 tests against the real process. A4b: `MediaInfoTracker` on every tab (`TabViewModel.Media`): visible rows after one cache read, then the rest, whole-folder fill with progress, cancel on navigate, 19 tests, and the app adapter `MediaInfoSource`. The grid does not call `SetVisible` / `FillFolder` yet: that is A5, when there are media columns to show, so no file is probed for nothing.) Visible rows only, low priority, cancelled on navigate; sorting by a media column fills the whole
   folder in the background with progress in the column header (§8.2).
 - [ ] **A5. Media columns** in Details (enabled in the column chooser from Phase 1 slice I3): duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages,
   subtitles; Tiles and Gallery layouts (deferred from Phase 1).
