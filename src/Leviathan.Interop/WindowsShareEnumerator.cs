@@ -22,14 +22,24 @@ public sealed partial class WindowsShareEnumerator : IShareEnumerator
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(server);
         var work = Task.Run(() => Enumerate(server), CancellationToken.None);
-        return await work.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var (status, shares) = await work.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (shares is null)
+        {
+            // Thrown here, in the awaiting method, not inside the pool thread's delegate: "access denied" is an ordinary answer (it
+            // becomes the sign-in prompt), and thrown over there Visual Studio breaks on it as "User-Unhandled" with Just My Code on.
+            // The error number rides in the HRESULT so LocationErrors can tell "server not found" from "access denied".
+            throw new IOException($"{server} did not list its shares (error {status}).") { HResult = unchecked((int)0x80070000) | status };
+        }
+
+        return shares;
     }
 
-    private static unsafe List<ShareInfo> Enumerate(string server)
+    // The Win32 status and the shares, or null shares when the call failed; never throws for a refusal.
+    private static unsafe (int Status, List<ShareInfo>? Shares) Enumerate(string server)
     {
         if (!OperatingSystem.IsWindows())
         {
-            return [];
+            return (Success, []);
         }
 
         byte* buffer = null;
@@ -41,8 +51,7 @@ public sealed partial class WindowsShareEnumerator : IShareEnumerator
             var status = NetShareEnum("\\\\" + server, 1, &buffer, MaxPreferred, &read, &total, &resume);
             if (status != Success && status != MoreData)
             {
-                // The error number rides in the HRESULT so LocationErrors can tell "server not found" from "access denied".
-                throw new IOException($"{server} did not list its shares (error {status}).") { HResult = unchecked((int)0x80070000) | status };
+                return (status, null);
             }
 
             var shares = new List<ShareInfo>((int)read);
@@ -63,7 +72,7 @@ public sealed partial class WindowsShareEnumerator : IShareEnumerator
                 }
             }
 
-            return shares;
+            return (Success, shares);
         }
         finally
         {
