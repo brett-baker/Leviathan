@@ -35,6 +35,9 @@ public static class LocationErrors
     /// <summary>ERROR_NETWORK_UNREACHABLE.</summary>
     public const int NetworkUnreachable = 1231;
 
+    /// <summary>ERROR_NOT_AUTHENTICATED: the server wants a sign-in first.</summary>
+    public const int NotAuthenticated = 1244;
+
     /// <summary>ERROR_NO_NETWORK / ERROR_CONNECTION_UNAVAIL style failures.</summary>
     public const int ConnectionUnavailable = 1201;
 
@@ -45,7 +48,7 @@ public static class LocationErrors
         AccessDenied => LocationError.AccessDenied,
         BadNetPath or BadNetName or UnexpectedNetworkError or NetNameDeleted or NetworkUnreachable or ConnectionUnavailable => LocationError.Unreachable,
         SemaphoreTimeout => LocationError.Timeout,
-        LogonFailure => LocationError.AuthenticationRequired,
+        LogonFailure or NotAuthenticated => LocationError.AuthenticationRequired,
         _ => LocationError.Unknown,
     };
 

@@ -450,7 +450,12 @@ public sealed class SidebarTree
         }
         catch (LocationException ex)
         {
-            failure = ex.Error == LocationError.AccessDenied ? "Access denied" : "Not responding";
+            failure = ex.Error switch
+            {
+                LocationError.AccessDenied => "Access denied",
+                LocationError.AuthenticationRequired => "Sign-in required",
+                _ => "Not responding",
+            };
         }
         finally
         {

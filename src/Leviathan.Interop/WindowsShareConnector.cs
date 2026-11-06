@@ -93,7 +93,8 @@ public sealed class WindowsShareConnector : IShareConnector
         {
             var resource = new NETRESOURCEW
             {
-                dwType = NET_RESOURCE_TYPE.RESOURCETYPE_DISK,
+                // \\server\IPC$ is the server's own session, not a disk; asking for a disk there fails with "bad device type".
+                dwType = remote.EndsWith(IpcShare, StringComparison.OrdinalIgnoreCase) ? NET_RESOURCE_TYPE.RESOURCETYPE_ANY : NET_RESOURCE_TYPE.RESOURCETYPE_DISK,
                 lpRemoteName = remotePtr,
                 lpLocalName = local is null ? default : localPtr,
             };
@@ -174,12 +175,15 @@ public sealed class WindowsShareConnector : IShareConnector
         }
     }
 
-    // \\server\share for a share path, or the share a mapped drive points at.
-    private static string? ShareRootOf(LocationPath location)
+    private const string IpcShare = @"\IPC$";
+
+    // \\server\share for a share path, the share a mapped drive points at, or \\server\IPC$ for a server on its own (the way to sign
+    // in to a server before any share is chosen, as Explorer does: the session it opens is the one that then lists the shares).
+    internal static string? ShareRootOf(LocationPath location)
     {
         if (location.Kind == LocationKind.Unc)
         {
-            return location.Root;
+            return location.Share is null ? location.Root + IpcShare : location.Root;
         }
 
         return location.Kind == LocationKind.Drive && location.Root.Length >= 2 ? WindowsDriveMappings.QueryUnc(location.Root[..2]) : null;

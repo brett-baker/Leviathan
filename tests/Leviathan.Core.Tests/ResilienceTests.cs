@@ -107,6 +107,7 @@ public class LocationErrorsTests
     [InlineData(5, LocationError.AccessDenied)]
     [InlineData(3, LocationError.NotFound)]
     [InlineData(1326, LocationError.AuthenticationRequired)]
+    [InlineData(1244, LocationError.AuthenticationRequired)]
     [InlineData(9999, LocationError.Unknown)]
     public void FromWin32_Classifies(int code, LocationError expected)
     {

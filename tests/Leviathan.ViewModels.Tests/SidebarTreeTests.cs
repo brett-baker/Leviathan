@@ -247,6 +247,7 @@ public sealed class SidebarTreeTests
 
     [Theory]
     [InlineData(LocationError.AccessDenied, "Access denied — Retry")]
+    [InlineData(LocationError.AuthenticationRequired, "Sign-in required — Retry")]
     [InlineData(LocationError.Unreachable, "Not responding — Retry")]
     public async Task Expand_ThatFails_SaysWhy(LocationError error, string message)
     {

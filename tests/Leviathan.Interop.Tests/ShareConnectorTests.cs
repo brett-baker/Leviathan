@@ -34,6 +34,14 @@ public sealed class ShareConnectorTests
         Assert.Equal(ConnectOutcome.NotNeeded, result.Outcome);
     }
 
+    // A server on its own is signed in to through \\server\IPC$, as Explorer does; the old target (\\server as a disk) could never connect.
+    [Theory]
+    [InlineData(@"\\192.168.1.39", @"\\192.168.1.39\IPC$")]
+    [InlineData(@"\\nas\media", @"\\nas\media")]
+    [InlineData(@"\\nas\media\show\ep1.mkv", @"\\nas\media")]
+    public void SignInTarget_IsTheServersIpcShare_OrTheShareItself(string location, string expected) =>
+        Assert.Equal(expected, WindowsShareConnector.ShareRootOf(LocationPath.Parse(location)));
+
     [Fact]
     public async Task SigningInToALocalFolder_ShowsNoDialog_AndHasNothingToDo()
     {

@@ -81,14 +81,18 @@ public sealed class ServerSharesProviderTests
         Assert.Equal(LocationError.Unreachable, error.Error);
     }
 
+    // A server that will not list its shares for this session is asking for a sign-in, as Explorer treats it (it shows a login prompt).
+    // The second case is exactly what NetShareEnum gave for 192.168.1.39: "did not list its shares (error 5)".
     [Fact]
-    public async Task ListAsync_WhenAccessIsDenied_SaysSo()
+    public async Task ListAsync_WhenAccessIsDenied_AsksForASignIn()
     {
-        var shares = new FakeShares { Failure = new UnauthorizedAccessException() };
+        foreach (var failure in new Exception[] { new UnauthorizedAccessException(), new IOException("192.168.1.39 did not list its shares (error 5).") { HResult = unchecked((int)0x80070005) } })
+        {
+            var error = await Assert.ThrowsAsync<LocationException>(() => ListAsync(new ServerSharesProvider(new FakeShares { Failure = failure }), Server));
 
-        var error = await Assert.ThrowsAsync<LocationException>(() => ListAsync(new ServerSharesProvider(shares), Server));
-
-        Assert.Equal(LocationError.AccessDenied, error.Error);
+            Assert.Equal(LocationError.AuthenticationRequired, error.Error);
+            Assert.Contains("sign in", error.Message, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

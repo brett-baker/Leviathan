@@ -64,7 +64,16 @@ public sealed class ServerSharesProvider : ILocationProvider
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TimeoutException)
         {
-            throw LocationErrors.Wrap(ex, location);
+            var failure = LocationErrors.Wrap(ex, location);
+
+            // A server that answers but will not list its shares has refused the session we have (no guest access, or the wrong
+            // account): that is "sign in", as Explorer treats it, not a dead end. The folder view then offers Windows' sign-in dialog.
+            if (failure.Error == LocationError.AccessDenied)
+            {
+                throw new LocationException(LocationError.AuthenticationRequired, location, $"{location.Server} needs you to sign in.", ex);
+            }
+
+            throw failure;
         }
 
         var now = _time.GetUtcNow();
