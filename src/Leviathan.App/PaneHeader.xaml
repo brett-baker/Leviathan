@@ -1,0 +1,37 @@
+<UserControl
+    x:Class="Leviathan.App.PaneHeader"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Visibility="Collapsed">
+
+  <!-- The summary above one pane (spec 8.7): the drive the folder is on and what is in the folder. Folded, it is a thin bar. -->
+  <Border Margin="8,8,8,0" Padding="16,12" CornerRadius="6"
+          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+    <Grid ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel x:Name="Details" Spacing="4">
+        <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="TypeText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+        <ProgressBar x:Name="UsageBar" Maximum="100" Height="6" Margin="0,6,0,2" />
+        <TextBlock x:Name="UsageText" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="CountedText" Style="{StaticResource CaptionTextBlockStyle}" Visibility="Collapsed" TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+
+      <!-- Shown instead of the details while folded. -->
+      <TextBlock x:Name="FoldedText" Visibility="Collapsed" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
+        <Button x:Name="TerminalButton" Content="Open terminal here" Click="OnTerminalClick" />
+        <Button x:Name="PropertiesButton" Content="Properties" Click="OnPropertiesClick" />
+        <Button x:Name="FoldButton" Click="OnFoldClick" AutomationProperties.Name="Fold the summary">
+          <FontIcon x:Name="FoldIcon" Glyph="&#xE70E;" FontSize="12" />
+        </Button>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

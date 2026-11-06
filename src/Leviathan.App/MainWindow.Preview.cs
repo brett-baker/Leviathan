@@ -29,6 +29,6 @@ public sealed partial class MainWindow
     private void OnFolderSizesChanged(object? sender, IReadOnlyList<Core.Paths.LocationPath> folders) => OnUi(() =>
     {
         UpdatePreview();
-        UpdateCardCounted();
+        UpdateHeaders();
     });
 }

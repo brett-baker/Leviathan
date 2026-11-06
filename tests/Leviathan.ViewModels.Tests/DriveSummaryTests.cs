@@ -71,45 +71,55 @@ public sealed class DriveCardPreferencesTests
     }
 
     [Fact]
-    public void SetHidden_RemembersPerDrive_IgnoringCase_AndSaves()
+    public void Collapsed_IsOneChoiceForEveryPane_SavedOnce_AndRemembered()
     {
         var storage = new MemoryStorage();
         var prefs = new DriveCardPreferences(storage);
         var changes = 0;
         prefs.Changed += (_, _) => changes++;
+        Assert.False(prefs.IsCollapsed);
 
-        prefs.SetHidden(LocationPath.Parse(@"D:\"), true);
-        prefs.SetHidden(LocationPath.Parse(@"d:\"), true);
+        prefs.SetCollapsed(true);
+        prefs.SetCollapsed(true);
 
-        Assert.True(prefs.IsHidden(LocationPath.Parse(@"D:\")));
-        Assert.False(prefs.IsHidden(LocationPath.Parse(@"C:\")));
+        Assert.True(prefs.IsCollapsed);
         Assert.Equal(1, changes);
         Assert.Equal(1, storage.Saves);
-        Assert.Equal([@"D:\"], storage.Saved);
-        Assert.True(new DriveCardPreferences(storage).IsHidden(LocationPath.Parse(@"D:\")));
+        Assert.True(new DriveCardPreferences(storage).IsCollapsed);
     }
 
     [Fact]
-    public void SetHidden_False_ShowsTheCardAgain()
+    public void Unfolding_BringsTheHeaderBack_AndSavesNothingToRemember()
     {
-        var prefs = new DriveCardPreferences(new MemoryStorage { Saved = [@"D:\"] });
+        var storage = new MemoryStorage();
+        var prefs = new DriveCardPreferences(storage);
+        prefs.SetCollapsed(true);
 
-        prefs.SetHidden(LocationPath.Parse(@"D:\"), false);
+        prefs.SetCollapsed(false);
 
-        Assert.False(prefs.IsHidden(LocationPath.Parse(@"D:\")));
+        Assert.False(prefs.IsCollapsed);
+        Assert.Empty(storage.Saved);
+        Assert.False(new DriveCardPreferences(storage).IsCollapsed);
     }
 
     [Fact]
-    public async Task DriveCardCommand_Toggles_OnlyForARoot()
+    public void TheOldPerDriveHiddenList_IsIgnored_BecauseItHadNoWayBack()
+    {
+        var prefs = new DriveCardPreferences(new MemoryStorage { Saved = [@"D:\", @"C:\"] });
+
+        Assert.False(prefs.IsCollapsed);
+    }
+
+    [Fact]
+    public async Task DriveCardCommand_FoldsAndUnfolds_FromAnyFolder()
     {
         var prefs = new DriveCardPreferences(new MemoryStorage());
         var h = new WindowCommandsTests.Harness(driveCards: prefs);
         await h.Ready;
 
-        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.DriveCardToggle, @"C:\a"));
-        Assert.Equal(CommandResult.Executed, await h.Run(CommandIds.DriveCardToggle, @"C:\"));
-        Assert.True(prefs.IsHidden(LocationPath.Parse(@"C:\")));
-        await h.Run(CommandIds.DriveCardToggle, @"C:\");
-        Assert.False(prefs.IsHidden(LocationPath.Parse(@"C:\")));
+        Assert.Equal(CommandResult.Executed, await h.Run(CommandIds.DriveCardToggle, @"C:\a"));
+        Assert.True(prefs.IsCollapsed);
+        await h.Run(CommandIds.DriveCardToggle, null);
+        Assert.False(prefs.IsCollapsed);
     }
 }

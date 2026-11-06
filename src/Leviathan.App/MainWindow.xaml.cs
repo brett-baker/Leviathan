@@ -61,7 +61,7 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, host.Transfers, host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles);
         }
-        host.DriveCards.Changed += (_, _) => OnUi(UpdateDriveCard);
+        host.DriveCards.Changed += (_, _) => OnUi(UpdateHeaders);
         host.Undo.Changed += OnUndoChanged;
         host.FileClipboard.Changed += OnClipboardChanged;
         host.Transfers.Finished += OnTransferFinished;
@@ -114,6 +114,8 @@ public sealed partial class MainWindow : Window, IShellActions
         FlowList.KeyDown += OnFileKeyDown;
         FlowList.ZoomRequested += (_, notches) => Run(CommandIds.ViewZoom, parameter: notches);
         InitPanes();
+        InitHeaders();
+        InitMouseNavigation();
         Address.Submitted += OnAddressSubmitted;
         Address.NavigationRequested += OnAddressNavigation;
         Address.DropRequested += OnItemsDropped;
@@ -751,7 +753,7 @@ public sealed partial class MainWindow : Window, IShellActions
         if (_bound is null)
         {
             StatusText.Text = string.Empty;
-            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = DriveCard.Visibility = NoticePart.Visibility = Visibility.Collapsed;
+            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = NoticePart.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -779,7 +781,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FreeBar.Foreground = SidebarFormat.BarBrush(drive?.IsLowOnSpace == true);
         FreePart.Visibility = free.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateLayoutSwitch();
-        UpdateDriveCard();
+        UpdateHeaders();
     }
 
     private bool _syncingSlider;

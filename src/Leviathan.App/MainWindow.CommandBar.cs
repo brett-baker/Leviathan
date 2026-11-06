@@ -331,12 +331,9 @@ public sealed partial class MainWindow
         preview.Click += (_, _) => Run(CommandIds.PreviewPane);
         ViewMenu.Items.Add(hidden);
         ViewMenu.Items.Add(preview);
-        if (_bound?.History.Current is { } here && _commands.CanExecute(CommandIds.DriveCardToggle, new CommandContext(here.Value)))
-        {
-            var card = new ToggleMenuFlyoutItem { Text = "Drive summary", IsChecked = !App.Host.DriveCards.IsHidden(here) };
-            card.Click += (_, _) => Run(CommandIds.DriveCardToggle, here.Value);
-            ViewMenu.Items.Add(card);
-        }
+        var card = new ToggleMenuFlyoutItem { Text = "Drive and folder summary", IsChecked = !App.Host.DriveCards.IsCollapsed };
+        card.Click += (_, _) => Run(CommandIds.DriveCardToggle);
+        ViewMenu.Items.Add(card);
 
         ViewMenu.Items.Add(new MenuFlyoutSeparator());
         foreach (var (text, command, keys) in new[]

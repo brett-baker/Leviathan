@@ -60,49 +60,52 @@ public sealed record DriveSummary(string Title, string TypeText, string UsageTex
     }
 }
 
-/// <summary>Where the list of drives whose card is hidden is kept between runs. Writes must be atomic (spec §17).</summary>
+/// <summary>Where the choice about the pane headers is kept between runs. Writes must be atomic (spec §17).</summary>
 public interface IDriveCardStorage
 {
-    /// <summary>Reads the hidden roots; a missing or damaged file gives an empty list.</summary>
+    /// <summary>Reads the saved entries; a missing or damaged file gives an empty list.</summary>
     IReadOnlyList<string> Load();
 
-    /// <summary>Saves the hidden roots.</summary>
+    /// <summary>Saves the entries.</summary>
     void Save(IReadOnlyList<string> roots);
 }
 
-/// <summary>Which drives have their summary card hidden. The choice is remembered per drive (spec §8.7).</summary>
+/// <summary>
+/// Whether the header above each pane (the drive and folder summary, spec §8.7) is folded away. One choice for every pane, so two panes
+/// side by side always look alike; a folded header leaves a thin bar with a button to bring it back. What older builds kept here, the
+/// drives whose card was hidden, is ignored: that choice had no way back.
+/// </summary>
 public sealed class DriveCardPreferences
 {
-    private readonly IDriveCardStorage _storage;
-    private readonly HashSet<string> _hidden;
+    private const string CollapsedEntry = "*collapsed";
 
-    /// <summary>Loads the saved choices from <paramref name="storage"/>.</summary>
+    private readonly IDriveCardStorage _storage;
+    private bool _collapsed;
+
+    /// <summary>Loads the saved choice from <paramref name="storage"/>.</summary>
     public DriveCardPreferences(IDriveCardStorage storage)
     {
         ArgumentNullException.ThrowIfNull(storage);
         _storage = storage;
-        _hidden = new HashSet<string>(storage.Load(), StringComparer.OrdinalIgnoreCase);
+        _collapsed = storage.Load().Contains(CollapsedEntry, StringComparer.Ordinal);
     }
 
-    /// <summary>Raised after a choice changed.</summary>
+    /// <summary>Raised after the choice changed.</summary>
     public event EventHandler? Changed;
 
-    /// <summary>True when the card of <paramref name="root"/> is hidden.</summary>
-    public bool IsHidden(LocationPath root)
-    {
-        ArgumentNullException.ThrowIfNull(root);
-        return _hidden.Contains(root.Root);
-    }
+    /// <summary>True when the headers are folded to their thin bar.</summary>
+    public bool IsCollapsed => _collapsed;
 
-    /// <summary>Hides or shows the card of <paramref name="root"/> and saves the choice.</summary>
-    public void SetHidden(LocationPath root, bool hidden)
+    /// <summary>Folds or unfolds the headers of every pane and saves the choice.</summary>
+    public void SetCollapsed(bool collapsed)
     {
-        ArgumentNullException.ThrowIfNull(root);
-        var changed = hidden ? _hidden.Add(root.Root) : _hidden.Remove(root.Root);
-        if (changed)
+        if (collapsed == _collapsed)
         {
-            _storage.Save([.. _hidden.Order(StringComparer.OrdinalIgnoreCase)]);
-            Changed?.Invoke(this, EventArgs.Empty);
+            return;
         }
+
+        _collapsed = collapsed;
+        _storage.Save(collapsed ? [CollapsedEntry] : []);
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 }

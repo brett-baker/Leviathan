@@ -291,35 +291,15 @@
           </StackPanel>
         </InfoBar>
 
-        <!-- Drive and share summary (spec 8.7), above the normal list at the top of a drive or share. -->
-        <Border x:Name="DriveCard" Grid.Row="1" Visibility="Collapsed" Margin="8,8,8,0" Padding="16,12" CornerRadius="6"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-          <Grid ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Spacing="4">
-              <TextBlock x:Name="CardTitle" Style="{StaticResource BodyStrongTextBlockStyle}" />
-              <TextBlock x:Name="CardType" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <ProgressBar x:Name="CardBar" Maximum="100" Height="6" Margin="0,6,0,2" />
-              <TextBlock x:Name="CardUsage" Style="{StaticResource CaptionTextBlockStyle}" />
-              <TextBlock x:Name="CardCounted" Style="{StaticResource CaptionTextBlockStyle}" Visibility="Collapsed"
-                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-              <Button Content="Open terminal here" Click="OnCardTerminalClick" />
-              <Button Content="Properties" Click="OnCardPropertiesClick" />
-              <Button x:Name="CardHideButton" Click="OnCardHideClick" ToolTipService.ToolTip="Hide this card for this drive (View menu brings it back)" AutomationProperties.Name="Hide drive summary">
-                <FontIcon Glyph="&#xE711;" FontSize="12" />
-              </Button>
-            </StackPanel>
-          </Grid>
-        </Border>
-
         <!-- The panes of the tab (spec 15.1): the first pane always, the second while the tab is split. The gap between them is 6 px. -->
         <Grid x:Name="PaneHost" Grid.Row="2">
         <Grid x:Name="Pane1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <local:PaneHeader x:Name="Header1" />
+        <Grid x:Name="Pane1Body" Grid.Row="1">
         <local:DetailsGrid x:Name="FileList" />
         <local:FlowView x:Name="FlowList" Visibility="Collapsed" />
 
@@ -332,12 +312,19 @@
           <Button x:Name="RetryButton" Content="Try again" HorizontalAlignment="Center" Click="OnRetryClick" Visibility="Collapsed" />
           <Button x:Name="SignInButton" Content="Sign in…" HorizontalAlignment="Center" Click="OnSignInClick" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
-        <Border x:Name="Pane1Frame" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+        </Grid>
+        <Border x:Name="Pane1Frame" Grid.RowSpan="2" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
 
         <Border x:Name="PaneGap" Visibility="Collapsed" />
 
         <Grid x:Name="Pane2" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <local:PaneHeader x:Name="Header2" />
+          <Grid x:Name="Pane2Body" Grid.Row="1">
           <local:DetailsGrid x:Name="FileList2" />
           <local:FlowView x:Name="FlowList2" Visibility="Collapsed" />
           <StackPanel x:Name="StatePanel2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
@@ -346,7 +333,8 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <Button x:Name="Retry2Button" Content="Try again" HorizontalAlignment="Center" Click="OnRetry2Click" Visibility="Collapsed" />
           </StackPanel>
-          <Border x:Name="Pane2Frame" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+          </Grid>
+          <Border x:Name="Pane2Frame" Grid.RowSpan="2" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
         </Grid>
       </Grid>

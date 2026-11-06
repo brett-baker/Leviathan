@@ -38,7 +38,6 @@ public sealed partial class MainWindow
         Icons.Bind(DetailsSwitch, static (b, i) => b.Content = i, "layout-details");
         Icons.Bind(ListSwitch, static (b, i) => b.Content = i, "layout-list");
         Icons.Bind(ThumbsSwitch, static (b, i) => b.Content = i, "layout-thumbnails");
-        Icons.Bind(CardHideButton, static (b, i) => b.Content = i, "close", 12);
 
         icons.Changed += OnIconsChanged;
     }

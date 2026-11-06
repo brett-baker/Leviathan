@@ -1096,12 +1096,9 @@ public static partial class WindowCommands
         Add(CommandIds.EditUndo, "Undo", "Edit", async (_, ct) => await ShowUndoOutcome(await undo!.UndoAsync(ct), ct), _ => undo is { CanUndo: true }, shortcut: "Ctrl+Z", icon: "Undo");
         Add(CommandIds.EditRedo, "Redo", "Edit", async (_, ct) => await ShowUndoOutcome(await undo!.RedoAsync(ct), ct), _ => undo is { CanRedo: true }, shortcut: "Ctrl+Y", icon: "Redo");
 
-        // Show or hide the summary card of the drive in Target (spec §8.7); remembered per drive.
-        Add(CommandIds.DriveCardToggle, "Show or hide the drive summary", "View", (c, _) => Run(() =>
-        {
-            var root = LocationPath.Parse(c.Target!);
-            driveCards!.SetHidden(root, !driveCards.IsHidden(root));
-        }), c => driveCards is not null && LocationPath.TryParse(c.Target, out var root) && Drives.DriveSummary.IsDriveRoot(root));
+        // Fold or unfold the summary above every pane (spec §8.7); one choice for all panes, remembered.
+        Add(CommandIds.DriveCardToggle, "Fold or unfold the drive and folder summary", "View",
+            (_, _) => Run(() => driveCards!.SetCollapsed(!driveCards.IsCollapsed)), _ => driveCards is not null);
 
         // Dropped items (spec §8.4): the rules decide, the transfer service does the work. A refused drop says why.
         Add(CommandIds.DropItems, "Drop items here", "Files", async (c, ct) =>

@@ -81,7 +81,14 @@ public sealed partial class MainWindow
     }
 
     // A pane's listing state (loading, empty, error) is drawn over that pane, whichever pane has the focus.
-    private void OnPaneStateChanged(object? sender, PropertyChangedEventArgs e) => OnUi(UpdateState);
+    private void OnPaneStateChanged(object? sender, PropertyChangedEventArgs e) => OnUi(() =>
+    {
+        UpdateState();
+        UpdateHeaders();
+    });
+
+    // A count arrived for a folder of either pane: its header says it.
+    private void OnPaneSizesChanged(object? sender, IReadOnlyList<Core.Paths.LocationPath> folders) => OnUi(UpdateHeaders);
 
     /// <summary>
     /// Shows the selected tab's panes and binds the address bar, status bar and the rest to the focused one. Called when the selected
@@ -111,6 +118,7 @@ public sealed partial class MainWindow
         UpdatePaneButtons();
         UpdateFrames();
         UpdateState();
+        UpdateHeaders();
     }
 
     private void BindPaneViews(TabViewModel? strip)
@@ -129,6 +137,7 @@ public sealed partial class MainWindow
         {
             hooked.Folder.PropertyChanged -= OnPaneStateChanged;
             hooked.Items.PropertyChanged -= OnPaneStateChanged;
+            hooked.Sizes.Changed -= OnPaneSizesChanged;
         }
 
         _stateHooked.Clear();
@@ -136,6 +145,7 @@ public sealed partial class MainWindow
         {
             pane.Folder.PropertyChanged += OnPaneStateChanged;
             pane.Items.PropertyChanged += OnPaneStateChanged;
+            pane.Sizes.Changed += OnPaneSizesChanged;
             _stateHooked.Add(pane);
 
             // A tab restored from a session is listed when it is first shown, never before (spec §17.1).

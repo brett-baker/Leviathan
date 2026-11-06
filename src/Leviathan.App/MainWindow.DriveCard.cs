@@ -2,67 +2,76 @@ using Leviathan.Core.Model;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Drives;
 using Leviathan.ViewModels.StatusBar;
-using Microsoft.UI.Xaml;
+using Leviathan.ViewModels.Tabs;
 
 namespace Leviathan.App;
 
-/// <summary>The drive and share summary card above the file list (spec §8.7).</summary>
+/// <summary>
+/// The summary above each pane (spec §8.7): the drive or share the folder is on, plus what Leviathan has counted in the folder. In a
+/// split every pane has its own, as wide as the pane it describes, and folding one folds both so the two look alike.
+/// </summary>
 public sealed partial class MainWindow
 {
-    /// <summary>Shows the card when the tab is at the top of a drive or share and its card is not hidden; fills it from the drive's details.</summary>
-    private void UpdateDriveCard()
+    private void InitHeaders()
     {
-        var location = _bound?.History.Current;
-        var drive = location is not null && DriveSummary.IsDriveRoot(location) && !App.Host.DriveCards.IsHidden(location)
-            ? StatusBarText.DriveOf(location, _drives)
-            : null;
-        if (drive is null)
+        Header1.TerminalRequested += (_, _) => RunForPane(0, CommandIds.TerminalHere);
+        Header2.TerminalRequested += (_, _) => RunForPane(1, CommandIds.TerminalHere);
+        Header1.PropertiesRequested += (_, _) => OnHeaderProperties(0);
+        Header2.PropertiesRequested += (_, _) => OnHeaderProperties(1);
+        Header1.FoldToggled += (_, _) => Run(CommandIds.DriveCardToggle);
+        Header2.FoldToggled += (_, _) => Run(CommandIds.DriveCardToggle);
+    }
+
+    // The buttons of a header act on its own pane, whichever has the focus: the pane takes the focus first.
+    private void RunForPane(int pane, ViewModels.Commands.CommandId command)
+    {
+        OnPaneFocused(pane);
+        Run(command);
+    }
+
+    private void OnHeaderProperties(int pane)
+    {
+        OnPaneFocused(pane);
+        if (PaneOf(pane)?.History.Current is { } folder)
         {
-            DriveCard.Visibility = Visibility.Collapsed;
+            var entry = new FileEntry(folder.Name, folder, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory);
+            Run(CommandIds.Properties, folder.Value, entry);
+        }
+    }
+
+    private TabViewModel? PaneOf(int pane) => pane == 1 ? _viewModel.Tabs.Selected?.Secondary : _viewModel.Tabs.Selected;
+
+    /// <summary>Fills the header of each pane from the drive its folder is on, and asks for the folder to be counted.</summary>
+    private void UpdateHeaders()
+    {
+        UpdateHeader(Header1, PaneOf(0));
+        UpdateHeader(Header2, PaneOf(1));
+    }
+
+    private void UpdateHeader(PaneHeader header, TabViewModel? pane)
+    {
+        var folder = pane?.History.Current;
+        var drive = folder is null ? null : StatusBarText.DriveOf(folder, _drives);
+        if (pane is null || folder is null || drive is null)
+        {
+            header.Clear();
             return;
         }
 
-        var summary = DriveSummary.From(drive);
-        CardTitle.Text = summary.Title;
-        CardType.Text = summary.TypeText;
-        CardUsage.Text = summary.UsageText;
-        CardBar.Value = summary.UsedFraction * 100;
-        CardBar.Foreground = SidebarFormat.BarBrush(summary.IsLowOnSpace);
-        DriveCard.Visibility = Visibility.Visible;
-        UpdateCardCounted();
-    }
-
-    // What Leviathan has counted at the top (spec §12.7): shown once known, and asked for in the background when the root can be counted.
-    private void UpdateCardCounted()
-    {
-        if (_bound?.Sizes is not { } sizes || _bound.History.Current is not { } root || DriveCard.Visibility != Visibility.Visible)
+        var folded = App.Host.DriveCards.IsCollapsed;
+        var counted = string.Empty;
+        if (!folded)
         {
-            CardCounted.Visibility = Visibility.Collapsed;
-            return;
+            // The folder's own count, once known; a folder that can be counted is asked for in the background (spec 12.7).
+            counted = pane.Sizes.DetailFor(folder);
+            if (counted.Length > 0)
+            {
+                counted = (folder.IsRoot ? "Counted: " : folder.Name + ": ") + counted;
+            }
+
+            pane.Sizes.RequestNow(new FileEntry(folder.Name, folder, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory));
         }
 
-        var detail = sizes.DetailFor(root);
-        CardCounted.Text = "Counted: " + detail;
-        CardCounted.Visibility = detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        sizes.RequestNow(new FileEntry(root.Name, root, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory));
-    }
-
-    private void OnCardTerminalClick(object sender, RoutedEventArgs e) => Run(CommandIds.TerminalHere);
-
-    private void OnCardPropertiesClick(object sender, RoutedEventArgs e)
-    {
-        if (_bound?.History.Current is { } root)
-        {
-            var entry = new FileEntry(root.Name, root, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory);
-            Run(CommandIds.Properties, root.Value, entry);
-        }
-    }
-
-    private void OnCardHideClick(object sender, RoutedEventArgs e)
-    {
-        if (_bound?.History.Current is { } root)
-        {
-            Run(CommandIds.DriveCardToggle, root.Value);
-        }
+        header.Show(DriveSummary.From(drive), counted, folded, _commands.CanExecute(CommandIds.TerminalHere, new CommandContext(folder.Value)) && folder.Kind == Core.Paths.LocationKind.Drive);
     }
 }
