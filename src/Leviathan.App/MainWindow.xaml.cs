@@ -488,6 +488,7 @@ public sealed partial class MainWindow : Window, IShellActions
             _bound.Folder.Entries.CollectionChanged -= OnFolderEntriesChanged;
             _bound.Items.PropertyChanged -= OnItemsPropertyChanged;
             _bound.Selection.Changed -= OnSelectionChanged;
+            _bound.Sizes.Changed -= OnFolderSizesChanged;
             _bound.Address.PropertyChanged -= OnAddressLocationChanged;
             _bound.PropertyChanged -= OnTabViewChanged;
         }
@@ -509,6 +510,7 @@ public sealed partial class MainWindow : Window, IShellActions
         tab.PropertyChanged += OnTabViewChanged;
         ApplyLayout();
         tab.Selection.Changed += OnSelectionChanged;
+        tab.Sizes.Changed += OnFolderSizesChanged;
         tab.Folder.PropertyChanged += OnFolderPropertyChanged;
         tab.Folder.Entries.CollectionChanged += OnFolderEntriesChanged;
         tab.Items.PropertyChanged += OnItemsPropertyChanged;
@@ -516,6 +518,7 @@ public sealed partial class MainWindow : Window, IShellActions
         tab.Address.PropertyChanged += OnAddressLocationChanged;
         UpdateState();
         UpdateStatus();
+        UpdatePreview();
         SyncFilterBox();
         RefreshNavigationButtons();
         SyncSidebar();
@@ -646,6 +649,7 @@ public sealed partial class MainWindow : Window, IShellActions
     private void OnSelectionChanged(object? sender, EventArgs e) => OnUi(() =>
     {
         UpdateStatus();
+        UpdatePreview();
         RefreshCommandBar();
     });
 

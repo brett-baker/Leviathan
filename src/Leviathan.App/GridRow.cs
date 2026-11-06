@@ -222,8 +222,16 @@ internal sealed class GridRow : Grid
             {
                 cell.Text.Text = _owner.Sizes is { } sizes ? sizes.TextFor(entry) : string.Empty;
                 cell.Text.FontStyle = _owner.Sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
+                SetSizeTip(cell.Text, entry);
             }
         }
+    }
+
+    // What the number holds and how old it is (spec §12.7); files keep no tip.
+    private void SetSizeTip(TextBlock text, FileEntry entry)
+    {
+        var tip = entry.Kind == Leviathan.Core.Model.FileEntryKind.File ? string.Empty : _owner.Sizes?.DetailFor(entry.Location) ?? string.Empty;
+        ToolTipService.SetToolTip(text, tip.Length == 0 ? null : tip);
     }
 
     private static string AttributeText(FileAttributes attributes)
@@ -349,6 +357,7 @@ internal sealed class GridRow : Grid
             else if (cell.ColumnId == "size")
             {
                 cell.Text.FontStyle = sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
+                SetSizeTip(cell.Text, entry);
             }
         }
     }

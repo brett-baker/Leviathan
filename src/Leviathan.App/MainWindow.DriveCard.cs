@@ -29,6 +29,22 @@ public sealed partial class MainWindow
         CardBar.Value = summary.UsedFraction * 100;
         CardBar.Foreground = SidebarFormat.BarBrush(summary.IsLowOnSpace);
         DriveCard.Visibility = Visibility.Visible;
+        UpdateCardCounted();
+    }
+
+    // What Leviathan has counted at the top (spec §12.7): shown once known, and asked for in the background when the root can be counted.
+    private void UpdateCardCounted()
+    {
+        if (_bound?.Sizes is not { } sizes || _bound.History.Current is not { } root || DriveCard.Visibility != Visibility.Visible)
+        {
+            CardCounted.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var detail = sizes.DetailFor(root);
+        CardCounted.Text = "Counted: " + detail;
+        CardCounted.Visibility = detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        sizes.RequestNow(new FileEntry(root.Name, root, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory));
     }
 
     private void OnCardTerminalClick(object sender, RoutedEventArgs e) => Run(CommandIds.TerminalHere);

@@ -169,5 +169,12 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
     }
 
     private static FolderSizeInfo ToInfo(FolderSize size, bool outdated) =>
-        new(size.TotalBytes, size.IsLowerBound, outdated);
+        new(
+            size.TotalBytes,
+            size.IsLowerBound,
+            outdated,
+            size.TotalFiles,
+            size.TotalFolders,
+            size.ComputedAt,
+            Leviathan.Providers.Local.MappedDrives.IsMappedDrive(size.Location));
 }

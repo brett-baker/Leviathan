@@ -7,7 +7,18 @@ namespace Leviathan.ViewModels.Folders;
 /// <param name="Bytes">Total bytes below the folder.</param>
 /// <param name="IsLowerBound">True while counting is under way or part of the folder could not be read ("≥ 412 MB").</param>
 /// <param name="IsStale">True when the folder changed since it was counted (shown in italic until recounted).</param>
-public readonly record struct FolderSizeInfo(long Bytes, bool IsLowerBound = false, bool IsStale = false);
+/// <param name="Files">Files below the folder (0 when not known).</param>
+/// <param name="Folders">Folders below the folder (0 when not known).</param>
+/// <param name="ComputedAt">When the folder was counted; null when not known.</param>
+/// <param name="IsNetwork">True for a folder on a share, where a size always shows its age because a change deeper down is not noticed (spec §12.7).</param>
+public readonly record struct FolderSizeInfo(
+    long Bytes,
+    bool IsLowerBound = false,
+    bool IsStale = false,
+    int Files = 0,
+    int Folders = 0,
+    DateTimeOffset? ComputedAt = null,
+    bool IsNetwork = false);
 
 /// <summary>Where folder totals come from. The app implements it on top of the worker's folder-size jobs and the shared size store (spec §12.7).</summary>
 public interface IFolderSizeSource
@@ -39,15 +50,17 @@ public sealed class FolderSizeTracker : IDisposable
 
     private readonly IFolderSizeSource? _source;
     private readonly IUiContext _ui;
+    private readonly TimeProvider _time;
     private readonly HashSet<LocationPath> _requested = [];
     private bool _disposed;
 
     /// <summary>Creates a tracker; with a null <paramref name="source"/> folders simply show no size.</summary>
-    public FolderSizeTracker(IFolderSizeSource? source, IUiContext ui)
+    public FolderSizeTracker(IFolderSizeSource? source, IUiContext ui, TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(ui);
         _source = source;
         _ui = ui;
+        _time = time ?? TimeProvider.System;
         if (source is not null)
         {
             source.Computed += OnComputed;
@@ -73,11 +86,51 @@ public sealed class FolderSizeTracker : IDisposable
 
         if (_source.TryGet(entry.Location) is { } info)
         {
-            return (info.IsLowerBound ? "≥ " : string.Empty) + DisplayFormat.Size(info.Bytes);
+            var text = (info.IsLowerBound ? "≥ " : string.Empty) + DisplayFormat.Size(info.Bytes);
+            return info.IsNetwork && AgeOf(info) is { } age ? $"{text} · {ShortAge(age)}" : text;
         }
 
         return _source.CanCompute(entry.Location) && _requested.Contains(entry.Location) ? "…" : string.Empty;
     }
+
+    /// <summary>
+    /// The tooltip of a folder's Size cell and the lines of the drive card and preview pane: the total, what it holds and when it was
+    /// counted. Empty when the folder has no stored size.
+    /// </summary>
+    public string DetailFor(LocationPath folder)
+    {
+        if (_source?.TryGet(folder) is not { } info)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string> { (info.IsLowerBound ? "at least " : string.Empty) + DisplayFormat.Size(info.Bytes) };
+        if (info.Files > 0 || info.Folders > 0)
+        {
+            parts.Add($"{info.Files:N0} {(info.Files == 1 ? "file" : "files")} in {info.Folders:N0} {(info.Folders == 1 ? "folder" : "folders")}");
+        }
+
+        if (AgeOf(info) is { } age)
+        {
+            parts.Add((info.IsStale ? "out of date, counted " : "counted ") + ListingNotice.Age(age));
+        }
+        else if (info.IsStale)
+        {
+            parts.Add("out of date");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>"just now", "5 min", "3 h", "4 d": the age in the Size cell of a folder on a share.</summary>
+    public static string ShortAge(TimeSpan age) =>
+        age < TimeSpan.FromMinutes(1) ? "now"
+        : age.TotalMinutes < 60 ? $"{(int)age.TotalMinutes} min"
+        : age.TotalHours < 48 ? $"{(int)age.TotalHours} h"
+        : $"{(int)age.TotalDays} d";
+
+    private TimeSpan? AgeOf(FolderSizeInfo info) =>
+        info.ComputedAt is { } at ? (_time.GetUtcNow() - at is { Ticks: > 0 } age ? age : TimeSpan.Zero) : null;
 
     /// <summary>True when the folder's value is out of date and should be drawn in italic.</summary>
     public bool IsStale(FileEntry entry) => _source?.TryGet(entry.Location) is { IsStale: true };
@@ -112,6 +165,26 @@ public sealed class FolderSizeTracker : IDisposable
         {
             _source.Request(wanted);
         }
+    }
+
+    /// <summary>
+    /// Counts one folder that is selected, shown in the preview pane or heads a drive card, though it is not in the listing (spec §12.7:
+    /// "is selected"). Does nothing when a fresh, complete size is known or the folder was already asked for.
+    /// </summary>
+    public void RequestNow(FileEntry folder)
+    {
+        ArgumentNullException.ThrowIfNull(folder);
+        if (_source is null || !_source.CanCompute(folder.Location) || !_requested.Add(folder.Location))
+        {
+            return;
+        }
+
+        if (_source.TryGet(folder.Location) is { IsStale: false, IsLowerBound: false })
+        {
+            return;
+        }
+
+        _source.Request([folder]);
     }
 
     /// <summary>Forgets what was requested (the folder changed).</summary>

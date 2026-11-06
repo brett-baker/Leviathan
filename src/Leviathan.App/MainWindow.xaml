@@ -304,6 +304,8 @@
               <TextBlock x:Name="CardType" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <ProgressBar x:Name="CardBar" Maximum="100" Height="6" Margin="0,6,0,2" />
               <TextBlock x:Name="CardUsage" Style="{StaticResource CaptionTextBlockStyle}" />
+              <TextBlock x:Name="CardCounted" Style="{StaticResource CaptionTextBlockStyle}" Visibility="Collapsed"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
               <Button Content="Open terminal here" Click="OnCardTerminalClick" />
@@ -332,6 +334,9 @@
       <Border x:Name="PreviewPane" Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="16">
         <StackPanel Spacing="4">
           <TextBlock Text="Preview and details" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <TextBlock x:Name="PreviewName" TextWrapping="Wrap" Visibility="Collapsed" />
+          <TextBlock x:Name="PreviewSize" TextWrapping="Wrap" Visibility="Collapsed"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="Video preview, metadata and tags arrive in Phase 3." TextWrapping="Wrap"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>

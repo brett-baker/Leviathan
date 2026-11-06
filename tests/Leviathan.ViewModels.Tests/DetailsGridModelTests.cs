@@ -1,4 +1,5 @@
 using Leviathan.Core.Paths;
+using Leviathan.Testing;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Views;
@@ -270,5 +271,47 @@ public sealed class FolderSizeTrackerTests
         tracker.Begin(rows);
 
         Assert.Equal(FolderSizeTracker.MaxRequested, Assert.Single(source.Requests).Count);
+    }
+
+    private static readonly DateTimeOffset Now = new(2026, 11, 6, 12, 0, 0, TimeSpan.Zero);
+
+    private static Leviathan.Core.Model.FileEntry Folder(string path) =>
+        new(path[(path.LastIndexOf('\\') + 1)..], P(path), Leviathan.Core.Model.FileEntryKind.Folder, 0, default, default, FileAttributes.Directory);
+
+    [Fact]
+    public void TextFor_FolderOnAShare_ShowsItsAge_ALocalFolderDoesNot()
+    {
+        var source = new FakeSource();
+        source.Known[P(@"Y:\media")] = new FolderSizeInfo(1024, ComputedAt: Now.AddDays(-3), IsNetwork: true);
+        source.Known[P(@"C:\local")] = new FolderSizeInfo(1024, ComputedAt: Now.AddDays(-3));
+        var tracker = new FolderSizeTracker(source, new InlineUiContext(), new ManualTimeProvider(Now));
+
+        Assert.Equal("1 KB · 3 d", tracker.TextFor(Folder(@"Y:\media")));
+        Assert.Equal("1 KB", tracker.TextFor(Folder(@"C:\local")));
+    }
+
+    [Fact]
+    public void DetailFor_SaysWhatIsInsideAndWhenItWasCounted_AndStaysEmptyWhenUnknown()
+    {
+        var source = new FakeSource();
+        source.Known[P(@"Y:\media")] = new FolderSizeInfo(2048, IsLowerBound: true, IsStale: true, Files: 1234, Folders: 1, ComputedAt: Now.AddHours(-5), IsNetwork: true);
+        var tracker = new FolderSizeTracker(source, new InlineUiContext(), new ManualTimeProvider(Now));
+
+        Assert.Equal("at least 2 KB · 1,234 files in 1 folder · out of date, counted 5 hours ago", tracker.DetailFor(P(@"Y:\media")));
+        Assert.Equal(string.Empty, tracker.DetailFor(P(@"Y:\unknown")));
+    }
+
+    [Fact]
+    public void RequestNow_AsksOnceForAFolderWithoutAFreshSize()
+    {
+        var source = new FakeSource();
+        source.Known[P(@"C:\done")] = new FolderSizeInfo(1);
+        var tracker = new FolderSizeTracker(source, new InlineUiContext());
+
+        tracker.RequestNow(Folder(@"C:\done"));
+        tracker.RequestNow(Folder(@"C:\new"));
+        tracker.RequestNow(Folder(@"C:\new"));
+
+        Assert.Equal([P(@"C:\new")], Assert.Single(source.Requests).Select(e => e.Location));
     }
 }
