@@ -133,6 +133,22 @@ internal sealed class AppHost
             : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.dll")}\"");
     }
 
+    private readonly Lazy<Leviathan.Engine.Supervision.MediaHostConnection> _mediaHost = new(() => new Leviathan.Engine.Supervision.MediaHostConnection(MediaHostLauncher()));
+
+    /// <summary>
+    /// The out-of-process home of ffprobe metadata (spec §2.2, §9.3). Nothing starts until the first call to
+    /// <see cref="Leviathan.Engine.Supervision.MediaHostConnection.GetServiceAsync"/>, which a folder that shows media information makes.
+    /// </summary>
+    public Leviathan.Engine.Supervision.MediaHostConnection MediaHost => _mediaHost.Value;
+
+    private static Leviathan.Engine.Supervision.ExecutableLauncher MediaHostLauncher()
+    {
+        var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.Media.exe");
+        return File.Exists(exe)
+            ? new Leviathan.Engine.Supervision.ExecutableLauncher(exe)
+            : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.Media.dll")}\"");
+    }
+
     /// <summary>The user's settings (<c>settings.json</c>); loaded by <see cref="PlanStartupAsync"/>.</summary>
     public SettingsStore Settings { get; private init; } = null!;
 
@@ -296,6 +312,9 @@ internal sealed class AppHost
     /// <summary>True once the shell host was needed (reading <see cref="ShellHost"/> would start it).</summary>
     internal bool IsShellHostStarted => _shellHost.IsValueCreated;
 
+    /// <summary>True once media information was needed (reading <see cref="MediaHost"/> would start the process).</summary>
+    internal bool IsMediaHostStarted => _mediaHost.IsValueCreated;
+
     private static ProcessEntry ProcessEntryFor(string name, Leviathan.Engine.Supervision.SupervisedState state, int? pid, int restarts, string? disabledReason, string purpose) => new(
         name,
         state switch
@@ -335,6 +354,10 @@ internal sealed class AppHost
         else if (name == "Shell host" && IsShellHostStarted)
         {
             ShellHost.Reenable();
+        }
+        else if (name == "Media process" && IsMediaHostStarted)
+        {
+            MediaHost.Reenable();
         }
     }
 
@@ -527,6 +550,9 @@ internal sealed class AppHost
                 () => built is { IsShellHostStarted: true } host
                     ? ProcessEntryFor("Shell host", host.ShellHost.State, host.ShellHost.SupervisedProcessId, host.ShellHost.RestartCount, host.ShellHost.DisabledReason, "Right-click menus of other programs, kept out of this window")
                     : new ProcessEntry("Shell host", "Not started", null, 0, "Starts at the first right-click menu"),
+                () => built is { IsMediaHostStarted: true } host
+                    ? ProcessEntryFor("Media process", host.MediaHost.State, host.MediaHost.SupervisedProcessId, host.MediaHost.RestartCount, host.MediaHost.DisabledReason, "Reads video and audio details, kept out of this window")
+                    : new ProcessEntry("Media process", "Not started", null, 0, "Starts when a folder with video or audio is shown"),
             ]);
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();

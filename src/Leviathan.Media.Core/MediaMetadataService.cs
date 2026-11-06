@@ -23,6 +23,8 @@ public sealed class MediaMetadataService : IDisposable
     private readonly TimeProvider _time;
     private readonly SemaphoreSlim _slots;
     private readonly ConcurrentDictionary<string, InFlight> _inFlight = new(StringComparer.OrdinalIgnoreCase);
+    private readonly int _maxParallel;
+    private long _probed;
 
     /// <summary>Creates the service. <paramref name="maxParallel"/> probes run at once (2 by default: ffprobe is light, disks and NAS links are not).</summary>
     public MediaMetadataService(FfprobeRunner probe, IMediaMetadataStore store, TimeProvider? time = null, int maxParallel = 2)
@@ -32,7 +34,17 @@ public sealed class MediaMetadataService : IDisposable
         _store = store;
         _time = time ?? TimeProvider.System;
         _slots = new SemaphoreSlim(maxParallel, maxParallel);
+        _maxParallel = maxParallel;
     }
+
+    /// <summary>Probes running now.</summary>
+    public int Running => _maxParallel - _slots.CurrentCount;
+
+    /// <summary>Probes waiting for a slot (asked for, not yet running).</summary>
+    public int Waiting => Math.Max(0, _inFlight.Count - Running);
+
+    /// <summary>Files probed since this service was created (cache hits are not counted).</summary>
+    public long ProbedCount => Interlocked.Read(ref _probed);
 
     /// <summary>Releases the probe slots; probes still running finish on their own.</summary>
     public void Dispose() => _slots.Dispose();
@@ -151,6 +163,7 @@ public sealed class MediaMetadataService : IDisposable
             else
             {
                 _store.Put(entry);
+                Interlocked.Increment(ref _probed);
                 RaiseProbed(entry);
             }
 

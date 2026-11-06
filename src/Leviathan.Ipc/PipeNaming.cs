@@ -14,6 +14,9 @@ public static class PipeNaming
     /// <summary>The shell host pipe name for the current user.</summary>
     public static string ShellHostPipe() => PipeNames.ShellHostPrefix + UserHash();
 
+    /// <summary>The media process pipe name for the current user (and data folder).</summary>
+    public static string MediaPipe() => PipeNames.MediaPrefix + UserHash();
+
     /// <summary>
     /// A short hash of the current user's SID (or user name off Windows). When <c>LEVIATHAN_DATA_DIR</c> is set the folder is part of
     /// the identity, so a run with its own data folder (a test, a portable copy) gets its own worker and shell host and never talks

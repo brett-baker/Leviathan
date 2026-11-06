@@ -5,4 +5,8 @@
     <RootNamespace>Leviathan.Contracts</RootNamespace>
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The media contract carries MediaInfo itself; Media.Core is plain net10.0 with no dependencies. -->
+    <ProjectReference Include="..\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
+  </ItemGroup>
 </Project>

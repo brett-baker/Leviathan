@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The media process (spec 2.2, 9.3): ffprobe metadata with a SQLite cache, supervised and restartable, so a bad media file never reaches the UI. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.MediaHost</RootNamespace>
+    <AssemblyName>Leviathan.Media</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
+    <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
+    <ProjectReference Include="..\Leviathan.Data\Leviathan.Data.csproj" />
+    <ProjectReference Include="..\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Media.Tests" />
+    <InternalsVisibleTo Include="Leviathan.Integration.Tests" />
+  </ItemGroup>
+</Project>

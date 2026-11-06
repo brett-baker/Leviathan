@@ -47,5 +47,6 @@
     <ProjectReference Include="..\Leviathan.Worker\Leviathan.Worker.csproj" />
     <!-- Same for the shell host, which runs third-party shell extensions out of process. -->
     <ProjectReference Include="..\Leviathan.ShellHost\Leviathan.ShellHost.csproj" />
+    <ProjectReference Include="..\Leviathan.Media\Leviathan.Media.csproj" />
   </ItemGroup>
 </Project>

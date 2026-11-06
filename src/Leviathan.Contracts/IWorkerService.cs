@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 9;
+    public const int Minor = 10;
 }
 
 /// <summary>Information the worker reports about itself.</summary>
@@ -112,4 +112,7 @@ public static class PipeNames
 
     /// <summary>Prefix of the shell host pipe, built the same way as <see cref="WorkerPrefix"/>.</summary>
     public const string ShellHostPrefix = "Leviathan.ShellHost.v2.";
+
+    /// <summary>Prefix of the media process pipe, built the same way as <see cref="WorkerPrefix"/>.</summary>
+    public const string MediaPrefix = "Leviathan.Media.v2.";
 }
