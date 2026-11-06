@@ -83,6 +83,7 @@ public sealed class MediaInfoTracker : IDisposable
     private readonly HashSet<string> _dirty = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _visible = [];
     private List<string> _fill = [];
+    private HashSet<string> _wanted = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _generation = new();
     private int _running;
     private int _fillTotal;
@@ -148,6 +149,41 @@ public sealed class MediaInfoTracker : IDisposable
         }
     }
 
+    /// <summary>
+    /// The cell text of a media column: empty for anything that is not a media file, "…" while a file on screen is waiting to be read,
+    /// "—" for a file that could not be read, otherwise the value (spec §8.2).
+    /// </summary>
+    public string TextFor(FileEntry entry, MediaColumnKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (!IsMedia(entry))
+        {
+            return string.Empty;
+        }
+
+        lock (_lock)
+        {
+            return _results.GetValueOrDefault(entry.Location.ToWin32Path()) switch
+            {
+                { State: MediaInfoState.Ok, Info: { } info } => MediaColumns.Text(kind, info),
+                { State: MediaInfoState.Unreadable } => "—",
+                { } => string.Empty,
+                null => !_unavailable && _wanted.Contains(entry.Location.ToWin32Path()) ? "…" : string.Empty,
+            };
+        }
+    }
+
+    /// <summary>The tooltip of a media cell: why the file could not be read, or empty.</summary>
+    public string DetailFor(FileEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return TryGet(entry) is { State: MediaInfoState.Unreadable } result ? "Could not be read: " + (result.Message ?? "unknown reason") : string.Empty;
+    }
+
+    /// <summary>What a media column sorts <paramref name="entry"/> by; a file that has not been read (or is not media) has no value.</summary>
+    public MediaSortKey SortKeyOf(FileEntry entry, MediaColumnKind kind) =>
+        TryGet(entry) is { State: MediaInfoState.Ok, Info: { } info } ? MediaColumns.SortKey(kind, info) : MediaSortKey.None;
+
     /// <summary>True when <paramref name="entry"/> is a file that media columns apply to (judged by extension).</summary>
     public static bool IsMedia(FileEntry entry)
     {
@@ -173,6 +209,7 @@ public sealed class MediaInfoTracker : IDisposable
             _dirty.Clear();
             _visible = [];
             _fill = [];
+            _wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             _fillTotal = 0;
             _filling = false;
             _unavailable = false;
@@ -212,6 +249,7 @@ public sealed class MediaInfoTracker : IDisposable
             }
 
             _visible = [.. media.Select(m => m.Path)];
+            _wanted.UnionWith(_visible);
             toPeek = [.. media.Where(m => !_results.ContainsKey(m.Path))];
         }
 
@@ -250,6 +288,7 @@ public sealed class MediaInfoTracker : IDisposable
             }
 
             _fill = [.. media.Select(m => m.Path)];
+            _wanted.UnionWith(_fill);
             _fillTotal = _fill.Count;
             _filling = _fillTotal > 0;
         }

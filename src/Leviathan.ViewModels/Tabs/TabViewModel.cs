@@ -131,6 +131,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         // Sorting by a folder's size, item count or file count: the view asks the tracker, and sorts again when a number arrives.
         Items.SetFolderMetrics(Sizes.ValueOf);
         Sizes.Changed += (_, _) => Items.ResortByMetrics();
+
+        // The same for the media columns: a duration that arrives can move a row, and sorting by one reads the whole folder (spec §8.2, §9.3).
+        Items.SetMediaKeys(Media.SortKeyOf);
+        Media.Changed += (_, _) => Items.ResortByMedia();
+        Items.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(FolderItemsView.Sort))
+            {
+                UpdateMediaFill();
+            }
+        };
         _useExplicitView = explicitView is not null;
         ApplyView();
 
@@ -154,6 +165,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
                 if (Folder.State is FolderLoadState.Loaded)
                 {
+                    UpdateMediaFill();
                     Sizes.Begin(Items.Rows);
                 }
 
@@ -346,6 +358,35 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Duration, resolution and the other media columns of the files shown, read lazily by the media process (spec §8.2, §9.3).</summary>
     public MediaInfoTracker Media { get; }
+
+    /// <summary>True when a media column is among the visible columns (the media process is not asked for anything otherwise).</summary>
+    public bool ShowsMediaColumns => Columns.Slots.Any(s => s.Column.Media is not null);
+
+    /// <summary>
+    /// The rows on screen, reported by the grid once it has settled: reads their media information when a media column is shown, and
+    /// does nothing when none is, so a folder of videos costs no process and no probe until the user asks for a column (spec §9.3).
+    /// </summary>
+    public void RequestMedia(IReadOnlyList<FileEntry> visibleRows)
+    {
+        ArgumentNullException.ThrowIfNull(visibleRows);
+        if (ShowsMediaColumns)
+        {
+            Media.SetVisible(visibleRows);
+        }
+    }
+
+    // Sorting by a media column needs every value, so the whole folder is read behind the rows on screen; any other sort stops that.
+    private void UpdateMediaFill()
+    {
+        if (Items.SortsByMedia && Folder.State is FolderLoadState.Loaded)
+        {
+            Media.FillFolder(Folder.Entries);
+        }
+        else
+        {
+            Media.CancelFill();
+        }
+    }
 
     /// <summary>The breadcrumb address bar.</summary>
     public AddressBarViewModel Address { get; }

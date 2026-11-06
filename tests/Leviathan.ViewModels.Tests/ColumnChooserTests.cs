@@ -58,7 +58,7 @@ public sealed class ColumnChooserTests
         var model = new ColumnChooserModel(["name"]);
 
         Assert.False(model.SetChecked("name", false));
-        Assert.False(model.SetChecked("duration", true));
+        Assert.False(model.SetChecked("dimensions", true));
         Assert.False(model.SetChecked("no-such-column", true));
         Assert.False(model.SetChecked("name", true));
         Assert.Equal(["name"], model.Result);
@@ -74,7 +74,7 @@ public sealed class ColumnChooserTests
         Assert.True(model.Move("name", 99));
         Assert.Equal(["created", "size", "modified", "name"], model.Result);
         Assert.False(model.Move("name", 3));
-        Assert.False(model.Move("duration", 0));
+        Assert.False(model.Move("dimensions", 0));
         Assert.Equal(model.Result, model.Order);
     }
 

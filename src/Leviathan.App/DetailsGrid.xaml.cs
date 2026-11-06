@@ -84,6 +84,9 @@ public sealed partial class DetailsGrid : UserControl
 
     internal FolderSizeTracker? Sizes => _tab?.Sizes;
 
+    /// <summary>The media information of the shown files (the media columns read from it).</summary>
+    internal MediaInfoTracker? Media => _tab?.Media;
+
     internal bool HasKeyboardFocus => _hasFocus;
 
     /// <summary>Width of a row: the columns, or the viewport if that is wider so selection spans the whole line.</summary>
@@ -120,6 +123,8 @@ public sealed partial class DetailsGrid : UserControl
         tab.Columns.Changed += OnColumnsChanged;
         tab.Selection.Changed += OnSelectionChanged;
         tab.Sizes.Changed += OnSizesChanged;
+        tab.Media.Changed += OnMediaChanged;
+        tab.Media.ProgressChanged += OnMediaProgressChanged;
         tab.Items.PropertyChanged += OnItemsChanged;
         tab.Items.Rows.CollectionChanged += OnRowsChanged;
         tab.Folder.PropertyChanged += OnFolderChanged;
@@ -168,6 +173,8 @@ public sealed partial class DetailsGrid : UserControl
         _tab.Columns.Changed -= OnColumnsChanged;
         _tab.Selection.Changed -= OnSelectionChanged;
         _tab.Sizes.Changed -= OnSizesChanged;
+        _tab.Media.Changed -= OnMediaChanged;
+        _tab.Media.ProgressChanged -= OnMediaProgressChanged;
         _tab.Items.PropertyChanged -= OnItemsChanged;
         _tab.Items.Rows.CollectionChanged -= OnRowsChanged;
         _tab.Folder.PropertyChanged -= OnFolderChanged;
@@ -269,6 +276,38 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
+    private void OnMediaChanged(object? sender, IReadOnlyList<string> paths)
+    {
+        var changed = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in _realized.Where(r => r.Entry is { } entry && changed.Contains(entry.Location.ToWin32Path())))
+        {
+            row.RefreshMedia();
+        }
+    }
+
+    // While a sort by a media column is reading the whole folder, its header says how far it has got: "Duration · 45%".
+    private void OnMediaProgressChanged(object? sender, EventArgs e) => ApplyHeaderProgress();
+
+    private void ApplyHeaderProgress()
+    {
+        if (_tab is null)
+        {
+            return;
+        }
+
+        var progress = _tab.Media.Progress;
+        foreach (Grid cell in HeaderPanel.Children.OfType<Grid>())
+        {
+            if (!FileColumns.TryGet((string)cell.Tag, out var column) || cell.Children.OfType<TextBlock>().FirstOrDefault() is not { } title)
+            {
+                continue;
+            }
+
+            var reading = column.Media is not null && progress.IsRunning && _tab.Items.Sort.Any(k => k.Column.Equals(column.Id, StringComparison.OrdinalIgnoreCase));
+            title.Text = reading ? $"{column.Title} · {(int)((progress.Fraction ?? 0) * 100)}%" : column.Title;
+        }
+    }
+
     /// <summary>Takes the row height and the icon size again after the density or the icon size changed.</summary>
     internal void RefreshMetrics()
     {
@@ -303,6 +342,10 @@ public sealed partial class DetailsGrid : UserControl
             {
                 row.Bind(row.Entry!);
             }
+
+            // A media column that was just added needs its rows read; one that was removed stops asking.
+            ApplyHeaderProgress();
+            ScheduleFocus();
         }
         else
         {
@@ -362,6 +405,9 @@ public sealed partial class DetailsGrid : UserControl
         }
 
         _tab.Sizes.SetVisible(visible);
+
+        // The same rows, for the media columns (nothing happens unless one is shown).
+        _tab.RequestMedia([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))]);
     }
 
     private void OnItemsChanged(object? sender, PropertyChangedEventArgs e)

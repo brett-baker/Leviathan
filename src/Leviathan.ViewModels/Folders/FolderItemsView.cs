@@ -54,6 +54,7 @@ public sealed partial class FolderItemsView : ObservableObject
     private IEntryMetadata _metadata = NoEntryMetadata.Instance;
     private Comparison<FileEntry> _comparison;
     private Func<FileEntry, FolderMetric, long?>? _metrics;
+    private Func<FileEntry, MediaColumnKind, MediaSortKey>? _mediaKeys;
 
     /// <summary>Creates a view over <paramref name="source"/>, applying <paramref name="settings"/>.</summary>
     public FolderItemsView(RangeObservableCollection<FileEntry> source, FolderViewSettings? settings = null, TimeProvider? time = null)
@@ -183,6 +184,39 @@ public sealed partial class FolderItemsView : ObservableObject
         {
             Recompute();
         }
+    }
+
+    /// <summary>
+    /// Supplies what the media columns sort files by (spec §8.2); a file that has not been read yet sorts before the ones that have.
+    /// </summary>
+    public void SetMediaKeys(Func<FileEntry, MediaColumnKind, MediaSortKey>? keys)
+    {
+        _mediaKeys = keys;
+        _comparison = BuildComparison();
+        if (SortsByMedia)
+        {
+            Recompute();
+        }
+    }
+
+    /// <summary>True when the sort uses a media column, so information that arrives can move a row.</summary>
+    public bool SortsByMedia => _sort.Any(k => FileColumns.TryGet(k.Column, out var c) && c.Media is not null);
+
+    /// <summary>Media information arrived: sorts again when the sort depends on it and a row moved. Does nothing otherwise.</summary>
+    public void ResortByMedia()
+    {
+        if (!SortsByMedia)
+        {
+            return;
+        }
+
+        _comparison = BuildComparison();
+        if (IsSorted(_sorted, _comparison))
+        {
+            return;
+        }
+
+        Recompute();
     }
 
     /// <summary>True when the sort uses a folder-size number, so a number that arrives can move a row.</summary>
@@ -376,6 +410,7 @@ public sealed partial class FolderItemsView : ObservableObject
         var keys = _sort.Select(k => (Column: FileColumns.TryGet(k.Column, out var c) ? c : FileColumns.Name, k.Direction)).ToArray();
         var folders = _folders;
         var metrics = _metrics;
+        var mediaKeys = _mediaKeys;
         return (a, b) =>
         {
             if (folders != FolderPlacement.Mixed)
@@ -389,7 +424,11 @@ public sealed partial class FolderItemsView : ObservableObject
 
             foreach (var (column, direction) in keys)
             {
-                var result = column.Metric is { } metric && metrics is not null ? CompareMetric(a, b, metric, metrics) : column.Compare(a, b);
+                var result = column.Metric is { } metric && metrics is not null
+                    ? CompareMetric(a, b, metric, metrics)
+                    : column.Media is { } media && mediaKeys is not null
+                        ? MediaSortKey.Compare(mediaKeys(a, media), mediaKeys(b, media))
+                        : column.Compare(a, b);
                 if (result != 0)
                 {
                     return direction == SortDirection.Ascending ? result : -result;

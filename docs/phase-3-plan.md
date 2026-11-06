@@ -37,8 +37,9 @@ Every slice follows `CLAUDE.md`.
   ffprobe is marked unreadable until it changes; Media process crash → restart, no retry loop.
 - [x] **A4. Lazy probing** (done as A4a and A4b. A4a: the `Leviathan.Media` process, `IMediaService` (contract minor 10), `MediaClient`, `MediaHostConnection` (on demand, restarted, disabled after three crashes in five minutes), listed in the Background tab; 6 tests against the real process. A4b: `MediaInfoTracker` on every tab (`TabViewModel.Media`): visible rows after one cache read, then the rest, whole-folder fill with progress, cancel on navigate, 19 tests, and the app adapter `MediaInfoSource`. The grid does not call `SetVisible` / `FillFolder` yet: that is A5, when there are media columns to show, so no file is probed for nothing.) Visible rows only, low priority, cancelled on navigate; sorting by a media column fills the whole
   folder in the background with progress in the column header (§8.2).
-- [ ] **A5. Media columns** in Details (enabled in the column chooser from Phase 1 slice I3): duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages,
-  subtitles; Tiles and Gallery layouts (deferred from Phase 1).
+- [x] **A5a. Media columns** (done: the 11 columns of spec 8.2 in the chooser and the Details view, read lazily for the rows on screen only when a media column is shown, sorting by one reads the whole folder with "Duration · 45%" in its header; seen on screen with a test folder, 47 tests)
+- [ ] **A5b. Tiles and Gallery layouts** (deferred from Phase 1; media columns in Details are A5a above): Tiles show the name with its main
+  media facts under it, Gallery shows large thumbnails with the name.
 
 - [ ] **A6. Status hub Background tab:** metadata probing, thumbnail and contact-sheet queues with pause/priority, Media process
   status and quarantined files (with "retry this file").

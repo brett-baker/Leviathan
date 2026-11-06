@@ -225,6 +225,29 @@ internal sealed class GridRow : Grid
         }
     }
 
+    /// <summary>Refreshes the media cells (information about this file arrived).</summary>
+    public void RefreshMedia()
+    {
+        if (Entry is { } entry)
+        {
+            foreach (var cell in _cells.Where(c => c.Media is not null))
+            {
+                RefreshMediaCell(cell, entry);
+            }
+        }
+    }
+
+    // One cell of Duration, Resolution and the other media columns: the value, a dim "…" while the file waits to be read, "—" with the reason as the tip when it could not be.
+    private void RefreshMediaCell(Cell cell, FileEntry entry)
+    {
+        var media = _owner.Media;
+        var text = media is null ? string.Empty : media.TextFor(entry, cell.Media!.Value);
+        cell.Text.Text = text;
+        cell.Text.Opacity = text == "…" ? 0.5 : 1;
+        var tip = media?.DetailFor(entry) ?? string.Empty;
+        ToolTipService.SetToolTip(cell.Text, tip.Length == 0 ? null : tip);
+    }
+
     // One cell of Size, Own size, Items, Total files or Total folders: text, italic when out of date, tip, and the bar.
     private void RefreshMetricCell(Cell cell, FileEntry entry)
     {
@@ -361,7 +384,7 @@ internal sealed class GridRow : Grid
 
             SetColumn(element, i);
             Children.Add(element);
-            _cells.Add(new Cell(slot.Column.Id, text, icon, slot.Column.Metric, bar));
+            _cells.Add(new Cell(slot.Column.Id, text, icon, slot.Column.Metric, bar, slot.Column.Media));
         }
 
         SetColumnSpan(_focus, Math.Max(1, slots.Count));
@@ -378,6 +401,12 @@ internal sealed class GridRow : Grid
             if (cell.Metric is not null)
             {
                 RefreshMetricCell(cell, entry);
+                continue;
+            }
+
+            if (cell.Media is not null)
+            {
+                RefreshMediaCell(cell, entry);
                 continue;
             }
 
@@ -431,5 +460,5 @@ internal sealed class GridRow : Grid
         }
     }
 
-    private sealed record Cell(string ColumnId, TextBlock Text, FontIcon? Icon, FolderMetric? Metric = null, ProgressBar? Bar = null);
+    private sealed record Cell(string ColumnId, TextBlock Text, FontIcon? Icon, FolderMetric? Metric = null, ProgressBar? Bar = null, MediaColumnKind? Media = null);
 }

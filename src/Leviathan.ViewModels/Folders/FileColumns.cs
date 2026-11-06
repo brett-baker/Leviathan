@@ -16,9 +16,10 @@ public readonly record struct GroupBucket(int Order, string Key, string Title);
 /// <param name="Compare">Ascending comparison. Returns 0 for ties; the view adds name and path tie-breakers.</param>
 /// <param name="Group">Maps an entry to its group at <c>now</c> (local time), or null when the column cannot group.</param>
 /// <param name="Metric">The folder-size number the column shows for folders; sorting then asks the folder-size service for it.</param>
-public sealed record FileColumn(string Id, string Title, Comparison<FileEntry> Compare, Func<FileEntry, DateTimeOffset, TimeZoneInfo, GroupBucket>? Group, FolderMetric? Metric = null);
+/// <param name="Media">The media information the column shows for video and audio files; sorting then asks the media tracker for it.</param>
+public sealed record FileColumn(string Id, string Title, Comparison<FileEntry> Compare, Func<FileEntry, DateTimeOffset, TimeZoneInfo, GroupBucket>? Group, FolderMetric? Metric = null, MediaColumnKind? Media = null);
 
-/// <summary>The file-system columns. Media, image and tag columns are added with the data that feeds them (Phase 3).</summary>
+/// <summary>The columns of the Details view: file system, folder size and media. Image and tag columns are added with the data that feeds them (Phase 3).</summary>
 public static class FileColumns
 {
     private const long Kilobyte = 1024;
@@ -69,8 +70,15 @@ public static class FileColumns
     /// <summary>Tags. Sorts as equal until the tag index exists (Phase 3).</summary>
     public static FileColumn Tags { get; } = new("tags", "Tags", (_, _) => 0, null);
 
+    /// <summary>
+    /// Duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages and subtitles (spec §8.2). Their values come
+    /// from the media process, a few at a time for the rows on screen, so they sort by what <see cref="MediaInfoTracker"/> has (a file
+    /// not read yet sorts first); the comparison here is only the tie that never decides anything.
+    /// </summary>
+    public static IReadOnlyList<FileColumn> Media { get; } = [.. MediaColumns.All.Select(c => new FileColumn(c.Id, c.Title, (_, _) => 0, null, null, c.Kind))];
+
     /// <summary>Every column.</summary>
-    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, OwnSize, Items, TotalFiles, TotalFolders, Modified, Created, Attributes, Tags];
+    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, OwnSize, Items, TotalFiles, TotalFolders, Modified, Created, Attributes, Tags, .. Media];
 
     /// <summary>Finds a column by id (case-insensitive).</summary>
     public static bool TryGet(string id, out FileColumn column)

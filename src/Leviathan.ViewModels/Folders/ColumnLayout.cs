@@ -6,7 +6,7 @@ namespace Leviathan.ViewModels.Folders;
 public sealed record ColumnSlot(FileColumn Column, double Width)
 {
     /// <summary>True for columns whose values are numbers or sizes and read better right-aligned.</summary>
-    public bool RightAligned => Column.Id == FileColumns.Size.Id;
+    public bool RightAligned => Column.Id == FileColumns.Size.Id || (Column.Media is { } media && MediaColumns.IsNumeric(media));
 }
 
 /// <summary>
@@ -90,6 +90,11 @@ public sealed class ColumnLayout
         "extension" => 90,
         "attributes" => 90,
         "tags" => 160,
+
+        // The media columns: short values get short columns, the two that hold lists get room for "eng, jpn, fre" and "3 (eng, fre)".
+        "duration" or "framerate" or "channels" or "hdr" => 100,
+        "audiolanguages" or "subtitles" => 150,
+        "resolution" or "bitrate" or "container" or "videocodec" or "audiocodec" => 110,
         _ => 120,
     };
 
