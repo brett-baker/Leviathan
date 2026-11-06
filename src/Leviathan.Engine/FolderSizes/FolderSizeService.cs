@@ -93,6 +93,61 @@ public sealed class FolderSizeService
         }
     }
 
+    /// <summary>
+    /// Applies one item that arrived in (<paramref name="sign"/> +1) or left (-1) the folder <paramref name="parent"/>: every stored
+    /// ancestor's recursive totals change by the item's, and the parent's own counts change by what sits directly in it (a file adds
+    /// its bytes and one file, a folder adds one folder). Folders that were never counted are left alone; they are counted when asked.
+    /// </summary>
+    /// <param name="parent">The folder the item went into or came out of.</param>
+    /// <param name="item">The item's size, measured before the job.</param>
+    /// <param name="sign">+1 or -1.</param>
+    /// <param name="parentModified">The parent's last-write time now, so the visit check does not take the change for an outside one and recount; null leaves it.</param>
+    public void ApplyItem(LocationPath parent, ItemSize item, int sign, DateTimeOffset? parentModified = null)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(item);
+        var now = _time.GetUtcNow();
+        for (LocationPath? current = parent; current is not null; current = current.Parent)
+        {
+            if (_store.Get(current) is not { } size)
+            {
+                continue;
+            }
+
+            var isParent = current == parent;
+            int? ownFolders = size.OwnFolders;
+            if (isParent && item.IsFolder && ownFolders is { } known)
+            {
+                ownFolders = Math.Max(0, known + sign);
+            }
+
+            _store.Upsert(size with
+            {
+                OwnBytes = isParent && !item.IsFolder ? Math.Max(0, size.OwnBytes + (sign * item.Bytes)) : size.OwnBytes,
+                OwnFiles = isParent && !item.IsFolder ? Math.Max(0, size.OwnFiles + sign) : size.OwnFiles,
+                OwnFolders = ownFolders,
+                TotalBytes = Math.Max(0, size.TotalBytes + (sign * item.Bytes)),
+                TotalFiles = Math.Max(0, size.TotalFiles + (sign * (item.IsFolder ? item.Files : 1))),
+                TotalFolders = Math.Max(0, size.TotalFolders + (sign * (item.Folders + (item.IsFolder ? 1 : 0)))),
+                ComputedAt = now,
+                FolderModified = isParent && parentModified is { } modified ? modified : size.FolderModified,
+            });
+        }
+    }
+
+    /// <summary>Marks the folder and every stored ancestor stale, for a change whose size is not known (it is recounted when visited).</summary>
+    public void MarkChainStale(LocationPath folder)
+    {
+        ArgumentNullException.ThrowIfNull(folder);
+        for (LocationPath? current = folder; current is not null; current = current.Parent)
+        {
+            MarkStale(current);
+        }
+    }
+
+    /// <summary>Forgets a folder and everything stored below it (it was moved or deleted, so those paths are gone).</summary>
+    public void Forget(LocationPath folder) => _store.RemoveTree(folder);
+
     /// <summary>Marks a folder stale so its value is shown in italic until recounted.</summary>
     public void MarkStale(LocationPath folder)
     {
@@ -131,7 +186,13 @@ public sealed class FolderSizeService
                             ownFiles++;
                             break;
                         case FileEntryKind.Folder:
-                            subfolders.Add(entry);
+                            // A share's recycle folders hold what was deleted: not part of what the folder holds, and the
+                            // delta of a soft delete (which takes the item out of the total) must agree with a recount.
+                            if (!Transfers.RecycleFolders.IsInsideBin(entry.Location))
+                            {
+                                subfolders.Add(entry);
+                            }
+
                             break;
                         case FileEntryKind.Link:
                             // Junctions and symlinks are not followed: prevents loops and double counting.

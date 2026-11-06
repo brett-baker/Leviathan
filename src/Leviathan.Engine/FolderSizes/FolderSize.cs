@@ -49,6 +49,13 @@ public sealed record FolderSize(
     public bool IsLowerBound => State is FolderSizeState.Partial or FolderSizeState.Computing or FolderSizeState.Error;
 }
 
+/// <summary>What one file or folder weighs, measured before a job moves, copies or deletes it.</summary>
+/// <param name="IsFolder">True for a folder.</param>
+/// <param name="Bytes">Bytes in the file, or in everything below the folder.</param>
+/// <param name="Files">Files below the folder (0 for a file).</param>
+/// <param name="Folders">Folders below the folder, not counting itself (0 for a file).</param>
+public sealed record ItemSize(bool IsFolder, long Bytes, int Files = 0, int Folders = 0);
+
 /// <summary>A count under way: the running totals and how many of the folder's own subfolders are finished.</summary>
 /// <param name="Totals">The running (lower-bound) totals of the folder.</param>
 /// <param name="ChildrenDone">Subfolders directly inside the folder that are finished.</param>

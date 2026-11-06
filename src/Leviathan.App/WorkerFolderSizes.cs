@@ -169,7 +169,15 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
             return;
         }
 
-        if (snapshot.State is not (JobState.Completed or JobState.Failed or JobState.Cancelled) || !_jobs.TryRemove(snapshot.Id, out var folder))
+        var ended = snapshot.State is JobState.Completed or JobState.Failed or JobState.Cancelled;
+        if (ended && snapshot.Kind is JobKind.Copy or JobKind.Move or JobKind.Delete or JobKind.Restore)
+        {
+            // The worker applied what the job added and removed to the stored sizes (spec §12.7); read them again for what is shown.
+            _ = Task.Run(RefreshCached, _closing.Token);
+            return;
+        }
+
+        if (!ended || !_jobs.TryRemove(snapshot.Id, out var folder))
         {
             return;
         }
@@ -187,6 +195,44 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
                 }
             },
             _closing.Token);
+    }
+
+    // Reads the stored size again of every folder this process has shown, and tells the view about the ones that changed.
+    private void RefreshCached()
+    {
+        try
+        {
+            var changed = new List<LocationPath>();
+            foreach (var (folder, shown) in _cache)
+            {
+                var stored = _store.Value.Get(folder);
+                if (stored is null)
+                {
+                    if (_cache.TryRemove(folder, out _))
+                    {
+                        changed.Add(folder);
+                    }
+
+                    continue;
+                }
+
+                var fresh = ToInfo(stored, outdated: stored.State == FolderSizeState.Stale);
+                if (fresh != shown)
+                {
+                    _cache[folder] = fresh;
+                    changed.Add(folder);
+                }
+            }
+
+            if (changed.Count > 0)
+            {
+                Computed?.Invoke(this, changed);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            Log(ex);
+        }
     }
 
     private void ReportProgress(LocationPath folder, JobSnapshot snapshot)
