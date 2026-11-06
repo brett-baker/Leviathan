@@ -3,6 +3,7 @@ using Leviathan.Diagnostics;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Navigation;
 using Leviathan.ViewModels.Tabs;
+using Leviathan.ViewModels.Transfers;
 using Leviathan.ViewModels.Views;
 using Leviathan.ViewModels.Windows;
 
@@ -232,19 +233,102 @@ public sealed class SplitPaneTests
     }
 }
 
+/// <summary>Swapping the panes (spec §15.1): each takes the other's history, folder, view and selection.</summary>
+public sealed class SwapPanesTests
+{
+    private static LocationPath P(string path) => TabTestSupport.P(path);
+
+    [Fact]
+    public async Task Swap_GivesEachPaneTheOthersFolderHistoryViewAndSelection()
+    {
+        var tab = new TabViewModel(TabTestSupport.Services(), P(@"C:\a"));
+        await tab.ReloadAsync(CancellationToken.None);
+        await tab.SetPanesAsync(PaneLayout.SideBySide, CancellationToken.None);
+        var second = tab.Secondary!;
+        await second.NavigateAsync(P(@"C:\v"), CancellationToken.None);
+        second.SetLayout(ViewLayout.Thumbnails);
+        second.Selection.Click(second.Items.Rows.First(r => r.Name == "y.mkv"));
+        tab.Selection.Click(tab.Items.Rows.First(r => r.Name == "1.txt"));
+
+        await tab.SwapPanesAsync(CancellationToken.None);
+
+        Assert.Equal(P(@"C:\v"), tab.History.Current);
+        Assert.True(tab.History.CanGoBack);
+        Assert.Equal(P(@"C:\a"), second.History.Current);
+        Assert.False(second.History.CanGoBack);
+        Assert.Equal(ViewLayout.Thumbnails, tab.Layout);
+        Assert.Equal(ViewLayout.Details, second.Layout);
+        Assert.Equal(["y.mkv"], tab.Selection.SelectedEntries.Select(e => e.Name));
+        Assert.Equal(["1.txt"], second.Selection.SelectedEntries.Select(e => e.Name));
+        Assert.Contains(tab.Items.Rows, r => r.Name == "x.mkv");
+        Assert.Equal("v", tab.Title);
+    }
+
+    [Fact]
+    public async Task Swap_KeepsWhichPaneHasTheFocus_AndTheSecondPaneObject()
+    {
+        var tab = new TabViewModel(TabTestSupport.Services(), P(@"C:\a"));
+        await tab.ReloadAsync(CancellationToken.None);
+        await tab.SetPanesAsync(PaneLayout.TopBottom, CancellationToken.None);
+        var second = tab.Secondary;
+        tab.FocusPane(1);
+
+        await tab.SwapPanesAsync(CancellationToken.None);
+
+        Assert.Same(second, tab.Secondary);
+        Assert.Equal(1, tab.FocusedPane);
+        Assert.Equal(PaneLayout.TopBottom, tab.Panes);
+    }
+
+    [Fact]
+    public async Task Swap_WithoutASplit_DoesNothing()
+    {
+        var tab = new TabViewModel(TabTestSupport.Services(), P(@"C:\a"));
+        await tab.ReloadAsync(CancellationToken.None);
+
+        await tab.SwapPanesAsync(CancellationToken.None);
+
+        Assert.Equal(P(@"C:\a"), tab.History.Current);
+    }
+
+    [Fact]
+    public void HistoryLoad_ReplacesWhatWasThere_KeepingTheObject()
+    {
+        var history = new Navigation.NavigationHistory(P(@"C:\a"));
+        history.Navigate(P(@"C:\v"));
+
+        history.Load(new Navigation.NavigationSnapshot([P(@"C:\x")], P(@"C:\y"), [P(@"C:\z")]));
+
+        Assert.Equal(P(@"C:\y"), history.Current);
+        Assert.Equal([P(@"C:\x")], history.BackList);
+        Assert.Equal([P(@"C:\z")], history.ForwardList);
+    }
+}
+
 /// <summary>The commands behind the pane buttons and Ctrl+Backslash work on the focused pane (spec §15.1).</summary>
 public sealed class SplitPaneCommandTests
 {
     private static LocationPath P(string path) => TabTestSupport.P(path);
 
-    private static (WindowViewModel Window, CommandRegistry Commands) Open()
+    private sealed class RecordingTransfers : ITransferService
+    {
+        public List<TransferRequest> Requests { get; } = [];
+
+        public Task<TransferOutcome> StartAsync(TransferRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new TransferOutcome(true, "Started"));
+        }
+    }
+
+    private static (WindowViewModel Window, CommandRegistry Commands) Open(ITransferService? transfers = null, WindowCommandsTests.FakeShell? shell = null)
     {
         var windows = new WindowManager(TabTestSupport.Services());
         var window = windows.OpenWindow(P(@"C:\a"));
         var fs = new System.IO.Abstractions.TestingHelpers.MockFileSystem();
         fs.AddDirectory(@"C:\a");
         fs.AddDirectory(@"C:\v");
-        var commands = WindowCommands.Create(new ActionTrail(), window, windows, new AddressResolver(new FileSystemEntryProbe(fs)), new WindowCommandsTests.FakeLauncher(), new WindowCommandsTests.FakeShell(), () => P(@"C:\Home"));
+        var commands = WindowCommands.Create(new ActionTrail(), window, windows, new AddressResolver(new FileSystemEntryProbe(fs)), new WindowCommandsTests.FakeLauncher(), shell ?? new WindowCommandsTests.FakeShell(), () => P(@"C:\Home"), transfers: transfers);
         return (window, commands);
     }
 
@@ -332,5 +416,115 @@ public sealed class SplitPaneCommandTests
         Assert.NotSame(tab, copy);
         Assert.True(copy.IsSplit);
         Assert.Equal(1, copy.FocusedPane);
+    }
+
+    private static async Task<(TabViewModel Tab, CommandRegistry Commands, RecordingTransfers Transfers)> SplitWithSelectionAsync()
+    {
+        var transfers = new RecordingTransfers();
+        var (window, commands) = Open(transfers);
+        var tab = window.Tabs.Selected!;
+        await tab.ReloadAsync(CancellationToken.None);
+        await tab.SetPanesAsync(PaneLayout.SideBySide, CancellationToken.None);
+        await tab.Secondary!.NavigateAsync(P(@"C:\v"), CancellationToken.None);
+        tab.Selection.Click(tab.Items.Rows.First(r => r.Name == "1.txt"));
+        return (tab, commands, transfers);
+    }
+
+    [Fact]
+    public async Task F5_CopiesTheFocusedPanesSelection_ToTheOtherPanesFolder_ThroughTheQueue()
+    {
+        var (_, commands, transfers) = await SplitWithSelectionAsync();
+
+        var result = await commands.ExecuteAsync(CommandIds.PaneCopyToOther, new CommandContext(null, null), CancellationToken.None);
+
+        Assert.Equal(CommandResult.Executed, result);
+        var request = Assert.Single(transfers.Requests);
+        Assert.Equal([P(@"C:\a\1.txt")], request.Sources);
+        Assert.Equal(P(@"C:\v"), request.Destination);
+        Assert.Equal(TransferMode.Copy, request.Mode);
+    }
+
+    [Fact]
+    public async Task F6_MovesTheSelection_AndFromTheSecondPane_GoesTheOtherWay()
+    {
+        var (tab, commands, transfers) = await SplitWithSelectionAsync();
+
+        await commands.ExecuteAsync(CommandIds.PaneMoveToOther, new CommandContext(null, null), CancellationToken.None);
+        Assert.Equal(TransferMode.Move, transfers.Requests[0].Mode);
+
+        tab.FocusPane(1);
+        tab.Secondary!.Selection.Click(tab.Secondary.Items.Rows.First(r => r.Name == "x.mkv"));
+        await commands.ExecuteAsync(CommandIds.PaneCopyToOther, new CommandContext(null, null), CancellationToken.None);
+
+        Assert.Equal([P(@"C:\v\x.mkv")], transfers.Requests[1].Sources);
+        Assert.Equal(P(@"C:\a"), transfers.Requests[1].Destination);
+    }
+
+    [Fact]
+    public async Task CopyAndMove_AreDisabled_WithoutASplitOrWithoutASelection()
+    {
+        var transfers = new RecordingTransfers();
+        var (window, commands) = Open(transfers);
+        var tab = window.Tabs.Selected!;
+        await tab.ReloadAsync(CancellationToken.None);
+        tab.Selection.Click(tab.Items.Rows[0]);
+
+        Assert.Equal(CommandResult.Disabled, await commands.ExecuteAsync(CommandIds.PaneCopyToOther, new CommandContext(null, null), CancellationToken.None));
+
+        await tab.SetPanesAsync(PaneLayout.SideBySide, CancellationToken.None);
+        tab.Selection.Clear();
+        Assert.Equal(CommandResult.Disabled, await commands.ExecuteAsync(CommandIds.PaneMoveToOther, new CommandContext(null, null), CancellationToken.None));
+        Assert.Empty(transfers.Requests);
+    }
+
+    [Fact]
+    public async Task Move_IntoTheFolderTheItemIsAlreadyIn_IsRefusedWithAReason()
+    {
+        var transfers = new RecordingTransfers();
+        var shell = new WindowCommandsTests.FakeShell();
+        var (window, commands) = Open(transfers, shell);
+        var tab = window.Tabs.Selected!;
+        await tab.ReloadAsync(CancellationToken.None);
+        await tab.SetPanesAsync(PaneLayout.SideBySide, CancellationToken.None);
+        tab.Selection.Click(tab.Items.Rows.First(r => r.Name == "1.txt"));
+
+        await commands.ExecuteAsync(CommandIds.PaneMoveToOther, new CommandContext(null, null), CancellationToken.None);
+
+        Assert.Empty(transfers.Requests);
+        Assert.Contains(shell.Messages, m => m.Contains("already in"));
+    }
+
+    [Fact]
+    public void F5AndF6_MeanCopyAndMoveWhileSplit_ButStayReloadInOnePane()
+    {
+        var map = WindowCommands.DefaultKeyMap();
+
+        Assert.Equal(CommandIds.NavReload, map.Resolve(KeyGesture.Parse("F5"), isSplit: false));
+        Assert.Equal(CommandIds.PaneCopyToOther, map.Resolve(KeyGesture.Parse("F5"), isSplit: true));
+        Assert.Equal(CommandIds.PaneMoveToOther, map.Resolve(KeyGesture.Parse("F6"), isSplit: true));
+        Assert.Null(map.Resolve(KeyGesture.Parse("F6"), isSplit: false));
+        Assert.Equal(CommandIds.PaneSwap, map.Resolve(KeyGesture.Parse("Ctrl+Shift+S"), isSplit: true));
+        Assert.Equal(CommandIds.PaneSameFolder, map.Resolve(KeyGesture.Parse("Alt+="), isSplit: true));
+    }
+
+    [Fact]
+    public async Task Swap_AndSameFolder_Commands_WorkOnlyWhileSplit()
+    {
+        var (window, commands) = Open();
+        var tab = window.Tabs.Selected!;
+        await tab.ReloadAsync(CancellationToken.None);
+        Assert.Equal(CommandResult.Disabled, await commands.ExecuteAsync(CommandIds.PaneSwap, new CommandContext(null, null), CancellationToken.None));
+        Assert.Equal(CommandResult.Disabled, await commands.ExecuteAsync(CommandIds.PaneSameFolder, new CommandContext(null, null), CancellationToken.None));
+
+        await tab.SetPanesAsync(PaneLayout.SideBySide, CancellationToken.None);
+        await tab.Secondary!.NavigateAsync(P(@"C:\v"), CancellationToken.None);
+
+        await commands.ExecuteAsync(CommandIds.PaneSwap, new CommandContext(null, null), CancellationToken.None);
+        Assert.Equal(P(@"C:\v"), tab.History.Current);
+        Assert.Equal(P(@"C:\a"), tab.Secondary.History.Current);
+
+        await commands.ExecuteAsync(CommandIds.PaneSameFolder, new CommandContext(null, null), CancellationToken.None);
+        Assert.Equal(P(@"C:\v"), tab.Secondary.History.Current);
+        Assert.Equal(P(@"C:\v"), tab.History.Current);
     }
 }

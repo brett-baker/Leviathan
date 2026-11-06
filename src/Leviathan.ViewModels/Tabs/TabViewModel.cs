@@ -248,13 +248,55 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         RaisePanesChanged();
     }
 
-    private void AdoptView(TabViewModel other)
+    private void AdoptView(TabViewModel other) => ApplyViewSettings(other.CurrentView());
+
+    // Takes a view (layout, thumbnails, sort, grouping, folders, columns) and keeps it for this pane until it navigates to a folder with a saved one.
+    private void ApplyViewSettings(FolderViewSettings view)
     {
-        SetLayout(other.Layout);
-        SetThumbnailSize(other.ThumbnailSize);
-        Items.SetSort(other.Items.Sort);
-        SetGroupBy(other.Items.GroupBy);
-        SetFolderPlacement(other.Items.Folders);
+        SetLayout(view.Layout);
+        SetThumbnailSize(view.ThumbnailSize);
+        Items.SetSort(view.Sort);
+        SetGroupBy(view.GroupBy);
+        SetFolderPlacement(view.Folders);
+        Columns.SetColumns(view.Columns);
+    }
+
+    /// <summary>
+    /// Swaps what the two panes show (spec §15.1, Ctrl+Shift+S): each takes the other's history, folder, view and selection. The panes
+    /// stay where they are on screen and keep the focus they had; the folders are listed again from the cache, so it is quick.
+    /// </summary>
+    public async Task SwapPanesAsync(CancellationToken cancellationToken)
+    {
+        if (Secondary is not { } second)
+        {
+            return;
+        }
+
+        var (mine, theirs) = (History.Snapshot(), second.History.Snapshot());
+        var (myView, theirView) = (CurrentView(), second.CurrentView());
+        var (mySelection, theirSelection) = (SelectedLocations(), second.SelectedLocations());
+
+        History.Load(theirs);
+        second.History.Load(mine);
+        ApplyViewSettings(theirView);
+        second.ApplyViewSettings(myView);
+        _pendingSelection = theirSelection;
+        second._pendingSelection = mySelection;
+        await Task.WhenAll(ShowCurrentAsync(cancellationToken), second.ShowCurrentAsync(cancellationToken));
+    }
+
+    private IReadOnlyList<LocationPath> SelectedLocations() => [.. Selection.SelectedEntries.Select(e => e.Location)];
+
+    // Shows the folder of the history as it stands, without touching the history or the view that was just set.
+    private async Task ShowCurrentAsync(CancellationToken cancellationToken)
+    {
+        Renaming = null;
+        Address.Show(History.Current);
+        OnPropertyChanged(nameof(Title));
+        SetFilter(null);
+        Folder.Options = ListingNow();
+        await Folder.LoadAsync(History.Current, cancellationToken);
+        SelectAfterLoad(null);
     }
 
     private void AttachSecondary(TabViewModel pane)

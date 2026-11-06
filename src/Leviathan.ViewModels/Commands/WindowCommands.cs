@@ -265,6 +265,18 @@ public static class CommandIds
     /// <summary>Two panes, one above the other (Ctrl+Shift+Backslash); again closes the split.</summary>
     public static readonly CommandId PaneTopBottom = new("pane.topBottom");
 
+    /// <summary>Copy the selection to the folder of the other pane (F5 while split).</summary>
+    public static readonly CommandId PaneCopyToOther = new("pane.copyToOther");
+
+    /// <summary>Move the selection to the folder of the other pane (F6 while split).</summary>
+    public static readonly CommandId PaneMoveToOther = new("pane.moveToOther");
+
+    /// <summary>Swap what the two panes show (Ctrl+Shift+S).</summary>
+    public static readonly CommandId PaneSwap = new("pane.swap");
+
+    /// <summary>Show the focused pane's folder in the other pane too (Alt+=).</summary>
+    public static readonly CommandId PaneSameFolder = new("pane.sameFolder");
+
     /// <summary>Run the selected program elevated. Only that program is elevated (spec §15.6).</summary>
     public static readonly CommandId RunAsAdministrator = new("item.runAsAdmin");
 
@@ -1156,6 +1168,40 @@ public static partial class WindowCommands
         Add(CommandIds.PaneTopBottom, "Split top and bottom", "View",
             (c, ct) => TabOf(c)!.SetPanesAsync(TabOf(c)!.Panes == PaneLayout.TopBottom ? PaneLayout.Single : PaneLayout.TopBottom, ct),
             c => TabOf(c) is not null, shortcut: @"Ctrl+Shift+\");
+        // Two panes work together (spec §15.1): F5 and F6 send the selection to the other pane's folder through the normal queue.
+        async Task SendToOtherPane(CommandContext c, Transfers.TransferMode mode, CancellationToken ct)
+        {
+            if (TabOf(c) is not { Other: { } other } tab)
+            {
+                return;
+            }
+
+            var sources = new List<LocationPath>(tab.Focused.Selection.SelectedEntries.Select(e => e.Location));
+            var destination = other.History.Current;
+
+            // The same rules as a drop with Ctrl (copy) or Shift (move) held: refuses a folder into itself, an item already there, a server root.
+            var decision = Transfers.DropRules.Decide(sources, destination, mode == Transfers.TransferMode.Copy ? Transfers.DropModifiers.Ctrl : Transfers.DropModifiers.Shift);
+            if (!decision.Allowed)
+            {
+                shell.ShowMessage(decision.Tooltip);
+                return;
+            }
+
+            var outcome = await (transfers ?? new Transfers.UnavailableTransferService())
+                .StartAsync(new Transfers.TransferRequest(sources, destination, decision.Mode), ct);
+            shell.ShowMessage(outcome.Message);
+        }
+
+        static bool CanSendToOtherPane(TabViewModel? tab) => tab is { IsSplit: true } && tab.Focused.Selection.Count > 0;
+
+        Add(CommandIds.PaneCopyToOther, "Copy to the other pane", "Files", (c, ct) => SendToOtherPane(c, Transfers.TransferMode.Copy, ct),
+            c => CanSendToOtherPane(TabOf(c)), shortcut: "F5");
+        Add(CommandIds.PaneMoveToOther, "Move to the other pane", "Files", (c, ct) => SendToOtherPane(c, Transfers.TransferMode.Move, ct),
+            c => CanSendToOtherPane(TabOf(c)), shortcut: "F6");
+        Add(CommandIds.PaneSwap, "Swap the panes", "View", (c, ct) => TabOf(c)!.SwapPanesAsync(ct), c => TabOf(c) is { IsSplit: true }, shortcut: "Ctrl+Shift+S");
+        Add(CommandIds.PaneSameFolder, "Show this folder in the other pane", "View",
+            (c, ct) => TabOf(c)!.Other!.NavigateAsync(TabOf(c)!.Focused.History.Current, ct), c => TabOf(c) is { IsSplit: true }, shortcut: "Alt+=");
+
         Add(CommandIds.OpenInSplitPane, "Open in split pane", "Navigation", async (c, ct) =>
         {
             // The folder opens in the pane that does not have the focus; a tab with one pane splits first.
@@ -1242,10 +1288,16 @@ public static partial class WindowCommands
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),
+            ("Ctrl+Shift+S", CommandIds.PaneSwap),
+            ("Alt+=", CommandIds.PaneSameFolder),
         })
         {
             map.TryBind(new KeyBinding(KeyGesture.Parse(gesture), command));
         }
+
+        // F5 and F6 mean reload in one pane and copy or move to the other pane while split; the split meaning wins only then (spec §17.3).
+        map.TryBind(new KeyBinding(KeyGesture.Parse("F5"), CommandIds.PaneCopyToOther, KeyScope.SplitOnly));
+        map.TryBind(new KeyBinding(KeyGesture.Parse("F6"), CommandIds.PaneMoveToOther, KeyScope.SplitOnly));
 
         return map;
     }

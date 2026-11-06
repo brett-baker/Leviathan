@@ -108,7 +108,8 @@ public sealed class DefaultKeysTests
         foreach (var command in h.Commands.Commands.Where(c => c.Definition.DefaultShortcut is not null && c.Definition.Id != CommandIds.ItemOpen))
         {
             var gesture = KeyGesture.Parse(command.Definition.DefaultShortcut!);
-            Assert.True(map.Resolve(gesture, false) == command.Definition.Id, $"{command.Definition.Id} should be bound to {gesture}");
+            // A key with a split-pane meaning (F5, F6: to the other pane) is bound for the split case.
+            Assert.True(map.Resolve(gesture, false) == command.Definition.Id || map.Resolve(gesture, true) == command.Definition.Id, $"{command.Definition.Id} should be bound to {gesture}");
         }
 
         foreach (var binding in map.Bindings)

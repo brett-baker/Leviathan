@@ -145,6 +145,17 @@ public sealed class NavigationHistory
     /// <summary>Copies the history (duplicate tab, saving a session).</summary>
     public NavigationSnapshot Snapshot() => new([.. _back], Current, [.. _forward]);
 
+    /// <summary>Puts a saved history in place of this one, keeping this object (swapping two panes: each takes the other's history).</summary>
+    public void Load(NavigationSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _back.Clear();
+        _forward.Clear();
+        _back.AddRange(snapshot.Back.TakeLast(Capacity));
+        _forward.AddRange(snapshot.Forward.Take(Capacity));
+        Current = snapshot.Current;
+    }
+
     /// <summary>Rebuilds a history from a snapshot, trimming to <see cref="Capacity"/>.</summary>
     public static NavigationHistory FromSnapshot(NavigationSnapshot snapshot)
     {

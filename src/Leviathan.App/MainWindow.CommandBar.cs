@@ -347,6 +347,21 @@ public sealed partial class MainWindow
             item.Click += (_, _) => RunPaneCommand(command);
             ViewMenu.Items.Add(item);
         }
+
+        // What two panes can do together; each is greyed out unless the tab is split (and, for copy and move, something is selected).
+        ViewMenu.Items.Add(new MenuFlyoutSeparator());
+        foreach (var (text, command, keys) in new[]
+        {
+            ("Copy to the other pane", CommandIds.PaneCopyToOther, "F5"),
+            ("Move to the other pane", CommandIds.PaneMoveToOther, "F6"),
+            ("Swap the panes", CommandIds.PaneSwap, "Ctrl+Shift+S"),
+            ("Same folder in the other pane", CommandIds.PaneSameFolder, "Alt+="),
+        })
+        {
+            var item = new MenuFlyoutItem { Text = text, KeyboardAcceleratorTextOverride = keys, IsEnabled = _commands.CanExecute(command, new CommandContext(null)) };
+            item.Click += (_, _) => Run(command);
+            ViewMenu.Items.Add(item);
+        }
     }
 
     private void OnSortMenuOpening(object? sender, object e)
