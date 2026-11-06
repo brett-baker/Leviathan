@@ -140,7 +140,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 ### G. Verification and finish
 
-- [ ] **G1. Test infrastructure.** `docker/compose.yml` with Samba and Toxiproxy; integration tests use it when Docker is
+- [x] **G1. Test infrastructure.** (done: `docker/compose.yml` runs Samba 4.23.8 on localhost:1445 and Toxiproxy 2.12.0 (API 8474, proxy 2445); `NetworkLab` fixture adds latency, bandwidth caps and a cut line, and 4 lab tests skip with the reason when it is down. Windows-side UNC access to the lab is not wired; G2 needs it only if it copies through the Windows SMB client.) `docker/compose.yml` with Samba and Toxiproxy; integration tests use it when Docker is
   available and skip with a reason otherwise.
 - [ ] **G2. Chaos suite** (`Leviathan.Chaos.Tests`, nightly): kill the worker at random points during 1,000 copies → no corrupt
   or half-named files, every job resumes; Toxiproxy drops mid-copy → Waiting then resume; disk full; access denied mid-job.

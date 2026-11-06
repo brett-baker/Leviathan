@@ -1,0 +1,19 @@
+auth:
+  - user: lab
+    group: lab
+    uid: 1000
+    gid: 1000
+    password: lab-only-test-password
+global:
+  - "server min protocol = SMB2"
+  - "log level = 0"
+share:
+  - name: leviathan
+    path: /samba/leviathan
+    browsable: yes
+    readonly: no
+    guestok: no
+    validusers: lab
+    writelist: lab
+    veto: no
+    hidefiles: /_*/
