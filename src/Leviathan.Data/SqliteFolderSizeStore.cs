@@ -20,7 +20,7 @@ public sealed class SqliteFolderSizeStore : IFolderSizeStore
         using var connection = _database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT own_bytes, own_files, total_bytes, total_files, total_folders, state, computed_at, folder_modified
+            SELECT own_bytes, own_files, total_bytes, total_files, total_folders, state, computed_at, folder_modified, own_folders
             FROM folder_size WHERE location = $location;
             """;
         command.Parameters.AddWithValue("$location", location.Value);
@@ -39,7 +39,8 @@ public sealed class SqliteFolderSizeStore : IFolderSizeStore
             reader.GetInt32(4),
             (FolderSizeState)reader.GetInt32(5),
             DateTimeOffset.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            reader.IsDBNull(7) ? null : DateTimeOffset.Parse(reader.GetString(7), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
+            reader.IsDBNull(7) ? null : DateTimeOffset.Parse(reader.GetString(7), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            reader.IsDBNull(8) ? null : reader.GetInt32(8));
     }
 
     /// <inheritdoc />
@@ -49,8 +50,8 @@ public sealed class SqliteFolderSizeStore : IFolderSizeStore
         using var connection = _database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO folder_size (location, own_bytes, own_files, total_bytes, total_files, total_folders, state, computed_at, folder_modified)
-            VALUES ($location, $ownBytes, $ownFiles, $totalBytes, $totalFiles, $totalFolders, $state, $computedAt, $folderModified)
+            INSERT INTO folder_size (location, own_bytes, own_files, total_bytes, total_files, total_folders, state, computed_at, folder_modified, own_folders)
+            VALUES ($location, $ownBytes, $ownFiles, $totalBytes, $totalFiles, $totalFolders, $state, $computedAt, $folderModified, $ownFolders)
             ON CONFLICT(location) DO UPDATE SET
                 own_bytes = excluded.own_bytes,
                 own_files = excluded.own_files,
@@ -59,7 +60,8 @@ public sealed class SqliteFolderSizeStore : IFolderSizeStore
                 total_folders = excluded.total_folders,
                 state = excluded.state,
                 computed_at = excluded.computed_at,
-                folder_modified = excluded.folder_modified;
+                folder_modified = excluded.folder_modified,
+                own_folders = excluded.own_folders;
             """;
         command.Parameters.AddWithValue("$location", size.Location.Value);
         command.Parameters.AddWithValue("$ownBytes", size.OwnBytes);
@@ -70,6 +72,7 @@ public sealed class SqliteFolderSizeStore : IFolderSizeStore
         command.Parameters.AddWithValue("$state", (int)size.State);
         command.Parameters.AddWithValue("$computedAt", size.ComputedAt.ToString("O", CultureInfo.InvariantCulture));
         command.Parameters.AddWithValue("$folderModified", (object?)size.FolderModified?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
+        command.Parameters.AddWithValue("$ownFolders", (object?)size.OwnFolders ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 

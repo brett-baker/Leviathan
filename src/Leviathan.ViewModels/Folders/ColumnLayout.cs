@@ -84,7 +84,7 @@ public sealed class ColumnLayout
     public static double DefaultWidth(FileColumn column) => column.Id switch
     {
         "name" => 380,
-        "size" => 100,
+        "size" or "ownsize" or "items" or "totalfiles" or "totalfolders" => 100,
         "modified" or "created" => 160,
         "type" => 130,
         "extension" => 90,

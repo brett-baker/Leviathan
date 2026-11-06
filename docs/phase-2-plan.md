@@ -126,6 +126,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 
 - [x] **E1. Size column and summaries** (done: a share's size shows its age in the cell, every folder's tip says what it holds and when it was counted, the drive card has a "Counted" line, the preview pane shows the selected folder's size and asks for it; the column, "≥" and italic already existed). Folder sizes from the store in the Size column, drive/share summary card and preview
   pane; "≥" for partial, italic for stale, age shown on network folders.
+- [x] **E1b. More folder-size columns and the count bar** (done: columns Own size, Items, Total files and Total folders from the folder-size store; the Size column and these sort folders by their real numbers; a 2 px bar in the Size cell shows a folder being counted (subfolders finished of all, or sliding when there are none) and a waiting folder is dimmed with a tip; the store gains `own_folders` (migration 4) and folders counted before it are counted once more).
 - [ ] **E2. Triggers and deltas.** Lazy computation for visible/selected folders at background priority; deltas applied by every
   engine operation (copy, move, delete, restore); staleness from folder last-write time on visit; scheduled re-validation of
   opted-in shares.

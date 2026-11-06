@@ -380,4 +380,43 @@ public sealed class FolderItemsViewTests
         // Debug builds on a shared CI runner (1.95 s was seen there).
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(6), $"sorting 100k streamed items took {watch.Elapsed.TotalSeconds:F2}s");
     }
+
+    [Fact]
+    public void SortBySize_OrdersFoldersByTheirCountedTotal_UnknownFirst_AndFilesByTheirOwnSize()
+    {
+        var sizes = new Dictionary<string, long> { ["big"] = 900, ["small"] = 10 };
+        var (_, view) = Make(Folder("small"), Folder("big"), Folder("unknown"), File("f.bin", 500), File("g.bin", 5));
+        view.SetFolderMetrics((e, m) => m == FolderMetric.TotalBytes && sizes.TryGetValue(e.Name, out var v) ? v : null);
+
+        view.SortBy("size");
+
+        Assert.Equal(["unknown", "small", "big", "g.bin", "f.bin"], Names(view));
+        view.SortBy("size");
+        Assert.Equal(["big", "small", "unknown", "f.bin", "g.bin"], Names(view));
+    }
+
+    [Fact]
+    public void ResortByMetrics_MovesAFolderWhenItsNumberArrives_AndDoesNothingForOtherSorts()
+    {
+        var sizes = new Dictionary<string, long> { ["a"] = 10, ["b"] = 20 };
+        var (_, view) = Make(Folder("a"), Folder("b"));
+        view.SetFolderMetrics((e, m) => m == FolderMetric.Items && sizes.TryGetValue(e.Name, out var v) ? v : null);
+        view.SortBy("items");
+        Assert.Equal(["a", "b"], Names(view));
+        var changes = 0;
+        view.Rows.CollectionChanged += (_, _) => changes++;
+
+        view.ResortByMetrics();
+        Assert.Equal(0, changes);
+
+        sizes["a"] = 99;
+        view.ResortByMetrics();
+        Assert.Equal(["b", "a"], Names(view));
+
+        view.SortBy("name");
+        sizes["b"] = 1000;
+        var before = Names(view);
+        view.ResortByMetrics();
+        Assert.Equal(before, Names(view));
+    }
 }

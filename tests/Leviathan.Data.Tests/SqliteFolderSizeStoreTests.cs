@@ -98,4 +98,41 @@ public sealed class SqliteFolderSizeStoreTests : IDisposable
 
         Assert.Equal(49, store.Get(LocationPath.Parse(@"C:\w7\f49"))!.TotalBytes);
     }
+
+    [Fact]
+    public void OwnFolders_RoundTrips_AndNullStaysNull()
+    {
+        var store = new SqliteFolderSizeStore(CreateDatabase());
+        store.Upsert(Size(@"C:\with", 10) with { OwnFolders = 4 });
+        store.Upsert(Size(@"C:\without", 10));
+
+        Assert.Equal(4, store.Get(LocationPath.Parse(@"C:\with"))!.OwnFolders);
+        Assert.Null(store.Get(LocationPath.Parse(@"C:\without"))!.OwnFolders);
+    }
+
+    [Fact]
+    public void ADatabaseFromBeforeOwnFolders_IsUpgraded_AndItsRowsReadAsUnknown()
+    {
+        Directory.CreateDirectory(_folder);
+        var path = Path.Combine(_folder, "leviathan.db");
+        using (var connection = new SqliteConnection($"Data Source={path}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = string.Join(Environment.NewLine, LeviathanDatabase.Migrations.Take(3)) + """
+
+                INSERT INTO folder_size VALUES ('C:\old', 1, 1, 2, 2, 1, 0, '2026-11-01T12:00:00.0000000+00:00', NULL);
+                CREATE TABLE schema_version (version INTEGER NOT NULL PRIMARY KEY, applied_at TEXT NOT NULL);
+                INSERT INTO schema_version VALUES (1, 'x'), (2, 'x'), (3, 'x');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        var store = new SqliteFolderSizeStore(new LeviathanDatabase(path));
+
+        var old = store.Get(LocationPath.Parse(@"C:\old"))!;
+        Assert.Equal(2, old.TotalBytes);
+        Assert.Null(old.OwnFolders);
+    }
 }

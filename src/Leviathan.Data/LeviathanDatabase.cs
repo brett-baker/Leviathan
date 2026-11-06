@@ -51,6 +51,9 @@ public sealed class LeviathanDatabase
             probed_at  TEXT NOT NULL
         );
         """,
+
+        // 4: folders directly inside a folder, for the Items column (spec §12.7); null until the folder is counted again
+        "ALTER TABLE folder_size ADD COLUMN own_folders INTEGER NULL;",
     ];
 
     private readonly string _connectionString;

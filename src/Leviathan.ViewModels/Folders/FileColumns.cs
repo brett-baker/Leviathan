@@ -15,7 +15,8 @@ public readonly record struct GroupBucket(int Order, string Key, string Title);
 /// <param name="Title">Header text.</param>
 /// <param name="Compare">Ascending comparison. Returns 0 for ties; the view adds name and path tie-breakers.</param>
 /// <param name="Group">Maps an entry to its group at <c>now</c> (local time), or null when the column cannot group.</param>
-public sealed record FileColumn(string Id, string Title, Comparison<FileEntry> Compare, Func<FileEntry, DateTimeOffset, TimeZoneInfo, GroupBucket>? Group);
+/// <param name="Metric">The folder-size number the column shows for folders; sorting then asks the folder-size service for it.</param>
+public sealed record FileColumn(string Id, string Title, Comparison<FileEntry> Compare, Func<FileEntry, DateTimeOffset, TimeZoneInfo, GroupBucket>? Group, FolderMetric? Metric = null);
 
 /// <summary>The file-system columns. Media, image and tag columns are added with the data that feeds them (Phase 3).</summary>
 public static class FileColumns
@@ -39,8 +40,20 @@ public static class FileColumns
         (a, b) => string.Compare(TypeName(a), TypeName(b), StringComparison.OrdinalIgnoreCase),
         (e, _, _) => TypeBucket(e));
 
-    /// <summary>Size in bytes. Folder totals come from the folder-size service and are not sorted here.</summary>
-    public static FileColumn Size { get; } = new("size", "Size", (a, b) => a.Size.CompareTo(b.Size), (e, _, _) => SizeBucket(e));
+    /// <summary>Size in bytes. A folder's total comes from the folder-size service; the view sorts by it (<see cref="FolderMetric.TotalBytes"/>).</summary>
+    public static FileColumn Size { get; } = new("size", "Size", (a, b) => a.Size.CompareTo(b.Size), (e, _, _) => SizeBucket(e), FolderMetric.TotalBytes);
+
+    /// <summary>Bytes in the files directly inside a folder, nothing deeper.</summary>
+    public static FileColumn OwnSize { get; } = new("ownsize", "Own size", (a, b) => 0, null, FolderMetric.OwnBytes);
+
+    /// <summary>Files and folders directly inside a folder.</summary>
+    public static FileColumn Items { get; } = new("items", "Items", (a, b) => 0, null, FolderMetric.Items);
+
+    /// <summary>Files at every depth below a folder.</summary>
+    public static FileColumn TotalFiles { get; } = new("totalfiles", "Total files", (a, b) => 0, null, FolderMetric.TotalFiles);
+
+    /// <summary>Folders at every depth below a folder.</summary>
+    public static FileColumn TotalFolders { get; } = new("totalfolders", "Total folders", (a, b) => 0, null, FolderMetric.TotalFolders);
 
     /// <summary>Last write time.</summary>
     public static FileColumn Modified { get; } = new("modified", "Date modified", (a, b) => a.Modified.CompareTo(b.Modified),
@@ -57,7 +70,7 @@ public static class FileColumns
     public static FileColumn Tags { get; } = new("tags", "Tags", (_, _) => 0, null);
 
     /// <summary>Every column.</summary>
-    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, Modified, Created, Attributes, Tags];
+    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, OwnSize, Items, TotalFiles, TotalFolders, Modified, Created, Attributes, Tags];
 
     /// <summary>Finds a column by id (case-insensitive).</summary>
     public static bool TryGet(string id, out FileColumn column)

@@ -29,10 +29,14 @@ public sealed class ComputeFolderSizeExecutor : IJobExecutor
             var location = LocationPath.Parse(sources[i]);
             var baseBytes = bytesSoFar;
             var baseFiles = filesSoFar;
-            var progress = new SyncProgress<FolderSize>(p =>
-                context.Report(baseBytes + p.TotalBytes, -1, baseFiles + p.TotalFiles, -1, location.Value));
 
-            var result = await _service.ComputeAsync(location, progress, cancellationToken).ConfigureAwait(false);
+            // Items are the folder's own subfolders finished of all of them: the one fraction a walk of unknown size has. With
+            // several folders in one job there is no single fraction, so the total stays unknown.
+            var single = sources.Count == 1;
+            var progress = new SyncProgress<FolderSizeProgress>(p =>
+                context.Report(baseBytes + p.Totals.TotalBytes, -1, single ? p.ChildrenDone : baseFiles + p.Totals.TotalFiles, single ? p.ChildrenTotal : -1, location.Value));
+
+            var result = await _service.ComputeWithProgressAsync(location, progress, cancellationToken).ConfigureAwait(false);
             bytesSoFar += result.TotalBytes;
             filesSoFar += result.TotalFiles;
             context.Report(bytesSoFar, i == sources.Count - 1 ? bytesSoFar : -1, filesSoFar, i == sources.Count - 1 ? filesSoFar : -1, location.Value);

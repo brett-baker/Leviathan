@@ -218,11 +218,41 @@ internal sealed class GridRow : Grid
     {
         if (Entry is { } entry)
         {
-            foreach (var cell in _cells.Where(c => c.ColumnId == "size"))
+            foreach (var cell in _cells.Where(c => c.Metric is not null))
             {
-                cell.Text.Text = _owner.Sizes is { } sizes ? sizes.TextFor(entry) : string.Empty;
-                cell.Text.FontStyle = _owner.Sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
-                SetSizeTip(cell.Text, entry);
+                RefreshMetricCell(cell, entry);
+            }
+        }
+    }
+
+    // One cell of Size, Own size, Items, Total files or Total folders: text, italic when out of date, tip, and the bar.
+    private void RefreshMetricCell(Cell cell, FileEntry entry)
+    {
+        var sizes = _owner.Sizes;
+        cell.Text.Text = sizes is null ? string.Empty : sizes.TextFor(entry, cell.Metric!.Value);
+        cell.Text.FontStyle = sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
+        var progress = sizes?.ProgressFor(entry);
+
+        // Waiting for its turn: the placeholder is dimmed and the tip says so; no bar until it is being walked.
+        cell.Text.Opacity = progress is { IsRunning: false } ? 0.5 : 1;
+        if (cell.Bar is { } bar)
+        {
+            SetSizeTip(cell.Text, entry);
+            if (progress is { IsRunning: false })
+            {
+                ToolTipService.SetToolTip(cell.Text, "Waiting to be counted");
+            }
+
+            if (progress is { IsRunning: true } running)
+            {
+                bar.IsIndeterminate = running.Fraction is null;
+                bar.Value = running.Fraction ?? 0;
+                bar.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                bar.IsIndeterminate = false;
+                bar.Visibility = Visibility.Collapsed;
             }
         }
     }
@@ -308,9 +338,30 @@ internal sealed class GridRow : Grid
                 text.Foreground = SecondaryBrush;
             }
 
+            // The Size cell carries the 2 px bar of a folder being counted (spec §12.7); other cells are just text.
+            ProgressBar? bar = null;
+            if (slot.Column == FileColumns.Size)
+            {
+                bar = new ProgressBar
+                {
+                    Height = 2,
+                    MinHeight = 2,
+                    Padding = new Thickness(0),
+                    Maximum = 1,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Margin = new Thickness(8, 0, 8, 1),
+                    IsHitTestVisible = false,
+                    Visibility = Visibility.Collapsed,
+                };
+                var holder = new Grid { IsHitTestVisible = false };
+                holder.Children.Add(text);
+                holder.Children.Add(bar);
+                element = holder;
+            }
+
             SetColumn(element, i);
             Children.Add(element);
-            _cells.Add(new Cell(slot.Column.Id, text, icon));
+            _cells.Add(new Cell(slot.Column.Id, text, icon, slot.Column.Metric, bar));
         }
 
         SetColumnSpan(_focus, Math.Max(1, slots.Count));
@@ -324,7 +375,13 @@ internal sealed class GridRow : Grid
         var sizes = _owner.Sizes;
         foreach (var cell in _cells)
         {
-            cell.Text.Text = sizes is null && cell.ColumnId == "size" ? string.Empty : TextFor(cell.ColumnId, entry, sizes!);
+            if (cell.Metric is not null)
+            {
+                RefreshMetricCell(cell, entry);
+                continue;
+            }
+
+            cell.Text.Text = TextFor(cell.ColumnId, entry, sizes!);
             if (cell.Icon is { } icon)
             {
                 // The icon pack draws the kind of item (spec 4.3); the system glyph stays for a pack without it and for high contrast.
@@ -354,11 +411,6 @@ internal sealed class GridRow : Grid
                     _ = ShowTypeIconAsync(entry, icon);
                 }
             }
-            else if (cell.ColumnId == "size")
-            {
-                cell.Text.FontStyle = sizes?.IsStale(entry) == true ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal;
-                SetSizeTip(cell.Text, entry);
-            }
         }
     }
 
@@ -379,5 +431,5 @@ internal sealed class GridRow : Grid
         }
     }
 
-    private sealed record Cell(string ColumnId, TextBlock Text, FontIcon? Icon);
+    private sealed record Cell(string ColumnId, TextBlock Text, FontIcon? Icon, FolderMetric? Metric = null, ProgressBar? Bar = null);
 }

@@ -40,9 +40,10 @@ public static class ColumnCatalog
             }
         }
 
-        Group("File system", ("name", "Name"), ("extension", "Extension"), ("type", "Type"), ("size", "Size"), ("sizeondisk", "Size on disk"),
+        Group("File system", ("name", "Name"), ("extension", "Extension"), ("type", "Type"), ("size", "Size"), ("ownsize", "Own size"), ("items", "Items"), ("totalfiles", "Total files"),
+            ("totalfolders", "Total folders"), ("sizeondisk", "Size on disk"),
             ("modified", "Date modified"), ("created", "Date created"), ("accessed", "Date accessed"), ("attributes", "Attributes"),
-            ("owner", "Owner"), ("path", "Path"), ("linktarget", "Link target"), ("itemcount", "Item count"));
+            ("owner", "Owner"), ("path", "Path"), ("linktarget", "Link target"));
         Group("Leviathan", ("tags", "Tags"), ("deleted", "Soft-deleted date"), ("checksum", "Checksum"), ("duplicates", "Duplicate group"));
         Group("Media", ("duration", "Duration"), ("resolution", "Resolution"), ("framerate", "Frame rate"), ("videocodec", "Video codec"),
             ("audiocodec", "Audio codec"), ("bitrate", "Bitrate"), ("container", "Container"), ("hdr", "HDR"), ("channels", "Audio channels"),

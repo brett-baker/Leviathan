@@ -11,6 +11,9 @@ namespace Leviathan.ViewModels.Folders;
 /// <param name="Folders">Folders below the folder (0 when not known).</param>
 /// <param name="ComputedAt">When the folder was counted; null when not known.</param>
 /// <param name="IsNetwork">True for a folder on a share, where a size always shows its age because a change deeper down is not noticed (spec §12.7).</param>
+/// <param name="OwnBytes">Bytes in the files directly inside the folder (the Own size column).</param>
+/// <param name="OwnFiles">Files directly inside the folder.</param>
+/// <param name="OwnFolders">Folders directly inside the folder; null when the folder was counted before this was kept (the Items column then stays blank).</param>
 public readonly record struct FolderSizeInfo(
     long Bytes,
     bool IsLowerBound = false,
@@ -18,7 +21,46 @@ public readonly record struct FolderSizeInfo(
     int Files = 0,
     int Folders = 0,
     DateTimeOffset? ComputedAt = null,
-    bool IsNetwork = false);
+    bool IsNetwork = false,
+    long OwnBytes = 0,
+    int OwnFiles = 0,
+    int? OwnFolders = null)
+{
+    /// <summary>The value of <paramref name="metric"/>, or null when it is not known.</summary>
+    public long? Value(FolderMetric metric) => metric switch
+    {
+        FolderMetric.TotalBytes => Bytes,
+        FolderMetric.OwnBytes => OwnBytes,
+        FolderMetric.Items => OwnFolders is { } folders ? OwnFiles + folders : null,
+        FolderMetric.TotalFiles => Files,
+        FolderMetric.TotalFolders => Folders,
+        _ => null,
+    };
+}
+
+/// <summary>A number the folder-size service keeps for a folder, shown in a column of its own (spec §12.7).</summary>
+public enum FolderMetric
+{
+    /// <summary>Everything below the folder, at any depth (the Size column).</summary>
+    TotalBytes,
+
+    /// <summary>Only the files directly inside.</summary>
+    OwnBytes,
+
+    /// <summary>Files and folders directly inside.</summary>
+    Items,
+
+    /// <summary>Files at every depth.</summary>
+    TotalFiles,
+
+    /// <summary>Folders at every depth.</summary>
+    TotalFolders,
+}
+
+/// <summary>Where a folder is in the counting queue, for the 2 px bar of its Size cell.</summary>
+/// <param name="IsRunning">False while waiting for its turn, true while it is being walked.</param>
+/// <param name="Fraction">Subfolders finished of all of them, 0 to 1; null when not known (waiting, or no subfolders to count).</param>
+public readonly record struct FolderProgress(bool IsRunning, double? Fraction);
 
 /// <summary>Where folder totals come from. The app implements it on top of the worker's folder-size jobs and the shared size store (spec §12.7).</summary>
 public interface IFolderSizeSource
@@ -37,6 +79,9 @@ public interface IFolderSizeSource
     /// folders' last-write times, so a stored size that no longer matches can be recounted.
     /// </summary>
     void Request(IReadOnlyList<FileEntry> folders);
+
+    /// <summary>Where <paramref name="folder"/> is in the queue, or null when it is not waiting or being counted.</summary>
+    FolderProgress? ProgressOf(LocationPath folder) => null;
 }
 
 /// <summary>
@@ -91,6 +136,48 @@ public sealed class FolderSizeTracker : IDisposable
         }
 
         return _source.CanCompute(entry.Location) && _requested.Contains(entry.Location) ? "…" : string.Empty;
+    }
+
+    /// <summary>
+    /// The text of the Own size, Items, Total files or Total folders cell: blank for a file, a placeholder while the folder is
+    /// being counted, and blank when the value is not known (a folder counted before Items was kept).
+    /// </summary>
+    public string TextFor(FileEntry entry, FolderMetric metric)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (metric == FolderMetric.TotalBytes)
+        {
+            return TextFor(entry);
+        }
+
+        if (!FileColumns.IsFolderLike(entry) || _source is null)
+        {
+            return string.Empty;
+        }
+
+        if (_source.TryGet(entry.Location) is { } info)
+        {
+            return info.Value(metric) is { } value
+                ? (info.IsLowerBound && metric != FolderMetric.Items && metric != FolderMetric.OwnBytes ? "≥ " : string.Empty)
+                    + (metric == FolderMetric.OwnBytes ? DisplayFormat.Size(value) : value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))
+                : string.Empty;
+        }
+
+        return _source.CanCompute(entry.Location) && _requested.Contains(entry.Location) ? "…" : string.Empty;
+    }
+
+    /// <summary>The number <paramref name="metric"/> sorts folders by, or null when unknown; <see cref="FolderItemsView"/> asks for it.</summary>
+    public long? ValueOf(FileEntry entry, FolderMetric metric)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return _source?.TryGet(entry.Location) is { } info ? info.Value(metric) : null;
+    }
+
+    /// <summary>The 2 px bar of the Size cell: null when the folder is neither waiting nor being counted.</summary>
+    public FolderProgress? ProgressFor(FileEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return FileColumns.IsFolderLike(entry) ? _source?.ProgressOf(entry.Location) : null;
     }
 
     /// <summary>

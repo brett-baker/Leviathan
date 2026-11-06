@@ -314,4 +314,58 @@ public sealed class FolderSizeTrackerTests
 
         Assert.Equal([P(@"C:\new")], Assert.Single(source.Requests).Select(e => e.Location));
     }
+
+    [Fact]
+    public void TextFor_Metrics_ShowCountsWithSeparators_AndStayBlankForFilesAndUnknownItems()
+    {
+        var source = new FakeSource();
+        source.Known[P(@"C:\full")] = new FolderSizeInfo(5000, Files: 12345, Folders: 80, OwnBytes: 2048, OwnFiles: 3, OwnFolders: 2);
+        source.Known[P(@"C:\old")] = new FolderSizeInfo(5000, Files: 7, Folders: 1, OwnFiles: 3);
+        source.Known[P(@"C:\busy")] = new FolderSizeInfo(5000, IsLowerBound: true, Files: 9, Folders: 2);
+        var tracker = new FolderSizeTracker(source, new InlineUiContext());
+        var file = new Leviathan.Core.Model.FileEntry("a.txt", P(@"C:\a.txt"), Leviathan.Core.Model.FileEntryKind.File, 5, default, default, FileAttributes.Normal);
+
+        Assert.Equal("2 KB", tracker.TextFor(Folder(@"C:\full"), FolderMetric.OwnBytes));
+        Assert.Equal("5", tracker.TextFor(Folder(@"C:\full"), FolderMetric.Items));
+        Assert.Equal("12,345", tracker.TextFor(Folder(@"C:\full"), FolderMetric.TotalFiles));
+        Assert.Equal("80", tracker.TextFor(Folder(@"C:\full"), FolderMetric.TotalFolders));
+        Assert.Equal(string.Empty, tracker.TextFor(Folder(@"C:\old"), FolderMetric.Items));
+        Assert.Equal("≥ 9", tracker.TextFor(Folder(@"C:\busy"), FolderMetric.TotalFiles));
+        Assert.Equal(string.Empty, tracker.TextFor(file, FolderMetric.TotalFiles));
+        Assert.Equal("5 bytes", tracker.TextFor(file, FolderMetric.TotalBytes));
+    }
+
+    [Fact]
+    public void ProgressFor_FollowsTheSource_ForFoldersOnly()
+    {
+        var source = new ProgressSource { Progress = new FolderProgress(true, 0.25) };
+        var tracker = new FolderSizeTracker(source, new InlineUiContext());
+        var file = new Leviathan.Core.Model.FileEntry("a.txt", P(@"C:\a.txt"), Leviathan.Core.Model.FileEntryKind.File, 5, default, default, FileAttributes.Normal);
+
+        Assert.Equal(new FolderProgress(true, 0.25), tracker.ProgressFor(Folder(@"C:\x")));
+        Assert.Null(tracker.ProgressFor(file));
+        source.Progress = null;
+        Assert.Null(tracker.ProgressFor(Folder(@"C:\x")));
+    }
+
+    private sealed class ProgressSource : IFolderSizeSource
+    {
+        public FolderProgress? Progress { get; set; }
+
+        public event EventHandler<IReadOnlyList<LocationPath>>? Computed
+        {
+            add { }
+            remove { }
+        }
+
+        public bool CanCompute(LocationPath folder) => true;
+
+        public FolderSizeInfo? TryGet(LocationPath folder) => null;
+
+        public void Request(IReadOnlyList<Leviathan.Core.Model.FileEntry> folders)
+        {
+        }
+
+        public FolderProgress? ProgressOf(LocationPath folder) => Progress;
+    }
 }

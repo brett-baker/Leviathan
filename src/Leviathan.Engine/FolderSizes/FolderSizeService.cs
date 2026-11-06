@@ -36,7 +36,30 @@ public sealed class FolderSizeService
     public async Task<FolderSize> ComputeAsync(LocationPath folder, IProgress<FolderSize>? partial, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(folder);
-        return await ComputeFolderAsync(folder, null, isRoot: true, partial, cancellationToken).ConfigureAwait(false);
+        return await ComputeFolderAsync(folder, null, isRoot: true, partial is null ? null : new Adapter(partial), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Like <see cref="ComputeAsync"/>, and <paramref name="progress"/> also says how many of the root's subfolders are finished
+    /// of how many there are, which is the one honest fraction a walk of unknown size has (the cell's 2 px bar, spec §12.7).
+    /// </summary>
+    public async Task<FolderSize> ComputeWithProgressAsync(LocationPath folder, IProgress<FolderSizeProgress> progress, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(folder);
+        ArgumentNullException.ThrowIfNull(progress);
+        return await ComputeFolderAsync(folder, null, isRoot: true, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    private sealed class Adapter(IProgress<FolderSize> inner) : IProgress<FolderSizeProgress>
+    {
+        // The opening "0 of N" report is for the bar; this overload keeps its old promise of one report per finished subfolder.
+        public void Report(FolderSizeProgress value)
+        {
+            if (value.ChildrenDone > 0)
+            {
+                inner.Report(value.Totals);
+            }
+        }
     }
 
     /// <summary>
@@ -59,6 +82,9 @@ public sealed class FolderSizeService
             {
                 OwnBytes = isTarget ? Math.Max(0, size.OwnBytes + bytes) : size.OwnBytes,
                 OwnFiles = isTarget ? Math.Max(0, size.OwnFiles + files) : size.OwnFiles,
+
+                // How many folders sit directly inside is not in a recursive delta, so the count is unknown until the next recount.
+                OwnFolders = isTarget && folders != 0 ? null : size.OwnFolders,
                 TotalBytes = Math.Max(0, size.TotalBytes + bytes),
                 TotalFiles = Math.Max(0, size.TotalFiles + files),
                 TotalFolders = Math.Max(0, size.TotalFolders + folders),
@@ -83,10 +109,11 @@ public sealed class FolderSizeService
         _store.Get(folder) is not { } size || size.State == FolderSizeState.Stale || size.FolderModified != folderModified;
 
     private async Task<FolderSize> ComputeFolderAsync(
-        LocationPath folder, DateTimeOffset? folderModified, bool isRoot, IProgress<FolderSize>? partial, CancellationToken cancellationToken)
+        LocationPath folder, DateTimeOffset? folderModified, bool isRoot, IProgress<FolderSizeProgress>? partial, CancellationToken cancellationToken)
     {
         long ownBytes = 0;
         int ownFiles = 0;
+        var ownOthers = 0;
         var subfolders = new List<FileEntry>();
         var state = FolderSizeState.Fresh;
 
@@ -108,6 +135,7 @@ public sealed class FolderSizeService
                             break;
                         case FileEntryKind.Link:
                             // Junctions and symlinks are not followed: prevents loops and double counting.
+                            ownOthers++;
                             break;
                     }
                 }
@@ -122,6 +150,15 @@ public sealed class FolderSizeService
         int totalFiles = ownFiles;
         int totalFolders = 0;
 
+        var ownFolders = subfolders.Count + ownOthers;
+        var done = 0;
+        if (isRoot && partial is not null)
+        {
+            // Counting starts: the bar shows 0 of N before the first subfolder is finished.
+            partial.Report(new FolderSizeProgress(
+                new FolderSize(folder, ownBytes, ownFiles, totalBytes, totalFiles, totalFolders, FolderSizeState.Partial, _time.GetUtcNow(), folderModified, ownFolders), 0, subfolders.Count));
+        }
+
         foreach (var sub in subfolders)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -134,13 +171,15 @@ public sealed class FolderSizeService
                 state = FolderSizeState.Error;
             }
 
+            done++;
             if (isRoot && partial is not null)
             {
-                partial.Report(new FolderSize(folder, ownBytes, ownFiles, totalBytes, totalFiles, totalFolders, FolderSizeState.Partial, _time.GetUtcNow(), folderModified));
+                partial.Report(new FolderSizeProgress(
+                    new FolderSize(folder, ownBytes, ownFiles, totalBytes, totalFiles, totalFolders, FolderSizeState.Partial, _time.GetUtcNow(), folderModified, ownFolders), done, subfolders.Count));
             }
         }
 
-        var result = new FolderSize(folder, ownBytes, ownFiles, totalBytes, totalFiles, totalFolders, state, _time.GetUtcNow(), folderModified);
+        var result = new FolderSize(folder, ownBytes, ownFiles, totalBytes, totalFiles, totalFolders, state, _time.GetUtcNow(), folderModified, ownFolders);
         _store.Upsert(result);
         return result;
     }

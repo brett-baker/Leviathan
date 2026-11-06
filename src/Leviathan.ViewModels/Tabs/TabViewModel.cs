@@ -107,6 +107,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _explicitView = explicitView ?? FolderViewSettings.Default;
         Columns = new ColumnLayout(_explicitView.Columns, _explicitView.ColumnWidths);
         Sizes = new FolderSizeTracker(services.FolderSizes, services.Ui);
+
+        // Sorting by a folder's size, item count or file count: the view asks the tracker, and sorts again when a number arrives.
+        Items.SetFolderMetrics(Sizes.ValueOf);
+        Sizes.Changed += (_, _) => Items.ResortByMetrics();
         _useExplicitView = explicitView is not null;
         ApplyView();
 

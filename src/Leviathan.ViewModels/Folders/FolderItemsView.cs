@@ -53,6 +53,7 @@ public sealed partial class FolderItemsView : ObservableObject
     private FilterQuery _filter = FilterQuery.Empty;
     private IEntryMetadata _metadata = NoEntryMetadata.Instance;
     private Comparison<FileEntry> _comparison;
+    private Func<FileEntry, FolderMetric, long?>? _metrics;
 
     /// <summary>Creates a view over <paramref name="source"/>, applying <paramref name="settings"/>.</summary>
     public FolderItemsView(RangeObservableCollection<FileEntry> source, FolderViewSettings? settings = null, TimeProvider? time = null)
@@ -168,6 +169,42 @@ public sealed partial class FolderItemsView : ObservableObject
         _filter = string.IsNullOrWhiteSpace(text) ? FilterQuery.Empty : FilterQuery.Parse(text);
         Recompute();
         OnPropertyChanged(nameof(Filter));
+    }
+
+    /// <summary>
+    /// Supplies the folder-size numbers the Size, Own size, Items, Total files and Total folders columns sort folders by (spec §12.7);
+    /// a folder whose number is not known yet sorts before the ones that are.
+    /// </summary>
+    public void SetFolderMetrics(Func<FileEntry, FolderMetric, long?>? metrics)
+    {
+        _metrics = metrics;
+        _comparison = BuildComparison();
+        if (SortsByMetric)
+        {
+            Recompute();
+        }
+    }
+
+    /// <summary>True when the sort uses a folder-size number, so a number that arrives can move a row.</summary>
+    public bool SortsByMetric => _sort.Any(k => FileColumns.TryGet(k.Column, out var c) && c.Metric is not null);
+
+    /// <summary>A folder-size number arrived: sorts again when the sort depends on one. Does nothing otherwise.</summary>
+    public void ResortByMetrics()
+    {
+        if (!SortsByMetric)
+        {
+            return;
+        }
+
+        // The comparison object changes so the sorted copy kept for filter changes is rebuilt. Rows that are still in order are left
+        // alone: most arrivals (a progress tick, a number that does not move the folder) change nothing on screen.
+        _comparison = BuildComparison();
+        if (IsSorted(_sorted, _comparison))
+        {
+            return;
+        }
+
+        Recompute();
     }
 
     /// <summary>Supplies tags and durations for filter terms that need them.</summary>
@@ -338,6 +375,7 @@ public sealed partial class FolderItemsView : ObservableObject
     {
         var keys = _sort.Select(k => (Column: FileColumns.TryGet(k.Column, out var c) ? c : FileColumns.Name, k.Direction)).ToArray();
         var folders = _folders;
+        var metrics = _metrics;
         return (a, b) =>
         {
             if (folders != FolderPlacement.Mixed)
@@ -351,7 +389,7 @@ public sealed partial class FolderItemsView : ObservableObject
 
             foreach (var (column, direction) in keys)
             {
-                var result = column.Compare(a, b);
+                var result = column.Metric is { } metric && metrics is not null ? CompareMetric(a, b, metric, metrics) : column.Compare(a, b);
                 if (result != 0)
                 {
                     return direction == SortDirection.Ascending ? result : -result;
@@ -363,6 +401,15 @@ public sealed partial class FolderItemsView : ObservableObject
             return byName != 0 ? byName : string.CompareOrdinal(a.Location.Value, b.Location.Value);
         };
     }
+
+    // A file is its own size; a folder is what the folder-size service has. A number not known yet sorts before every known one.
+    private static int CompareMetric(FileEntry a, FileEntry b, FolderMetric metric, Func<FileEntry, FolderMetric, long?> metrics) =>
+        (ValueOf(a, metric, metrics) ?? -1).CompareTo(ValueOf(b, metric, metrics) ?? -1);
+
+    private static long? ValueOf(FileEntry entry, FolderMetric metric, Func<FileEntry, FolderMetric, long?> metrics) =>
+        FileColumns.IsFolderLike(entry)
+            ? metrics(entry, metric)
+            : metric is FolderMetric.TotalBytes or FolderMetric.OwnBytes ? entry.Size : null;
 
     private void Publish()
     {

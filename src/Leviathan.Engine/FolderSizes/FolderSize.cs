@@ -32,6 +32,7 @@ public enum FolderSizeState
 /// <param name="State">Freshness.</param>
 /// <param name="ComputedAt">When it was last measured.</param>
 /// <param name="FolderModified">The folder's own last-write time when measured; a change marks it stale.</param>
+/// <param name="OwnFolders">Folders (and links) directly inside, so files plus this is the Items column; null when counted before it was kept.</param>
 public sealed record FolderSize(
     LocationPath Location,
     long OwnBytes,
@@ -41,11 +42,18 @@ public sealed record FolderSize(
     int TotalFolders,
     FolderSizeState State,
     DateTimeOffset ComputedAt,
-    DateTimeOffset? FolderModified)
+    DateTimeOffset? FolderModified,
+    int? OwnFolders = null)
 {
     /// <summary>True when the totals are a lower bound.</summary>
     public bool IsLowerBound => State is FolderSizeState.Partial or FolderSizeState.Computing or FolderSizeState.Error;
 }
+
+/// <summary>A count under way: the running totals and how many of the folder's own subfolders are finished.</summary>
+/// <param name="Totals">The running (lower-bound) totals of the folder.</param>
+/// <param name="ChildrenDone">Subfolders directly inside the folder that are finished.</param>
+/// <param name="ChildrenTotal">Subfolders directly inside the folder.</param>
+public readonly record struct FolderSizeProgress(FolderSize Totals, int ChildrenDone, int ChildrenTotal);
 
 /// <summary>Persistent store of folder sizes. The SQLite implementation lives in Leviathan.Data.</summary>
 public interface IFolderSizeStore

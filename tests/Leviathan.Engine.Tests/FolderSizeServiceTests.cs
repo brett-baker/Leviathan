@@ -165,4 +165,49 @@ public class FolderSizeServiceTests
     {
         public void Report(FolderSize value) => report(value);
     }
+
+    [Fact]
+    public async Task Compute_KeepsHowManyFoldersAndLinksSitDirectlyInside()
+    {
+        var (service, store, _) = Create(f => f
+            .AddFile(@"C:\r\1.bin", 10)
+            .AddFile(@"C:\r\a\2.bin", 20)
+            .AddFolder(@"C:\r\b")
+            .AddLink(@"C:\r\link"));
+
+        var root = await service.ComputeAsync(P(@"C:\r"), null, CancellationToken.None);
+
+        Assert.Equal(3, root.OwnFolders);
+        Assert.Equal(1, root.OwnFiles);
+        Assert.Equal(0, store.Get(P(@"C:\r\b"))!.OwnFolders);
+    }
+
+    [Fact]
+    public async Task ComputeWithProgress_ReportsSubfoldersFinishedOfAll_StartingAtZero()
+    {
+        var (service, _, _) = Create(f => f.AddFile(@"C:\r\a\1.bin", 10).AddFile(@"C:\r\b\2.bin", 20).AddFile(@"C:\r\c\3.bin", 30));
+        var seen = new List<(int Done, int Total)>();
+
+        await service.ComputeWithProgressAsync(P(@"C:\r"), new SyncProgress2(p => seen.Add((p.ChildrenDone, p.ChildrenTotal))), CancellationToken.None);
+
+        Assert.Equal([(0, 3), (1, 3), (2, 3), (3, 3)], seen);
+    }
+
+    [Fact]
+    public async Task ApplyDelta_KeepsOwnFolders_UnlessFoldersChanged_ThenItIsUnknownUntilRecounted()
+    {
+        var (service, store, _) = Create(f => f.AddFile(@"C:\r\a\1.bin", 10).AddFile(@"C:\r\2.bin", 5));
+        await service.ComputeAsync(P(@"C:\r"), null, CancellationToken.None);
+
+        service.ApplyDelta(P(@"C:\r"), 7, 1);
+        Assert.Equal(1, store.Get(P(@"C:\r"))!.OwnFolders);
+
+        service.ApplyDelta(P(@"C:\r"), 7, 1, folders: 2);
+        Assert.Null(store.Get(P(@"C:\r"))!.OwnFolders);
+    }
+
+    private sealed class SyncProgress2(Action<FolderSizeProgress> report) : IProgress<FolderSizeProgress>
+    {
+        public void Report(FolderSizeProgress value) => report(value);
+    }
 }

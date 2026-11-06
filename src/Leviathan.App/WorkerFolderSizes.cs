@@ -18,6 +18,8 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
     private readonly ConcurrentDictionary<LocationPath, FolderSizeInfo> _cache = new();
     private readonly ConcurrentDictionary<Guid, LocationPath> _jobs = new();
     private readonly ConcurrentDictionary<LocationPath, bool> _queued = new();
+    private readonly ConcurrentDictionary<LocationPath, FolderProgress> _progress = new();
+    private readonly ConcurrentDictionary<LocationPath, long> _lastProgress = new();
     private readonly Func<WorkerConnection> _worker;
     private readonly Lazy<IFolderSizeStore> _store = new(() => new SqliteFolderSizeStore(new LeviathanDatabase(LeviathanDatabase.DefaultPath)));
     private readonly CancellationTokenSource _closing = new();
@@ -82,7 +84,9 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
                     var outdated = changed || stored.State == FolderSizeState.Stale;
                     _cache[folder.Location] = ToInfo(stored, outdated);
                     known.Add(folder.Location);
-                    if (outdated || stored.IsLowerBound)
+
+                    // A folder counted before the Items column existed has no count of its own folders: count it again once.
+                    if (outdated || stored.IsLowerBound || stored.OwnFolders is null)
                     {
                         missing.Add(folder);
                     }
@@ -126,10 +130,13 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
             var request = new JobRequest(JobKind.ComputeFolderSize, [folder.Value], null) { Priority = JobPriority.Low };
             var snapshot = await Connection().SubmitAsync(request);
             _jobs[snapshot.Id] = folder;
+            _progress[folder] = new FolderProgress(IsRunning: false, Fraction: null);
+            Computed?.Invoke(this, [folder]);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _queued.TryRemove(folder, out _);
+            _progress.TryRemove(folder, out _);
             Log(ex);
         }
     }
@@ -148,13 +155,27 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
         return _connection;
     }
 
+    /// <inheritdoc />
+    public FolderProgress? ProgressOf(LocationPath folder) => _progress.TryGetValue(folder, out var progress) ? progress : null;
+
+    // Progress reaches the Size cell at most this often per folder; the worker reports far more often than the eye needs.
+    private static readonly TimeSpan ProgressGap = TimeSpan.FromMilliseconds(100);
+
     private void OnJobChanged(object? sender, JobSnapshot snapshot)
     {
+        if (snapshot.State is JobState.Running && _jobs.TryGetValue(snapshot.Id, out var running))
+        {
+            ReportProgress(running, snapshot);
+            return;
+        }
+
         if (snapshot.State is not (JobState.Completed or JobState.Failed or JobState.Cancelled) || !_jobs.TryRemove(snapshot.Id, out var folder))
         {
             return;
         }
 
+        _progress.TryRemove(folder, out _);
+        _lastProgress.TryRemove(folder, out _);
         _queued.TryRemove(folder, out _);
         _ = Task.Run(
             () =>
@@ -168,6 +189,23 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
             _closing.Token);
     }
 
+    private void ReportProgress(LocationPath folder, JobSnapshot snapshot)
+    {
+        // The worker reports subfolders finished of all of them; no subfolders (or not known yet) gives a bar with no fraction.
+        double? fraction = snapshot.ItemsTotal > 0 ? Math.Clamp((double)snapshot.ItemsDone / snapshot.ItemsTotal, 0, 1) : null;
+        var next = new FolderProgress(IsRunning: true, fraction);
+        var now = Environment.TickCount64;
+        var first = !_progress.TryGetValue(folder, out var before) || !before.IsRunning;
+        if (!first && _lastProgress.TryGetValue(folder, out var last) && now - last < ProgressGap.TotalMilliseconds)
+        {
+            return;
+        }
+
+        _progress[folder] = next;
+        _lastProgress[folder] = now;
+        Computed?.Invoke(this, [folder]);
+    }
+
     private static FolderSizeInfo ToInfo(FolderSize size, bool outdated) =>
         new(
             size.TotalBytes,
@@ -176,5 +214,8 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
             size.TotalFiles,
             size.TotalFolders,
             size.ComputedAt,
-            Leviathan.Providers.Local.MappedDrives.IsMappedDrive(size.Location));
+            Leviathan.Providers.Local.MappedDrives.IsMappedDrive(size.Location),
+            size.OwnBytes,
+            size.OwnFiles,
+            size.OwnFolders);
 }
