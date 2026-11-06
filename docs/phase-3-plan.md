@@ -33,7 +33,7 @@ Every slice follows `CLAUDE.md`.
   -show_chapters -of json`, 10 s timeout, low priority, reads only headers on network files.
 - [x] **A2. Parser and model** (done: `MediaInfo` and `FfprobeParser` in `Leviathan.Media.Core`; snapshot tests over six real ffprobe outputs (`tools/New-MediaSamples.ps1` makes them), 59 tests in all; Dolby Vision is tested from a hand-written record, since it cannot be generated) (`Leviathan.Media.Core`): container, streams (video/audio/subtitle), chapters, tags, HDR, frame
   rate; snapshot tests (Verify) over the fixture set.
-- [ ] **A3. Cache and quarantine.** SQLite `media_metadata` keyed by path + size + mtime; a file that times out or crashes
+- [x] **A3. Cache and quarantine** (done: `MediaMetadataService` in `Leviathan.Media.Core` and `SqliteMediaMetadataStore` in `Leviathan.Data` over the existing `media_metadata` table; 16 service tests and 9 store tests; the Media process that calls `RecoverFromCrash()` on start comes with A4). SQLite `media_metadata` keyed by path + size + mtime; a file that times out or crashes
   ffprobe is marked unreadable until it changes; Media process crash → restart, no retry loop.
 - [ ] **A4. Lazy probing.** Visible rows only, low priority, cancelled on navigate; sorting by a media column fills the whole
   folder in the background with progress in the column header (§8.2).

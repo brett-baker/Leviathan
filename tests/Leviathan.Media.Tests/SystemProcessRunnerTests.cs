@@ -45,7 +45,7 @@ public sealed class SystemProcessRunnerTests
         Assert.True(outcome.TimedOut);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"took {clock.Elapsed}");
         await Task.Delay(300);
-        Assert.Empty(Process.GetProcessesByName("PING").Where(p => p.StartTime > DateTime.Now.AddSeconds(-20) && !p.HasExited));
+        Assert.DoesNotContain(Process.GetProcessesByName("PING"), p => p.StartTime > DateTime.Now.AddSeconds(-20) && !p.HasExited);
     }
 
     [Fact]
