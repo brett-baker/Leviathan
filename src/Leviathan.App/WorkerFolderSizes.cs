@@ -16,8 +16,7 @@ namespace Leviathan.App;
 internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
 {
     private readonly ConcurrentDictionary<LocationPath, FolderSizeInfo> _cache = new();
-    private readonly ConcurrentDictionary<Guid, LocationPath> _jobs = new();
-    private readonly ConcurrentDictionary<LocationPath, bool> _queued = new();
+    private readonly CountQueue _queue = new();
     private readonly ConcurrentDictionary<LocationPath, FolderProgress> _progress = new();
     private readonly ConcurrentDictionary<LocationPath, long> _lastProgress = new();
     private readonly Func<WorkerConnection> _worker;
@@ -102,10 +101,10 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
                 Computed?.Invoke(this, known);
             }
 
-            foreach (var folder in missing.Where(f => _queued.TryAdd(f.Location, true)))
+            foreach (var folder in missing)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await SubmitAsync(folder.Location);
+                await QueueAsync(folder.Location);
             }
         }
         catch (OperationCanceledException)
@@ -119,6 +118,22 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
         }
     }
 
+    // Asks for one folder to be counted unless it is already queued, or a job for a folder above it will store it on the way.
+    private async Task QueueAsync(LocationPath folder)
+    {
+        switch (_queue.Add(folder))
+        {
+            case CountAdd.Submit:
+                await SubmitAsync(folder);
+                break;
+            case CountAdd.Covered:
+                // Waiting for the walk above it: shown as waiting, and read from the store when that walk ends.
+                _progress[folder] = new FolderProgress(IsRunning: false, Fraction: null);
+                Computed?.Invoke(this, [folder]);
+                break;
+        }
+    }
+
     /// <summary>
     /// Queues one folder. A folder the worker refuses, or a worker that is not there, only means this folder has no size: it must
     /// never take the app down (this runs on the thread pool, where an unobserved exception ends the process).
@@ -127,16 +142,55 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
     {
         try
         {
-            var request = new JobRequest(JobKind.ComputeFolderSize, [folder.Value], null) { Priority = JobPriority.Low };
+            var request = new JobRequest(JobKind.ComputeFolderSize, [folder.Value], null) { Priority = _queue.PriorityFor(folder) };
             var snapshot = await Connection().SubmitAsync(request);
-            _jobs[snapshot.Id] = folder;
+            _queue.Started(folder, snapshot.Id);
             _progress[folder] = new FolderProgress(IsRunning: false, Fraction: null);
             Computed?.Invoke(this, [folder]);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _queued.TryRemove(folder, out _);
+            foreach (var released in _queue.Failed(folder))
+            {
+                _progress.TryRemove(released, out _);
+            }
+
             _progress.TryRemove(folder, out _);
+            Log(ex);
+        }
+    }
+
+    /// <summary>Counts <paramref name="folder"/> again whatever is stored: the scheduled check of a share the user opted in (spec §12.7).</summary>
+    public void Recount(LocationPath folder)
+    {
+        if (CanCompute(folder))
+        {
+            _ = Task.Run(() => QueueAsync(folder), _closing.Token);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Prioritize(IReadOnlyCollection<LocationPath> urgent)
+    {
+        var changes = _queue.SetUrgent(urgent);
+        if (changes.Count > 0)
+        {
+            _ = Task.Run(() => ApplyPrioritiesAsync(changes), _closing.Token);
+        }
+    }
+
+    private async Task ApplyPrioritiesAsync(IReadOnlyList<PriorityChange> changes)
+    {
+        try
+        {
+            foreach (var change in changes)
+            {
+                await Connection().SetPriorityAsync(change.JobId, change.Priority);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A job that already finished or a worker that is away: the order is only a preference.
             Log(ex);
         }
     }
@@ -163,7 +217,7 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
 
     private void OnJobChanged(object? sender, JobSnapshot snapshot)
     {
-        if (snapshot.State is JobState.Running && _jobs.TryGetValue(snapshot.Id, out var running))
+        if (snapshot.State is JobState.Running && _queue.FolderOf(snapshot.Id) is { } running)
         {
             ReportProgress(running, snapshot);
             return;
@@ -177,24 +231,46 @@ internal sealed class WorkerFolderSizes : IFolderSizeSource, IDisposable
             return;
         }
 
-        if (!ended || !_jobs.TryRemove(snapshot.Id, out var folder))
+        if (!ended || _queue.Finished(snapshot.Id) is not { } done)
         {
             return;
         }
 
-        _progress.TryRemove(folder, out _);
-        _lastProgress.TryRemove(folder, out _);
-        _queued.TryRemove(folder, out _);
-        _ = Task.Run(
-            () =>
+        _progress.TryRemove(done.Folder, out _);
+        _lastProgress.TryRemove(done.Folder, out _);
+        _ = Task.Run(() => FinishedAsync(done.Folder, done.Covered), _closing.Token);
+    }
+
+    // A count ended: its folder, and every folder it was covering, now has its size in the store (the walk stores each subfolder).
+    // A covered folder the walk did not store (it failed, or was cancelled) is asked for again.
+    private async Task FinishedAsync(LocationPath folder, IReadOnlyList<LocationPath> covered)
+    {
+        try
+        {
+            var changed = new List<LocationPath>();
+            foreach (var location in covered.Prepend(folder))
             {
-                if (_store.Value.Get(folder) is { } stored)
+                _progress.TryRemove(location, out _);
+                if (_store.Value.Get(location) is { } stored)
                 {
-                    _cache[folder] = ToInfo(stored, outdated: false);
-                    Computed?.Invoke(this, [folder]);
+                    _cache[location] = ToInfo(stored, outdated: false);
+                    changed.Add(location);
                 }
-            },
-            _closing.Token);
+                else if (!ReferenceEquals(location, folder) && location != folder)
+                {
+                    await QueueAsync(location);
+                }
+            }
+
+            if (changed.Count > 0)
+            {
+                Computed?.Invoke(this, changed);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            Log(ex);
+        }
     }
 
     // Reads the stored size again of every folder this process has shown, and tells the view about the ones that changed.

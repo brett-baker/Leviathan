@@ -143,6 +143,7 @@ internal sealed partial class SettingsSheet : UserControl
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
             OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
+            RecheckBox.Text = string.Join('\r', settings.Files.RecheckSizePaths);
             BinDaysBox.Value = settings.Files.BinKeepDays;
             BinSizeBox.Value = settings.Files.BinMaxGiB;
             LastTabSwitch.IsOn = settings.Tabs.LastTabResetsToHome;
@@ -374,6 +375,18 @@ internal sealed partial class SettingsSheet : UserControl
         var sizes = SizesSwitch.IsOn;
         var ownTrash = OwnTrashSwitch.IsOn;
         await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash } });
+    }
+
+    // Saved when the box is left; lines that are not drive letter paths are kept as typed but never counted.
+    private async void OnRecheckLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var lines = RecheckBox.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        await SaveAsync(s => s with { Files = s.Files with { RecheckSizePaths = lines } });
     }
 
     // The bin's limits apply at the next daily purge or "Delete old now"; a box cleared to nothing reads as NaN and is left as it was.

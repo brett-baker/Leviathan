@@ -82,6 +82,14 @@ public interface IFolderSizeSource
 
     /// <summary>Where <paramref name="folder"/> is in the queue, or null when it is not waiting or being counted.</summary>
     FolderProgress? ProgressOf(LocationPath folder) => null;
+
+    /// <summary>
+    /// Says which folders are urgent: on screen, or selected (spec §12.7). Counting of those goes first; the rest keeps its place behind
+    /// them and is not thrown away.
+    /// </summary>
+    void Prioritize(IReadOnlyCollection<LocationPath> urgent)
+    {
+    }
 }
 
 /// <summary>
@@ -273,6 +281,27 @@ public sealed class FolderSizeTracker : IDisposable
 
         _source.Request([folder]);
     }
+
+    private IReadOnlyList<LocationPath> _visible = [];
+    private IReadOnlyList<LocationPath> _selected = [];
+
+    /// <summary>The folders on screen now; they are counted first (spec §12.7).</summary>
+    public void SetVisible(IReadOnlyList<LocationPath> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        _visible = folders;
+        PushUrgent();
+    }
+
+    /// <summary>The folders selected now; they are counted right after the ones on screen.</summary>
+    public void SetSelected(IReadOnlyList<LocationPath> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        _selected = folders;
+        PushUrgent();
+    }
+
+    private void PushUrgent() => _source?.Prioritize([.. _visible, .. _selected]);
 
     /// <summary>Forgets what was requested (the folder changed).</summary>
     public void Reset() => _requested.Clear();

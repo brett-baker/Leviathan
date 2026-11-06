@@ -251,6 +251,9 @@ public sealed partial class DetailsGrid : UserControl
             row.UpdateVisuals();
         }
 
+        // Selected folders are counted right after the ones on screen (spec §12.7).
+        _tab?.Sizes.SetSelected([.. _tab.Selection.SelectedEntries.Where(FileColumns.IsFolderLike).Select(e2 => e2.Location)]);
+
         if (_hasFocus)
         {
             EnsureVisible();
@@ -308,7 +311,58 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
-    private void OnRowsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateSkeleton();
+    private void OnRowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateSkeleton();
+        ScheduleFocus();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _focusTimer;
+
+    // Which folders are on screen decides which get counted first (spec §12.7). Scrolling and listing fire this many times a second, so
+    // it waits for a short quiet moment before telling the counter.
+    private void ScheduleFocus()
+    {
+        if (_tab is null)
+        {
+            return;
+        }
+
+        _focusTimer ??= CreateFocusTimer();
+        _focusTimer.Stop();
+        _focusTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateFocusTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(150);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => PushVisibleFolders();
+        return timer;
+    }
+
+    private void PushVisibleFolders()
+    {
+        if (_tab is null || Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var rows = _tab.Items.Rows;
+        var first = Math.Max(0, (int)Math.Floor(Scroller.VerticalOffset / GridRow.RowHeight));
+        var last = Math.Min(rows.Count - 1, (int)Math.Floor((Scroller.VerticalOffset + Scroller.ViewportHeight) / GridRow.RowHeight));
+        var visible = new List<Core.Paths.LocationPath>();
+        for (var i = first; i <= last; i++)
+        {
+            if (FileColumns.IsFolderLike(rows[i]))
+            {
+                visible.Add(rows[i].Location);
+            }
+        }
+
+        _tab.Sizes.SetVisible(visible);
+    }
 
     private void OnItemsChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -353,10 +407,17 @@ public sealed partial class DetailsGrid : UserControl
         }
     }
 
-    private void OnScrollerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) =>
+    private void OnScrollerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
         HeaderScroll.ChangeView(Scroller.HorizontalOffset, null, null, true);
+        ScheduleFocus();
+    }
 
-    private void OnScrollerSizeChanged(object sender, SizeChangedEventArgs e) => ApplyRowWidths();
+    private void OnScrollerSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ApplyRowWidths();
+        ScheduleFocus();
+    }
 
     private void SetFocusState(bool focused)
     {

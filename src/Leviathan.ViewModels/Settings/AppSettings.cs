@@ -173,6 +173,12 @@ public sealed record FilesSettings
     /// <summary>How big the Soft-delete bin may grow, in GiB, before the oldest items are purged; 0 means no limit.</summary>
     public int BinMaxGiB { get; init; } = 100;
 
+    /// <summary>
+    /// Network drives whose folder sizes are counted again once a day in the background (spec §12.7). A size on a share can only show
+    /// its age, because a change deep inside is not noticed; this keeps the ones the user cares about from growing old. Empty is off.
+    /// </summary>
+    public List<string> RecheckSizePaths { get; init; } = [];
+
     /// <summary>The automatic purge rule these settings give (a limit of zero is off).</summary>
     public Leviathan.Contracts.PurgePolicy BinPolicy() =>
         new(Math.Clamp(BinKeepDays, 0, 3650), Math.Clamp(BinMaxGiB, 0, 100_000) * (1L << 30));

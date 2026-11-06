@@ -659,6 +659,10 @@ internal sealed class AppHost
 
         // The automatic purge of the Soft-delete bin: a while after start-up, then daily, by the limits in Settings (spec 12.5).
         _ = new BinPurgeSchedule().RunAsync(() => host.Settings.Current.Files.BinPolicy(), binService.SubmitPolicyAsync, CancellationToken.None);
+
+        // Network drives the user opted in are counted again once a day (spec 12.7).
+        _ = new Leviathan.ViewModels.Folders.SizeRecheckSchedule().RunAsync(
+            () => Leviathan.ViewModels.Folders.SizeRecheckSchedule.Parse(host.Settings.Current.Files.RecheckSizePaths), sizes.Recount, CancellationToken.None);
         return host;
     }
 }

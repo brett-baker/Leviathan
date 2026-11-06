@@ -368,4 +368,38 @@ public sealed class FolderSizeTrackerTests
 
         public FolderProgress? ProgressOf(LocationPath folder) => Progress;
     }
+
+    [Fact]
+    public void SetVisibleAndSelected_TellTheSourceWhichFoldersAreUrgent_VisibleFirst()
+    {
+        var source = new UrgentSource();
+        var tracker = new FolderSizeTracker(source, new InlineUiContext());
+
+        tracker.SetVisible([P(@"C:\a"), P(@"C:\b")]);
+        tracker.SetSelected([P(@"C:\z")]);
+
+        Assert.Equal([P(@"C:\a"), P(@"C:\b")], source.Calls[0]);
+        Assert.Equal([P(@"C:\a"), P(@"C:\b"), P(@"C:\z")], source.Calls[1]);
+    }
+
+    private sealed class UrgentSource : IFolderSizeSource
+    {
+        public List<LocationPath[]> Calls { get; } = [];
+
+        public event EventHandler<IReadOnlyList<LocationPath>>? Computed
+        {
+            add { }
+            remove { }
+        }
+
+        public bool CanCompute(LocationPath folder) => true;
+
+        public FolderSizeInfo? TryGet(LocationPath folder) => null;
+
+        public void Request(IReadOnlyList<Leviathan.Core.Model.FileEntry> folders)
+        {
+        }
+
+        public void Prioritize(IReadOnlyCollection<LocationPath> urgent) => Calls.Add([.. urgent]);
+    }
 }
