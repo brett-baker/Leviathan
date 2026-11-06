@@ -164,3 +164,4 @@ One line each: the decision, then why. Newest last.
 - **Mouse buttons 4 and 5 are Back and Forward in the pane under the pointer,** through the same commands as Alt+Left and Alt+Right. The pane takes the focus on press, which happens before the window-level handler.
 - **F2: F5 and F6 go through the drop rules,** as a drop with Ctrl (copy) or Shift (move) held, so a folder into itself, an item already in the destination and a server root are refused with the same words as a drag. No second set of rules.
 - **F2: swapping gives each pane the other's history, folder, view and selection,** and the two pane objects stay where they are, so the tab's identity, the focus and the layout of the split do not change.
+- F3: the preview needed no rebinding (the window already binds to the focused pane); its Move/Copy buttons call the F6/F5 commands, so refusals, queueing and enabling stay in one place.

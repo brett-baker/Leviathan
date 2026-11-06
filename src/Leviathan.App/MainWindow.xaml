@@ -347,6 +347,11 @@
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="Video preview, metadata and tags arrive in Phase 3." TextWrapping="Wrap"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <!-- Spec 15.1: with two panes, the selection can be sent to the other pane from here. -->
+          <StackPanel x:Name="PreviewActions" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" Visibility="Collapsed">
+            <Button x:Name="PreviewMoveButton" Content="Move (F6)" Click="OnPreviewMoveClick" />
+            <Button x:Name="PreviewCopyButton" Content="Copy (F5)" Click="OnPreviewCopyClick" />
+          </StackPanel>
         </StackPanel>
       </Border>
     </Grid>

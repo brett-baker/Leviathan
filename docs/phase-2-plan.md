@@ -136,7 +136,7 @@ Reused from Phase 0/1: `JobScheduler`, `JobHost`, journal, `SpeedMeter`, `ShareH
 - [x] **F1. Split per tab** (done: `TabViewModel.Secondary`, `Panes`, `FocusedPane`; one-pane, side-by-side and top-and-bottom buttons, View menu items and Ctrl+Backslash / Ctrl+Shift+Backslash; the address, command and status bars and the preview follow the focused pane; the split is saved with the tab, session, profiles and a duplicated tab; closing keeps the focused pane. Not done: dragging the gap to resize the panes; the second pane's sign-in button). Single / side by side / top and bottom buttons; each pane with its own path, history, layout and
   selection; address and command bars follow the focused pane; saved with tabs and profiles.
 - [x] **F2. Pane operations** (done: F5 copy and F6 move the focused pane's selection to the other pane's folder through the normal queue, only while split; Ctrl+Shift+S swaps the panes; Alt+= shows the focused pane's folder in the other; View menu items for all four). F5 copy / F6 move to the other pane through the queue; swap panes; "same folder in other pane".
-- [ ] **F3. Preview follows focus.** Preview pane shows the focused pane's selection with Move (F6) and Copy (F5) under it.
+- [x] **F3. Preview follows focus.** (done: the preview already follows the focused pane because the window binds to it; Move (F6) and Copy (F5) buttons appear under it while split and run the same commands, greyed out without a selection.) Preview pane shows the focused pane's selection with Move (F6) and Copy (F5) under it.
 
 ### G. Verification and finish
 
