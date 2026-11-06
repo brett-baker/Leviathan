@@ -33,7 +33,7 @@ using var crashHandlers = new CrashHandlers(crashBuilder, crashStore);
 crashHandlers.Install();
 
 var builder = Host.CreateApplicationBuilder(args);
-var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
+var appData = Leviathan.Core.Platform.DataLocation.Root();
 
 builder.Logging.ClearProviders();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);

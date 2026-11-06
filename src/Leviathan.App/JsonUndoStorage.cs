@@ -6,7 +6,7 @@ namespace Leviathan.App;
 /// <summary>Keeps the undo and redo stacks in <c>%LOCALAPPDATA%\Leviathan\undo.json</c>, written to a temporary file and renamed (spec §12.5, §17).</summary>
 internal sealed class JsonUndoStorage : IUndoStorage
 {
-    private readonly string _path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan", "undo.json");
+    private readonly string _path = Leviathan.Core.Platform.DataLocation.Combine("undo.json");
 
     public UndoState Load()
     {

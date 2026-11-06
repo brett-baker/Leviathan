@@ -6,7 +6,7 @@ namespace Leviathan.App;
 /// <summary>Keeps the drives whose summary card is hidden in <c>%LOCALAPPDATA%\Leviathan\hidden-drive-cards.json</c>, written to a temporary file and renamed (spec §17).</summary>
 internal sealed class JsonDriveCardStorage : IDriveCardStorage
 {
-    private readonly string _path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan", "hidden-drive-cards.json");
+    private readonly string _path = Leviathan.Core.Platform.DataLocation.Combine("hidden-drive-cards.json");
 
     public IReadOnlyList<string> Load()
     {

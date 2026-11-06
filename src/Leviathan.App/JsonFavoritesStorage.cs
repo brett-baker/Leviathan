@@ -11,11 +11,7 @@ internal sealed class JsonFavoritesStorage : IFavoritesStorage
     private readonly string _path;
 
     public JsonFavoritesStorage(string? path = null) =>
-        _path = path ?? Path.Combine(
-            Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
-                ? custom
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan"),
-            "favorites.json");
+        _path = path ?? Leviathan.Core.Platform.DataLocation.Combine("favorites.json");
 
     public IReadOnlyList<FavoriteEntry> Load()
     {

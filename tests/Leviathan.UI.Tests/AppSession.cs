@@ -84,6 +84,7 @@ internal sealed class AppSession : IAsyncDisposable
         }
 
         var info = new ProcessStartInfo(ExePath()) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(ExePath())! };
+        // The data folder also names the worker (pipe and mutex), so this run starts a worker of its own and never uses the user's.
         info.Environment["LEVIATHAN_DATA_DIR"] = data;
         info.Environment["LEVIATHAN_UI_TRACE"] = Path.Combine(data, "ui-trace.txt");
 

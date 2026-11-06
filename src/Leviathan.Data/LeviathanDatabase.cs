@@ -81,9 +81,8 @@ public sealed class LeviathanDatabase
         Migrate();
     }
 
-    /// <summary>Default location: %LOCALAPPDATA%\Leviathan\leviathan.db.</summary>
-    public static string DefaultPath =>
-        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan", "leviathan.db");
+    /// <summary>Default location: <c>leviathan.db</c> in the data folder (%LOCALAPPDATA%\Leviathan, or LEVIATHAN_DATA_DIR).</summary>
+    public static string DefaultPath => Core.Platform.DataLocation.Combine("leviathan.db");
 
     /// <summary>Database file path.</summary>
     public string Path { get; }

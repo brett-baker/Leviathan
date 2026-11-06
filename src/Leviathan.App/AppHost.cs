@@ -280,10 +280,7 @@ internal sealed class AppHost
     }
 
     /// <summary>Where the app keeps its settings, session, profiles and caches; <c>LEVIATHAN_DATA_DIR</c> moves it (a portable copy, or a test run).</summary>
-    public static string DataFolder() =>
-        Environment.GetEnvironmentVariable("LEVIATHAN_DATA_DIR") is { Length: > 0 } custom
-            ? custom
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leviathan");
+    public static string DataFolder() => Leviathan.Core.Platform.DataLocation.Root();
 
     /// <summary>The settings file, for "Show the settings file".</summary>
     public string SettingsPath { get; private init; } = string.Empty;
