@@ -166,6 +166,16 @@ public sealed record FilesSettings
     /// and Leviathan just cannot see its bin: items then go into a visible NAS bin, or are deleted on the share for the NAS to keep.
     /// </summary>
     public bool KeepOwnTrashOnShares { get; init; } = true;
+
+    /// <summary>How many days a soft-deleted item stays in the bin before the automatic purge removes it (spec §12.5); 0 keeps it for ever.</summary>
+    public int BinKeepDays { get; init; } = 30;
+
+    /// <summary>How big the Soft-delete bin may grow, in GiB, before the oldest items are purged; 0 means no limit.</summary>
+    public int BinMaxGiB { get; init; } = 100;
+
+    /// <summary>The automatic purge rule these settings give (a limit of zero is off).</summary>
+    public Leviathan.Contracts.PurgePolicy BinPolicy() =>
+        new(Math.Clamp(BinKeepDays, 0, 3650), Math.Clamp(BinMaxGiB, 0, 100_000) * (1L << 30));
 }
 
 /// <summary>Tabs and windows page (spec §4.1, §17.2).</summary>

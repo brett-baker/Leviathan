@@ -23,6 +23,9 @@ internal sealed record TransferFinished(JobKind Kind, IReadOnlyList<Leviathan.Co
             JobKind.Move => $"Moved {what} to {Destination?.Name}",
             JobKind.Delete when Permanent => $"Deleted {what}",
             JobKind.Delete => $"Moved {what} to the Recycle Bin",
+            JobKind.Restore => $"Restored {what} from the Soft-delete bin",
+            JobKind.Purge when Sources.Count == 0 => "Emptied old items from the Soft-delete bin",
+            JobKind.Purge => $"Deleted {what} from the Soft-delete bin",
             _ => $"Copied {what} to {Destination?.Name}",
         };
         return Job.State switch
@@ -125,6 +128,46 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new TransferOutcome(false, $"Could not start the transfer: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Submits a job the window wants to hear the end of (a restore or purge from the Soft-delete bin): the activity log notes how it
+    /// ended and folder listings that held its items are forgotten. <paramref name="shown"/> are the items as the user knows them.
+    /// </summary>
+    public async Task<TransferOutcome> SubmitTrackedAsync(JobRequest job, IReadOnlyList<LocationPath> shown, string startedMessage, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        try
+        {
+            var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
+            _jobs[snapshot.Id] = new Pending(job.Kind, shown, null, false);
+            if (_early.TryRemove(snapshot.Id, out var early))
+            {
+                Handle(early);
+            }
+
+            return new TransferOutcome(true, startedMessage);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new TransferOutcome(false, $"Could not start it: {ex.Message}");
+        }
+    }
+
+    /// <summary>Submits a job nobody waits for (the automatic purge): it leaves the worker's own report and no activity entry.</summary>
+    public Task SubmitUntrackedAsync(JobRequest job) => Connection().SubmitAsync(job);
+
+    /// <summary>The worker's view of the Soft-delete bin; every kind of failure is an <see cref="IOException"/> so the bin tab shows it as a line.</summary>
+    public async Task<BinListing> GetBinAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Task.Run(() => Connection().GetBinAsync(measureFolders: false), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not (OperationCanceledException or IOException))
+        {
+            throw new IOException(ex.Message, ex);
         }
     }
 

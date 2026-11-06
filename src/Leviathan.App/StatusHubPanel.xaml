@@ -98,6 +98,25 @@
       </Grid>
     </DataTemplate>
 
+    <DataTemplate x:Key="BinTemplate" x:DataType="hub:BinRow">
+      <Grid ColumnSpacing="12" Padding="4,5">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="1">
+          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Where}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="Deleted from this folder" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="1">
+          <TextBlock Text="{x:Bind Deleted}" HorizontalAlignment="Right" Style="{StaticResource CaptionTextBlockStyle}" />
+          <TextBlock Text="{x:Bind Size}" HorizontalAlignment="Right" Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="ProcessTemplate" x:DataType="hub:ProcessEntry">
       <Grid ColumnSpacing="12" Padding="4,5">
         <Grid.ColumnDefinitions>
@@ -171,6 +190,7 @@
           <SelectorBarItem x:Name="OperationsItem" Text="Operations" Tag="Operations" />
           <SelectorBarItem Text="Activity" Tag="Activity" />
           <SelectorBarItem Text="Background" Tag="Background" />
+          <SelectorBarItem Text="Soft-delete bin" Tag="Deleted" />
           <SelectorBarItem Text="Quick settings" Tag="QuickSettings" />
           <SelectorBarItem Text="Space" Tag="Space" />
         </SelectorBar>
@@ -272,6 +292,40 @@
                     ItemTemplate="{StaticResource ActivityTemplate}" />
           <TextBlock x:Name="ActivityEmpty" Grid.Row="1" Text="Nothing here yet. What you do is listed here, newest first." Margin="4,12,0,0"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+        </Grid>
+        <Grid x:Name="DeletedPage" RowSpacing="6" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="BinSummary" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Button Grid.Column="1" Content="Refresh" Click="OnBinRefreshClick" />
+            <Button Grid.Column="2" Content="Delete old now" Click="OnBinPurgeOldClick"
+                    ToolTipService.ToolTip="Apply the age and size limits from Settings to the bin now" />
+          </Grid>
+          <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="BinRestoreButton" Content="Restore" IsEnabled="False" Click="OnBinRestoreClick"
+                    ToolTipService.ToolTip="Put the selected items back where they were deleted from" />
+            <Button x:Name="BinDeleteButton" Grid.Column="1" Content="Delete permanently" IsEnabled="False" Click="OnBinPurgeClick"
+                    ToolTipService.ToolTip="Delete the selected items for good" />
+            <TextBox x:Name="BinSearch" Grid.Column="2" PlaceholderText="Search the bin" TextChanged="OnBinSearchChanged" AutomationProperties.Name="Search the bin" />
+          </Grid>
+          <TextBlock x:Name="BinMessage" Grid.Row="2" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" Visibility="Collapsed" />
+          <ListView x:Name="BinList" Grid.Row="3" SelectionMode="Extended" ItemTemplate="{StaticResource BinTemplate}"
+                    SelectionChanged="OnBinSelectionChanged" />
         </Grid>
         <ScrollViewer x:Name="BackgroundPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="10" Padding="0,0,8,8">

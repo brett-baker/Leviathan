@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 8;
+    public const int Minor = 9;
 }
 
 /// <summary>Information the worker reports about itself.</summary>
@@ -38,6 +38,12 @@ public interface IWorkerService
 
     /// <summary>The report of a finished job (kept for 7 days), or null when there is none.</summary>
     Task<JobReport?> GetReportAsync(Guid jobId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The Soft-delete bin: everything soft-deleted across the shares Leviathan has deleted from (spec §12.5), read from the trash
+    /// folders' manifests. <paramref name="measureFolders"/> also adds up folder sizes, which can be slow on a share.
+    /// </summary>
+    Task<BinListing> GetBinAsync(bool measureFolders, CancellationToken cancellationToken);
 
     /// <summary>Pauses a queued or running job.</summary>
     Task PauseAsync(Guid jobId, CancellationToken cancellationToken);

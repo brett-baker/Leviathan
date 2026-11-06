@@ -180,8 +180,8 @@
               <MenuFlyoutSubItem x:Name="StartupMenu" Text="At startup" />
               <MenuFlyoutSeparator />
               <MenuFlyoutItem Text="Settings…" Click="OnOptionsClick" KeyboardAcceleratorTextOverride="Ctrl+," />
-              <MenuFlyoutItem Text="Operations queue (Phase 2)" IsEnabled="False" />
-              <MenuFlyoutItem Text="Soft-delete bin (Phase 2)" IsEnabled="False" />
+              <MenuFlyoutItem Text="Operations queue" Click="OnHubOperationsMenuClick" />
+              <MenuFlyoutItem Text="Soft-delete bin" Click="OnHubBinClick" />
               <MenuFlyoutSeparator />
               <MenuFlyoutItem Text="Diagnostics…" Click="OnDiagnosticsClick" />
             </MenuFlyout>

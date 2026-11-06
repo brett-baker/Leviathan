@@ -99,7 +99,7 @@ internal sealed partial class StatusHubPanel : UserControl
     private bool _syncing;
     private bool _ready;
 
-    public StatusHubPanel(StatusHubModel model, OperationsModel operations, ActivityLog activity, BackgroundModel background)
+    public StatusHubPanel(StatusHubModel model, OperationsModel operations, ActivityLog activity, BackgroundModel background, BinModel bin)
     {
         _model = model;
         _operations = operations;
@@ -107,6 +107,7 @@ internal sealed partial class StatusHubPanel : UserControl
         _background = background;
         InitializeComponent();
         _ready = true;
+        StartBin(bin);
         Icons.Bind(PinButton, static (b, i) => b.Content = i, "pin");
         Icons.Bind(PlaceButton, static (b, i) => b.Content = i, "split");
         Icons.Bind(CloseButton, static (b, i) => b.Content = i, "close");
@@ -785,6 +786,12 @@ internal sealed partial class StatusHubPanel : UserControl
             if (_model.Tab == HubTab.Activity)
             {
                 DispatcherQueue.TryEnqueue(RefreshActivity);
+            }
+
+            DeletedPage.Visibility = Show(HubTab.Deleted);
+            if (_model.Tab == HubTab.Deleted)
+            {
+                DispatcherQueue.TryEnqueue(LoadBin);
             }
 
             BackgroundPage.Visibility = Show(HubTab.Background);

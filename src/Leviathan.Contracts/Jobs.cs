@@ -447,3 +447,16 @@ public sealed record ConcurrencyLimits(int MaxRunningJobs = 3, int MaxPerDevice 
     /// <summary>The limit that applies to <paramref name="deviceKey"/>.</summary>
     public int LimitFor(string deviceKey) => DeviceOverrides.TryGetValue(deviceKey, out var limit) ? limit : MaxPerDevice;
 }
+
+/// <summary>One soft-deleted item in the bin, as the worker lists it (spec §12.5).</summary>
+/// <param name="Original">Where it came from.</param>
+/// <param name="Trashed">Where it is now; Restore and Purge take this.</param>
+/// <param name="DeletedAt">When it was deleted.</param>
+/// <param name="SizeBytes">Its size, or -1 for a folder whose size was not measured.</param>
+/// <param name="IsFolder">True for a folder.</param>
+public sealed record BinEntryInfo(string Original, string Trashed, DateTimeOffset DeletedAt, long SizeBytes, bool IsFolder);
+
+/// <summary>What the Soft-delete bin holds across every share Leviathan has deleted from.</summary>
+/// <param name="Items">Everything still there, newest deletion first.</param>
+/// <param name="Unreachable">Trash folders that could not be read (a share is off or refused access): their items are not listed.</param>
+public sealed record BinListing(IReadOnlyList<BinEntryInfo> Items, IReadOnlyList<string> Unreachable);

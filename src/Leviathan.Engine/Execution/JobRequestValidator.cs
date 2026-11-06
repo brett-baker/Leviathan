@@ -13,7 +13,8 @@ public static class JobRequestValidator
     public static string? Validate(JobRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Sources.Count == 0)
+        // The automatic purge applies a rule to the whole bin, so it names no items itself.
+        if (request.Sources.Count == 0 && !(request.Kind == JobKind.Purge && request.PurgePolicy is not null))
         {
             return "A job needs at least one source.";
         }

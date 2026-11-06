@@ -147,6 +147,14 @@
                   <ToggleSwitch x:Name="OwnTrashSwitch" Header="Keep a hidden recycle folder on network shares" Toggled="OnFilesToggled" />
                   <TextBlock Text="Deleted items go to the NAS's own recycle folder (Synology #recycle, QNAP @Recycle) when you can see it, otherwise to a hidden .leviathan-trash so they can be undone. Turn off if your NAS already keeps deletes but hides its bin from you: items then are deleted on the share for the NAS to keep, and Leviathan cannot undo or restore them." Style="{StaticResource SettingNote}" />
                 </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Soft-delete bin" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                  <NumberBox x:Name="BinDaysBox" Header="Keep deleted items for (days)" Minimum="0" Maximum="3650" SmallChange="1" LargeChange="10"
+                             SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" HorizontalAlignment="Left" Width="260" />
+                  <NumberBox x:Name="BinSizeBox" Header="Largest the bin may grow (GiB)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100"
+                             SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" HorizontalAlignment="Left" Width="260" />
+                  <TextBlock Text="Items deleted from network shares wait here. Once a day, items older than this are deleted for good, and then the oldest ones until the bin is under the size. 0 turns a limit off." Style="{StaticResource SettingNote}" />
+                </StackPanel>
               </StackPanel>
 
               <!-- Tabs and windows -->

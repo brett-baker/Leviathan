@@ -291,6 +291,9 @@ internal sealed class AppHost
     /// <summary>Background jobs, thumbnails and the state of the worker and shell host, for the Background tab (spec 16.1).</summary>
     public BackgroundModel Background { get; private init; } = null!;
 
+    /// <summary>The Soft-delete bin: what was deleted from network shares, for the bin tab of the status hub (spec 12.5).</summary>
+    public BinModel Bin { get; private init; } = null!;
+
     private Lazy<WorkerConnection> WorkerLazy { get; init; } = null!;
 
     /// <summary>True once the shell host was needed (reading <see cref="ShellHost"/> would start it).</summary>
@@ -555,6 +558,7 @@ internal sealed class AppHost
         var transfers = new WorkerTransfers(() => worker.Value);
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
+        var binService = new WorkerBinService(transfers, () => built?.Settings.Current.Files ?? new Leviathan.ViewModels.Settings.FilesSettings());
 
         // Our own copies, moves and deletes change folders the cache remembers (spec §3.1): forget them before any view reloads.
         transfers.Finished += (_, done) =>
@@ -629,6 +633,7 @@ internal sealed class AppHost
             Operations = operations,
             Activity = activity,
             Background = background,
+            Bin = new BinModel(binService),
             Sizes = sizes,
             ThumbnailGate = thumbnailGate,
             WorkerLazy = worker,
@@ -651,6 +656,9 @@ internal sealed class AppHost
         transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
         transfers.Volumes = host.Volumes;
         transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;
+
+        // The automatic purge of the Soft-delete bin: a while after start-up, then daily, by the limits in Settings (spec 12.5).
+        _ = new BinPurgeSchedule().RunAsync(() => host.Settings.Current.Files.BinPolicy(), binService.SubmitPolicyAsync, CancellationToken.None);
         return host;
     }
 }

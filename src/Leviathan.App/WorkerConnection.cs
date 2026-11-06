@@ -104,6 +104,17 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     /// <summary>Answers the name clashes a job waits on (spec §12.4).</summary>
     public Task AnswerConflictsAsync(Guid jobId, Guid promptId, ConflictAnswer answer) => _client.Service.AnswerConflictsAsync(jobId, promptId, answer, _closing.Token);
 
+    /// <summary>The Soft-delete bin across shares (spec §12.5), connecting to the worker first when it is not running.</summary>
+    public async Task<BinListing> GetBinAsync(bool measureFolders)
+    {
+        if (!_client.IsConnected)
+        {
+            await StartAsync();
+        }
+
+        return await _client.Service.GetBinAsync(measureFolders, _closing.Token);
+    }
+
     /// <summary>The report of a finished job, or null.</summary>
     public Task<JobReport?> GetReportAsync(Guid jobId) => _client.Service.GetReportAsync(jobId, _closing.Token);
 

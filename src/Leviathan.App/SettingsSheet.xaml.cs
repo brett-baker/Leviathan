@@ -143,6 +143,8 @@ internal sealed partial class SettingsSheet : UserControl
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
             OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
+            BinDaysBox.Value = settings.Files.BinKeepDays;
+            BinSizeBox.Value = settings.Files.BinMaxGiB;
             LastTabSwitch.IsOn = settings.Tabs.LastTabResetsToHome;
             FillIconPacks(settings.Appearance.IconPack);
             ThemeButtons.SelectedIndex = (int)settings.Appearance.Theme;
@@ -372,6 +374,19 @@ internal sealed partial class SettingsSheet : UserControl
         var sizes = SizesSwitch.IsOn;
         var ownTrash = OwnTrashSwitch.IsOn;
         await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash } });
+    }
+
+    // The bin's limits apply at the next daily purge or "Delete old now"; a box cleared to nothing reads as NaN and is left as it was.
+    private async void OnBinLimitChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_ready || _loading || double.IsNaN(sender.Value))
+        {
+            return;
+        }
+
+        var days = double.IsNaN(BinDaysBox.Value) ? 30 : (int)BinDaysBox.Value;
+        var gib = double.IsNaN(BinSizeBox.Value) ? 100 : (int)BinSizeBox.Value;
+        await SaveAsync(s => s with { Files = s.Files with { BinKeepDays = days, BinMaxGiB = gib } });
     }
 
     private async void OnTabsToggled(object sender, RoutedEventArgs e)

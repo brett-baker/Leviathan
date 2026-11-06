@@ -80,7 +80,7 @@ public sealed partial class MainWindow
         if (_hubPanel is null && !_closed)
         {
             var hub = _viewModel.Hub;
-            var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity, App.Host.Background) { CanUndo = () => App.Host.Undo.CanUndo };
+            var panel = new StatusHubPanel(hub, App.Host.Operations, App.Host.Activity, App.Host.Background, App.Host.Bin) { CanUndo = () => App.Host.Undo.CanUndo };
             _hubPanel = panel;
             BodyArea.Children.Add(panel);
             panel.HeightRequested += (_, height) => hub.SetHeight(height, BodyArea.ActualHeight);
@@ -103,6 +103,27 @@ public sealed partial class MainWindow
     private void OnHubChevronClick(object sender, RoutedEventArgs e) => Run(CommandIds.HubToggle);
 
     private void OnHubOperationsClick(object sender, RoutedEventArgs e) => Run(CommandIds.HubToggle, parameter: HubTab.Operations);
+
+    // Options > Operations queue: show the Operations tab, never close the hub because it already shows it.
+    private void OnHubOperationsMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (!(_viewModel.Hub.IsOpen && _viewModel.Hub.Tab == HubTab.Operations))
+        {
+            Run(CommandIds.HubToggle, parameter: HubTab.Operations);
+        }
+    }
+
+    // Options > Soft-delete bin (spec 12.5). Toggle would close the hub when the bin tab is already showing, which is not what a menu item means.
+    private void OnHubBinClick(object sender, RoutedEventArgs e)
+    {
+        var hub = _viewModel.Hub;
+        if (hub.IsOpen && hub.Tab == HubTab.Deleted)
+        {
+            return;
+        }
+
+        Run(CommandIds.HubToggle, parameter: HubTab.Deleted);
+    }
 
     private void OnFreeSpaceTapped(object sender, TappedRoutedEventArgs e) => Run(CommandIds.HubToggle, parameter: HubTab.Space);
 

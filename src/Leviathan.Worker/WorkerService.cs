@@ -67,10 +67,16 @@ public sealed class WorkerService : IWorkerService
     private readonly JobHost _host;
     private readonly ServerIdentityMap? _identities;
     private readonly BandwidthController _bandwidth;
+    private readonly Leviathan.Engine.Transfers.BinScanner? _bin;
 
     /// <summary>Creates the service. With <paramref name="identities"/>, names of one server share a device limit (spec §3.5).</summary>
-    public WorkerService(JobHost host, ServerIdentityMap? identities = null, BandwidthController? bandwidth = null)
+    /// <param name="host">The job host.</param>
+    /// <param name="identities">Server identities, so names of one server share a limit.</param>
+    /// <param name="bandwidth">The bandwidth controller.</param>
+    /// <param name="bin">Reads the Soft-delete bin; the bin is reported empty without it.</param>
+    public WorkerService(JobHost host, ServerIdentityMap? identities = null, BandwidthController? bandwidth = null, Leviathan.Engine.Transfers.BinScanner? bin = null)
     {
+        _bin = bin;
         _bandwidth = bandwidth ?? new BandwidthController();
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _identities = identities;
@@ -94,7 +100,8 @@ public sealed class WorkerService : IWorkerService
 
         var sources = request.Sources.Select(LocationPath.Parse).ToList();
         var destination = request.Destination is null ? null : LocationPath.Parse(request.Destination);
-        var lane = request.Kind == JobKind.ComputeFolderSize ? JobLane.Background : JobLane.Operations;
+        // The automatic purge (a policy, no items of its own) is upkeep and must never take a slot from the user's copies (spec §12.3).
+        var lane = request.Kind == JobKind.ComputeFolderSize || (request.Kind == JobKind.Purge && request.PurgePolicy is not null) ? JobLane.Background : JobLane.Operations;
         IEnumerable<LocationPath> touched = destination is null ? sources : [destination, .. sources];
         string? device;
         if (_identities is null)
@@ -113,6 +120,24 @@ public sealed class WorkerService : IWorkerService
 
         var title = request.Title ?? JobTitles.For(request.Kind, sources, destination);
         return _host.Submit(request, lane, device, title);
+    }
+
+    /// <inheritdoc />
+    public Task<BinListing> GetBinAsync(bool measureFolders, CancellationToken cancellationToken)
+    {
+        if (_bin is null)
+        {
+            return Task.FromResult(new BinListing([], []));
+        }
+
+        // Reading manifests on a share is file I/O: off the RPC thread, and stopped when the caller gives up.
+        return Task.Run(() =>
+        {
+            var scan = _bin.Scan(measureFolders, cancellationToken);
+            return new BinListing(
+                [.. scan.Items.Select(i => new BinEntryInfo(i.Original, i.Trashed.Value, i.DeletedAt, i.SizeBytes, i.IsFolder))],
+                [.. scan.Unreachable.Select(r => r.Value)]);
+        }, cancellationToken);
     }
 
     /// <inheritdoc />

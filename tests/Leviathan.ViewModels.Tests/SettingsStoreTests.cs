@@ -62,6 +62,21 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public void BinPolicy_DefaultsToThirtyDaysAnd100GiB_ZeroIsOff_AndNonsenseIsClamped()
+    {
+        var defaults = new FilesSettings().BinPolicy();
+        Assert.Equal(30, defaults.MaxAgeDays);
+        Assert.Equal(100L * 1024 * 1024 * 1024, defaults.MaxBytes);
+
+        var off = new FilesSettings { BinKeepDays = 0, BinMaxGiB = 0 }.BinPolicy();
+        Assert.Equal(new Leviathan.Contracts.PurgePolicy(0, 0), off);
+
+        var silly = new FilesSettings { BinKeepDays = -5, BinMaxGiB = int.MaxValue }.BinPolicy();
+        Assert.Equal(0, silly.MaxAgeDays);
+        Assert.Equal(100_000L * 1024 * 1024 * 1024, silly.MaxBytes);
+    }
+
+    [Fact]
     public async Task UpdateAsync_LeavesNoTempFileBehind()
     {
         var (store, fs, _) = Make();

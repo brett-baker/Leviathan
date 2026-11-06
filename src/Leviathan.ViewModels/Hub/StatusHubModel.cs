@@ -14,6 +14,9 @@ public enum HubTab
     /// <summary>Background tasks: folder sizes, probing, indexing.</summary>
     Background,
 
+    /// <summary>The Soft-delete bin: what was deleted from network shares, with Restore and Purge (spec §12.5).</summary>
+    Deleted,
+
     /// <summary>The live knobs: limits, bandwidth, polling.</summary>
     QuickSettings,
 
