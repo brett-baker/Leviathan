@@ -36,6 +36,7 @@ public sealed record TabServices(LocationProviderRegistry Providers, IUiContext 
 /// <param name="IsSplit">Two panes (Phase 2 fills in the second pane).</param>
 /// <param name="Selection">Selected items.</param>
 /// <param name="GroupId">The group the tab is in (spec §4.1), or null.</param>
+/// <param name="Split">The second pane when the tab is split (spec §15.1), or null for one pane.</param>
 public sealed record TabState(
     NavigationSnapshot History,
     FolderViewSettings View,
@@ -45,7 +46,27 @@ public sealed record TabState(
     bool IsLocked,
     bool IsSplit,
     IReadOnlyList<LocationPath> Selection,
-    Guid? GroupId = null);
+    Guid? GroupId = null,
+    SplitState? Split = null);
+
+/// <summary>How the panes of a split tab are laid out (spec §15.1, §6.3).</summary>
+public enum PaneLayout
+{
+    /// <summary>One pane.</summary>
+    Single,
+
+    /// <summary>Two panes next to each other (Ctrl+Backslash).</summary>
+    SideBySide,
+
+    /// <summary>Two panes, one above the other (Ctrl+Shift+Backslash).</summary>
+    TopBottom,
+}
+
+/// <summary>The second pane of a split tab, saved with the tab, the session and profiles (spec §15.1).</summary>
+/// <param name="Layout">Side by side or top and bottom.</param>
+/// <param name="Secondary">The second pane's own path, history, view and selection.</param>
+/// <param name="FocusedPane">0 for the first pane, 1 for the second.</param>
+public sealed record SplitState(PaneLayout Layout, TabState Secondary, int FocusedPane);
 
 /// <summary>
 /// One tab: its history, folder listing, sorted view, selection, address bar and the tab-level options (pin, lock, label,
@@ -69,9 +90,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isLocked;
-
-    [ObservableProperty]
-    private bool _isSplit;
 
     /// <summary>The group this tab belongs to (spec §4.1), or null. Set by <see cref="TabStripViewModel"/>, which keeps the tabs of a group together.</summary>
     [ObservableProperty]
@@ -140,6 +158,123 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Stable identity, for drag and drop between windows.</summary>
     public Guid Id { get; } = Guid.NewGuid();
+
+    /// <summary>The second pane of a split tab, or null. It is a pane of this tab, not a tab of the strip: it has its own path, history, view and selection (spec §15.1).</summary>
+    public TabViewModel? Secondary { get; private set; }
+
+    /// <summary>How the panes are laid out; <see cref="PaneLayout.Single"/> when there is no second pane.</summary>
+    public PaneLayout Panes { get; private set; }
+
+    /// <summary>0 when the first pane has the focus, 1 for the second. Always 0 without a second pane.</summary>
+    public int FocusedPane { get; private set; }
+
+    /// <summary>True while the tab shows two panes. The bindings that mean "to the other pane" (F5, F6) only count then (spec §17.3).</summary>
+    public bool IsSplit => Secondary is not null;
+
+    /// <summary>The pane the address bar, command bar, status bar and preview follow: the second pane while it has the focus, else this tab.</summary>
+    public TabViewModel Focused => FocusedPane == 1 && Secondary is not null ? Secondary : this;
+
+    /// <summary>The pane that does not have the focus, or null without a split.</summary>
+    public TabViewModel? Other => Secondary is null ? null : FocusedPane == 1 ? this : Secondary;
+
+    /// <summary>
+    /// Splits the tab (spec §15.1) or changes how an existing split is laid out. The new pane opens the folder the focused pane shows,
+    /// with its view. <see cref="PaneLayout.Single"/> closes the split and keeps the focused pane.
+    /// </summary>
+    public async Task SetPanesAsync(PaneLayout layout, CancellationToken cancellationToken)
+    {
+        if (layout == PaneLayout.Single)
+        {
+            await CloseSplitAsync(cancellationToken);
+            return;
+        }
+
+        if (Secondary is null)
+        {
+            var start = Focused;
+            var pane = new TabViewModel(_services, new NavigationHistory(start.History.Current), start.CurrentView());
+            pane._pendingSelection = [.. start.Selection.SelectedEntries.Select(e => e.Location)];
+            AttachSecondary(pane);
+            Panes = layout;
+            RaisePanesChanged();
+            await pane.ReloadAsync(cancellationToken);
+            return;
+        }
+
+        if (Panes != layout)
+        {
+            Panes = layout;
+            RaisePanesChanged();
+        }
+    }
+
+    /// <summary>Gives the keyboard focus to the first (0) or second (1) pane; a tab without a split only has the first.</summary>
+    public void FocusPane(int pane)
+    {
+        var wanted = pane == 1 && Secondary is not null ? 1 : 0;
+        if (wanted != FocusedPane)
+        {
+            FocusedPane = wanted;
+            RaisePanesChanged();
+        }
+    }
+
+    /// <summary>Closes the split and keeps the pane that has the focus (spec §15.1): when that is the second, this tab goes to its folder with its view.</summary>
+    public async Task CloseSplitAsync(CancellationToken cancellationToken)
+    {
+        if (Secondary is not { } second)
+        {
+            return;
+        }
+
+        var keepSecond = FocusedPane == 1;
+        Secondary = null;
+        Panes = PaneLayout.Single;
+        FocusedPane = 0;
+        second.PropertyChanged -= OnSecondaryChanged;
+        if (keepSecond)
+        {
+            // Not through NavigateAsync: a locked tab would open the folder in a new tab instead of showing it here.
+            var result = History.Navigate(second.History.Current);
+            if (result is not null)
+            {
+                await ShowAsync(result, cancellationToken);
+            }
+
+            AdoptView(second);
+        }
+
+        second.Dispose();
+        RaisePanesChanged();
+    }
+
+    private void AdoptView(TabViewModel other)
+    {
+        SetLayout(other.Layout);
+        SetThumbnailSize(other.ThumbnailSize);
+        Items.SetSort(other.Items.Sort);
+        SetGroupBy(other.Items.GroupBy);
+        SetFolderPlacement(other.Items.Folders);
+    }
+
+    private void AttachSecondary(TabViewModel pane)
+    {
+        Secondary = pane;
+        pane.PropertyChanged += OnSecondaryChanged;
+    }
+
+    // Anything the second pane does (it navigated) is something to save, like the same in the first.
+    private void OnSecondaryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => OnPropertyChanged(nameof(Secondary));
+
+    private void RaisePanesChanged()
+    {
+        OnPropertyChanged(nameof(Secondary));
+        OnPropertyChanged(nameof(Panes));
+        OnPropertyChanged(nameof(FocusedPane));
+        OnPropertyChanged(nameof(IsSplit));
+        OnPropertyChanged(nameof(Focused));
+        OnPropertyChanged(nameof(Other));
+    }
 
     /// <summary>Back, forward and up.</summary>
     public NavigationHistory History { get; }
@@ -388,7 +523,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         IsLocked,
         IsSplit,
         [.. Selection.SelectedEntries.Select(e => e.Location)],
-        GroupId);
+        GroupId,
+        Secondary is { } second ? new SplitState(Panes, second.CaptureState(), FocusedPane) : null);
 
     /// <summary>
     /// Rebuilds a tab from <paramref name="state"/>. The folder is not listed until <see cref="ReloadAsync"/> is called, so
@@ -403,10 +539,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Accent = state.Accent,
             IsPinned = state.IsPinned,
             IsLocked = state.IsLocked,
-            IsSplit = state.IsSplit,
             GroupId = state.GroupId,
         };
         tab._pendingSelection = state.Selection;
+        if (state.Split is { Layout: not PaneLayout.Single } split)
+        {
+            tab.AttachSecondary(Restore(split.Secondary with { Split = null }, services));
+            tab.Panes = split.Layout;
+            tab.FocusedPane = split.FocusedPane == 1 ? 1 : 0;
+        }
+
         return tab;
     }
 
@@ -416,6 +558,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _services.ViewRules.Changed -= OnRulesChanged;
+        Secondary?.Dispose();
         Sizes.Dispose();
         Folder.Dispose();
     }

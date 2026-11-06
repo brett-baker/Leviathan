@@ -256,6 +256,15 @@ public static class CommandIds
     /// <summary>Show or hide the preview pane (Alt+P).</summary>
     public static readonly CommandId PreviewPane = new("pane.preview");
 
+    /// <summary>One pane: closes a split and keeps the focused pane (spec §15.1).</summary>
+    public static readonly CommandId PaneSingle = new("pane.single");
+
+    /// <summary>Two panes side by side (Ctrl+Backslash); again closes the split.</summary>
+    public static readonly CommandId PaneSideBySide = new("pane.sideBySide");
+
+    /// <summary>Two panes, one above the other (Ctrl+Shift+Backslash); again closes the split.</summary>
+    public static readonly CommandId PaneTopBottom = new("pane.topBottom");
+
     /// <summary>Run the selected program elevated. Only that program is elevated (spec §15.6).</summary>
     public static readonly CommandId RunAsAdministrator = new("item.runAsAdmin");
 
@@ -511,8 +520,9 @@ public static partial class WindowCommands
             }
         };
 
-        TabViewModel? Current() => strip.Selected;
-        TabViewModel? TabOf(CommandContext c) => c.Parameter as TabViewModel ?? Current();
+        // The pane the user is working in: the focused one of a split tab (spec §15.1). Tab-level commands (close, pin, duplicate) use TabOf.
+        TabViewModel? Current() => strip.Selected?.Focused;
+        TabViewModel? TabOf(CommandContext c) => c.Parameter as TabViewModel ?? strip.Selected;
 
         void Add(CommandId id, string title, string category, Func<CommandContext, CancellationToken, Task> run, Func<CommandContext, bool>? can = null, string? icon = null, string? shortcut = null) =>
             registry.Register(new AppCommand(new CommandDefinition(id, title, category, icon, shortcut), run, can));
@@ -1141,6 +1151,33 @@ public static partial class WindowCommands
         Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
 
+        // Split panes (spec §15.1, §6.3). The same key again closes the split, which keeps the pane that has the focus.
+        Add(CommandIds.PaneSingle, "One pane", "View", (c, ct) => TabOf(c)!.SetPanesAsync(PaneLayout.Single, ct), c => TabOf(c) is not null);
+        Add(CommandIds.PaneSideBySide, "Split side by side", "View",
+            (c, ct) => TabOf(c)!.SetPanesAsync(TabOf(c)!.Panes == PaneLayout.SideBySide ? PaneLayout.Single : PaneLayout.SideBySide, ct),
+            c => TabOf(c) is not null, shortcut: @"Ctrl+\");
+        Add(CommandIds.PaneTopBottom, "Split top and bottom", "View",
+            (c, ct) => TabOf(c)!.SetPanesAsync(TabOf(c)!.Panes == PaneLayout.TopBottom ? PaneLayout.Single : PaneLayout.TopBottom, ct),
+            c => TabOf(c) is not null, shortcut: @"Ctrl+Shift+\");
+        Add(CommandIds.OpenInSplitPane, "Open in split pane", "Navigation", async (c, ct) =>
+        {
+            // The folder opens in the pane that does not have the focus; a tab with one pane splits first.
+            if (TabOf(c) is not { } tab || !LocationPath.TryParse(c.Target, out var folder))
+            {
+                return;
+            }
+
+            if (!tab.IsSplit)
+            {
+                await tab.SetPanesAsync(PaneLayout.SideBySide, ct);
+            }
+
+            if (tab.Other is { } other)
+            {
+                await other.NavigateAsync(folder, ct);
+            }
+        }, c => TabOf(c) is not null && LocationPath.TryParse(c.Target, out _));
+
         Add(CommandIds.FavoriteRename, "Rename favorite", "Favorites", (c, _) => Run(() => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string)),
             c => favorites is not null && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
         Add(CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", (c, _) => Run(() =>
@@ -1199,6 +1236,8 @@ public static partial class WindowCommands
             ("Ctrl+Y", CommandIds.EditRedo),
             ("Ctrl+Shift+Z", CommandIds.EditRedo),
             ("Alt+P", CommandIds.PreviewPane),
+            (@"Ctrl+\", CommandIds.PaneSideBySide),
+            (@"Ctrl+Shift+\", CommandIds.PaneTopBottom),
             ("Ctrl+B", CommandIds.ViewSidebar),
             ("Ctrl+Shift+O", CommandIds.HubToggle),
             ("Ctrl+,", CommandIds.SettingsOpen),

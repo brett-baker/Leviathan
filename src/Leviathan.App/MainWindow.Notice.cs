@@ -25,6 +25,8 @@ public sealed partial class MainWindow
         var opacity = info is null ? 1.0 : OfflineRowsOpacity;
         FileList.Opacity = opacity;
         FlowList.Opacity = opacity;
+        FileList2.Opacity = opacity;
+        FlowList2.Opacity = opacity;
         if (info is null)
         {
             return;

@@ -85,8 +85,11 @@ public sealed partial class MainWindow
 
     private void OnPreviewToggleClick(object sender, RoutedEventArgs e) => Run(CommandIds.PreviewPane);
 
-    // Splitting arrives in Phase 2; the one-pane button stays down.
-    private void OnPaneSingleClick(object sender, RoutedEventArgs e) => PaneSingleButton.IsChecked = true;
+    private void OnPaneSingleClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneSingle);
+
+    private void OnPaneSideClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneSideBySide);
+
+    private void OnPaneStackedClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneTopBottom);
 
     // Enabled state ----------------------------------------------------------------------------------------------------
 
@@ -335,7 +338,18 @@ public sealed partial class MainWindow
             ViewMenu.Items.Add(card);
         }
 
-        ViewMenu.Items.Add(new MenuFlyoutItem { Text = "Split pane (Phase 2)", IsEnabled = false });
+        ViewMenu.Items.Add(new MenuFlyoutSeparator());
+        foreach (var (text, command, keys) in new[]
+        {
+            ("One pane", CommandIds.PaneSingle, string.Empty),
+            ("Split side by side", CommandIds.PaneSideBySide, @"Ctrl+\"),
+            ("Split top and bottom", CommandIds.PaneTopBottom, @"Ctrl+Shift+\"),
+        })
+        {
+            var item = new MenuFlyoutItem { Text = text, KeyboardAcceleratorTextOverride = keys };
+            item.Click += (_, _) => RunPaneCommand(command);
+            ViewMenu.Items.Add(item);
+        }
     }
 
     private void OnSortMenuOpening(object? sender, object e)

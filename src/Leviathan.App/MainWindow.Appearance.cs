@@ -44,6 +44,7 @@ public sealed partial class MainWindow
     {
         ApplyAppearance();
         FileList.RefreshMetrics();
+        FileList2.RefreshMetrics();
         Sidebar.ItemsSource = null;
         Sidebar.ItemsSource = _sidebar.Rows;
     });

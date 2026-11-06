@@ -56,6 +56,8 @@ public sealed partial class MainWindow
         Address.RefreshIcons();
         FileList.RefreshIcons();
         FlowList.RefreshIcons();
+        FileList2.RefreshIcons();
+        FlowList2.RefreshIcons();
         foreach (var button in _contextButtons)
         {
             if (_barButtons.TryGetValue(button, out var model))

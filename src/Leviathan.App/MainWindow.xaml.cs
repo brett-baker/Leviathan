@@ -113,6 +113,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FlowList.MiddleClicked += OnFileMiddleClicked;
         FlowList.KeyDown += OnFileKeyDown;
         FlowList.ZoomRequested += (_, notches) => Run(CommandIds.ViewZoom, parameter: notches);
+        InitPanes();
         Address.Submitted += OnAddressSubmitted;
         Address.NavigationRequested += OnAddressNavigation;
         Address.DropRequested += OnItemsDropped;
@@ -296,34 +297,44 @@ public sealed partial class MainWindow : Window, IShellActions
     /// <summary>Focuses whichever file view the tab's layout shows.</summary>
     private void FocusFiles()
     {
-        if (FlowList.Visibility == Visibility.Visible)
+        var second = _viewModel.Tabs.Selected is { FocusedPane: 1, IsSplit: true };
+        var (list, flow) = second ? (FileList2, FlowList2) : (FileList, FlowList);
+        if (flow.Visibility == Visibility.Visible)
         {
-            FlowList.FocusGrid();
+            flow.FocusGrid();
         }
         else
         {
-            FileList.FocusGrid();
+            list.FocusGrid();
         }
     }
 
     /// <summary>Shows the Details grid or the List / Thumbnails view for the tab's layout, keeping the keyboard focus in the file view.</summary>
     private void ApplyLayout()
     {
-        var flow = _bound is { } tab && ItemFlow.IsFlow(tab.Layout);
-        if ((FlowList.Visibility == Visibility.Visible) == flow)
+        var strip = _viewModel.Tabs.Selected;
+        ApplyLayout(FileList, FlowList, strip);
+        ApplyLayout(FileList2, FlowList2, strip?.Secondary);
+    }
+
+    // Shows the Details grid or the List / Thumbnails view of one pane for that pane's layout.
+    private void ApplyLayout(DetailsGrid list, FlowView flowView, TabViewModel? pane)
+    {
+        var flow = pane is not null && ItemFlow.IsFlow(pane.Layout);
+        if ((flowView.Visibility == Visibility.Visible) == flow)
         {
             return;
         }
 
-        var hadFocus = FileList.HasKeyboardFocus || FlowList.HasKeyboardFocus;
-        FlowList.Visibility = flow ? Visibility.Visible : Visibility.Collapsed;
-        FileList.Visibility = flow ? Visibility.Collapsed : Visibility.Visible;
-        FileList.SetActive(!flow);
-        FlowList.SetActive(flow);
+        var hadFocus = list.HasKeyboardFocus || flowView.HasKeyboardFocus;
+        flowView.Visibility = flow ? Visibility.Visible : Visibility.Collapsed;
+        list.Visibility = flow ? Visibility.Collapsed : Visibility.Visible;
+        list.SetActive(!flow);
+        flowView.SetActive(flow);
         if (flow)
         {
             // The view skipped scrolling to the selection while it was collapsed; do it now that elements can be created.
-            DispatcherQueue.TryEnqueue(FlowList.EnsureVisible);
+            DispatcherQueue.TryEnqueue(flowView.EnsureVisible);
         }
 
         if (hadFocus)
@@ -453,7 +464,7 @@ public sealed partial class MainWindow : Window, IShellActions
             _syncingTabs = false;
         }
 
-        BindTab(selected);
+        RefreshPanes();
     }
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -496,8 +507,6 @@ public sealed partial class MainWindow : Window, IShellActions
         _bound = tab;
         if (tab is null)
         {
-            FileList.Bind(null);
-            FlowList.Bind(null);
             Address.Bind(null);
             SyncFilterBox();
             RefreshCommandBar();
@@ -505,8 +514,6 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         using var bind = UiTrace.Begin("BindTab");
-        FileList.Bind(tab);
-        FlowList.Bind(tab);
         tab.PropertyChanged += OnTabViewChanged;
         ApplyLayout();
         tab.Selection.Changed += OnSelectionChanged;
@@ -523,10 +530,6 @@ public sealed partial class MainWindow : Window, IShellActions
         RefreshNavigationButtons();
         SyncSidebar();
         UpdateFavoriteStar();
-        if (tab.Folder.State == FolderLoadState.Idle)
-        {
-            Run(CommandIds.NavReload);
-        }
     }
 
     private void OnFolderPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -672,11 +675,16 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    private void OnRetryClick(object sender, RoutedEventArgs e) => Run(CommandIds.NavReload);
+    private void OnRetryClick(object sender, RoutedEventArgs e)
+    {
+        _viewModel.Tabs.Selected?.FocusPane(0);
+        Run(CommandIds.NavReload);
+    }
 
     private void UpdateState()
     {
-        var tab = _bound;
+        UpdateState2();
+        var tab = _viewModel.Tabs.Selected;
         var state = tab?.Folder.State ?? FolderLoadState.Idle;
         var hasRows = tab?.Items.ShownCount > 0;
         var (title, detail, busy, glyph, retry) = state switch
@@ -708,11 +716,12 @@ public sealed partial class MainWindow : Window, IShellActions
     // Manager, never in Leviathan), the user is connected with what they typed, and the folder is listed again (spec §3.3).
     private async void OnSignInClick(object sender, RoutedEventArgs e)
     {
-        if (_bound?.Folder.Location is not { } location)
+        if (_viewModel.Tabs.Selected is not { } stripTab || stripTab.Folder.Location is not { } location)
         {
             return;
         }
 
+        stripTab.FocusPane(0);
         SignInButton.IsEnabled = false;
         try
         {

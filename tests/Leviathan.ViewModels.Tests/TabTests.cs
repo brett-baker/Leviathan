@@ -138,7 +138,6 @@ public sealed class TabTests
             CustomTitle = "Inbox",
             Accent = "#FF8800",
             IsLocked = true,
-            IsSplit = true,
         };
         tab.IsLocked = false;
         await tab.NavigateAsync(P(@"C:\v"), CancellationToken.None);
@@ -151,7 +150,6 @@ public sealed class TabTests
 
         Assert.Equal("Inbox", restored.Title);
         Assert.Equal("#FF8800", restored.Accent);
-        Assert.True(restored.IsSplit);
         Assert.Equal(P(@"C:\v"), restored.History.Current);
         Assert.True(restored.History.CanGoBack);
         Assert.Equal(SortDirection.Descending, restored.Items.Sort[0].Direction);

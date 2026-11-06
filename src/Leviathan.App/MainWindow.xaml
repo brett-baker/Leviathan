@@ -77,18 +77,18 @@
 
       <local:AddressBar x:Name="Address" Grid.Column="4" VerticalAlignment="Center" />
 
-      <!-- Panes (spec 6.3): one pane, two side by side, two stacked; and the preview pane. Splitting arrives in Phase 2. -->
+      <!-- Panes (spec 6.3, 15.1): one pane, two side by side, two stacked; and the preview pane. -->
       <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="4,0">
         <ToggleButton x:Name="PaneSingleButton" IsChecked="True" Padding="6,5" ToolTipService.ToolTip="One pane" AutomationProperties.Name="One pane" Click="OnPaneSingleClick">
           <Border Width="16" Height="12" BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
         </ToggleButton>
-        <ToggleButton x:Name="PaneSideButton" IsEnabled="False" Padding="6,5" ToolTipService.ToolTip="Split side by side (Phase 2)" AutomationProperties.Name="Split side by side">
+        <ToggleButton x:Name="PaneSideButton" Padding="6,5" Click="OnPaneSideClick" ToolTipService.ToolTip="Split side by side (Ctrl+\)" AutomationProperties.Name="Split side by side">
           <Grid Width="16" Height="12">
             <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
             <Border Width="1.5" HorizontalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
           </Grid>
         </ToggleButton>
-        <ToggleButton x:Name="PaneStackedButton" IsEnabled="False" Padding="6,5" ToolTipService.ToolTip="Split top and bottom (Phase 2)" AutomationProperties.Name="Split top and bottom">
+        <ToggleButton x:Name="PaneStackedButton" Padding="6,5" Click="OnPaneStackedClick" ToolTipService.ToolTip="Split top and bottom (Ctrl+Shift+\)" AutomationProperties.Name="Split top and bottom">
           <Grid Width="16" Height="12">
             <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
             <Border Height="1.5" VerticalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -317,10 +317,13 @@
           </Grid>
         </Border>
 
-        <local:DetailsGrid x:Name="FileList" Grid.Row="2" />
-        <local:FlowView x:Name="FlowList" Grid.Row="2" Visibility="Collapsed" />
+        <!-- The panes of the tab (spec 15.1): the first pane always, the second while the tab is split. The gap between them is 6 px. -->
+        <Grid x:Name="PaneHost" Grid.Row="2">
+        <Grid x:Name="Pane1">
+        <local:DetailsGrid x:Name="FileList" />
+        <local:FlowView x:Name="FlowList" Visibility="Collapsed" />
 
-        <StackPanel x:Name="StatePanel" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
+        <StackPanel x:Name="StatePanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
           <ProgressRing x:Name="StateRing" IsActive="False" Width="28" Height="28" />
           <ContentControl x:Name="StateIcon" HorizontalAlignment="Center" IsTabStop="False" />
           <TextBlock x:Name="StateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
@@ -329,6 +332,23 @@
           <Button x:Name="RetryButton" Content="Try again" HorizontalAlignment="Center" Click="OnRetryClick" Visibility="Collapsed" />
           <Button x:Name="SignInButton" Content="Sign in…" HorizontalAlignment="Center" Click="OnSignInClick" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
+        <Border x:Name="Pane1Frame" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+        </Grid>
+
+        <Border x:Name="PaneGap" Visibility="Collapsed" />
+
+        <Grid x:Name="Pane2" Visibility="Collapsed">
+          <local:DetailsGrid x:Name="FileList2" />
+          <local:FlowView x:Name="FlowList2" Visibility="Collapsed" />
+          <StackPanel x:Name="StatePanel2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="State2Title" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock x:Name="State2Detail" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Button x:Name="Retry2Button" Content="Try again" HorizontalAlignment="Center" Click="OnRetry2Click" Visibility="Collapsed" />
+          </StackPanel>
+          <Border x:Name="Pane2Frame" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+        </Grid>
+        </Grid>
       </Grid>
 
       <Border x:Name="PreviewPane" Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="16">
