@@ -3,8 +3,17 @@
 Scope, spec sections and gate are in `docs/build-plan.md` (Phase 3). Working checklist; tick a slice when it is committed and pushed.
 Every slice follows `CLAUDE.md`.
 
-> Written before Phases 1–2 finished. At the start of Phase 3, re-read `docs/phase-1.md` and `docs/phase-2.md` and adjust
-> to what exists; keep the scope and the gate.
+> Written before Phases 1–2 finished. Re-read against `docs/phase-1.md` and `docs/phase-2.md` on 2026-11-06 (Phase 3 start).
+> What already exists and is reused, not rebuilt:
+> - Status hub with the Background tab (Phase 1 I7/Phase 2 C5b): A6 adds rows to it.
+> - The preview pane shell with its Move/Copy buttons and "follows the focused pane" (Phase 2 F3): D1 adds collapse, sizes and renderers to it.
+> - Soft delete with restore and undo (Phase 2 D): E3 Discard uses it.
+> - The column chooser (Phase 1 I3): A5 adds columns to it.
+> - `ProcessSupervisor` (Engine): supervises `Leviathan.Media` like the worker.
+> - Tools on this machine: ffprobe/ffmpeg (jellyfin GPL build) in `C:\Tools\ffmpeg-jellyfin`; the runner finds it by setting,
+>   `LEVIATHAN_FFMPEG_DIR`, a `ffmpeg` folder next to the app, then `PATH`.
+> - The UI tests are on hold (see `docs/backlog.md`), so G2 (FlaUI triage flow) is written but run only on Brett's say-so.
+> The scope and the gate are unchanged.
 
 ## Shape of the work
 
