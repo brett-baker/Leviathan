@@ -129,6 +129,28 @@ public sealed class ChunkedFileCopierTests
     }
 
     [Theory]
+    [InlineData(4096 * 5)]
+    [InlineData(4096 * 5 + 1)]
+    [InlineData(4096 * 5 - 1)]
+    [InlineData(100_000)]
+    public async Task Copy_InManySmallChunks_WithReadAhead_IsByteExact_AndHashesEveryByteOnce(int length)
+    {
+        // Reading the next chunk while the current one is written must not reorder, skip or repeat bytes, with or without unbuffered I/O.
+        foreach (var threshold in new long[] { long.MaxValue, 0 })
+        {
+            var fs = Disk(length);
+            var copier = new ChunkedFileCopier(fs, () => BufferPolicy.Fixed(4096), unbufferedThreshold: threshold);
+            var reported = 0L;
+
+            var result = await copier.CopyAsync(Request(hash: true, onBytes: n => reported += n), CancellationToken.None);
+
+            Assert.Equal(Pattern(length), fs.File.ReadAllBytes(@"C:\dst\f.bin"));
+            Assert.Equal(length, reported);
+            Assert.Equal(XxHash3.Hash(Pattern(length)), result.SourceHash);
+        }
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(4095)]
     [InlineData(4096)]
