@@ -126,7 +126,8 @@ public sealed class SmokeTests : IAsyncLifetime
             AppSession.Tap(chevron);
         }
 
-        Assert.True(_app.Has("Nothing is running. Copies, moves and deletes appear here."), "the Operations tab");
+        // The text is read after the click, outside the measured window; the page may need a frame to show.
+        Assert.True(Wait.TryUntil(() => _app.Has("Nothing is running. Copies, moves and deletes appear here.") || _app.Has("Nothing running"), TimeSpan.FromSeconds(5)), "the Operations tab (the worker is the user's own, so finished jobs from earlier may be listed instead of the empty message)");
 
         var tabs = new[]
         {
@@ -141,7 +142,7 @@ public sealed class SmokeTests : IAsyncLifetime
         foreach (var (tab, proof) in tabs)
         {
             AppSession.Tap(_app.PointOf(tab));
-            Assert.True(_app.Has(proof), $"the {tab} tab shows '{proof}'");
+            Assert.True(Wait.TryUntil(() => _app.Has(proof), TimeSpan.FromSeconds(5)), $"the {tab} tab shows '{proof}'");
         }
 
         foreach (var (tab, proof) in tabs.Reverse())
@@ -152,7 +153,7 @@ public sealed class SmokeTests : IAsyncLifetime
                 AppSession.Tap(where);
             }
 
-            Assert.True(_app.Has(proof), $"the {tab} tab shows '{proof}'");
+            Assert.True(Wait.TryUntil(() => _app.Has(proof), TimeSpan.FromSeconds(5)), $"the {tab} tab shows '{proof}'");
         }
 
         using (_app.Acting())

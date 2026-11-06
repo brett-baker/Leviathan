@@ -71,8 +71,27 @@ public sealed partial class MainWindow
                 await Task.Delay(TimeSpan.FromMilliseconds(900));
             }
 
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnsureHubPanel());
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                EnsureHubPanel();
+                WarmHubPages(0);
+            });
         };
+    }
+
+    // The pages are laid out one per idle step, so none of them is a stall of its own and none is left for the first click (spec §3.2).
+    private void WarmHubPages(int index)
+    {
+        if (_closed || _hubPanel is not { } panel || index >= StatusHubPanel.WarmPageCount)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            panel.WarmPage(index);
+            WarmHubPages(index + 1);
+        });
     }
 
     private StatusHubPanel? EnsureHubPanel()

@@ -212,6 +212,26 @@ internal sealed class AppSession : IAsyncDisposable
         return found!;
     }
 
+    /// <summary>Saves a picture of the window to the temp folder (<c>leviathan-ui-&lt;name&gt;.png</c>), for looking at a failure.</summary>
+    public void Screenshot(string name)
+    {
+        try
+        {
+            Window.CaptureToFile(Path.Combine(Path.GetTempPath(), $"leviathan-ui-{name}.png"));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // A picture is a help, never a reason for a test to fail differently.
+        }
+    }
+
+    /// <summary>
+    /// True when the element with this name is a selected list item. A destructive key is sent only after this says the thing about to be
+    /// deleted is the thing the test made (the tests drive the real mouse and keyboard and the user's own worker).
+    /// </summary>
+    public bool IsSelected(string name) =>
+        Find(name)?.Patterns.SelectionItem.PatternOrDefault?.IsSelected.ValueOrDefault == true;
+
     /// <summary>True when an element with this id or name is on screen.</summary>
     public bool Has(string idOrName) => Find(idOrName) is { IsOffscreen: false };
 

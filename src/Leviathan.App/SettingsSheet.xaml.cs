@@ -68,6 +68,35 @@ internal sealed partial class SettingsSheet : UserControl
 
     private void OnSettingsChanged(object? sender, AppSettings settings) => DispatcherQueue.TryEnqueue(Load);
 
+
+    /// <summary>How many pages <see cref="WarmPage"/> knows.</summary>
+    public const int WarmPageCount = 7;
+
+    /// <summary>
+    /// Lays out one page once, while the sheet is invisible, so opening settings and visiting a page are not stalls (spec §3.2). The
+    /// window calls it one page at a time while idle, with the sheet closed.
+    /// </summary>
+    public void WarmPage(int index)
+    {
+        if (_model.IsOpen || index is < 0 or >= WarmPageCount)
+        {
+            return;
+        }
+
+        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage];
+        var page = pages[index];
+        var before = page.Visibility;
+        try
+        {
+            page.Visibility = Visibility.Visible;
+            UpdateLayout();
+        }
+        finally
+        {
+            page.Visibility = before;
+        }
+    }
+
     private void Sync()
     {
         if (!_ready)

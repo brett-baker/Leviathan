@@ -25,8 +25,45 @@ public sealed partial class MainWindow
         Root.Loaded += async (_, _) =>
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1200));
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnsureSettingsSheet());
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                EnsureSettingsSheet();
+                WarmSettingsPages(0);
+            });
         };
+    }
+
+    // Each page of the sheet is laid out once, invisibly, one per idle step, so opening settings is not a stall (spec §3.2).
+    private void WarmSettingsPages(int index)
+    {
+        if (_closed || _settingsSheet is not { } sheet || index >= SettingsSheet.WarmPageCount)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (!_viewModel.SettingsSheet.IsOpen)
+            {
+                var (layer, opacity) = (SettingsLayer.Visibility, SettingsLayer.Opacity);
+                try
+                {
+                    SettingsLayer.Opacity = 0;
+                    SettingsLayer.IsHitTestVisible = false;
+                    SettingsLayer.Visibility = Visibility.Visible;
+                    sheet.Height = Math.Max(240, Root.ActualHeight * SettingsSheetModel.HeightFraction);
+                    sheet.WarmPage(index);
+                }
+                finally
+                {
+                    SettingsLayer.Visibility = layer;
+                    SettingsLayer.Opacity = opacity;
+                    SettingsLayer.IsHitTestVisible = true;
+                }
+            }
+
+            WarmSettingsPages(index + 1);
+        });
     }
 
     private SettingsSheet? EnsureSettingsSheet()

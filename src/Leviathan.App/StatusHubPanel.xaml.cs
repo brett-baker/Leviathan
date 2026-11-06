@@ -809,6 +809,40 @@ internal sealed partial class StatusHubPanel : UserControl
         Visibility Show(HubTab tab) => _model.Tab == tab ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>How many pages <see cref="WarmPage"/> knows (every page except the one that is shown when the hub first opens).</summary>
+    public const int WarmPageCount = 5;
+
+    /// <summary>
+    /// Lays out one page once while the panel is invisible (opacity 0, not hit-testable), so the first time the user opens that tab its
+    /// controls and templates are already made and the first show is not a stall (spec §3.2). Called one page at a time while the window
+    /// is idle; does nothing when the hub is open, because then the user is looking at it.
+    /// </summary>
+    public void WarmPage(int index)
+    {
+        if (_model.IsOpen || index is < 0 or >= WarmPageCount)
+        {
+            return;
+        }
+
+        UIElement page = index switch { 0 => ActivityPage, 1 => BackgroundPage, 2 => DeletedPage, 3 => QuickSettingsPage, _ => SpacePage };
+        var (visibility, opacity, hitTest) = (Visibility, Opacity, IsHitTestVisible);
+        try
+        {
+            Opacity = 0;
+            IsHitTestVisible = false;
+            Visibility = Visibility.Visible;
+            page.Visibility = Visibility.Visible;
+            UpdateLayout();
+        }
+        finally
+        {
+            page.Visibility = Visibility.Collapsed;
+            Visibility = visibility;
+            Opacity = opacity;
+            IsHitTestVisible = hitTest;
+        }
+    }
+
     private void OnTabSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (!_syncing && sender.SelectedItem?.Tag is string name && Enum.TryParse<HubTab>(name, out var tab))

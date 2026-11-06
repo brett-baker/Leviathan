@@ -49,6 +49,7 @@ public sealed class FileOperationTests : IAsyncLifetime
             AppSession.Press(VirtualKeyShort.RETURN);
         }
 
+        _app.Screenshot("rename-after");
         Wait.Until(() => File.Exists(Path.Combine(_folder, "renamed.txt")), TimeSpan.FromSeconds(10), "renamed.txt");
         Assert.False(File.Exists(Path.Combine(_folder, "alpha.txt")));
         Assert.True(File.Exists(Path.Combine(_folder, "bravo.txt")));
@@ -63,6 +64,14 @@ public sealed class FileOperationTests : IAsyncLifetime
         using (_app.Acting())
         {
             AppSession.Tap(row);
+        }
+
+        // Never send Delete to whatever happens to be selected: the app is the user's own, with the user's worker and Recycle Bin.
+        Assert.True(Wait.TryUntil(() => _app.IsSelected("bravo.txt"), TimeSpan.FromSeconds(5)), "bravo.txt is selected before Delete is pressed");
+        Assert.True(File.Exists(path), "bravo.txt is in the test folder");
+
+        using (_app.Acting())
+        {
             AppSession.Press(VirtualKeyShort.DELETE);
         }
 
