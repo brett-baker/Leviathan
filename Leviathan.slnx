@@ -6,6 +6,7 @@
     <Platform Name="ARM64" />
   </Configurations>
   <Folder Name="/src/">
+    <Project Path="src/Leviathan.Media.Core/Leviathan.Media.Core.csproj" />
     <Project Path="src/Leviathan.App/Leviathan.App.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
@@ -86,6 +87,7 @@
     </Project>
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Leviathan.Media.Tests/Leviathan.Media.Tests.csproj" />
     <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />

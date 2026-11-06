@@ -29,7 +29,7 @@ Every slice follows `CLAUDE.md`.
 
 ### A. Metadata (§9.3)
 
-- [ ] **A1. ffprobe runner** in `Leviathan.Media`: GPL ffmpeg build bundled (path configurable), `-show_format -show_streams
+- [x] **A1. ffprobe runner** (done in `Leviathan.Media.Core`: `FfmpegLocator`, `SystemProcessRunner`, `FfprobeRunner`; the supervised `Leviathan.Media` process that hosts it arrives with A3/A4; 29 tests incl. the real ffprobe on generated clips) in `Leviathan.Media`: GPL ffmpeg build bundled (path configurable), `-show_format -show_streams
   -show_chapters -of json`, 10 s timeout, low priority, reads only headers on network files.
 - [ ] **A2. Parser and model** (`Leviathan.Media.Core`): container, streams (video/audio/subtitle), chapters, tags, HDR, frame
   rate; snapshot tests (Verify) over the fixture set.
