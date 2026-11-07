@@ -55,6 +55,31 @@ public sealed class ContactSheetMakerTests : IDisposable
     }
 
     [Fact]
+    public void Strip_IsOneRowOf16To24Frames_WithTheCellWidthKeptTo64To320_AndKeysApartFromASheet()
+    {
+        var strip = ContactSheetSpec.Strip(40, 5000, 1920, 1080);
+        Assert.Equal((24, 1, 320, 180), (strip.Columns, strip.Rows, strip.CellWidth, strip.CellHeight));
+        var few = ContactSheetSpec.Strip(3, 1, 1920, 1080);
+        Assert.Equal((16, 64, 36), (few.Columns, few.CellWidth, few.CellHeight));
+        Assert.Equal(20 * 160, ContactSheetSpec.Strip(20, 160, 640, 360).Width);
+        Assert.NotEqual(ContactSheetMaker.KeyFor("a", 1, 1, strip), ContactSheetMaker.KeyFor("a", 1, 1, ContactSheetSpec.For(6, 4, 320, 1920, 1080)));
+    }
+
+    [Fact]
+    public void Arguments_ForAStrip_PlaceEveryFrameInOneRow()
+    {
+        var spec = ContactSheetSpec.Strip(16, 128, 1920, 1080);
+        var times = spec.FrameTimes(TimeSpan.FromSeconds(100));
+
+        var arguments = ContactSheetMaker.Arguments(@"C:.mp4", @"C:\o.jpg", spec, times, false);
+
+        Assert.Equal(16, arguments.Count(a => a == "-ss"));
+        var graph = arguments[arguments.ToList().IndexOf("-filter_complex") + 1];
+        Assert.Contains("xstack=inputs=16:layout=0_0|128_0|256_0", graph);
+        Assert.EndsWith($"{15 * 128}_0[sheet]", graph);
+    }
+
+    [Fact]
     public void Spec_SizesAreEven_AndTheWholeSheetIsTheGrid()
     {
         var spec = ContactSheetSpec.For(5, 4, 241, 1000, 563);
@@ -235,6 +260,22 @@ public sealed class RealContactSheetTests(MediaFixtures fixtures) : IClassFixtur
         var info = FfprobeParser.TryParse(probe.Json!);
         Assert.Equal((spec.Width, spec.Height), (info!.PrimaryVideo!.Width, info.PrimaryVideo.Height));
         Assert.Equal(9, result.Times.Count);
+    }
+
+    [Fact]
+    public async Task Make_AStrip_FromAGeneratedClip_WritesOneRowOfFrames()
+    {
+        Assert.SkipUnless(fixtures.Tools.FfmpegPath is not null, "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var maker = new ContactSheetMaker(new SystemProcessRunner(), () => fixtures.Tools, new ThumbnailDiskCache(Path.Combine(fixtures.Folder, "strips")));
+        var spec = ContactSheetSpec.Strip(16, 64, 64, 48);
+
+        var result = await maker.MakeAsync(fixtures.Clip, new FileInfo(fixtures.Clip).Length, File.GetLastWriteTimeUtc(fixtures.Clip).Ticks, false, TimeSpan.FromSeconds(2), spec, CancellationToken.None);
+
+        Assert.True(result.Status == ThumbnailStatus.Ok, result.Message);
+        var probe = await new FfprobeRunner(new SystemProcessRunner(), () => fixtures.Tools).ProbeAsync(result.File!, false, CancellationToken.None);
+        var info = FfprobeParser.TryParse(probe.Json!);
+        Assert.Equal((16 * 64, 48), (info!.PrimaryVideo!.Width, info.PrimaryVideo.Height));
+        Assert.Equal(16, result.Times.Count);
     }
 
     [Fact]

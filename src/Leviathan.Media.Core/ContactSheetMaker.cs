@@ -40,6 +40,23 @@ public sealed record ContactSheetSpec(int Columns, int Rows, int CellWidth, int 
         return new ContactSheetSpec(Math.Clamp(columns, MinGrid, MaxGrid), Math.Clamp(rows, MinGrid, MaxGrid), width, height);
     }
 
+    /// <summary>Fewest frames in a hover-scrub strip (spec §10.5).</summary>
+    public const int MinStrip = 16;
+
+    /// <summary>Most frames in a hover-scrub strip.</summary>
+    public const int MaxStrip = 24;
+
+    /// <summary>
+    /// The sprite strip behind hover scrub (spec §10.5): <paramref name="frames"/> (16 to 24) frames in one row, drawn by the same
+    /// maker as a contact sheet and cached beside it. The cell width is kept to 64 to 320 pixels.
+    /// </summary>
+    public static ContactSheetSpec Strip(int frames, int cellWidth, int? videoWidth, int? videoHeight)
+    {
+        var width = Math.Clamp(cellWidth, 64, 320) / 2 * 2;
+        var ratio = videoWidth is > 0 && videoHeight is > 0 ? Math.Clamp((double)videoHeight.Value / videoWidth.Value, 1.0 / 3, 3.0) : 9.0 / 16.0;
+        return new ContactSheetSpec(Math.Clamp(frames, MinStrip, MaxStrip), 1, width, Math.Max(2, (int)Math.Round(width * ratio / 2) * 2));
+    }
+
     /// <summary>
     /// The moments the frames are taken at, row by row: the middle of each of <see cref="Count"/> equal parts of the first 95% of
     /// <paramref name="duration"/>, so the first and last frames are never the black opening or the credits' end, and a click on

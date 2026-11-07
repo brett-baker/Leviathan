@@ -30,6 +30,30 @@ internal sealed class ContactSheetClient(Func<MediaHostConnection> host)
 }
 
 /// <summary>
+/// Asks the media process for the sprite strip hover scrub slides over (spec §10.5). Like the sheet client it answers with a failure
+/// instead of throwing, and a strip that cannot be made simply means the picture does not scrub.
+/// </summary>
+internal sealed class ScrubStripClient(Func<MediaHostConnection> host)
+{
+    private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(4);
+
+    /// <summary>The strip of <paramref name="video"/>: <paramref name="frames"/> frames <paramref name="cellWidth"/> pixels wide each.</summary>
+    public async Task<MediaContactSheetAnswer> GetAsync(FileEntry video, int frames, int cellWidth, CancellationToken cancellationToken)
+    {
+        var request = new MediaScrubRequest(video.Location.ToWin32Path(), video.Size, video.Modified.UtcDateTime.Ticks, video.Location.IsNetwork, frames, cellWidth);
+        try
+        {
+            var service = await host().GetServiceAsync(StartTimeout, cancellationToken).ConfigureAwait(false);
+            return await service.GetScrubStripAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is MediaHostUnavailableException or StreamJsonRpc.ConnectionLostException or StreamJsonRpc.RemoteInvocationException or IOException or ObjectDisposedException)
+        {
+            return new MediaContactSheetAnswer(request.Path, MediaThumbnailStatus.Failed, null, frames, 1, cellWidth, 0, [], ex.Message);
+        }
+    }
+}
+
+/// <summary>
 /// A folder of contact sheets made one after another in the background (spec §10.4): each video's sheet is saved as
 /// "name - contact sheet.jpg" in the folder the user chose, never over a file that is already there. Progress is read by the
 /// Background tab; Cancel stops after the video being worked on. One batch at a time.

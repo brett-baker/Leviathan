@@ -104,6 +104,9 @@ public sealed record PerformanceSettings
     /// <summary>Make thumbnails of files on network drives. Each one means reading the file over the network.</summary>
     public bool ThumbnailsOnNetwork { get; init; } = true;
 
+    /// <summary>Moving the mouse across a video's picture in Tiles, Thumbnails and Gallery slides through the video (spec §10.5).</summary>
+    public bool HoverScrub { get; init; } = true;
+
     /// <summary>A speed limit for everything the worker moves, in MB per second; 0 = none (spec §12.3).</summary>
     public int BandwidthMBps { get; init; }
 

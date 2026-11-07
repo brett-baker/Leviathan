@@ -85,6 +85,15 @@ public sealed record MediaThumbnailAnswer(string Path, MediaThumbnailStatus Stat
 /// <param name="CellWidth">Width of one frame in pixels, 96 to 480.</param>
 public sealed record MediaContactSheetRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, int Columns, int Rows, int CellWidth);
 
+/// <summary>A hover-scrub strip wanted from the media process (spec §10.5).</summary>
+/// <param name="Path">Win32 path of the video.</param>
+/// <param name="Size">Size in bytes (part of the cache identity).</param>
+/// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
+/// <param name="IsNetwork">True for a file on a network drive (read with limits).</param>
+/// <param name="Frames">Frames in the strip, 16 to 24.</param>
+/// <param name="CellWidth">Width of one frame in pixels, 64 to 320.</param>
+public sealed record MediaScrubRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, int Frames, int CellWidth);
+
 /// <summary>A contact sheet as one JPEG with the moments its frames were taken at, or why there is none.</summary>
 /// <param name="Path">The video.</param>
 /// <param name="Status">What happened.</param>
@@ -136,4 +145,10 @@ public interface IMediaService
     /// drawn now. One is drawn at a time; a call whose token is cancelled before its turn never starts, and one already running is stopped.
     /// </summary>
     Task<MediaContactSheetAnswer> GetContactSheetAsync(MediaContactSheetRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A single row of 16 to 24 frames across a video (spec §10.5), the picture hover scrub slides over: the answer has the same shape
+    /// as a contact sheet (<c>Rows</c> is 1) and <c>FrameSeconds</c> says where each frame is from.
+    /// </summary>
+    Task<MediaContactSheetAnswer> GetScrubStripAsync(MediaScrubRequest request, CancellationToken cancellationToken);
 }

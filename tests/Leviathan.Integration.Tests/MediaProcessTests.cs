@@ -124,6 +124,21 @@ public sealed class MediaProcessTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Process_DrawsAScrubStrip_OfOneRow_WithTheFrameTimes()
+    {
+        Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var service = await Connection().GetServiceAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+
+        var answer = await service.GetScrubStripAsync(new MediaScrubRequest(ClipPath, new FileInfo(ClipPath).Length, File.GetLastWriteTimeUtc(ClipPath).Ticks, false, 20, 64), CancellationToken.None);
+
+        Assert.True(answer.Status == MediaThumbnailStatus.Ok, answer.Message);
+        Assert.Equal([(byte)0xFF, (byte)0xD8], answer.Jpeg!.Take(2));
+        Assert.Equal((20, 1, 64), (answer.Columns, answer.Rows, answer.CellWidth));
+        Assert.Equal(20, answer.FrameSeconds.Length);
+        Assert.True(answer.FrameSeconds.SequenceEqual(answer.FrameSeconds.Order()));
+    }
+
+    [Fact]
     public async Task Process_AContactSheetOfABrokenFile_IsFailed()
     {
         Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");

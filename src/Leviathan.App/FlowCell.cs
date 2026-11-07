@@ -29,6 +29,17 @@ internal sealed class FlowCell : Grid
     private readonly FontIcon _glyph = new() { IsHitTestVisible = false, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly Image _kind = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     private readonly Image _image = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, Visibility = Visibility.Collapsed };
+
+    // Hover scrub (spec §10.5): the strip slides under a clip over the picture, with a thin progress line and the time of the frame.
+    private readonly Grid _scrub = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+    private readonly Grid _scrubFrame = new() { IsHitTestVisible = false };
+    private readonly Image _scrubStrip = new() { IsHitTestVisible = false, Stretch = Stretch.Fill, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+    private readonly Microsoft.UI.Xaml.Shapes.Rectangle _scrubLine = new() { IsHitTestVisible = false, Height = 3, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom };
+    private readonly Border _scrubBadge = new() { IsHitTestVisible = false, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(4, 0, 0, 6), Padding = new Thickness(5, 1, 5, 1), CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)) };
+    private readonly TextBlock _scrubTime = new() { IsHitTestVisible = false, FontSize = 11, Foreground = new SolidColorBrush(Colors.White) };
+    private CancellationTokenSource? _scrubbing;
+    private ScrubStrip? _strip;
+    private double _pointerX;
     private readonly TextBlock _name = new() { IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
 
     // Tiles only: the name, then the media facts and the size and date under it.
@@ -59,8 +70,22 @@ internal sealed class FlowCell : Grid
         _editor.Finished += (_, result) => _owner.RaiseRenameFinished(result);
         Background = new SolidColorBrush(Colors.Transparent);
         CornerRadius = new CornerRadius(4);
-        PointerEntered += (_, _) => SetHover(true);
-        PointerExited += (_, _) => SetHover(false);
+        _scrubFrame.Children.Add(_scrubStrip);
+        _scrub.Children.Add(_scrubFrame);
+        _scrub.Children.Add(_scrubLine);
+        _scrubBadge.Child = _scrubTime;
+        _scrub.Children.Add(_scrubBadge);
+        PointerEntered += (_, _) =>
+        {
+            SetHover(true);
+            BeginScrub();
+        };
+        PointerMoved += (_, e) => MoveScrub(e.GetCurrentPoint(_picture).Position.X);
+        PointerExited += (_, _) =>
+        {
+            SetHover(false);
+            EndScrub();
+        };
         FileDragSource.Attach(this);
     }
 
@@ -98,6 +123,7 @@ internal sealed class FlowCell : Grid
     public void Bind(FileEntry entry, ViewLayout layout, int size)
     {
         CancelLoading();
+        EndScrub();
         Entry = entry;
 
         // Tiles and Gallery have their own picture size; only Thumbnails follows the tab's.
@@ -165,6 +191,7 @@ internal sealed class FlowCell : Grid
     public void Unbind()
     {
         CancelLoading();
+        EndScrub();
         _editor.Hide();
         _dropTarget = false;
         Entry = null;
@@ -215,6 +242,84 @@ internal sealed class FlowCell : Grid
         UpdateVisuals();
     }
 
+    private bool CanScrub()
+    {
+        if (Entry is not { Kind: FileEntryKind.File } entry || _layout == ViewLayout.List || !Leviathan.Media.MediaFileKinds.IsVideo(entry.Extension))
+        {
+            return false;
+        }
+
+        var performance = App.Host.Settings.Current.Performance;
+        return performance.HoverScrub && (!entry.Location.IsNetwork || performance.ThumbnailsOnNetwork);
+    }
+
+    // The mouse has to rest on the picture for a moment before the strip is asked for, so sweeping across a folder draws nothing.
+    private async void BeginScrub()
+    {
+        EndScrub();
+        if (!CanScrub() || Entry is not { } entry)
+        {
+            return;
+        }
+
+        var scrubbing = new CancellationTokenSource();
+        _scrubbing = scrubbing;
+        try
+        {
+            await Task.Delay(HoverScrub.Dwell, scrubbing.Token);
+            var strip = await App.Host.Scrub.GetAsync(entry, _size, scrubbing.Token);
+            if (strip is null || scrubbing.IsCancellationRequested || !ReferenceEquals(Entry, entry))
+            {
+                return;
+            }
+
+            _strip = strip;
+            _scrubStrip.Source = strip.Image;
+            _scrubLine.Fill = new SolidColorBrush(Accent);
+            _scrub.Visibility = Visibility.Visible;
+            MoveScrub(_pointerX);
+        }
+        catch (OperationCanceledException)
+        {
+            // The mouse left, or the cell was recycled.
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or ArgumentException or InvalidOperationException)
+        {
+            // The strip could not be decoded: this picture just does not scrub.
+        }
+    }
+
+    private void MoveScrub(double x)
+    {
+        _pointerX = x;
+        if (_strip is not { } strip || _picture.ActualWidth <= 0 || _picture.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var fraction = HoverScrub.Fraction(x, _picture.ActualWidth);
+        var frame = HoverScrub.FrameAt(fraction, strip.Frames);
+        var place = HoverScrub.Place(frame, strip.Frames, strip.CellWidth, strip.CellHeight, _picture.ActualWidth, _picture.ActualHeight);
+        _scrubFrame.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(place.ClipLeft, place.ClipTop, place.ClipWidth, place.ClipHeight) };
+        _scrubStrip.Width = place.StripWidth;
+        _scrubStrip.Height = place.StripHeight;
+        _scrubStrip.Margin = new Thickness(place.StripLeft, place.ClipTop, 0, 0);
+        _scrubLine.Margin = new Thickness(place.ClipLeft, 0, 0, place.ClipTop);
+        _scrubLine.Width = Math.Max(1, fraction * place.ClipWidth);
+        _scrubBadge.Margin = new Thickness(place.ClipLeft + 4, 0, 0, place.ClipTop + 6);
+        _scrubTime.Text = MediaColumns.Duration(TimeSpan.FromSeconds(strip.Seconds[Math.Min(frame, strip.Seconds.Length - 1)]));
+    }
+
+    private void EndScrub()
+    {
+        _scrubbing?.Cancel();
+        _scrubbing?.Dispose();
+        _scrubbing = null;
+        _strip = null;
+        _scrub.Visibility = Visibility.Collapsed;
+        _scrubStrip.Source = null;
+    }
+
     private void CancelLoading()
     {
         _loading?.Cancel();
@@ -257,6 +362,7 @@ internal sealed class FlowCell : Grid
             _picture.Children.Add(_glyph);
             _picture.Children.Add(_kind);
             _picture.Children.Add(_image);
+            _picture.Children.Add(_scrub);
             Children.Add(_picture);
             _text.Children.Add(_name);
             _text.Children.Add(_facts);
@@ -287,6 +393,7 @@ internal sealed class FlowCell : Grid
             _picture.Children.Add(_glyph);
             _picture.Children.Add(_kind);
             _picture.Children.Add(_image);
+            _picture.Children.Add(_scrub);
             Children.Add(_picture);
         }
         else

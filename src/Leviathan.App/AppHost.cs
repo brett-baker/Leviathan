@@ -170,6 +170,9 @@ internal sealed class AppHost
     /// <summary>Asks the media process for contact sheets (spec §10.4).</summary>
     internal ContactSheetClient SheetClient { get; init; } = null!;
 
+    /// <summary>The strips hover scrub slides over (spec §10.5); UI thread only.</summary>
+    internal ScrubStripCache Scrub { get; init; } = null!;
+
     /// <summary>The folder of contact sheets being made in the background, if any.</summary>
     internal ContactSheetBatch SheetBatch { get; init; } = null!;
 
@@ -679,6 +682,7 @@ internal sealed class AppHost
             Sizes = sizes,
             ThumbnailGate = thumbnailGate,
             SheetClient = sheetClient,
+            Scrub = new ScrubStripCache(new ScrubStripClient(() => built!.MediaHost)),
             SheetBatch = sheetBatch,
             WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
