@@ -13,6 +13,9 @@ public enum ThumbnailMode
 
     /// <summary>Only what Windows already has cached; never generates. Null when nothing is cached.</summary>
     CachedOnly,
+
+    /// <summary>A content thumbnail or nothing: never the file-type icon. Null when the shell has no thumbnail for the file (spec §10.4).</summary>
+    ThumbnailOnly,
 }
 
 /// <summary>Pixels of a thumbnail: top-down 32-bit BGRA with premultiplied alpha, ready for a WinUI <c>WriteableBitmap</c>.</summary>

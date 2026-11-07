@@ -47,6 +47,34 @@ public sealed record MediaProbeAnswer(string Path, MediaProbeStatus Status, Medi
 /// <param name="Unreadable">Files currently marked unreadable.</param>
 public sealed record MediaHostStatus(int Running, int Waiting, long Probed, int Unreadable);
 
+/// <summary>A video thumbnail wanted from the media process (spec §10.4).</summary>
+/// <param name="Path">Win32 path of the video.</param>
+/// <param name="Size">Size in bytes (part of the cache identity).</param>
+/// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
+/// <param name="IsNetwork">True for a file on a network drive (read with limits).</param>
+/// <param name="Edge">Longest edge of the picture in pixels.</param>
+public sealed record MediaThumbnailRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, int Edge);
+
+/// <summary>Whether a thumbnail could be drawn.</summary>
+public enum MediaThumbnailStatus
+{
+    /// <summary>The JPEG is in <see cref="MediaThumbnailAnswer.Jpeg"/>.</summary>
+    Ok,
+
+    /// <summary>No frame could be drawn from the file.</summary>
+    Failed,
+
+    /// <summary>ffmpeg is not installed.</summary>
+    ToolMissing,
+}
+
+/// <summary>A thumbnail as a small JPEG, or why there is none.</summary>
+/// <param name="Path">The video.</param>
+/// <param name="Status">What happened.</param>
+/// <param name="Jpeg">The picture.</param>
+/// <param name="Message">Why there is none.</param>
+public sealed record MediaThumbnailAnswer(string Path, MediaThumbnailStatus Status, byte[]? Jpeg, string? Message);
+
 /// <summary>
 /// The media process (Leviathan.Media), called by the UI over a named pipe (spec §2.2, §9.3): ffprobe metadata with a cache, in a process
 /// of its own so a file that hangs or kills a media tool costs a restart of this process, never the window. Cancelling a call (the
@@ -74,4 +102,10 @@ public interface IMediaService
 
     /// <summary>The files currently marked unreadable, newest first, with their reasons.</summary>
     Task<IReadOnlyList<MediaProbeAnswer>> GetUnreadableAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A frame of a video as a JPEG, from the disk cache or drawn by ffmpeg now (spec §10.4). Two are drawn at a time; a call whose
+    /// token is cancelled before its turn never starts, and one already running is stopped.
+    /// </summary>
+    Task<MediaThumbnailAnswer> GetThumbnailAsync(MediaThumbnailRequest request, CancellationToken cancellationToken);
 }

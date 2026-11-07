@@ -61,6 +61,7 @@ public sealed unsafe class ShellThumbnailSource : IThumbnailSource, IDisposable
             {
                 ThumbnailMode.IconOnly => SIIGBF.SIIGBF_ICONONLY,
                 ThumbnailMode.CachedOnly => SIIGBF.SIIGBF_INCACHEONLY | SIIGBF.SIIGBF_BIGGERSIZEOK,
+                ThumbnailMode.ThumbnailOnly => SIIGBF.SIIGBF_THUMBNAILONLY | SIIGBF.SIIGBF_RESIZETOFIT | SIIGBF.SIIGBF_BIGGERSIZEOK,
                 _ => SIIGBF.SIIGBF_RESIZETOFIT | SIIGBF.SIIGBF_BIGGERSIZEOK,
             };
 

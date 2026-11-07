@@ -46,7 +46,7 @@ public sealed class MediaProcessTests : IAsyncDisposable
     {
         var dll = Path.Combine(AppContext.BaseDirectory, "Leviathan.Media.dll");
         Assert.True(File.Exists(dll), "Leviathan.Media.dll was not built next to the tests.");
-        var launcher = new ExecutableLauncher("dotnet", $"\"{dll}\" --pipe {_pipe} --db \"{DatabasePath}\"");
+        var launcher = new ExecutableLauncher("dotnet", $"\"{dll}\" --pipe {_pipe} --db \"{DatabasePath}\" --thumbs \"{Path.Combine(_folder, "thumbs")}\"");
         var connection = new MediaHostConnection(launcher, _pipe);
         _toDispose.Add(connection);
         return connection;
@@ -71,6 +71,38 @@ public sealed class MediaProcessTests : IAsyncDisposable
 
     private static MediaProbeRequest Request(string path) =>
         new(path, new FileInfo(path).Length, File.GetLastWriteTimeUtc(path).Ticks, IsNetwork: false);
+
+    [Fact]
+    public async Task Process_DrawsAThumbnail_AsAJpeg_AndKeepsItInItsDiskCache()
+    {
+        Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var service = await Connection().GetServiceAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+        var request = new MediaThumbnailRequest(ClipPath, new FileInfo(ClipPath).Length, File.GetLastWriteTimeUtc(ClipPath).Ticks, false, 96);
+
+        var first = await service.GetThumbnailAsync(request, CancellationToken.None);
+        var second = await service.GetThumbnailAsync(request, CancellationToken.None);
+
+        Assert.Equal(MediaThumbnailStatus.Ok, first.Status);
+        Assert.Equal([(byte)0xFF, (byte)0xD8], first.Jpeg!.Take(2));
+        Assert.Equal(first.Jpeg, second.Jpeg);
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(_folder, "thumbs"), "*.jpg", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task Process_AThumbnailOfABrokenFile_IsFailed_AndTheProcessKeepsAnswering()
+    {
+        Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var broken = Path.Combine(_folder, "broken.mp4");
+        await File.WriteAllBytesAsync(broken, [1, 2, 3, 4, 5, 6, 7, 8]);
+        var service = await Connection().GetServiceAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+
+        var answer = await service.GetThumbnailAsync(new MediaThumbnailRequest(broken, 8, File.GetLastWriteTimeUtc(broken).Ticks, false, 96), CancellationToken.None);
+        var good = await service.GetThumbnailAsync(new MediaThumbnailRequest(ClipPath, new FileInfo(ClipPath).Length, File.GetLastWriteTimeUtc(ClipPath).Ticks, false, 96), CancellationToken.None);
+
+        Assert.Equal(MediaThumbnailStatus.Failed, answer.Status);
+        Assert.Null(answer.Jpeg);
+        Assert.Equal(MediaThumbnailStatus.Ok, good.Status);
+    }
 
     [Fact]
     public async Task Process_Starts_AnswersAProbe_AndAnswersTheSecondFromItsCache()

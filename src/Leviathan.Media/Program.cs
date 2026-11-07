@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Leviathan.Core.Platform;
 using Leviathan.Data;
 using Leviathan.Diagnostics;
 using Leviathan.Diagnostics.Crash;
@@ -11,9 +12,10 @@ using Microsoft.Extensions.Logging;
 
 const string ProcessName = "Leviathan.Media";
 
-// Tests start a private process on their own pipe and database with --pipe <name> --db <path>, so they never meet the user's.
+// Tests start a private process on their own pipe and database with --pipe <name> --db <path> --thumbs <folder>, so they never meet the user's.
 var pipeName = ArgumentAfter(args, "--pipe") ?? PipeNaming.MediaPipe();
 var databasePath = ArgumentAfter(args, "--db") ?? LeviathanDatabase.DefaultPath;
+var thumbnailFolder = ArgumentAfter(args, "--thumbs") ?? Path.Combine(DataLocation.Root(), "thumbs");
 
 // One media process per pipe, which is one per Windows user and data folder. A second copy exits quietly; the UI connects to the first.
 using var singleInstance = new Mutex(initiallyOwned: true, $@"Local\{ProcessName}.{pipeName}", out var isFirst);
@@ -47,6 +49,11 @@ builder.Services.AddSingleton(sp => new MediaMetadataService(
     sp.GetRequiredService<IMediaMetadataStore>(),
     sp.GetRequiredService<TimeProvider>()));
 
+builder.Services.AddSingleton(sp => new ThumbnailService(new ThumbnailMaker(
+    new SystemProcessRunner(),
+    () => sp.GetRequiredService<FfmpegTools>(),
+    new ThumbnailDiskCache(thumbnailFolder))));
+
 // Whatever the previous process was reading when it died is the suspect: it is marked unreadable now, before any request, so one bad
 // file cannot make this process crash again and again (spec 9.3, 3.4).
 builder.Services.AddSingleton(sp =>
@@ -57,7 +64,7 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName).LogWarning("Quarantined {Count} file(s) that were being read when the last media process stopped", quarantined);
     }
 
-    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>());
+    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>());
 });
 builder.Services.AddSingleton(sp => new MediaPipeService(sp.GetRequiredService<MediaHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MediaPipeService>());

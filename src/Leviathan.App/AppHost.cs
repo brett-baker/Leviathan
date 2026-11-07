@@ -519,7 +519,12 @@ internal sealed class AppHost
         var operations = new OperationsModel();
         AppHost? built = null;
         UiTrace.Mark("AppHost: operations model");
-        var thumbnailGate = new NetworkThumbnailGate(new ShellThumbnailSource());
+        // Video thumbnails (spec §10.4): the shell's own when it has one, else a frame ffmpeg draws in the media process. The gate stays
+        // outermost, so "no thumbnails on network drives" also keeps ffmpeg off them. LEVIATHAN_VIDEO_FRAMES=1 skips the shell for video.
+        var thumbnailGate = new NetworkThumbnailGate(new VideoThumbnailSource(
+            new ShellThumbnailSource(),
+            new FfmpegFrameSource(() => built!.MediaHost),
+            preferFrames: Environment.GetEnvironmentVariable("LEVIATHAN_VIDEO_FRAMES") == "1"));
         UiTrace.Mark("AppHost: thumbnail gate");
         var thumbnails = new ThumbnailCache(thumbnailGate);
         BackgroundModel? background = null;

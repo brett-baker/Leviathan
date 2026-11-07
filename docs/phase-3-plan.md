@@ -44,7 +44,7 @@ Every slice follows `CLAUDE.md`.
 
 ### B. Thumbnails, contact sheets, hover scrub (§10.4, §10.5)
 
-- [ ] **B1. Video thumbnails** via ffmpeg when the shell has none; cached on disk; cancellation for off-screen items.
+- [x] **B1. Video thumbnails** (done: for a video the shell has no thumbnail for, the Media process draws a frame with ffmpeg (keyframe seek to a tenth in, scaled to the cell), keeps it on disk as a JPEG (512 MB cap, least recently used removed), two at a time, cancelled when the row scrolls away; the shell's own thumbnail still wins when it has one; `IMediaService.GetThumbnailAsync`, contract minor 11; seen on screen with `LEVIATHAN_VIDEO_FRAMES=1`)
 - [ ] **B2. Contact sheets**: 3×3 to 6×6 frames by keyframe seeking, cached as one JPEG, click a frame to play from there,
   background generation for a folder.
 - [ ] **B3. Hover scrub**: 16–24 frame sprite strip generated on first hover, horizontal position → time, optional muted
