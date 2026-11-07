@@ -153,6 +153,24 @@ $bulk = Join-Path $uat '07-bulk-copy'
 # 8. Empty targets to copy into.
 foreach ($name in 'target-a', 'target-b') { New-Item -ItemType Directory -Path (Join-Path $uat "08-targets\$name") -Force | Out-Null }
 
+# 9. A few tiny clips for the media columns (needs ffmpeg on the PATH or in LEVIATHAN_FFMPEG_DIR; skipped when it is missing).
+$media = Join-Path $uat '09-media'
+New-Item -ItemType Directory -Path $media -Force | Out-Null
+$ff = if ($env:LEVIATHAN_FFMPEG_DIR) { Join-Path $env:LEVIATHAN_FFMPEG_DIR 'ffmpeg.exe' } else { (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source }
+if ($ff) {
+    function Pattern([int]$secs) { @('-f', 'lavfi', '-i', "testsrc=duration=${secs}:size=320x180:rate=30000/1001") }
+    function Tone([int]$secs) { @('-f', 'lavfi', '-i', "sine=frequency=440:duration=${secs}") }
+    & $ff -y -v error @(Pattern 3) @(Tone 3) -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest (Join-Path $media 'short-3s.mp4')
+    & $ff -y -v error @(Pattern 45) @(Tone 45) -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest (Join-Path $media 'medium-45s.mkv')
+    & $ff -y -v error @(Pattern 125) -c:v libx264 -pix_fmt yuv420p (Join-Path $media 'long-2m05.avi')
+    & $ff -y -v error @(Pattern 5) -c:v libx265 -pix_fmt yuv420p10le -x265-params 'log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc' (Join-Path $media 'hdr10-5s.mkv')
+    & $ff -y -v error @(Tone 20) -c:a flac (Join-Path $media 'song-20s.flac')
+} else {
+    Write-Warning 'ffmpeg not found: 09-media has only the broken clip and the text file.'
+}
+[IO.File]::WriteAllBytes((Join-Path $media 'broken.mp4'), [byte[]](1..200 | ForEach-Object { Get-Random -Maximum 256 }))
+[IO.File]::WriteAllText((Join-Path $media 'notes.txt'), 'not media')
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 
