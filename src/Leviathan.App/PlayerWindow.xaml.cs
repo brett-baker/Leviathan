@@ -141,24 +141,7 @@ internal sealed partial class PlayerWindow : Window
         var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
         var shift = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
         var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
-        Task? work = e.Key switch
-        {
-            VirtualKey.Space => keys.TogglePlayAsync(),
-            VirtualKey.Right => keys.JumpAsync(Jump(ctrl, shift, alt)),
-            VirtualKey.Left => keys.JumpAsync(-Jump(ctrl, shift, alt)),
-            VirtualKey.Home => keys.HomeAsync(),
-            VirtualKey.End => keys.EndAsync(),
-            (VirtualKey)190 => keys.StepFrameAsync(forward: true),
-            (VirtualKey)188 => keys.StepFrameAsync(forward: false),
-            (VirtualKey)221 => keys.SpeedUpAsync(),
-            (VirtualKey)219 => keys.SlowDownAsync(),
-            VirtualKey.J => keys.SkimBackAsync(),
-            VirtualKey.K => keys.PauseAsync(),
-            VirtualKey.L => keys.SkimForwardAsync(),
-            >= VirtualKey.Number1 and <= VirtualKey.Number9 when ctrl => keys.JumpToTenthAsync(e.Key - VirtualKey.Number0),
-            VirtualKey.Escape => CloseSoon(),
-            _ => null,
-        };
+        var work = e.Key == VirtualKey.Escape ? CloseSoon() : PlaybackKeyMap.Handle(keys, e.Key, ctrl, shift, alt);
         if (work is null)
         {
             return;
@@ -176,10 +159,6 @@ internal sealed partial class PlayerWindow : Window
 
         Refresh();
     }
-
-    // Plain arrows jump 30 s, Shift 1 min, Ctrl 5 min and Alt 5 s (spec §10.2).
-    private static TimeSpan Jump(bool ctrl, bool shift, bool alt) =>
-        alt ? TimeSpan.FromSeconds(5) : ctrl ? TimeSpan.FromMinutes(5) : shift ? TimeSpan.FromMinutes(1) : TimeSpan.FromSeconds(30);
 
     private Task CloseSoon()
     {

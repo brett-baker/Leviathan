@@ -59,9 +59,15 @@ Every slice follows `CLAUDE.md`.
 ### D. Preview and details pane (§9)
 
 - [x] **D1. Pane shell** (done: collapse with Alt+P or the header button, splitter on the left edge, S/M/L video size and a drag handle under the video, collapsible Preview and Details parts, "Preview · left pane" in a split tab, Space opens a floating preview shell; all of it remembered per window in the session)
-- [ ] **D2. Renderers**: video (with icon seek controls 5 min / 1 min / 30 s / play / 30 s / 1 min / 5 min / skim, filmstrip,
-  hover frame preview), audio, images (WIC, zoom/pan, EXIF orientation), PDF, text/code (first 2 MB), Markdown/HTML in a
-  sandboxed WebView2, Office via shell preview handlers in ShellHost, archives, fonts, folders, multi-selection.
+- [ ] **D2. Renderers** (spec 9.1), in slices:
+  - [x] **D2a. Selection pipeline, video and audio** (done: `PreviewClassifier` picks the renderer by extension, `PreviewCoordinator` loads after the selection rests 150 ms and cancels when it moves on; the pane plays video and audio with LibVLC, opened paused on the first frame, with the icon controls and a seek bar; the player window and the pane share `PlaybackKeyMap`; a file on a share is read ahead)
+  - [ ] **D2b. Images**: WIC with zoom and pan, EXIF orientation, animated GIF and WebP, HEIC/AVIF/RAW where Windows has a codec.
+  - [ ] **D2c. Text, code, Markdown, HTML**: first 2 MB with encoding detection and syntax colours; Markdown and HTML in a sandboxed
+    WebView2 with scripts and network off.
+  - [ ] **D2d. PDF, fonts, archives, folders, several items**: Windows.Data.Pdf pages; font samples; archive listing (7-Zip); folder
+    count, size and mini space map; count, size and type breakdown with a strip of thumbnails.
+  - [ ] **D2e. Office documents**: the registered shell preview handler hosted out of process in ShellHost.
+  - [ ] **D2f. Video extras**: filmstrip, hover frame preview on the seek bar, audio waveform and cover art.
 - [ ] **D3. Details**: grouped metadata (general, tags, media streams, image EXIF/IPTC/XMP, audio tags, document, all Windows
   properties), checksums on demand, in-place editing of tags/rating/title/comments.
 

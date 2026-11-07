@@ -380,9 +380,11 @@
               <TextBlock x:Name="PreviewSectionLabel" Text="▾ Preview" Style="{StaticResource CaptionTextBlockStyle}" />
             </Button>
             <StackPanel x:Name="PreviewBody" Spacing="0">
-              <Border x:Name="VideoArea" Height="130" CornerRadius="4" Background="{ThemeResource ControlAltFillColorSecondaryBrush}" Padding="12">
-                <TextBlock x:Name="VideoPlaceholder" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <Border x:Name="VideoArea" Height="130" CornerRadius="4" Background="{ThemeResource ControlAltFillColorSecondaryBrush}">
+                <Grid x:Name="VideoHost">
+                  <TextBlock x:Name="VideoPlaceholder" Margin="12" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
+                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Grid>
               </Border>
               <!-- Drag this to make the video taller or shorter (spec 9). -->
               <local:ResizeHandle x:Name="VideoHandle" Height="10" Background="Transparent" AutomationProperties.Name="Resize video"
@@ -390,6 +392,8 @@
                 <Border Height="3" Width="36" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center"
                         Background="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
               </local:ResizeHandle>
+              <!-- The playback controls, shown while a video or audio file is previewed (spec 9). -->
+              <local:PlaybackBar x:Name="PreviewBar" Margin="0,2,0,0" Visibility="Collapsed" />
               <!-- Spec 15.1: with two panes, the selection can be sent to the other pane from here, right under the video. -->
               <StackPanel x:Name="PreviewActions" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0" Visibility="Collapsed">
                 <Button x:Name="PreviewMoveButton" Content="Move (F6)" Click="OnPreviewMoveClick" />

@@ -1132,6 +1132,7 @@ public sealed partial class MainWindow : Window, IShellActions
         _viewModel.Tabs.Tabs.CollectionChanged -= OnTabsChanged;
         _viewModel.Tabs.PropertyChanged -= OnStripPropertyChanged;
         _viewModel.Tabs.Groups.CollectionChanged -= OnGroupsCollectionChanged;
+        ClosePreview();
         _closing.Cancel();
         _closing.Dispose();
     }

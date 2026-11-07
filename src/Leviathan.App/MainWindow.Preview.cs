@@ -1,5 +1,7 @@
 using Leviathan.Core.Model;
+using Leviathan.Playback;
 using Leviathan.ViewModels.Commands;
+using Leviathan.ViewModels.Preview;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,12 +16,19 @@ namespace Leviathan.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private PreviewCoordinator? _coordinator;
+    private PreviewPlayer? _player;
+    private string _previewKey = string.Empty;
+    private bool _previewActive;
     private double _handleStartY;
     private double _handleStartHeight;
     private bool _handleDragging;
 
     private void InitializePreviewPane()
     {
+        // Previews load after the selection has rested for 150 ms and are cancelled when it moves on (spec 9.1).
+        _coordinator = new PreviewCoordinator(TimeProvider.System);
+        _coordinator.Requested += (_, request) => OnUi(() => _ = ShowRequestedAsync(request));
         PreviewGrip.GrowsLeft = true;
         PreviewGrip.CurrentWidth = () => _viewModel.ShowPreview ? _viewModel.PreviewWidth : 0;
         PreviewGrip.WidthRequested += (_, width) =>
@@ -66,6 +75,104 @@ public sealed partial class MainWindow
         PreviewSectionLabel.Text = (_viewModel.PreviewCollapsed ? "▸ " : "▾ ") + "Preview";
         DetailsBody.Visibility = _viewModel.DetailsCollapsed ? Visibility.Collapsed : Visibility.Visible;
         DetailsSectionLabel.Text = (_viewModel.DetailsCollapsed ? "▸ " : "▾ ") + "Details";
+
+        // A hidden or collapsed preview shows nothing and plays nothing; showing it again previews the selection from scratch.
+        var active = shown && !_viewModel.PreviewCollapsed;
+        if (active != _previewActive)
+        {
+            _previewActive = active;
+            if (active)
+            {
+                _previewKey = string.Empty;
+                UpdatePreview();
+            }
+            else
+            {
+                _coordinator?.Cancel();
+                _ = StopPlayerAsync();
+            }
+        }
+    }
+
+    // What the pane shows for a selection that has rested: media is played by the engine, everything else keeps its placeholder until
+    // its own renderer exists (the next slices).
+    private async Task ShowRequestedAsync(PreviewRequest request)
+    {
+        if (!_previewActive || _closed)
+        {
+            return;
+        }
+
+        try
+        {
+            if (request.Kind is PreviewKind.Video or PreviewKind.Audio)
+            {
+                var entry = request.Entries[0];
+                var path = entry.Location.ToWin32Path();
+                var player = EnsurePlayer();
+                VideoPlaceholder.Visibility = Visibility.Collapsed;
+                player.Visibility = Visibility.Visible;
+                PreviewBar.Visibility = Visibility.Visible;
+                PreviewBar.Start();
+
+                // A file on a share is read ahead (its header and index) while the engine opens it (spec 10.1).
+                if (entry.Location.IsNetwork)
+                {
+                    _ = Task.Run(() => MediaPrefetcher.PrefetchAsync(path, request.Cancellation));
+                }
+
+                await player.OpenAsync(path, entry.Name, request.Kind == PreviewKind.Audio, request.Cancellation);
+            }
+            else
+            {
+                await StopPlayerAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The selection moved on while this one was opening.
+        }
+    }
+
+    private PreviewPlayer EnsurePlayer()
+    {
+        if (_player is { } existing)
+        {
+            return existing;
+        }
+
+        var player = new PreviewPlayer();
+        player.Failed += (_, message) => OnUi(() =>
+        {
+            VideoPlaceholder.Text = $"The video engine could not start: {message}";
+            VideoPlaceholder.Visibility = Visibility.Visible;
+        });
+        VideoHost.Children.Add(player);
+        PreviewBar.Attach(player);
+        return _player = player;
+    }
+
+    private async Task StopPlayerAsync()
+    {
+        PreviewBar.Stop();
+        PreviewBar.Visibility = Visibility.Collapsed;
+        VideoPlaceholder.Visibility = Visibility.Visible;
+        if (_player is { } player)
+        {
+            player.Visibility = Visibility.Collapsed;
+            await player.CloseFileAsync();
+        }
+    }
+
+    /// <summary>Stops the preview and releases the engine when the window closes.</summary>
+    private void ClosePreview()
+    {
+        _coordinator?.Dispose();
+        if (_player is { } player)
+        {
+            _player = null;
+            _ = player.ReleaseAsync();
+        }
     }
 
     private void OnQuickPreviewRequested(object? sender, EventArgs e) => Run(CommandIds.PreviewQuick);
@@ -130,7 +237,18 @@ public sealed partial class MainWindow
         UpdatePreviewActions();
         var tab = _viewModel.Tabs.Selected;
         PreviewTitle.Text = PreviewText.Title(tab is { IsSplit: true } ? tab.Panes : ViewModels.Tabs.PaneLayout.Single, tab?.FocusedPane ?? 0);
-        VideoPlaceholder.Text = PreviewText.Placeholder(_bound?.Selection.SelectedEntries ?? []);
+        var chosen = _bound?.Selection.SelectedEntries ?? [];
+        VideoPlaceholder.Text = PreviewText.Placeholder(chosen);
+        var key = string.Join('|', chosen.Select(e => e.Location.Value));
+        if (key != _previewKey)
+        {
+            _previewKey = key;
+            if (_previewActive)
+            {
+                _coordinator?.Select(chosen);
+            }
+        }
+
         if (_bound?.Selection.SelectedEntries is not { Count: 1 } selected || selected[0].Kind == FileEntryKind.File || _bound.Sizes is not { } sizes)
         {
             PreviewName.Visibility = Visibility.Collapsed;
