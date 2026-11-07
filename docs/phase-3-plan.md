@@ -51,8 +51,7 @@ Every slice follows `CLAUDE.md`.
 
 ### C. Playback (§9.1, §10)
 
-- [ ] **C1. `IVideoEngine`** abstraction (open, play/pause, seek absolute/relative, speed, frame step, audio track, events) with
-  a fake for view-model tests.
+- [x] **C1. `IVideoEngine`** (done: `IVideoEngine`, `PlaybackSnapshot` and `AudioTrack` in Core; `FakeVideoEngine` in the testing project; `PlaybackController` in the view models works out the spec §10.2 keys on top of any engine: jumps, percent keys, Home/End, frame step, the speed ladder and J/K/L; nothing to see on screen yet, the first picture is C2)
 - [ ] **C2. libmpv engine** hosted in WinUI (swap chain panel), hardware decode, precise seeking.
 - [ ] **C3. LibVLC engine** via LibVLCSharp; switch engines in Settings without restart.
 - [ ] **C4. Pre-warm and pre-buffer**: engine warm while the preview pane is open; next file pre-opened in a hidden instance;
