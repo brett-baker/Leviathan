@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Leviathan.App.ContactSheetWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Window.SystemBackdrop>
+    <MicaBackdrop />
+  </Window.SystemBackdrop>
+
+  <Grid Padding="16" RowSpacing="10">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <TextBlock x:Name="TitleText" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+
+    <Grid Grid.Row="1">
+      <Image x:Name="SheetImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+             PointerMoved="OnImagePointerMoved" PointerExited="OnImagePointerExited" Visibility="Collapsed" />
+      <ProgressRing x:Name="Busy" IsActive="True" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnSpacing="12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <ComboBox x:Name="GridBox" SelectedIndex="1" SelectionChanged="OnGridChanged" ToolTipService.ToolTip="Frames in the sheet">
+        <ComboBoxItem Content="3 × 3" Tag="3" />
+        <ComboBoxItem Content="4 × 4" Tag="4" />
+        <ComboBoxItem Content="5 × 5" Tag="5" />
+        <ComboBoxItem Content="6 × 6" Tag="6" />
+      </ComboBox>
+      <TextBlock x:Name="HoverText" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Move the mouse over a frame to see where in the video it is from." />
+      <Button x:Name="SaveButton" Grid.Column="2" Content="Save as…" Click="OnSaveClick" IsEnabled="False" />
+    </Grid>
+  </Grid>
+</Window>

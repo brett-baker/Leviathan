@@ -49,6 +49,15 @@ public sealed record QuarantinedFile(string Path, string Reason)
 /// <param name="Quarantined">Files that could not be read.</param>
 public sealed record MediaBackgroundStats(int Running, int Waiting, long Probed, IReadOnlyList<QuarantinedFile> Quarantined);
 
+/// <summary>A folder of contact sheets being made (or just finished) in the background (spec §10.4).</summary>
+/// <param name="Folder">Where they are saved.</param>
+/// <param name="Done">Videos finished, saved or failed.</param>
+/// <param name="Total">Videos in the batch.</param>
+/// <param name="Failed">Videos no sheet could be made of.</param>
+/// <param name="Running">True until the last one is done or the batch is cancelled.</param>
+/// <param name="Current">The video being worked on.</param>
+public sealed record ContactSheetBatchStats(string Folder, int Done, int Total, int Failed, bool Running, string? Current);
+
 /// <summary>Everything the Background tab shows at one moment.</summary>
 /// <param name="Tasks">Background jobs, active first.</param>
 /// <param name="FolderSizes">The folder-size line: running, queued and the rate.</param>
@@ -59,6 +68,8 @@ public sealed record MediaBackgroundStats(int Running, int Waiting, long Probed,
 /// <param name="Network">The network line: folders watched for changes and the listings kept for offline use.</param>
 /// <param name="Media">The video and audio details line: what the media process is reading.</param>
 /// <param name="Quarantined">Files the media process could not read, each with a "retry" button.</param>
+/// <param name="ContactSheets">The contact sheet line: a batch being made or just finished; empty when there is none.</param>
+/// <param name="ContactSheetsRunning">True while a batch runs (the Cancel button shows).</param>
 public sealed record BackgroundView(
     IReadOnlyList<BackgroundTaskEntry> Tasks,
     string FolderSizes,
@@ -68,7 +79,9 @@ public sealed record BackgroundView(
     bool AllPaused,
     string Network = "Not in use",
     string Media = "Not started",
-    IReadOnlyList<QuarantinedFile>? Quarantined = null);
+    IReadOnlyList<QuarantinedFile>? Quarantined = null,
+    string ContactSheets = "",
+    bool ContactSheetsRunning = false);
 
 /// <summary>
 /// What the Background tab of the status hub shows (spec §16.1): the worker's background lane (folder sizes, later metadata
@@ -117,8 +130,17 @@ public sealed class BackgroundModel
     /// <summary>Lets the media process try a quarantined file again; true when it was on the list.</summary>
     public Func<string, Task<bool>>? RetryMediaAsync { get; set; }
 
+    /// <summary>Reads the contact sheet batch, or null when none was started.</summary>
+    public Func<ContactSheetBatchStats?>? ContactSheets { get; set; }
+
+    /// <summary>Stops the contact sheet batch after the video being worked on.</summary>
+    public Action? CancelContactSheets { get; set; }
+
     /// <summary>Raised after a job changed, on whatever thread delivered the snapshot.</summary>
     public event EventHandler? Changed;
+
+    /// <summary>Tells the tab that something it shows (the contact sheet batch) changed.</summary>
+    public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 
     /// <summary>Takes the worker's latest word on a job; jobs of the operations lane are not listed here.</summary>
     public void Apply(JobSnapshot job)
@@ -199,7 +221,27 @@ public sealed class BackgroundModel
             active > 0 && paused == active,
             NetworkLine(Network?.Invoke()),
             MediaLine(Media?.Invoke()),
-            Media?.Invoke()?.Quarantined ?? []);
+            Media?.Invoke()?.Quarantined ?? [],
+            ContactSheetLine(ContactSheets?.Invoke()),
+            ContactSheets?.Invoke() is { Running: true });
+    }
+
+    private static string ContactSheetLine(ContactSheetBatchStats? batch)
+    {
+        if (batch is null)
+        {
+            return string.Empty;
+        }
+
+        var failed = batch.Failed > 0 ? $" · {batch.Failed} could not be made" : string.Empty;
+        if (batch.Running)
+        {
+            return $"Making contact sheets into {batch.Folder}: {batch.Done:N0} of {batch.Total:N0}{failed}" + (batch.Current is { } name ? $" · {name}" : string.Empty);
+        }
+
+        return batch.Done >= batch.Total
+            ? $"Made {batch.Total - batch.Failed:N0} contact sheet{(batch.Total - batch.Failed == 1 ? string.Empty : "s")} in {batch.Folder}{failed}"
+            : $"Stopped after {batch.Done:N0} of {batch.Total:N0} in {batch.Folder}{failed}";
     }
 
     private static string MediaLine(MediaBackgroundStats? stats)

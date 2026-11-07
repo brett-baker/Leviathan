@@ -368,6 +368,17 @@
               <TextBlock x:Name="MediaText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <ItemsControl x:Name="QuarantineList" ItemTemplate="{StaticResource QuarantineTemplate}" />
             </StackPanel>
+            <StackPanel x:Name="SheetsSection" Spacing="4" Visibility="Collapsed">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Contact sheets" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                <Button x:Name="CancelSheetsButton" Grid.Column="1" Content="Cancel" Click="OnCancelSheetsClick" />
+              </Grid>
+              <TextBlock x:Name="SheetsText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
             <StackPanel Spacing="4">
               <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />
               <TextBlock x:Name="NetworkText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

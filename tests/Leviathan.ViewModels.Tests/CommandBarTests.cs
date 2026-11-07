@@ -78,8 +78,8 @@ public sealed class ContextActionsTests
         Assert.Contains(nothing, b => b.Command == CommandIds.SelectAll);
         Assert.Contains(nothing, b => b.Command == CommandIds.TabNew);
         Assert.DoesNotContain(nothing, b => b.Command == CommandIds.SpaceMap);
-        Assert.Equal([CommandIds.ItemOpen], video.Select(b => b.Command));
-        Assert.Empty(ContextActions.For(SelectionClass.Several, h.Commands));
+        Assert.Equal([CommandIds.ItemOpen, CommandIds.ContactSheet], video.Select(b => b.Command));
+        Assert.Equal([CommandIds.ContactSheet], ContextActions.For(SelectionClass.Several, h.Commands).Select(b => b.Command));
     }
 
     [Fact]

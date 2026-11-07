@@ -167,6 +167,12 @@ internal sealed class AppHost
 
     private NetworkThumbnailGate ThumbnailGate { get; init; } = null!;
 
+    /// <summary>Asks the media process for contact sheets (spec §10.4).</summary>
+    internal ContactSheetClient SheetClient { get; init; } = null!;
+
+    /// <summary>The folder of contact sheets being made in the background, if any.</summary>
+    internal ContactSheetBatch SheetBatch { get; init; } = null!;
+
     /// <summary>The folder a new tab opens: the one chosen in General, else Home.</summary>
     public LocationPath NewTabLocation() =>
         Settings.Current.General.NewTabLocation is { Length: > 0 } chosen && LocationPath.TryParse(chosen, out var parsed) ? parsed : Home;
@@ -563,6 +569,10 @@ internal sealed class AppHost
         background.Media = () => mediaBackground.Latest;
         background.RefreshMedia = mediaBackground.Refresh;
         background.RetryMediaAsync = mediaBackground.RetryAsync;
+        var sheetClient = new ContactSheetClient(() => built!.MediaHost);
+        var sheetBatch = new ContactSheetBatch(sheetClient, background.NotifyChanged);
+        background.ContactSheets = () => sheetBatch.Stats;
+        background.CancelContactSheets = sheetBatch.Cancel;
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
@@ -668,6 +678,8 @@ internal sealed class AppHost
             Bin = new BinModel(binService),
             Sizes = sizes,
             ThumbnailGate = thumbnailGate,
+            SheetClient = sheetClient,
+            SheetBatch = sheetBatch,
             WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),

@@ -243,4 +243,24 @@ public sealed class BackgroundModelTests
 
         Assert.Equal("Idle · 1 file read since it started", model.View().Media);
     }
+
+    [Fact]
+    public void ContactSheets_AreAnEmptyLineUntilABatchStarts_ThenShowProgress_AndWhatHappened()
+    {
+        ContactSheetBatchStats? batch = null;
+        var model = new BackgroundModel { ContactSheets = () => batch };
+        Assert.Equal(string.Empty, model.View().ContactSheets);
+
+        batch = new ContactSheetBatchStats(@"D:\out", 3, 12, 1, true, "c.mkv");
+        var running = model.View();
+        Assert.Equal(@"Making contact sheets into D:\out: 3 of 12 · 1 could not be made · c.mkv", running.ContactSheets);
+        Assert.True(running.ContactSheetsRunning);
+
+        batch = new ContactSheetBatchStats(@"D:\out", 12, 12, 1, false, null);
+        Assert.Equal(@"Made 11 contact sheets in D:\out · 1 could not be made", model.View().ContactSheets);
+        Assert.False(model.View().ContactSheetsRunning);
+
+        batch = new ContactSheetBatchStats(@"D:\out", 5, 12, 0, false, null);
+        Assert.Equal(@"Stopped after 5 of 12 in D:\out", model.View().ContactSheets);
+    }
 }

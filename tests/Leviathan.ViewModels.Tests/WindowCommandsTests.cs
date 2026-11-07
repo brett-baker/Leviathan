@@ -32,6 +32,14 @@ public sealed class WindowCommandsTests
 
         public void ShowMessage(string message) => Messages.Add(message);
 
+        public List<Leviathan.Core.Model.FileEntry> Sheets { get; } = [];
+
+        public List<IReadOnlyList<Leviathan.Core.Model.FileEntry>> SheetBatches { get; } = [];
+
+        public void OpenContactSheet(Leviathan.Core.Model.FileEntry video) => Sheets.Add(video);
+
+        public void ExportContactSheets(IReadOnlyList<Leviathan.Core.Model.FileEntry> videos) => SheetBatches.Add(videos);
+
         public bool Confirm { get; set; } = true;
 
         public List<string> Confirmations { get; } = [];
@@ -103,6 +111,22 @@ public sealed class WindowCommandsTests
 
         public Task<CommandResult> Run(CommandId id, string? target = null, object? parameter = null) =>
             Commands.ExecuteAsync(id, new CommandContext(target, parameter), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ContactSheet_OfOneVideo_OpensItsWindow_AndOfSeveral_StartsTheBatch_AndIsRefusedForNonVideo()
+    {
+        var h = new Harness();
+        static Leviathan.Core.Model.FileEntry File(string name) =>
+            new(name, TabTestSupport.P($@"C:\a\{name}"), Leviathan.Core.Model.FileEntryKind.File, 10, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, FileAttributes.Normal);
+        var clip = File("clip.mkv");
+
+        await h.Run(CommandIds.ContactSheet, clip.Location.Value, clip);
+
+        Assert.Equal([clip], h.Shell.Sheets);
+        Assert.Empty(h.Shell.SheetBatches);
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.ContactSheet, @"C:\a.txt", File("1.txt")));
+        Assert.Single(h.Shell.Sheets);
     }
 
     [Fact]

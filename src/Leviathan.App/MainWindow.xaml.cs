@@ -148,6 +148,36 @@ public sealed partial class MainWindow : Window, IShellActions
     public void FocusAddressBar() => OnUi(() => Address.BeginEdit());
 
     /// <inheritdoc />
+    public void OpenContactSheet(FileEntry video) => OnUi(() => new ContactSheetWindow(video, App.Host.SheetClient).Activate());
+
+    /// <inheritdoc />
+    public void ExportContactSheets(IReadOnlyList<FileEntry> videos) => OnUi(() => _ = ExportContactSheetsAsync(videos));
+
+    private async Task ExportContactSheetsAsync(IReadOnlyList<FileEntry> videos)
+    {
+        if (App.Host.SheetBatch.IsRunning)
+        {
+            MessageText.Text = "Contact sheets are already being made. Cancel them on the Background tab first.";
+            return;
+        }
+
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FolderPicker();
+            picker.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+            if (await picker.PickSingleFolderAsync() is { } folder && App.Host.SheetBatch.Start(videos, folder.Path))
+            {
+                MessageText.Text = $"Making {videos.Count} contact sheets into {folder.Name}. Progress is on the Background tab.";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            MessageText.Text = $"Could not start the contact sheets: {ex.Message}";
+        }
+    }
+
+    /// <inheritdoc />
     public void OpenDiagnostics() => OnUi(() =>
     {
         if (s_diagnostics is null)

@@ -304,6 +304,9 @@ internal sealed partial class StatusHubPanel : UserControl
         var view = _background.View();
         FolderSizeText.Text = view.FolderSizes;
         MediaText.Text = view.Media;
+        SheetsSection.Visibility = view.ContactSheets.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        SheetsText.Text = view.ContactSheets;
+        CancelSheetsButton.Visibility = view.ContactSheetsRunning ? Visibility.Visible : Visibility.Collapsed;
         ThumbText.Text = view.Thumbnails;
         NetworkText.Text = view.Network;
         PauseAllButton.IsEnabled = view.AnyActive && !view.AllPaused;
@@ -357,6 +360,8 @@ internal sealed partial class StatusHubPanel : UserControl
             // The worker went away; the next refresh shows what it reports.
         }
     }
+
+    private void OnCancelSheetsClick(object sender, RoutedEventArgs e) => _background.CancelContactSheets?.Invoke();
 
     private async void OnRetryMediaClick(object sender, RoutedEventArgs e)
     {

@@ -102,6 +102,14 @@ public sealed class UiThreadAffinityTests
         }
 
         public Task<bool> ConfirmAsync(string title, string message, string confirmText) => Task.FromResult(true);
+
+        public void OpenContactSheet(Leviathan.Core.Model.FileEntry video)
+        {
+        }
+
+        public void ExportContactSheets(IReadOnlyList<Leviathan.Core.Model.FileEntry> videos)
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher

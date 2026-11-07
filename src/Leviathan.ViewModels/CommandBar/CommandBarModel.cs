@@ -150,6 +150,7 @@ public static class ContextActions
             new(CommandIds.ComputeSize, "Compute total size", ""),
             new(CommandIds.Compare, "Compare", ""),
             new(CommandIds.MoveToNewFolder, "Move to new folder", ""),
+            new(CommandIds.ContactSheet, "Contact sheets of the videos…", ""),
             new(CommandIds.TagSelection, "Tag", ""),
         ],
         SelectionClass.Video =>

@@ -30,6 +30,12 @@ public interface IShellActions
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
 
+    /// <summary>Opens the contact sheet of one video in its own window (spec §10.4).</summary>
+    void OpenContactSheet(FileEntry video);
+
+    /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
+    void ExportContactSheets(IReadOnlyList<FileEntry> videos);
+
     /// <summary>Asks a yes/no question (for example before deleting for good) and returns true when the user confirmed.</summary>
     Task<bool> ConfirmAsync(string title, string message, string confirmText);
 }
@@ -361,7 +367,7 @@ public static class CommandIds
     /// <summary>Triage mode starting at the selected video (Phase 3).</summary>
     public static readonly CommandId TriageFromHere = new("triage.fromHere");
 
-    /// <summary>Contact sheet of a video (Phase 3).</summary>
+    /// <summary>Contact sheet of one video (a window with the grid, saved on request), or of every video in a selection (made into a folder in the background).</summary>
     public static readonly CommandId ContactSheet = new("media.contactSheet");
 
     /// <summary>Extract a frame from a video (Phase 3).</summary>
@@ -844,6 +850,21 @@ public static partial class WindowCommands
         Add(CommandIds.ViewThumbnails, "Thumbnails layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Thumbnails)), _ => Current() is not null, shortcut: "Ctrl+Shift+2");
         Add(CommandIds.ViewTiles, "Tiles layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Tiles)), _ => Current() is not null, shortcut: "Ctrl+Shift+4");
         Add(CommandIds.ViewGallery, "Gallery layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Gallery)), _ => Current() is not null, shortcut: "Ctrl+Shift+1");
+
+        // A contact sheet of the video the command was run on, or of the videos in the selection (spec §10.4).
+        static bool IsVideo(FileEntry e) => e.Kind == FileEntryKind.File && Leviathan.Media.MediaFileKinds.IsVideo(e.Extension);
+        Add(CommandIds.ContactSheet, "Contact sheet", "Media", (c, _) => Run(() =>
+        {
+            IReadOnlyList<FileEntry> videos = c.Parameter is FileEntry one ? (IsVideo(one) ? [one] : []) : [.. Current()!.Selection.SelectedEntries.Where(IsVideo)];
+            if (videos.Count == 1)
+            {
+                shell.OpenContactSheet(videos[0]);
+            }
+            else if (videos.Count > 1)
+            {
+                shell.ExportContactSheets(videos);
+            }
+        }), c => Current() is not null && (c.Parameter is FileEntry entry ? IsVideo(entry) : Current()!.Selection.SelectedEntries.Any(IsVideo)));
 
         Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
             c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
