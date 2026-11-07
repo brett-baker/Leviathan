@@ -122,7 +122,7 @@ internal sealed partial class ContactSheetWindow : Window
     {
         if (FrameAt(e) is >= 0 and var index && _sheet is { } sheet)
         {
-            new PlayerWindow(_video.Location.ToWin32Path(), _video.Name, TimeSpan.FromSeconds(sheet.FrameSeconds[index])).Activate();
+            new PlayerWindow(_video.Location.ToWin32Path(), _video.Name, TimeSpan.FromSeconds(sheet.FrameSeconds[index]), _video.Location.IsNetwork).Activate();
         }
     }
 

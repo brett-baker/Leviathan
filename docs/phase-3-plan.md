@@ -54,8 +54,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **C1. `IVideoEngine`** (done: `IVideoEngine`, `PlaybackSnapshot` and `AudioTrack` in Core; `FakeVideoEngine` in the testing project; `PlaybackController` in the view models works out the spec §10.2 keys on top of any engine: jumps, percent keys, Home/End, frame step, the speed ladder and J/K/L; nothing to see on screen yet, the first picture is C2)
 - [x] **C2. libmpv engine**: dropped by Brett's decision, LibVLC only (decisions.md). libmpv is not installed here and WinUI 3 cannot host it directly.
 - [x] **C3. LibVLC engine** (done: `LibVlcEngine` in the new `Leviathan.Playback` project with hardware decoding on, a WinUI `PlayerWindow` that plays a video with the spec 10.2 keys, and click a frame of a contact sheet to play from there; no engine switch in Settings because there is only one engine)
-- [ ] **C4. Pre-warm and pre-buffer**: engine warm while the preview pane is open; next file pre-opened in a hidden instance;
-  on NAS read only header/index (MP4 tail when `moov` is at the end).
+- [x] **C4. Pre-warm and pre-buffer** (done as parts, wired up where each is used: `MediaPrefetcher` reads a video's header and, for MP4, its `moov` index (found by walking the top-level boxes, so a 6 GB file costs a few 8-byte reads) or the last MB of other containers, about 8 MB, and the player window runs it for files on a share while the engine starts; `EnginePool` keeps one spare engine warm and opens the next file paused in a hidden engine to be taken over, tested with the fake engine; the preview pane (D) and triage mode (E4) are what rent from the pool, and the < 300 ms preview budget is measured in G3)
 
 ### D. Preview and details pane (§9)
 

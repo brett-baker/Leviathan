@@ -35,7 +35,7 @@ internal sealed partial class PlayerWindow : Window
     private bool _updating;
 
     /// <summary>Opens a window that plays <paramref name="path"/> from <paramref name="start"/>.</summary>
-    public PlayerWindow(string path, string name, TimeSpan start)
+    public PlayerWindow(string path, string name, TimeSpan start, bool isNetwork = false)
     {
         _path = path;
         _name = name;
@@ -47,6 +47,13 @@ internal sealed partial class PlayerWindow : Window
         _timer.Interval = TimeSpan.FromMilliseconds(250);
         _timer.Tick += (_, _) => Refresh();
         Closed += OnClosed;
+
+        // A file on a share is read ahead (its header and index, about 8 MB) while the video surface and the engine start up, so the
+        // share has it ready when playback begins (spec §10.1). Nothing waits for it and a dead share only means a slower start.
+        if (isNetwork)
+        {
+            _ = Task.Run(() => MediaPrefetcher.PrefetchAsync(path, _closing.Token));
+        }
     }
 
     private async void OnVideoInitialized(object? sender, InitializedEventArgs e)

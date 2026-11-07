@@ -230,7 +230,13 @@ public sealed class MediaInfoTrackerTests
         using var tracker = new MediaInfoTracker(source, new InlineUi());
         var all = Enumerable.Range(0, 12).Select(i => File($"f{i:D2}.mkv")).ToList();
         var progress = new List<MediaFillProgress>();
-        tracker.ProgressChanged += (_, _) => progress.Add(tracker.Progress);
+        tracker.ProgressChanged += (_, _) =>
+        {
+            lock (progress)
+            {
+                progress.Add(tracker.Progress);
+            }
+        };
 
         tracker.FillFolder(all);
 
@@ -240,7 +246,10 @@ public sealed class MediaInfoTrackerTests
         Assert.True(await UntilAsync(() => !tracker.Progress.IsRunning && tracker.Progress.Total == 12));
         Assert.Equal(new MediaFillProgress(12, 12, false), tracker.Progress);
         Assert.Equal(1.0, tracker.Progress.Fraction);
-        Assert.Contains(progress, p => p.IsRunning);
+        lock (progress)
+        {
+            Assert.Contains(progress, p => p.IsRunning);
+        }
     }
 
     [Fact]
