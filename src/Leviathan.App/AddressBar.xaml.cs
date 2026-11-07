@@ -206,7 +206,17 @@ public sealed partial class AddressBar : UserControl
 
     // Breadcrumb row ---------------------------------------------------------------------------------------------------
 
-    private void OnAddressChanged(object? sender, PropertyChangedEventArgs e) => DispatcherQueue.TryEnqueue(Rebuild);
+    private void OnAddressChanged(object? sender, PropertyChangedEventArgs e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        // A navigation from anywhere else (the tree, Back, a link) makes the view model leave edit mode; the editor must follow, or it
+        // keeps showing the address that was typed while the tab is somewhere else. Focus does not always leave the editor on such a click.
+        if (_editing && _viewModel is { IsEditing: false })
+        {
+            EndEdit();
+        }
+
+        Rebuild();
+    });
 
     private void OnStatusChanged(object? sender, PropertyChangedEventArgs e)
     {
