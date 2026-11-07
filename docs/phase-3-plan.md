@@ -40,8 +40,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **A5a. Media columns** (done: the 11 columns of spec 8.2 in the chooser and the Details view, read lazily for the rows on screen only when a media column is shown, sorting by one reads the whole folder with "Duration · 45%" in its header; seen on screen with a test folder, 47 tests)
 - [x] **A5b. Tiles and Gallery layouts** (done: both are flow layouts in the existing wrapping view; Tiles show a small thumbnail, the name, the media facts and size and date, read lazily for the files on screen; Gallery shows large thumbnails with the name; Ctrl+Shift+4 and Ctrl+Shift+1, enabled in View ▾; seen on screen; true justified rows and hover scrub wait for B1/B3, see decisions)
 
-- [ ] **A6. Status hub Background tab:** metadata probing, thumbnail and contact-sheet queues with pause/priority, Media process
-  status and quarantined files (with "retry this file").
+- [x] **A6. Status hub Background tab** (done for what exists: a "Video and audio details" section with the media process's counts (reading, waiting, files read) and the files it gave up on, each with "Retry this file"; the Media process row was already there from A4a. Thumbnail and contact-sheet queues with pause and priority come with B1/B2, where those queues exist; see decisions)
 
 ### B. Thumbnails, contact sheets, hover scrub (§10.4, §10.5)
 

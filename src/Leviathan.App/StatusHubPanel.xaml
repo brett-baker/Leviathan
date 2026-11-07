@@ -135,6 +135,21 @@
       </Grid>
     </DataTemplate>
 
+    <DataTemplate x:Key="QuarantineTemplate" x:DataType="hub:QuarantinedFile">
+      <Grid ColumnSpacing="12" Padding="4,4" ToolTipService.ToolTip="{x:Bind Path}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="1">
+          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Reason}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Retry this file" Tag="{x:Bind Path}" Click="OnRetryMediaClick" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="TaskTemplate" x:DataType="hub:BackgroundTaskEntry">
       <Grid ColumnSpacing="8" Padding="4,4">
         <Grid.ColumnDefinitions>
@@ -347,6 +362,11 @@
             <StackPanel Spacing="4">
               <TextBlock Text="Thumbnails" Style="{StaticResource BodyStrongTextBlockStyle}" />
               <TextBlock x:Name="ThumbText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Video and audio details" Style="{StaticResource BodyStrongTextBlockStyle}" />
+              <TextBlock x:Name="MediaText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <ItemsControl x:Name="QuarantineList" ItemTemplate="{StaticResource QuarantineTemplate}" />
             </StackPanel>
             <StackPanel Spacing="4">
               <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />

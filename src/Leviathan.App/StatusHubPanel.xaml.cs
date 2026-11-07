@@ -299,8 +299,11 @@ internal sealed partial class StatusHubPanel : UserControl
             return;
         }
 
+        // The media process answers in the background; what it said last time is in this view, and this asks again for the next.
+        _background.RefreshMedia?.Invoke();
         var view = _background.View();
         FolderSizeText.Text = view.FolderSizes;
+        MediaText.Text = view.Media;
         ThumbText.Text = view.Thumbnails;
         NetworkText.Text = view.Network;
         PauseAllButton.IsEnabled = view.AnyActive && !view.AllPaused;
@@ -309,6 +312,11 @@ internal sealed partial class StatusHubPanel : UserControl
         if (_shownBackground is null || !_shownBackground.Tasks.SequenceEqual(view.Tasks))
         {
             TaskList.ItemsSource = view.Tasks;
+        }
+
+        if (_shownBackground is null || !(_shownBackground.Quarantined ?? []).SequenceEqual(view.Quarantined ?? []))
+        {
+            QuarantineList.ItemsSource = view.Quarantined;
         }
 
         if (_shownBackground is null || !_shownBackground.Processes.SequenceEqual(view.Processes))
@@ -347,6 +355,15 @@ internal sealed partial class StatusHubPanel : UserControl
         catch (Exception ex) when (ex is IOException or InvalidOperationException or StreamJsonRpc.RemoteInvocationException or StreamJsonRpc.ConnectionLostException)
         {
             // The worker went away; the next refresh shows what it reports.
+        }
+    }
+
+    private async void OnRetryMediaClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string path } && _background.RetryMediaAsync is { } retry)
+        {
+            await retry(path);
+            RefreshBackground();
         }
     }
 

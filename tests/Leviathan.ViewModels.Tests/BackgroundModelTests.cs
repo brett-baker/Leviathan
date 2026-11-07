@@ -210,4 +210,37 @@ public sealed class BackgroundModelTests
 
         Assert.Equal(1, count);
     }
+
+    [Fact]
+    public void Media_WhenTheProcessIsNotRunning_SaysSoAndListsNothing()
+    {
+        var model = new BackgroundModel { Media = () => null };
+
+        var view = model.View();
+
+        Assert.StartsWith("Not running", view.Media);
+        Assert.Empty(view.Quarantined!);
+    }
+
+    [Fact]
+    public void Media_ShowsWhatIsBeingReadAndTheFilesItGaveUpOn()
+    {
+        MediaBackgroundStats stats = new(2, 5, 1234, [new QuarantinedFile(@"D:\v\broken.mp4", "Invalid data found")]);
+        var model = new BackgroundModel { Media = () => stats };
+
+        var view = model.View();
+
+        Assert.Equal("Reading 2 files · 5 waiting · 1,234 files read since it started · 1 could not be read", view.Media);
+        var file = Assert.Single(view.Quarantined!);
+        Assert.Equal("broken.mp4", file.Name);
+        Assert.Equal("Invalid data found", file.Reason);
+    }
+
+    [Fact]
+    public void Media_WhenIdle_SaysIdle()
+    {
+        var model = new BackgroundModel { Media = () => new MediaBackgroundStats(0, 0, 1, []) };
+
+        Assert.Equal("Idle · 1 file read since it started", model.View().Media);
+    }
 }

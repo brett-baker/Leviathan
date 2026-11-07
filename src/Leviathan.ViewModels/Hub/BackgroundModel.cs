@@ -33,6 +33,22 @@ public sealed record ProcessEntry(string Name, string State, int? ProcessId, int
 /// <param name="ItemCapacity">The most items the cache holds.</param>
 public sealed record NetworkStats(int Watched, int CachedFolders, int CachedItems, int ItemCapacity);
 
+/// <summary>A file the media process could not read and will not try again until it is asked to (spec §9.3, §20).</summary>
+/// <param name="Path">Full path.</param>
+/// <param name="Reason">Why it could not be read.</param>
+public sealed record QuarantinedFile(string Path, string Reason)
+{
+    /// <summary>The file name.</summary>
+    public string Name => System.IO.Path.GetFileName(Path);
+}
+
+/// <summary>What the media process says about its work (spec §9.3).</summary>
+/// <param name="Running">Files being read now.</param>
+/// <param name="Waiting">Files waiting for a free slot.</param>
+/// <param name="Probed">Files read since the process started.</param>
+/// <param name="Quarantined">Files that could not be read.</param>
+public sealed record MediaBackgroundStats(int Running, int Waiting, long Probed, IReadOnlyList<QuarantinedFile> Quarantined);
+
 /// <summary>Everything the Background tab shows at one moment.</summary>
 /// <param name="Tasks">Background jobs, active first.</param>
 /// <param name="FolderSizes">The folder-size line: running, queued and the rate.</param>
@@ -41,7 +57,18 @@ public sealed record NetworkStats(int Watched, int CachedFolders, int CachedItem
 /// <param name="AnyActive">True when any job is running, queued or paused.</param>
 /// <param name="AllPaused">True when every active job is paused.</param>
 /// <param name="Network">The network line: folders watched for changes and the listings kept for offline use.</param>
-public sealed record BackgroundView(IReadOnlyList<BackgroundTaskEntry> Tasks, string FolderSizes, string Thumbnails, IReadOnlyList<ProcessEntry> Processes, bool AnyActive, bool AllPaused, string Network = "Not in use");
+/// <param name="Media">The video and audio details line: what the media process is reading.</param>
+/// <param name="Quarantined">Files the media process could not read, each with a "retry" button.</param>
+public sealed record BackgroundView(
+    IReadOnlyList<BackgroundTaskEntry> Tasks,
+    string FolderSizes,
+    string Thumbnails,
+    IReadOnlyList<ProcessEntry> Processes,
+    bool AnyActive,
+    bool AllPaused,
+    string Network = "Not in use",
+    string Media = "Not started",
+    IReadOnlyList<QuarantinedFile>? Quarantined = null);
 
 /// <summary>
 /// What the Background tab of the status hub shows (spec §16.1): the worker's background lane (folder sizes, later metadata
@@ -80,6 +107,15 @@ public sealed class BackgroundModel
 
     /// <summary>Reads the network numbers; set once the folder cache and the watcher exist (they are made after this model).</summary>
     public Func<NetworkStats?>? Network { get; set; }
+
+    /// <summary>Reads what the media process last said, or null while it is not running (it is never started just to ask).</summary>
+    public Func<MediaBackgroundStats?>? Media { get; set; }
+
+    /// <summary>Asks the media process for its numbers in the background; the next <see cref="View"/> shows the answer.</summary>
+    public Action? RefreshMedia { get; set; }
+
+    /// <summary>Lets the media process try a quarantined file again; true when it was on the list.</summary>
+    public Func<string, Task<bool>>? RetryMediaAsync { get; set; }
 
     /// <summary>Raised after a job changed, on whatever thread delivered the snapshot.</summary>
     public event EventHandler? Changed;
@@ -161,7 +197,23 @@ public sealed class BackgroundModel
             [.. _processes.Select(read => read())],
             active > 0,
             active > 0 && paused == active,
-            NetworkLine(Network?.Invoke()));
+            NetworkLine(Network?.Invoke()),
+            MediaLine(Media?.Invoke()),
+            Media?.Invoke()?.Quarantined ?? []);
+    }
+
+    private static string MediaLine(MediaBackgroundStats? stats)
+    {
+        if (stats is null)
+        {
+            return "Not running · starts when a folder shows video or audio details";
+        }
+
+        var work = stats.Running + stats.Waiting == 0
+            ? "Idle"
+            : $"Reading {stats.Running} file{(stats.Running == 1 ? string.Empty : "s")}" + (stats.Waiting > 0 ? $" · {stats.Waiting:N0} waiting" : string.Empty);
+        var line = $"{work} · {stats.Probed:N0} file{(stats.Probed == 1 ? string.Empty : "s")} read since it started";
+        return stats.Quarantined.Count > 0 ? $"{line} · {stats.Quarantined.Count:N0} could not be read" : line;
     }
 
     private static string NetworkLine(NetworkStats? stats)

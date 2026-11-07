@@ -554,6 +554,10 @@ internal sealed class AppHost
                     ? ProcessEntryFor("Media process", host.MediaHost.State, host.MediaHost.SupervisedProcessId, host.MediaHost.RestartCount, host.MediaHost.DisabledReason, "Reads video and audio details, kept out of this window")
                     : new ProcessEntry("Media process", "Not started", null, 0, "Starts when a folder with video or audio is shown"),
             ]);
+        var mediaBackground = new MediaBackground(() => built is { IsMediaHostStarted: true } host ? host.MediaHost : null, () => built!.MediaHost);
+        background.Media = () => mediaBackground.Latest;
+        background.RefreshMedia = mediaBackground.Refresh;
+        background.RetryMediaAsync = mediaBackground.RetryAsync;
         var sizes = new WorkerFolderSizes(() => worker.Value);
         var viewOptions = new ViewOptions();
         var viewRules = new FolderViewRules();
