@@ -59,6 +59,17 @@ public sealed class MediaMetadataServiceTests
 
     private static MediaFileKey Key(string path = @"D:\v\a.mkv", long size = 1000, int day = 1) => new(path, size, new DateTime(2026, 5, day, 0, 0, 0, DateTimeKind.Utc));
 
+    // Bounded polling instead of a fixed sleep, so a slow machine cannot make a test race (a probe is started by Task.Run).
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!condition())
+        {
+            Assert.True(DateTime.UtcNow < deadline, "The condition was not met within 10 s.");
+            await Task.Delay(5);
+        }
+    }
+
     private static (MediaMetadataService Service, FakeProbe Probe, InMemoryMediaMetadataStore Store) Create(int maxParallel = 2, FfmpegTools? tools = null)
     {
         var probe = new FakeProbe();
@@ -169,7 +180,8 @@ public sealed class MediaMetadataServiceTests
         probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var callers = Enumerable.Range(0, 8).Select(_ => service.GetAsync(Key(), false, CancellationToken.None)).ToList();
-        await Task.Delay(100);
+        await WaitUntil(() => probe.Calls == 1);
+        await Task.Delay(50);
         probe.Gate.SetResult();
         var results = await Task.WhenAll(callers);
 
@@ -184,7 +196,8 @@ public sealed class MediaMetadataServiceTests
         probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var all = Enumerable.Range(0, 6).Select(i => service.GetAsync(Key($@"D:\v\{i}.mkv"), false, CancellationToken.None)).ToList();
-        await Task.Delay(200);
+        await WaitUntil(() => probe.Peak == 2);
+        await Task.Delay(50);
         Assert.Equal(2, probe.Peak);
         probe.Gate.SetResult();
         await Task.WhenAll(all);
@@ -199,10 +212,10 @@ public sealed class MediaMetadataServiceTests
         var (service, probe, store) = Create(maxParallel: 1);
         probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var running = service.GetAsync(Key(@"D:\v\busy.mkv"), false, CancellationToken.None);
-        await Task.Delay(100);
+        await WaitUntil(() => probe.Calls == 1);
         using var cts = new CancellationTokenSource();
         var waiting = service.GetAsync(Key(@"D:\v\later.mkv"), false, cts.Token);
-        await Task.Delay(50);
+        await WaitUntil(() => service.Waiting == 1);
 
         await cts.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
