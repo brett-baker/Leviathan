@@ -141,7 +141,20 @@ public sealed class MediaInfoTrackerTests
     [Fact]
     public async Task Probes_AreStartedRowsOnScreenFirst_AndNoMoreThanMaxParallelAtOnce()
     {
-        var source = new FakeSource { Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+        // Every probe is held until the test lets that one file finish, so each freed slot starts exactly one more probe and the
+        // order in which they start is the tracker's choice alone (starting them from the thread pool would reorder a burst).
+        var holds = new System.Collections.Concurrent.ConcurrentDictionary<string, TaskCompletionSource>();
+        var open = false;
+        var source = new FakeSource { Behave = async (file, _) =>
+        {
+            if (Volatile.Read(ref open))
+            {
+                return Ok();
+            }
+
+            await holds.GetOrAdd(file.Path, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            return Ok();
+        } };
         using var tracker = new MediaInfoTracker(source, new InlineUi());
         var all = Enumerable.Range(0, 10).Select(i => File($"f{i:D2}.mkv")).ToList();
         tracker.FillFolder(all);
@@ -149,13 +162,24 @@ public sealed class MediaInfoTrackerTests
 
         // The user scrolls to the end: those rows jump the queue.
         tracker.SetVisible([all[8], all[9]]);
-        source.Gate.SetResult();
-        Assert.True(await UntilAsync(() => all.All(f => tracker.TryGet(f) is not null)));
+        var started = source.Probed;
+        holds.GetOrAdd(started[0], _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).SetResult();
+        Assert.True(await UntilAsync(() => source.Probed.Count == MediaInfoTracker.MaxParallel + 1));
+        Assert.Equal(Path("f08.mkv"), source.Probed[^1]);
 
+        holds.GetOrAdd(started[1], _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).SetResult();
+        Assert.True(await UntilAsync(() => source.Probed.Count == MediaInfoTracker.MaxParallel + 2));
+        Assert.Equal(Path("f09.mkv"), source.Probed[^1]);
         Assert.Equal(MediaInfoTracker.MaxParallel, source.Peak);
-        var order = source.Probed;
-        Assert.True(order.IndexOf(Path("f08.mkv")) < order.IndexOf(Path("f04.mkv")), string.Join(",", order));
-        Assert.True(order.IndexOf(Path("f09.mkv")) < order.IndexOf(Path("f05.mkv")), string.Join(",", order));
+
+        Volatile.Write(ref open, true);
+        foreach (var hold in holds.Values)
+        {
+            hold.TrySetResult();
+        }
+
+        Assert.True(await UntilAsync(() => all.All(f => tracker.TryGet(f) is not null)));
+        Assert.Equal(MediaInfoTracker.MaxParallel, source.Peak);
     }
 
     [Fact]
@@ -202,7 +226,7 @@ public sealed class MediaInfoTrackerTests
     [Fact]
     public async Task FillFolder_ReportsProgress_UntilEveryFileHasAnAnswer()
     {
-        var source = new FakeSource();
+        var source = new FakeSource { Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
         using var tracker = new MediaInfoTracker(source, new InlineUi());
         var all = Enumerable.Range(0, 12).Select(i => File($"f{i:D2}.mkv")).ToList();
         var progress = new List<MediaFillProgress>();
@@ -210,6 +234,9 @@ public sealed class MediaInfoTrackerTests
 
         tracker.FillFolder(all);
 
+        // Held at the gate, the fill is certainly running: the progress cannot finish before it is looked at.
+        Assert.True(await UntilAsync(() => tracker.Progress.IsRunning));
+        source.Gate.SetResult();
         Assert.True(await UntilAsync(() => !tracker.Progress.IsRunning && tracker.Progress.Total == 12));
         Assert.Equal(new MediaFillProgress(12, 12, false), tracker.Progress);
         Assert.Equal(1.0, tracker.Progress.Fraction);

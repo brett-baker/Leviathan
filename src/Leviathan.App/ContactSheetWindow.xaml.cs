@@ -103,17 +103,36 @@ internal sealed partial class ContactSheetWindow : Window
         }
     }
 
-    private void OnImagePointerMoved(object sender, PointerRoutedEventArgs e)
+    // The frame under the pointer, or -1 when there is no sheet yet.
+    private int FrameAt(PointerRoutedEventArgs e)
     {
         if (_sheet is not { } sheet || sheet.FrameSeconds.Length == 0 || SheetImage.ActualWidth <= 0 || SheetImage.ActualHeight <= 0)
         {
-            return;
+            return -1;
         }
 
         var point = e.GetCurrentPoint(SheetImage).Position;
         var column = Math.Clamp((int)(point.X / SheetImage.ActualWidth * sheet.Columns), 0, sheet.Columns - 1);
         var row = Math.Clamp((int)(point.Y / SheetImage.ActualHeight * sheet.Rows), 0, sheet.Rows - 1);
-        var index = Math.Min(row * sheet.Columns + column, sheet.FrameSeconds.Length - 1);
+        return Math.Min(row * sheet.Columns + column, sheet.FrameSeconds.Length - 1);
+    }
+
+    // A click plays the video from the moment that frame was taken at (spec §10.4).
+    private void OnImagePointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (FrameAt(e) is >= 0 and var index && _sheet is { } sheet)
+        {
+            new PlayerWindow(_video.Location.ToWin32Path(), _video.Name, TimeSpan.FromSeconds(sheet.FrameSeconds[index])).Activate();
+        }
+    }
+
+    private void OnImagePointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (FrameAt(e) is not (>= 0 and var index) || _sheet is not { } sheet)
+        {
+            return;
+        }
+
         HoverText.Text = $"Frame {index + 1} of {sheet.FrameSeconds.Length} · from {ViewModels.Folders.MediaColumns.Duration(TimeSpan.FromSeconds(sheet.FrameSeconds[index]))} into the video";
     }
 

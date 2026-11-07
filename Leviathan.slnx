@@ -12,6 +12,12 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
+    <Project Path="src/Leviathan.Playback/Leviathan.Playback.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="src/Leviathan.Media/Leviathan.Media.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
@@ -99,6 +105,12 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Leviathan.Media.Tests/Leviathan.Media.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Playback.Tests/Leviathan.Playback.Tests.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
       <Platform Solution="*|x64" Project="x64" />

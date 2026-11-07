@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The LibVLC video engine behind IVideoEngine (spec 2.4, D10). No UI: the WinUI video surface is attached by Leviathan.App. -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.Playback</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Compile-time only: the app gets the runtime copy from LibVLCSharp.WinUI, the same assembly with the WinUI VideoView added; two copies would let the wrong one win. -->
+    <PackageReference Include="LibVLCSharp" ExcludeAssets="runtime" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Playback.Tests" />
+  </ItemGroup>
+</Project>

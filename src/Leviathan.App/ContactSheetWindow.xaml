@@ -19,7 +19,7 @@
 
     <Grid Grid.Row="1">
       <Image x:Name="SheetImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
-             PointerMoved="OnImagePointerMoved" PointerExited="OnImagePointerExited" Visibility="Collapsed" />
+             PointerMoved="OnImagePointerMoved" PointerExited="OnImagePointerExited" PointerPressed="OnImagePointerPressed" Visibility="Collapsed" />
       <ProgressRing x:Name="Busy" IsActive="True" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" />
       <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -38,7 +38,7 @@
         <ComboBoxItem Content="6 × 6" Tag="6" />
       </ComboBox>
       <TextBlock x:Name="HoverText" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Move the mouse over a frame to see where in the video it is from." />
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Move the mouse over a frame to see where in the video it is from; click one to play from there." />
       <Button x:Name="SaveButton" Grid.Column="2" Content="Save as…" Click="OnSaveClick" IsEnabled="False" />
     </Grid>
   </Grid>

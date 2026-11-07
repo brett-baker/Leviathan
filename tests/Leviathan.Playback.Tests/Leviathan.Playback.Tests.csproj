@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The LibVLC engine against real (generated) clips, headless: no window, no sound device (spec 19). -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Leviathan.Playback.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibVLCSharp" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Leviathan.Playback\Leviathan.Playback.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Testing\Leviathan.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

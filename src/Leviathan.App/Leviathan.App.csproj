@@ -30,6 +30,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="LibVLCSharp.WinUI" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,5 +49,6 @@
     <!-- Same for the shell host, which runs third-party shell extensions out of process. -->
     <ProjectReference Include="..\Leviathan.ShellHost\Leviathan.ShellHost.csproj" />
     <ProjectReference Include="..\Leviathan.Media\Leviathan.Media.csproj" />
+    <ProjectReference Include="..\Leviathan.Playback\Leviathan.Playback.csproj" />
   </ItemGroup>
 </Project>
