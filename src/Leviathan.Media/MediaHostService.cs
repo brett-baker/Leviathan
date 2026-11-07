@@ -1,6 +1,7 @@
 using System.Reflection;
 using Leviathan.Contracts;
 using Leviathan.Media;
+using Microsoft.Extensions.Logging;
 
 namespace Leviathan.MediaHost;
 
@@ -8,7 +9,7 @@ namespace Leviathan.MediaHost;
 /// The <see cref="IMediaService"/> the UI calls (spec §9.3). A thin layer over <see cref="MediaMetadataService"/>: it turns the wire
 /// requests into file keys and the cached or probed entries into answers, and nothing else, so what matters is tested there.
 /// </summary>
-public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails) : IMediaService
+public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
 {
     private readonly DateTimeOffset _started = time.GetUtcNow();
 
@@ -78,9 +79,21 @@ public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools 
             duration = probed.Info?.Duration;
         }
 
-        var result = await thumbnails.GetAsync(key, request.IsNetwork, duration, cancellationToken).ConfigureAwait(false);
+        ThumbnailResult result;
+        try
+        {
+            result = await thumbnails.GetAsync(key, request.IsNetwork, duration, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // The row scrolled away or the view changed: not a failure, and the caller is gone.
+            logger?.LogDebug("Thumbnail of {Path} was cancelled", request.Path);
+            throw;
+        }
+
         if (result.Status != ThumbnailStatus.Ok)
         {
+            logger?.LogWarning("Thumbnail of {Path} failed ({Status}) using {Ffmpeg}: {Message}", request.Path, result.Status, tools.FfmpegPath ?? "no ffmpeg", result.Message);
             return new MediaThumbnailAnswer(request.Path, result.Status == ThumbnailStatus.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, null, result.Message);
         }
 

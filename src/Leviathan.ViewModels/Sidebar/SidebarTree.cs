@@ -535,7 +535,9 @@ public sealed class SidebarTree
             return;
         }
 
-        var wanted = folders.DistinctBy(f => f).OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        // A hidden folder the view is inside stays in the tree when a listing without it arrives.
+        var kept = node.Children.Where(c => c.Kind == SidebarNodeKind.Folder && c.Location is { } l && _revealed.Contains(l)).Select(c => c.Location!);
+        var wanted = folders.Concat(kept).DistinctBy(f => f).OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
         var known = new Dictionary<LocationPath, SidebarNode>();
         foreach (var child in node.Children.Where(c => c.Kind == SidebarNodeKind.Folder && c.Location is not null))
         {
@@ -618,6 +620,7 @@ public sealed class SidebarTree
     public async Task SyncAsync(LocationPath location, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(location);
+        _revealed.RemoveWhere(r => !r.Contains(location));
         var places = _roots.SelectMany(r => r.Children).Where(c => c.Kind == SidebarNodeKind.Place && c.Location is not null).ToList();
 
         // A folder that has its own entry (Documents, a favorite) is selected there rather than under its drive.
@@ -661,6 +664,13 @@ public sealed class SidebarTree
             }
 
             var next = node.Children.FirstOrDefault(c => c.Location is { } l && l.Contains(location));
+            if (next is null && !location.IsNetwork)
+            {
+                // The way down goes through a folder the tree does not list (a hidden one, such as AppData): it shows it while the
+                // view is inside it, as Explorer does, rather than stopping at the nearest visible parent.
+                next = await RevealAsync(node, location).ConfigureAwait(true);
+            }
+
             if (next is null)
             {
                 break;
@@ -670,6 +680,32 @@ public sealed class SidebarTree
         }
 
         Select(node);
+    }
+
+    // Hidden folders on the path of the current folder, shown in the tree for as long as the view is below them.
+    private readonly HashSet<LocationPath> _revealed = [];
+
+    private async Task<SidebarNode?> RevealAsync(SidebarNode parent, LocationPath location)
+    {
+        if (parent.Location is not { } parentLocation)
+        {
+            return null;
+        }
+
+        var step = location;
+        while (step.Parent is { } above && above != parentLocation)
+        {
+            step = above;
+        }
+
+        if (step.Parent != parentLocation)
+        {
+            return null;
+        }
+
+        _revealed.Add(step);
+        await UpdateNodeAsync(parent, [.. parent.Children.Where(c => c.Kind == SidebarNodeKind.Folder && c.Location is not null).Select(c => c.Location!), step]).ConfigureAwait(true);
+        return parent.Children.FirstOrDefault(c => c.Location == step);
     }
 
     // Rows -------------------------------------------------------------------------------------------------------------

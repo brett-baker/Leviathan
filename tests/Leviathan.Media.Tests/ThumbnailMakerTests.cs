@@ -310,4 +310,20 @@ public sealed class RealThumbnailTests(MediaFixtures fixtures) : IClassFixture<M
             Assert.Equal(ThumbnailStatus.Failed, result.Status);
         }
     }
+
+    [Fact]
+    public async Task Make_WhenTheCacheFolderAndTheClipHaveSpacesInTheirPaths_StillDrawsIt()
+    {
+        Assert.SkipUnless(fixtures.Tools.FfmpegPath is not null, "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var spaced = Path.Combine(fixtures.Folder, "my videos & more");
+        Directory.CreateDirectory(spaced);
+        var clip = Path.Combine(spaced, "short clip (1).mp4");
+        File.Copy(fixtures.Clip, clip);
+        var maker = new ThumbnailMaker(new SystemProcessRunner(), () => fixtures.Tools, new ThumbnailDiskCache(Path.Combine(fixtures.Folder, "Brett Baker", "thumbs")));
+
+        var result = await maker.MakeAsync(new ThumbnailKey(clip, new FileInfo(clip).Length, File.GetLastWriteTimeUtc(clip).Ticks, 128), false, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.True(result.Status == ThumbnailStatus.Ok, result.Message);
+        Assert.True(File.Exists(result.File));
+    }
 }

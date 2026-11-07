@@ -64,7 +64,7 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName).LogWarning("Quarantined {Count} file(s) that were being read when the last media process stopped", quarantined);
     }
 
-    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>());
+    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName));
 });
 builder.Services.AddSingleton(sp => new MediaPipeService(sp.GetRequiredService<MediaHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MediaPipeService>());

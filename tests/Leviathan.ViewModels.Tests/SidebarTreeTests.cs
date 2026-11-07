@@ -326,6 +326,37 @@ public sealed class SidebarTreeTests
     }
 
     [Fact]
+    public async Task Sync_BelowAHiddenFolder_ShowsTheHiddenFolderAndFollowsThePathThroughIt()
+    {
+        var (tree, source, _) = Make();
+        // AppData is hidden, so the source never lists it under brett; its own children are listed as usual.
+        source.Folders[@"C:\Users\brett\AppData"] = ["Local"];
+        source.Folders[@"C:\Users\brett\AppData\Local"] = ["Temp"];
+        source.Folders[@"C:\Users\brett\AppData\Local\Temp"] = ["thumbs"];
+
+        await tree.SyncAsync(P(@"C:\Users\brett\AppData\Local\Temp\thumbs"), CancellationToken.None);
+
+        Assert.Equal(@"C:\Users\brett\AppData\Local\Temp\thumbs", tree.Selected!.Location!.Value);
+        Assert.Contains("AppData", Titles(tree));
+        Assert.Contains("thumbs", Titles(tree));
+    }
+
+    [Fact]
+    public async Task Sync_TheRevealedHiddenFolder_SurvivesAListingThatDoesNotHaveIt_ButGoesWhenTheViewLeaves()
+    {
+        var (tree, source, _) = Make();
+        source.Folders[@"C:\Users\brett\AppData"] = ["Local"];
+        await tree.SyncAsync(P(@"C:\Users\brett\AppData\Local"), CancellationToken.None);
+
+        await tree.UpdateChildrenAsync(P(@"C:\Users\brett"), [P(@"C:\Users\brett\Documents")]);
+        Assert.Contains("AppData", Titles(tree));
+
+        await tree.SyncAsync(P(@"C:\Users\brett"), CancellationToken.None);
+        await tree.UpdateChildrenAsync(P(@"C:\Users\brett"), [P(@"C:\Users\brett\Documents")]);
+        Assert.DoesNotContain("AppData", Titles(tree));
+    }
+
+    [Fact]
     public async Task Sync_SelectsTheCommonFolderEntryRatherThanItsPlaceUnderTheDrive()
     {
         var (tree, source, _) = Make();
