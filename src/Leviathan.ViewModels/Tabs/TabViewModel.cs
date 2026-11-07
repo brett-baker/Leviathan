@@ -359,7 +359,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>Duration, resolution and the other media columns of the files shown, read lazily by the media process (spec §8.2, §9.3).</summary>
     public MediaInfoTracker Media { get; }
 
-    /// <summary>True when a media column is among the visible columns (the media process is not asked for anything otherwise).</summary>
+    /// <summary>True when a media column is among the visible columns (the media process is not asked for anything otherwise; Tiles also ask, spec §8.1).</summary>
     public bool ShowsMediaColumns => Columns.Slots.Any(s => s.Column.Media is not null);
 
     /// <summary>
@@ -369,7 +369,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void RequestMedia(IReadOnlyList<FileEntry> visibleRows)
     {
         ArgumentNullException.ThrowIfNull(visibleRows);
-        if (ShowsMediaColumns)
+        if (ShowsMediaColumns || Layout == ViewLayout.Tiles)
         {
             Media.SetVisible(visibleRows);
         }

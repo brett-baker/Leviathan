@@ -30,6 +30,11 @@ internal sealed class FlowCell : Grid
     private readonly Image _kind = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     private readonly Image _image = new() { IsHitTestVisible = false, Stretch = Stretch.Uniform, Visibility = Visibility.Collapsed };
     private readonly TextBlock _name = new() { IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
+
+    // Tiles only: the name, then the media facts and the size and date under it.
+    private readonly StackPanel _text = new() { IsHitTestVisible = false, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+    private readonly TextBlock _facts = new() { IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis, Opacity = 0.75, FontSize = 12 };
+    private readonly TextBlock _meta = new() { IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis, Opacity = 0.6, FontSize = 12 };
     private readonly Microsoft.UI.Xaml.Shapes.Rectangle _focus = new()
     {
         Stroke = new SolidColorBrush(Colors.Transparent),
@@ -94,6 +99,9 @@ internal sealed class FlowCell : Grid
     {
         CancelLoading();
         Entry = entry;
+
+        // Tiles and Gallery have their own picture size; only Thumbnails follows the tab's.
+        size = ItemFlow.PictureEdge(layout, size);
         if (layout != _layout || size != _size || Children.Count == 0)
         {
             Build(layout, size);
@@ -109,15 +117,31 @@ internal sealed class FlowCell : Grid
         ShowKindIcon(entry);
         if (entry.Kind == FileEntryKind.File)
         {
-            _ = ShowTypeIconAsync(entry, layout == ViewLayout.Thumbnails ? Math.Max(TypeIcons.RowSize, Bucket(size / 2)) : TypeIcons.RowSize);
+            _ = ShowTypeIconAsync(entry, layout != ViewLayout.List ? Math.Max(TypeIcons.RowSize, Bucket(size / 2)) : TypeIcons.RowSize);
         }
 
         UpdateVisuals();
         UpdateEditor();
-        if (layout == ViewLayout.Thumbnails)
+        RefreshDetails();
+        if (layout != ViewLayout.List)
         {
             _ = LoadThumbnailAsync(entry, size);
         }
+    }
+
+    /// <summary>Tiles: shows the media facts and the size and date under the name (information about this file may just have arrived).</summary>
+    public void RefreshDetails()
+    {
+        if (_layout != ViewLayout.Tiles || Entry is not { } entry)
+        {
+            return;
+        }
+
+        var (facts, meta) = TileLines.For(entry, _owner.Media);
+        _facts.Text = facts;
+        _facts.Visibility = facts.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        _meta.Text = meta;
+        _meta.Visibility = meta.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // The icon of the program that opens the file replaces the generic one as soon as the shell has answered for this file type.
@@ -205,10 +229,41 @@ internal sealed class FlowCell : Grid
         _editor.Hide();
         // The glyph and image move between the picture holder (Thumbnails) and the cell itself (List).
         _picture.Children.Clear();
+        _text.Children.Clear();
         Children.Clear();
         RowDefinitions.Clear();
         ColumnDefinitions.Clear();
-        if (layout == ViewLayout.Thumbnails)
+        if (layout == ViewLayout.Tiles)
+        {
+            Width = ItemFlow.TileWidth;
+            Height = ItemFlow.TileHeight;
+            Padding = new Thickness(ItemFlow.ThumbnailPadding);
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(size) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _glyph.FontSize = Math.Max(24, size / 2.0);
+            _kind.Width = _kind.Height = Math.Max(24, size / 2.0);
+            _name.TextWrapping = TextWrapping.NoWrap;
+            _name.MaxLines = 1;
+            _name.TextAlignment = TextAlignment.Left;
+            _name.VerticalAlignment = VerticalAlignment.Center;
+            _name.Margin = new Thickness(0);
+            _editor.TextWrapping = TextWrapping.NoWrap;
+            _editor.TextAlignment = TextAlignment.Left;
+            _editor.VerticalAlignment = VerticalAlignment.Top;
+            _editor.Margin = new Thickness(10, 8, 0, 0);
+            SetRow(_editor, 0);
+            SetColumn(_editor, 1);
+            SetColumn(_text, 1);
+            _picture.Children.Add(_glyph);
+            _picture.Children.Add(_kind);
+            _picture.Children.Add(_image);
+            Children.Add(_picture);
+            _text.Children.Add(_name);
+            _text.Children.Add(_facts);
+            _text.Children.Add(_meta);
+            Children.Add(_text);
+        }
+        else if (layout is ViewLayout.Thumbnails or ViewLayout.Gallery)
         {
             Width = ItemFlow.CellWidth(size);
             Height = ItemFlow.CellHeight(size);
@@ -261,7 +316,11 @@ internal sealed class FlowCell : Grid
             Children.Add(_kind);
         }
 
-        Children.Add(_name);
+        if (layout != ViewLayout.Tiles)
+        {
+            Children.Add(_name);
+        }
+
         Children.Add(_editor);
         SetRowSpan(_focus, Math.Max(1, RowDefinitions.Count));
         SetColumnSpan(_focus, Math.Max(1, ColumnDefinitions.Count));

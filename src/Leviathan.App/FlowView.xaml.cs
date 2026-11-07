@@ -26,6 +26,7 @@ public sealed partial class FlowView : UserControl
     private readonly ItemDragSource _dragSource;
     private Core.Paths.LocationPath? _dropFolder;
     private bool _hasFocus;
+    private readonly DispatcherTimer _mediaTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
 
     /// <summary>Creates the view.</summary>
     public FlowView()
@@ -33,6 +34,11 @@ public sealed partial class FlowView : UserControl
         InitializeComponent();
         _band = new BandDrag(Scroller, Repeater, Band, vertical: true, ItemsUnder);
         _dragSource = new ItemDragSource(Scroller, () => _tab?.Selection);
+        _mediaTimer.Tick += (_, _) =>
+        {
+            _mediaTimer.Stop();
+            RequestVisibleMedia();
+        };
         Repeater.ElementPrepared += OnElementPrepared;
         Repeater.ElementClearing += OnElementClearing;
         Repeater.ItemTemplate = new CellFactory(this);
@@ -75,6 +81,9 @@ public sealed partial class FlowView : UserControl
 
     internal SelectionModel? Selection => _tab?.Selection;
 
+    /// <summary>The media information of the shown files (Tiles read their facts from it).</summary>
+    internal MediaInfoTracker? Media => _tab?.Media;
+
     internal bool HasKeyboardFocus => _hasFocus;
 
     internal static IThumbnailCache Thumbnails => App.Host.Thumbnails;
@@ -112,6 +121,7 @@ public sealed partial class FlowView : UserControl
         tab.PropertyChanged += OnTabChanged;
         tab.Selection.Changed += OnSelectionChanged;
         tab.Folder.PropertyChanged += OnFolderChanged;
+        tab.Media.Changed += OnMediaChanged;
         Configure();
         EnsureVisible();
     }
@@ -127,8 +137,8 @@ public sealed partial class FlowView : UserControl
         var list = Mode == ViewLayout.List;
         return ItemFlow.IndexesIn(
             area.Left, area.Top, area.Right, area.Bottom, _tab.Items.Rows.Count,
-            list ? ItemFlow.ListItemWidth : ItemFlow.CellWidth(Size),
-            list ? ItemFlow.ListItemHeight : ItemFlow.CellHeight(Size),
+            ItemFlow.ItemWidth(Mode, Size),
+            ItemFlow.ItemHeight(Mode, Size),
             ItemsPerLine, list);
     }
 
@@ -199,6 +209,48 @@ public sealed partial class FlowView : UserControl
         _tab.PropertyChanged -= OnTabChanged;
         _tab.Selection.Changed -= OnSelectionChanged;
         _tab.Folder.PropertyChanged -= OnFolderChanged;
+        _tab.Media.Changed -= OnMediaChanged;
+        _mediaTimer.Stop();
+    }
+
+    // Tiles show duration, resolution and the like under the name: ask for the files on screen once scrolling settles (spec §8.1, §9.3).
+    private void ScheduleMedia()
+    {
+        if (Mode == ViewLayout.Tiles)
+        {
+            _mediaTimer.Stop();
+            _mediaTimer.Start();
+        }
+    }
+
+    private void RequestVisibleMedia()
+    {
+        if (_tab is null || Mode != ViewLayout.Tiles)
+        {
+            return;
+        }
+
+        var visible = _realized.Where(c => c.Entry is not null).Select(c => c.Entry!).ToList();
+        if (visible.Count > 0)
+        {
+            var rows = _tab.Items.Rows;
+            var order = new Dictionary<Core.Paths.LocationPath, int>(rows.Count);
+            for (var i = 0; i < rows.Count; i++)
+            {
+                order[rows[i].Location] = i;
+            }
+
+            _tab.RequestMedia([.. visible.OrderBy(e => order.GetValueOrDefault(e.Location, int.MaxValue))]);
+        }
+    }
+
+    private void OnMediaChanged(object? sender, IReadOnlyList<string> paths)
+    {
+        var changed = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var cell in _realized.Where(c => c.Entry is { } entry && changed.Contains(entry.Location.ToWin32Path())))
+        {
+            cell.RefreshDetails();
+        }
     }
 
     private int IndexOf(Core.Paths.LocationPath location)
@@ -234,8 +286,8 @@ public sealed partial class FlowView : UserControl
         Repeater.Layout = new UniformGridLayout
         {
             Orientation = list ? Orientation.Vertical : Orientation.Horizontal,
-            MinItemWidth = list ? ItemFlow.ListItemWidth : ItemFlow.CellWidth(Size),
-            MinItemHeight = list ? ItemFlow.ListItemHeight : ItemFlow.CellHeight(Size),
+            MinItemWidth = ItemFlow.ItemWidth(Mode, Size),
+            MinItemHeight = ItemFlow.ItemHeight(Mode, Size),
             MinRowSpacing = ItemFlow.Spacing,
             MinColumnSpacing = ItemFlow.Spacing,
             ItemsStretch = UniformGridLayoutItemsStretch.None,
@@ -245,6 +297,8 @@ public sealed partial class FlowView : UserControl
         {
             cell.Bind(cell.Entry!, Mode, Size);
         }
+
+        ScheduleMedia();
     }
 
     /// <summary>Draws the icons of the cells again after the icon pack or the theme changed.</summary>
@@ -278,11 +332,11 @@ public sealed partial class FlowView : UserControl
 
     private int ItemsPerLine => Mode == ViewLayout.List
         ? ItemFlow.PerLine(Scroller.ViewportHeight - 8, ItemFlow.ListItemHeight)
-        : ItemFlow.PerLine(Math.Max(Repeater.ActualWidth, Scroller.ViewportWidth - 8), ItemFlow.CellWidth(Size));
+        : ItemFlow.PerLine(Math.Max(Repeater.ActualWidth, Scroller.ViewportWidth - 8), ItemFlow.ItemWidth(Mode, Size));
 
     private int VisibleLines => Mode == ViewLayout.List
         ? Math.Max(1, (int)(Scroller.ViewportWidth / (ItemFlow.ListItemWidth + ItemFlow.Spacing)))
-        : Math.Max(1, (int)(Scroller.ViewportHeight / (ItemFlow.CellHeight(Size) + ItemFlow.Spacing)));
+        : Math.Max(1, (int)(Scroller.ViewportHeight / (ItemFlow.ItemHeight(Mode, Size) + ItemFlow.Spacing)));
 
     // Items ------------------------------------------------------------------------------------------------------------
 
@@ -295,6 +349,8 @@ public sealed partial class FlowView : UserControl
             {
                 cell.Bind(_tab.Items.Rows[args.Index], Mode, Size);
             }
+
+            ScheduleMedia();
         }
     }
 

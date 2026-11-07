@@ -270,6 +270,24 @@ public sealed class MediaColumnsTests
     }
 
     [Fact]
+    public async Task ATab_InTiles_ReadsTheRowsOnScreenWithoutAMediaColumn()
+    {
+        var (tab, source) = await VideoTabAsync();
+        using (tab)
+        {
+            tab.RequestMedia([.. tab.Items.Rows]);
+            await Task.Delay(100);
+            Assert.False(tab.ShowsMediaColumns);
+            Assert.Empty(source.Probed);
+
+            tab.SetLayout(Views.ViewLayout.Tiles);
+            tab.RequestMedia([.. tab.Items.Rows]);
+
+            Assert.True(await UntilAsync(() => source.Probed.Count == 3));
+        }
+    }
+
+    [Fact]
     public async Task SortingByAMediaColumn_ReadsTheWholeFolder_AndSortingByNameStopsIt()
     {
         var (tab, source) = await VideoTabAsync();

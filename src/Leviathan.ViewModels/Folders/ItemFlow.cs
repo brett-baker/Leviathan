@@ -48,11 +48,47 @@ public static class ItemFlow
     /// <summary>Padding around a thumbnail cell.</summary>
     public const double ThumbnailPadding = 8;
 
+    /// <summary>Width of a Tiles cell: a small thumbnail beside the name and two lines of facts (spec §8.1).</summary>
+    public const double TileWidth = 320;
+
+    /// <summary>Height of a Tiles cell.</summary>
+    public const double TileHeight = 96;
+
+    /// <summary>Edge of the thumbnail in a Tiles cell.</summary>
+    public const int TileThumbnailSize = 80;
+
+    /// <summary>Edge of the thumbnail in the Gallery layout, larger than any Thumbnails default (spec §8.1).</summary>
+    public const int GalleryThumbnailSize = 288;
+
     /// <summary>True for layouts that fill columns top to bottom (List).</summary>
     public static bool IsColumnMajor(ViewLayout layout) => layout == ViewLayout.List;
 
     /// <summary>True for the layouts this control draws.</summary>
-    public static bool IsFlow(ViewLayout layout) => layout is ViewLayout.List or ViewLayout.Thumbnails;
+    public static bool IsFlow(ViewLayout layout) => layout is ViewLayout.List or ViewLayout.Thumbnails or ViewLayout.Tiles or ViewLayout.Gallery;
+
+    /// <summary>Edge of the picture in a cell: the tab's thumbnail size for Thumbnails, fixed for Tiles and Gallery.</summary>
+    public static int PictureEdge(ViewLayout layout, int thumbnailSize) => layout switch
+    {
+        ViewLayout.Tiles => TileThumbnailSize,
+        ViewLayout.Gallery => GalleryThumbnailSize,
+        _ => ClampThumbnailSize(thumbnailSize),
+    };
+
+    /// <summary>Width of one cell in <paramref name="layout"/>.</summary>
+    public static double ItemWidth(ViewLayout layout, int thumbnailSize) => layout switch
+    {
+        ViewLayout.List => ListItemWidth,
+        ViewLayout.Tiles => TileWidth,
+        _ => CellWidth(PictureEdge(layout, thumbnailSize)),
+    };
+
+    /// <summary>Height of one cell in <paramref name="layout"/>.</summary>
+    public static double ItemHeight(ViewLayout layout, int thumbnailSize) => layout switch
+    {
+        ViewLayout.List => ListItemHeight,
+        ViewLayout.Tiles => TileHeight,
+        _ => CellHeight(PictureEdge(layout, thumbnailSize)),
+    };
 
     /// <summary>Width of a Thumbnails cell for a thumbnail edge.</summary>
     public static double CellWidth(int thumbnailSize) => thumbnailSize + (2 * ThumbnailPadding);

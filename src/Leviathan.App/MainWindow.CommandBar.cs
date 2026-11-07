@@ -299,9 +299,9 @@ public sealed partial class MainWindow
         {
             (ViewLayout.Details, "Details", "", true),
             (ViewLayout.List, "List", "", true),
-            (ViewLayout.Tiles, "Tiles (Phase 3)", "", false),
+            (ViewLayout.Tiles, "Tiles", "", true),
             (ViewLayout.Thumbnails, "Thumbnails", "", true),
-            (ViewLayout.Gallery, "Gallery (Phase 3)", "", false),
+            (ViewLayout.Gallery, "Gallery", "", true),
         })
         {
             var item = new RadioMenuFlyoutItem { Text = title, GroupName = "layout", IsChecked = tab.Layout == layout, IsEnabled = available, Icon = Icons.OfGlyph(glyph) };

@@ -175,6 +175,12 @@ public static class CommandIds
     /// <summary>Thumbnails layout (Ctrl+Shift+2).</summary>
     public static readonly CommandId ViewThumbnails = new("view.thumbnails");
 
+    /// <summary>Tiles layout.</summary>
+    public static readonly CommandId ViewTiles = new("view.tiles");
+
+    /// <summary>Gallery layout.</summary>
+    public static readonly CommandId ViewGallery = new("view.gallery");
+
     /// <summary>Resize thumbnails (Ctrl+mouse wheel). Parameter: wheel notches, positive = bigger.</summary>
     public static readonly CommandId ViewZoom = new("view.zoom");
 
@@ -828,15 +834,16 @@ public static partial class WindowCommands
             }
         }, c => c.Parameter is FileEntry, shortcut: "Enter");
 
-        // Tiles and Gallery need media data and arrive in Phase 3 (build plan, D5); until then they are not offered.
         Add(CommandIds.ViewLayout, "Change layout", "View", (c, _) => Run(() =>
         {
             Current()!.SetLayout((Views.ViewLayout)c.Parameter!);
-        }), c => Current() is not null && c.Parameter is Views.ViewLayout.Details or Views.ViewLayout.List or Views.ViewLayout.Thumbnails);
+        }), c => Current() is not null && c.Parameter is Views.ViewLayout);
 
         Add(CommandIds.ViewDetails, "Details layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Details)), _ => Current() is not null, shortcut: "Ctrl+Shift+6");
         Add(CommandIds.ViewList, "List layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.List)), _ => Current() is not null, shortcut: "Ctrl+Shift+5");
         Add(CommandIds.ViewThumbnails, "Thumbnails layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Thumbnails)), _ => Current() is not null, shortcut: "Ctrl+Shift+2");
+        Add(CommandIds.ViewTiles, "Tiles layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Tiles)), _ => Current() is not null, shortcut: "Ctrl+Shift+4");
+        Add(CommandIds.ViewGallery, "Gallery layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Gallery)), _ => Current() is not null, shortcut: "Ctrl+Shift+1");
 
         Add(CommandIds.ViewZoom, "Resize thumbnails", "View", (c, _) => Run(() => Current()!.ZoomThumbnails((int)c.Parameter!)),
             c => Current() is { Layout: Views.ViewLayout.Thumbnails } && c.Parameter is int);
@@ -1288,6 +1295,8 @@ public static partial class WindowCommands
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),
+            ("Ctrl+Shift+4", CommandIds.ViewTiles),
+            ("Ctrl+Shift+1", CommandIds.ViewGallery),
             ("Ctrl+Shift+S", CommandIds.PaneSwap),
             ("Alt+=", CommandIds.PaneSameFolder),
         })
