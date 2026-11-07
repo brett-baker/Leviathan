@@ -69,10 +69,14 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
     public void Reenable() => _supervisor.Reenable();
 
     /// <summary>Sets how many jobs run at once (Quick settings).</summary>
-    public Task SetLimitsAsync(ConcurrencyLimits limits) => _client.Service.SetLimitsAsync(limits, _closing.Token);
+    /// <remarks>Before the worker has connected there is nobody to tell: the app sends the settings again when it connects.</remarks>
+    public Task SetLimitsAsync(ConcurrencyLimits limits) =>
+        _client.IsConnected && _client.Service is { } service ? service.SetLimitsAsync(limits, _closing.Token) : Task.CompletedTask;
 
     /// <summary>Sets the speed limit and its schedule (Quick settings); running copies change speed at once.</summary>
-    public Task SetBandwidthAsync(BandwidthSettings settings) => _client.Service.SetBandwidthAsync(settings, _closing.Token);
+    /// <remarks>Before the worker has connected there is nobody to tell: the app sends the settings again when it connects.</remarks>
+    public Task SetBandwidthAsync(BandwidthSettings settings) =>
+        _client.IsConnected && _client.Service is { } service ? service.SetBandwidthAsync(settings, _closing.Token) : Task.CompletedTask;
 
     /// <summary>Cancels a queued or running job (the Operations tab).</summary>
     public Task CancelAsync(Guid jobId) => _client.Service.CancelAsync(jobId, _closing.Token);
