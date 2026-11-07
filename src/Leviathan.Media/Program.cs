@@ -54,6 +54,13 @@ builder.Services.AddSingleton(sp => new ThumbnailService(new ThumbnailMaker(
     () => sp.GetRequiredService<FfmpegTools>(),
     new ThumbnailDiskCache(thumbnailFolder))));
 
+
+// Contact sheets are big JPEGs of their own: a sibling folder, so trimming the thumbnails never removes them (and the other way round).
+builder.Services.AddSingleton(sp => new ContactSheetService(new ContactSheetMaker(
+    new SystemProcessRunner(),
+    () => sp.GetRequiredService<FfmpegTools>(),
+    new ThumbnailDiskCache(Path.Combine(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(thumbnailFolder)))!, "sheets"), 256L * 1024 * 1024))));
+
 // Whatever the previous process was reading when it died is the suspect: it is marked unreadable now, before any request, so one bad
 // file cannot make this process crash again and again (spec 9.3, 3.4).
 builder.Services.AddSingleton(sp =>
@@ -64,7 +71,7 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName).LogWarning("Quarantined {Count} file(s) that were being read when the last media process stopped", quarantined);
     }
 
-    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName));
+    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>(), sp.GetRequiredService<ContactSheetService>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName));
 });
 builder.Services.AddSingleton(sp => new MediaPipeService(sp.GetRequiredService<MediaHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MediaPipeService>());

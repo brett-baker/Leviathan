@@ -10,7 +10,8 @@ namespace Leviathan.Media;
 /// <param name="Size">Size in bytes (part of the identity: an edited file gets a new thumbnail).</param>
 /// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
 /// <param name="Edge">Longest edge of the picture in pixels.</param>
-public readonly record struct ThumbnailKey(string Path, long Size, long ModifiedUtcTicks, int Edge)
+/// <param name="Variant">What else tells two pictures of the same file apart (the grid of a contact sheet); empty for a thumbnail.</param>
+public readonly record struct ThumbnailKey(string Path, long Size, long ModifiedUtcTicks, int Edge, string Variant = "")
 {
     /// <summary>A short stable name for the cache file.</summary>
     public string Hash
@@ -18,6 +19,11 @@ public readonly record struct ThumbnailKey(string Path, long Size, long Modified
         get
         {
             var text = string.Create(CultureInfo.InvariantCulture, $"{Path.ToUpperInvariant()}|{Size}|{ModifiedUtcTicks}|{Edge}");
+            if (Variant.Length > 0)
+            {
+                text += "|" + Variant;
+            }
+
             return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..32].ToLowerInvariant();
         }
     }

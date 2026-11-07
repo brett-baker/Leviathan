@@ -9,7 +9,7 @@ namespace Leviathan.MediaHost;
 /// The <see cref="IMediaService"/> the UI calls (spec §9.3). A thin layer over <see cref="MediaMetadataService"/>: it turns the wire
 /// requests into file keys and the cached or probed entries into answers, and nothing else, so what matters is tested there.
 /// </summary>
-public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
+public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, ContactSheetService sheets, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
 {
     private readonly DateTimeOffset _started = time.GetUtcNow();
 
@@ -107,6 +107,52 @@ public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools 
             return new MediaThumbnailAnswer(request.Path, MediaThumbnailStatus.Failed, null, ex.Message);
         }
     }
+
+    public async Task<MediaContactSheetAnswer> GetContactSheetAsync(MediaContactSheetRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // The frames are spaced across the whole video and sized like it, so the probe (cached) is needed first.
+        var file = KeyOf(new MediaProbeRequest(request.Path, request.Size, request.ModifiedUtcTicks, request.IsNetwork));
+        var probed = metadata.Peek(file) ?? await metadata.GetAsync(file, request.IsNetwork, cancellationToken).ConfigureAwait(false);
+        var video = probed.Info?.PrimaryVideo;
+        var spec = ContactSheetSpec.For(request.Columns, request.Rows, request.CellWidth, video?.Width, video?.Height);
+        if (probed.Info is null || video is null)
+        {
+            return Failed(request.Path, spec, probed.State == MetadataState.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, probed.Message ?? "There is no video in this file.");
+        }
+
+        ContactSheetResult result;
+        try
+        {
+            result = await sheets.GetAsync(request.Path, request.Size, request.ModifiedUtcTicks, request.IsNetwork, probed.Info.Duration, spec, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Contact sheet of {Path} was cancelled", request.Path);
+            throw;
+        }
+
+        if (result.Status != ThumbnailStatus.Ok)
+        {
+            logger?.LogWarning("Contact sheet of {Path} failed ({Status}) using {Ffmpeg}: {Message}", request.Path, result.Status, tools.FfmpegPath ?? "no ffmpeg", result.Message);
+            return Failed(request.Path, spec, result.Status == ThumbnailStatus.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, result.Message);
+        }
+
+        try
+        {
+            return new MediaContactSheetAnswer(
+                request.Path, MediaThumbnailStatus.Ok, await File.ReadAllBytesAsync(result.File!, cancellationToken).ConfigureAwait(false),
+                spec.Columns, spec.Rows, spec.CellWidth, spec.CellHeight, [.. result.Times.Select(t => t.TotalSeconds)], null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Failed(request.Path, spec, MediaThumbnailStatus.Failed, ex.Message);
+        }
+    }
+
+    private static MediaContactSheetAnswer Failed(string path, ContactSheetSpec spec, MediaThumbnailStatus status, string? message) =>
+        new(path, status, null, spec.Columns, spec.Rows, spec.CellWidth, spec.CellHeight, [], message);
 
     internal static MediaFileKey KeyOf(MediaProbeRequest request) => new(request.Path, request.Size, new DateTime(request.ModifiedUtcTicks, DateTimeKind.Utc));
 

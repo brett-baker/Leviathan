@@ -105,6 +105,39 @@ public sealed class MediaProcessTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Process_DrawsAContactSheet_WithTheFrameTimes_AndKeepsItApartFromTheThumbnails()
+    {
+        Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var service = await Connection().GetServiceAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+        var request = new MediaContactSheetRequest(ClipPath, new FileInfo(ClipPath).Length, File.GetLastWriteTimeUtc(ClipPath).Ticks, false, 3, 3, 96);
+
+        var first = await service.GetContactSheetAsync(request, CancellationToken.None);
+        var second = await service.GetContactSheetAsync(request, CancellationToken.None);
+
+        Assert.True(first.Status == MediaThumbnailStatus.Ok, first.Message);
+        Assert.Equal([(byte)0xFF, (byte)0xD8], first.Jpeg!.Take(2));
+        Assert.Equal((3, 3, 96), (first.Columns, first.Rows, first.CellWidth));
+        Assert.Equal(9, first.FrameSeconds.Length);
+        Assert.Equal(first.Jpeg, second.Jpeg);
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(_folder, "sheets"), "*.jpg", SearchOption.AllDirectories));
+        Assert.False(Directory.Exists(Path.Combine(_folder, "thumbs")) && Directory.EnumerateFiles(Path.Combine(_folder, "thumbs"), "*.jpg", SearchOption.AllDirectories).Any());
+    }
+
+    [Fact]
+    public async Task Process_AContactSheetOfABrokenFile_IsFailed()
+    {
+        Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");
+        var broken = Path.Combine(_folder, "broken2.mp4");
+        await File.WriteAllBytesAsync(broken, [1, 2, 3, 4, 5, 6, 7, 8]);
+        var service = await Connection().GetServiceAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+
+        var answer = await service.GetContactSheetAsync(new MediaContactSheetRequest(broken, 8, File.GetLastWriteTimeUtc(broken).Ticks, false, 3, 3, 96), CancellationToken.None);
+
+        Assert.Equal(MediaThumbnailStatus.Failed, answer.Status);
+        Assert.Null(answer.Jpeg);
+    }
+
+    [Fact]
     public async Task Process_Starts_AnswersAProbe_AndAnswersTheSecondFromItsCache()
     {
         Assert.SkipUnless(await MakeClipAsync(ClipPath), "ffmpeg is not installed here (set LEVIATHAN_FFMPEG_DIR or add it to PATH).");

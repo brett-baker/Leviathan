@@ -75,6 +75,28 @@ public enum MediaThumbnailStatus
 /// <param name="Message">Why there is none.</param>
 public sealed record MediaThumbnailAnswer(string Path, MediaThumbnailStatus Status, byte[]? Jpeg, string? Message);
 
+/// <summary>A contact sheet wanted from the media process (spec §10.4).</summary>
+/// <param name="Path">Win32 path of the video.</param>
+/// <param name="Size">Size in bytes (part of the cache identity).</param>
+/// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
+/// <param name="IsNetwork">True for a file on a network drive (read with limits).</param>
+/// <param name="Columns">Frames per row, 3 to 6.</param>
+/// <param name="Rows">Rows, 3 to 6.</param>
+/// <param name="CellWidth">Width of one frame in pixels, 96 to 480.</param>
+public sealed record MediaContactSheetRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, int Columns, int Rows, int CellWidth);
+
+/// <summary>A contact sheet as one JPEG with the moments its frames were taken at, or why there is none.</summary>
+/// <param name="Path">The video.</param>
+/// <param name="Status">What happened.</param>
+/// <param name="Jpeg">The sheet.</param>
+/// <param name="Columns">Frames per row as drawn.</param>
+/// <param name="Rows">Rows as drawn.</param>
+/// <param name="CellWidth">Width of one frame as drawn.</param>
+/// <param name="CellHeight">Height of one frame as drawn.</param>
+/// <param name="FrameSeconds">Where in the video each frame is from, row by row, so a click on a frame can play from there.</param>
+/// <param name="Message">Why there is none.</param>
+public sealed record MediaContactSheetAnswer(string Path, MediaThumbnailStatus Status, byte[]? Jpeg, int Columns, int Rows, int CellWidth, int CellHeight, double[] FrameSeconds, string? Message);
+
 /// <summary>
 /// The media process (Leviathan.Media), called by the UI over a named pipe (spec §2.2, §9.3): ffprobe metadata with a cache, in a process
 /// of its own so a file that hangs or kills a media tool costs a restart of this process, never the window. Cancelling a call (the
@@ -108,4 +130,10 @@ public interface IMediaService
     /// token is cancelled before its turn never starts, and one already running is stopped.
     /// </summary>
     Task<MediaThumbnailAnswer> GetThumbnailAsync(MediaThumbnailRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A grid of 3×3 to 6×6 frames taken evenly across a video by keyframe seeking, as one JPEG (spec §10.4), from the disk cache or
+    /// drawn now. One is drawn at a time; a call whose token is cancelled before its turn never starts, and one already running is stopped.
+    /// </summary>
+    Task<MediaContactSheetAnswer> GetContactSheetAsync(MediaContactSheetRequest request, CancellationToken cancellationToken);
 }
