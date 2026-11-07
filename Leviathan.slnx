@@ -6,8 +6,18 @@
     <Platform Name="ARM64" />
   </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/Leviathan.Media.Core/Leviathan.Media.Core.csproj" />
-    <Project Path="src/Leviathan.Media/Leviathan.Media.csproj" />
+    <Project Path="src/Leviathan.Media.Core/Leviathan.Media.Core.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="src/Leviathan.Media/Leviathan.Media.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="src/Leviathan.App/Leviathan.App.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
@@ -88,7 +98,12 @@
     </Project>
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Leviathan.Media.Tests/Leviathan.Media.Tests.csproj" />
+    <Project Path="tests/Leviathan.Media.Tests/Leviathan.Media.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="tests/Leviathan.Testing/Leviathan.Testing.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
@@ -131,8 +146,18 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
-    <Project Path="tests/Leviathan.Chaos.Harness/Leviathan.Chaos.Harness.csproj" />
-    <Project Path="tests/Leviathan.Chaos.Tests/Leviathan.Chaos.Tests.csproj" />
+    <Project Path="tests/Leviathan.Chaos.Harness/Leviathan.Chaos.Harness.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
+    <Project Path="tests/Leviathan.Chaos.Tests/Leviathan.Chaos.Tests.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="tests/Leviathan.UI.Tests/Leviathan.UI.Tests.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />
