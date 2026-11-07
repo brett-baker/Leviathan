@@ -40,6 +40,10 @@ public sealed class WindowCommandsTests
 
         public void ExportContactSheets(IReadOnlyList<Leviathan.Core.Model.FileEntry> videos) => SheetBatches.Add(videos);
 
+        public int QuickPreviewToggles { get; private set; }
+
+        public void ToggleQuickPreview() => QuickPreviewToggles++;
+
         public bool Confirm { get; set; } = true;
 
         public List<string> Confirmations { get; } = [];

@@ -116,6 +116,49 @@ public sealed partial class WindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _sidebarCollapsed;
 
+    /// <summary>Width of the preview pane in pixels, within <see cref="PreviewLayout"/>'s limits (spec §9).</summary>
+    [ObservableProperty]
+    private double _previewWidth = PreviewLayout.DefaultWidth;
+
+    /// <summary>Which S / M / L button is on; <see cref="VideoHeight"/> is the dragged height when none is (null).</summary>
+    [ObservableProperty]
+    private VideoSize? _videoSize = Leviathan.ViewModels.Windows.VideoSize.Medium;
+
+    /// <summary>The height the video area was dragged to, used when <see cref="VideoSize"/> is null. Remembered per window.</summary>
+    [ObservableProperty]
+    private double _videoHeight = PreviewLayout.HeightFor(Leviathan.ViewModels.Windows.VideoSize.Medium, PreviewLayout.DefaultWidth);
+
+    /// <summary>True when the preview part of the pane is collapsed to its header (spec §9: either part can be collapsed).</summary>
+    [ObservableProperty]
+    private bool _previewCollapsed;
+
+    /// <summary>True when the details part of the pane is collapsed to its header.</summary>
+    [ObservableProperty]
+    private bool _detailsCollapsed;
+
+    /// <summary>The height the video area has now: the preset's, or the dragged one.</summary>
+    public double CurrentVideoHeight => VideoSize is { } size ? PreviewLayout.HeightFor(size, PreviewWidth) : PreviewLayout.ClampHeight(VideoHeight);
+
+    /// <summary>Makes the video area a preset size (a click on S, M or L).</summary>
+    public void SetVideoSize(VideoSize size)
+    {
+        VideoSize = size;
+        VideoHeight = PreviewLayout.HeightFor(size, PreviewWidth);
+    }
+
+    /// <summary>Sets the height from a drag of the handle under the video; no preset button stays on.</summary>
+    public void DragVideoHeight(double height)
+    {
+        VideoHeight = PreviewLayout.ClampHeight(height);
+        VideoSize = null;
+    }
+
+    partial void OnPreviewWidthChanged(double value) => OnPropertyChanged(nameof(CurrentVideoHeight));
+
+    partial void OnVideoSizeChanged(VideoSize? value) => OnPropertyChanged(nameof(CurrentVideoHeight));
+
+    partial void OnVideoHeightChanged(double value) => OnPropertyChanged(nameof(CurrentVideoHeight));
+
     /// <summary>Stable identity.</summary>
     public Guid Id { get; } = Guid.NewGuid();
 
@@ -200,6 +243,16 @@ public sealed class WindowManager
         window.ShowPreview = saved.ShowPreview;
         window.SidebarWidth = double.IsNaN(saved.SidebarWidth) ? SidebarLayout.DefaultWidth : Math.Clamp(saved.SidebarWidth, SidebarLayout.MinWidth, SidebarLayout.MaxWidth);
         window.SidebarCollapsed = saved.SidebarCollapsed;
+        if (saved.Pane is { } pane)
+        {
+            // A saved size outside today's limits is brought back inside rather than trusted.
+            window.PreviewWidth = double.IsNaN(pane.Width) ? PreviewLayout.DefaultWidth : Math.Clamp(pane.Width, PreviewLayout.MinWidth, PreviewLayout.MaxWidth);
+            window.VideoHeight = PreviewLayout.ClampHeight(pane.VideoHeight);
+            window.VideoSize = pane.VideoSize is { } size && Enum.IsDefined(size) ? size : null;
+            window.PreviewCollapsed = pane.PreviewCollapsed;
+            window.DetailsCollapsed = pane.DetailsCollapsed;
+        }
+
         window.PlaceExplicitly = true;
         WindowOpened?.Invoke(this, window);
         return window;

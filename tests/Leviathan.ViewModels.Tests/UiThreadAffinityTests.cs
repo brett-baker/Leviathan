@@ -110,6 +110,10 @@ public sealed class UiThreadAffinityTests
         public void ExportContactSheets(IReadOnlyList<Leviathan.Core.Model.FileEntry> videos)
         {
         }
+
+        public void ToggleQuickPreview()
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher

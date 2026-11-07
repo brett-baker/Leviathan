@@ -140,6 +140,7 @@ public sealed partial class MainWindow : Window, IShellActions
         using (UiTrace.Begin("ctor: splitter"))
         {
             InitializeSidebarSplitter();
+            InitializePreviewPane();
         }
         _ = LoadSidebarAsync();
     }

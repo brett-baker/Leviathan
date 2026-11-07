@@ -19,7 +19,8 @@ public static class SessionCapture
             }
 
             var selected = window.Tabs.Selected is { } tab ? Math.Max(0, window.Tabs.Tabs.IndexOf(tab)) : 0;
-            captured.Add(new SessionWindow(window.Bounds, window.ShowPreview, selected, tabs, window.SidebarWidth, window.SidebarCollapsed, window.Tabs.GroupInfos()));
+            captured.Add(new SessionWindow(window.Bounds, window.ShowPreview, selected, tabs, window.SidebarWidth, window.SidebarCollapsed, window.Tabs.GroupInfos(),
+                new PreviewPaneState(window.PreviewWidth, window.VideoSize, window.VideoHeight, window.PreviewCollapsed, window.DetailsCollapsed)));
         }
 
         return new SessionState(captured);

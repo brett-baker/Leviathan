@@ -58,6 +58,9 @@ public sealed partial class DetailsGrid : UserControl
     /// <summary>A row was opened: double-click or Enter.</summary>
     internal event EventHandler<FileEntry>? ItemInvoked;
 
+    /// <summary>Space was pressed: the window opens or closes the floating preview (spec §9). Ctrl+Space toggles the focused item instead.</summary>
+    internal event EventHandler? QuickPreviewRequested;
+
     /// <summary>A header was clicked (Shift = add as a secondary sort).</summary>
     internal event EventHandler<SortRequest>? SortRequested;
 
@@ -709,7 +712,14 @@ public sealed partial class DetailsGrid : UserControl
 
         if (e.Key == VirtualKey.Space && !alt)
         {
-            // Space toggles the focused row (spec §8.4).
+            if (!ctrl)
+            {
+                // Space is the quick preview (spec §9); Ctrl+Space toggles the focused row (spec §8.4).
+                e.Handled = true;
+                QuickPreviewRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             e.Handled = _tab.Selection.ToggleFocus();
             return;
         }

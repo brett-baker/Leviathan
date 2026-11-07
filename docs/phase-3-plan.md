@@ -58,8 +58,7 @@ Every slice follows `CLAUDE.md`.
 
 ### D. Preview and details pane (§9)
 
-- [ ] **D1. Pane shell**: collapse (Alt+P), splitter width, S/M/L video size, drag handle under the video, floating preview
-  (Space), follows the focused split pane.
+- [x] **D1. Pane shell** (done: collapse with Alt+P or the header button, splitter on the left edge, S/M/L video size and a drag handle under the video, collapsible Preview and Details parts, "Preview · left pane" in a split tab, Space opens a floating preview shell; all of it remembered per window in the session)
 - [ ] **D2. Renderers**: video (with icon seek controls 5 min / 1 min / 30 s / play / 30 s / 1 min / 5 min / skim, filmstrip,
   hover frame preview), audio, images (WIC, zoom/pan, EXIF orientation), PDF, text/code (first 2 MB), Markdown/HTML in a
   sandboxed WebView2, Office via shell preview handlers in ShellHost, archives, fonts, folders, multi-selection.

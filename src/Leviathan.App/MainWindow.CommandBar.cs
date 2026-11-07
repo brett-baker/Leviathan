@@ -70,17 +70,15 @@ public sealed partial class MainWindow
 
     private void OnWindowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ViewModels.Windows.WindowViewModel.ShowPreview))
+        if (e.PropertyName is nameof(ViewModels.Windows.WindowViewModel.ShowPreview)
+            or nameof(ViewModels.Windows.WindowViewModel.PreviewWidth)
+            or nameof(ViewModels.Windows.WindowViewModel.CurrentVideoHeight)
+            or nameof(ViewModels.Windows.WindowViewModel.VideoSize)
+            or nameof(ViewModels.Windows.WindowViewModel.PreviewCollapsed)
+            or nameof(ViewModels.Windows.WindowViewModel.DetailsCollapsed))
         {
             OnUi(ApplyPreviewPane);
         }
-    }
-
-    private void ApplyPreviewPane()
-    {
-        PreviewPane.Visibility = _viewModel.ShowPreview ? Visibility.Visible : Visibility.Collapsed;
-        PreviewColumn.Width = new GridLength(_viewModel.ShowPreview ? 280 : 0);
-        PreviewToggle.IsChecked = _viewModel.ShowPreview;
     }
 
     private void OnPreviewToggleClick(object sender, RoutedEventArgs e) => Run(CommandIds.PreviewPane);

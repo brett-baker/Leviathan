@@ -10,9 +10,10 @@ using Windows.System;
 namespace Leviathan.App;
 
 /// <summary>
-/// The splitter between the sidebar and the file view (spec §4): drag to resize, double-click to collapse or restore, Left and
-/// Right (with Home to restore the default width) when it has the keyboard. It only reports what the user did; the window decides
-/// the width, applies the limits of <c>SidebarLayout</c> and remembers it.
+/// The splitter between the sidebar and the file view (spec §4) and, with <see cref="GrowsLeft"/>, the one on the left edge of the
+/// preview pane (spec §9): drag to resize, double-click to collapse or restore, Left and Right (with Home to restore the default
+/// width) when it has the keyboard. It only reports what the user did; the window decides the width, applies the limits of
+/// <c>SidebarLayout</c> or <c>PreviewLayout</c> and remembers it.
 /// </summary>
 internal sealed partial class SidebarSplitter : Grid
 {
@@ -43,7 +44,10 @@ internal sealed partial class SidebarSplitter : Grid
         LostFocus += (_, _) => Highlight(false);
     }
 
-    /// <summary>The width the sidebar has right now, read when a drag starts.</summary>
+    /// <summary>True for a pane on the right of the splitter: dragging left makes it wider.</summary>
+    internal bool GrowsLeft { get; set; }
+
+    /// <summary>The width the pane has right now, read when a drag starts.</summary>
     internal Func<double> CurrentWidth { get; set; } = () => 0;
 
     /// <summary>The pointer moved: the width the sidebar should have, before the limits.</summary>
@@ -74,7 +78,8 @@ internal sealed partial class SidebarSplitter : Grid
     {
         if (_dragging)
         {
-            WidthRequested?.Invoke(this, _startWidth + (e.GetCurrentPoint(null).Position.X - _startX));
+            var delta = e.GetCurrentPoint(null).Position.X - _startX;
+            WidthRequested?.Invoke(this, _startWidth + (GrowsLeft ? -delta : delta));
             e.Handled = true;
         }
     }
@@ -101,11 +106,11 @@ internal sealed partial class SidebarSplitter : Grid
         {
             case VirtualKey.Left:
                 e.Handled = true;
-                WidthRequested?.Invoke(this, CurrentWidth() - ViewModels.Windows.SidebarLayout.KeyStep);
+                WidthRequested?.Invoke(this, CurrentWidth() + (GrowsLeft ? 1 : -1) * ViewModels.Windows.SidebarLayout.KeyStep);
                 break;
             case VirtualKey.Right:
                 e.Handled = true;
-                WidthRequested?.Invoke(this, CurrentWidth() + ViewModels.Windows.SidebarLayout.KeyStep);
+                WidthRequested?.Invoke(this, CurrentWidth() + (GrowsLeft ? -1 : 1) * ViewModels.Windows.SidebarLayout.KeyStep);
                 break;
             case VirtualKey.Home:
                 e.Handled = true;

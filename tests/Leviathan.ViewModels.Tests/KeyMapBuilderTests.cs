@@ -105,7 +105,8 @@ public sealed class DefaultKeysTests
         var map = WindowCommands.DefaultKeyMap();
 
         // Enter opens the item under the keyboard cursor: the file list itself raises that (it knows which row), so it is not a window key.
-        foreach (var command in h.Commands.Commands.Where(c => c.Definition.DefaultShortcut is not null && c.Definition.Id != CommandIds.ItemOpen))
+        // Space (quick preview) is the same: a plain Space belongs to the file list and to every text box, so the list raises it.
+        foreach (var command in h.Commands.Commands.Where(c => c.Definition.DefaultShortcut is not null && c.Definition.Id != CommandIds.ItemOpen && c.Definition.Id != CommandIds.PreviewQuick))
         {
             var gesture = KeyGesture.Parse(command.Definition.DefaultShortcut!);
             // A key with a split-pane meaning (F5, F6: to the other pane) is bound for the split case.

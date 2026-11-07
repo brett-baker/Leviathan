@@ -59,6 +59,9 @@ public sealed partial class FlowView : UserControl
     /// <summary>An item was opened: double-click or Enter.</summary>
     internal event EventHandler<FileEntry>? ItemInvoked;
 
+    /// <summary>Space was pressed: the window opens or closes the floating preview (spec §9). Ctrl+Space toggles the focused item instead.</summary>
+    internal event EventHandler? QuickPreviewRequested;
+
     /// <summary>An item was middle-clicked (a folder opens in a new tab).</summary>
     internal event EventHandler<FileEntry>? MiddleClicked;
 
@@ -655,7 +658,14 @@ public sealed partial class FlowView : UserControl
 
         if (e.Key == VirtualKey.Space && !alt)
         {
-            // Space toggles the focused item (spec §8.4).
+            if (!ctrl)
+            {
+                // Space is the quick preview (spec §9); Ctrl+Space toggles the focused item (spec §8.4).
+                e.Handled = true;
+                QuickPreviewRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             e.Handled = _tab.Selection.ToggleFocus();
             return;
         }

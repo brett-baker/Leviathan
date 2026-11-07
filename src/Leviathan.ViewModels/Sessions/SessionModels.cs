@@ -11,7 +11,16 @@ namespace Leviathan.ViewModels.Sessions;
 /// <param name="SidebarWidth">Width of the sidebar in pixels.</param>
 /// <param name="SidebarCollapsed">Whether the sidebar was collapsed.</param>
 /// <param name="Groups">The tab groups (spec §4.1): name, colour and collapsed state; each tab names its group. Null in files saved before groups existed.</param>
-public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs, double SidebarWidth = SidebarLayout.DefaultWidth, bool SidebarCollapsed = false, IReadOnlyList<TabGroupInfo>? Groups = null);
+/// <param name="Pane">The preview pane's width, video size and collapsed parts (spec §9). Null in files saved before the pane had them.</param>
+public sealed record SessionWindow(WindowBounds Bounds, bool ShowPreview, int SelectedTab, IReadOnlyList<TabState> Tabs, double SidebarWidth = SidebarLayout.DefaultWidth, bool SidebarCollapsed = false, IReadOnlyList<TabGroupInfo>? Groups = null, PreviewPaneState? Pane = null);
+
+/// <summary>How a window's preview pane was laid out (spec §9): remembered per window.</summary>
+/// <param name="Width">Width in pixels.</param>
+/// <param name="VideoSize">The S / M / L preset, or null when the height was dragged.</param>
+/// <param name="VideoHeight">The dragged height of the video area.</param>
+/// <param name="PreviewCollapsed">Whether the preview part was collapsed.</param>
+/// <param name="DetailsCollapsed">Whether the details part was collapsed.</param>
+public sealed record PreviewPaneState(double Width, VideoSize? VideoSize, double VideoHeight, bool PreviewCollapsed, bool DetailsCollapsed);
 
 /// <summary>A set of windows: the content of Last session and of every named profile.</summary>
 /// <param name="Windows">The windows, oldest first.</param>

@@ -33,6 +33,9 @@ public interface IShellActions
     /// <summary>Opens the contact sheet of one video in its own window (spec §10.4).</summary>
     void OpenContactSheet(FileEntry video);
 
+    /// <summary>Opens the large floating preview of the selection, or closes it when it is open (Space, spec §9).</summary>
+    void ToggleQuickPreview();
+
     /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
     void ExportContactSheets(IReadOnlyList<FileEntry> videos);
 
@@ -267,6 +270,18 @@ public static class CommandIds
 
     /// <summary>Show or hide the preview pane (Alt+P).</summary>
     public static readonly CommandId PreviewPane = new("pane.preview");
+
+    /// <summary>The large floating preview of the selection (Space); the same key closes it (spec §9).</summary>
+    public static readonly CommandId PreviewQuick = new("pane.previewQuick");
+
+    /// <summary>Small video in the preview pane (the S button).</summary>
+    public static readonly CommandId PreviewVideoSmall = new("pane.previewVideoSmall");
+
+    /// <summary>Medium video in the preview pane (the M button).</summary>
+    public static readonly CommandId PreviewVideoMedium = new("pane.previewVideoMedium");
+
+    /// <summary>Large video in the preview pane, filling its width (the L button).</summary>
+    public static readonly CommandId PreviewVideoLarge = new("pane.previewVideoLarge");
 
     /// <summary>One pane: closes a split and keeps the focused pane (spec §15.1).</summary>
     public static readonly CommandId PaneSingle = new("pane.single");
@@ -1187,6 +1202,10 @@ public static partial class WindowCommands
         Add(CommandIds.HubToggle, "Status hub", "View", (c, _) => Run(() => window.Hub.Toggle(c.Parameter as Hub.HubTab?)), shortcut: "Ctrl+Shift+O");
         Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
+        Add(CommandIds.PreviewQuick, "Quick preview", "View", (_, _) => Run(shell.ToggleQuickPreview), shortcut: "Space");
+        Add(CommandIds.PreviewVideoSmall, "Preview video: small", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Small)));
+        Add(CommandIds.PreviewVideoMedium, "Preview video: medium", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Medium)));
+        Add(CommandIds.PreviewVideoLarge, "Preview video: large", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Large)));
 
         // Split panes (spec §15.1, §6.3). The same key again closes the split, which keeps the pane that has the focus.
         Add(CommandIds.PaneSingle, "One pane", "View", (c, ct) => TabOf(c)!.SetPanesAsync(PaneLayout.Single, ct), c => TabOf(c) is not null);

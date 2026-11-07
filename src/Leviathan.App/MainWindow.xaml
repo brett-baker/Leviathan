@@ -205,7 +205,8 @@
         <ColumnDefinition x:Name="SidebarColumn" Width="220" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition x:Name="PreviewColumn" Width="280" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition x:Name="PreviewColumn" Width="340" />
       </Grid.ColumnDefinitions>
 
       <!-- Splitter between the tree and the file view (spec 4): drag, double-click, arrow keys. -->
@@ -339,20 +340,84 @@
         </Grid>
       </Grid>
 
-      <Border x:Name="PreviewPane" Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="16">
-        <StackPanel Spacing="4">
-          <TextBlock Text="Preview and details" Style="{StaticResource BodyStrongTextBlockStyle}" />
-          <TextBlock x:Name="PreviewName" TextWrapping="Wrap" Visibility="Collapsed" />
-          <TextBlock x:Name="PreviewSize" TextWrapping="Wrap" Visibility="Collapsed"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock Text="Video preview, metadata and tags arrive in Phase 3." TextWrapping="Wrap"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <!-- Spec 15.1: with two panes, the selection can be sent to the other pane from here. -->
-          <StackPanel x:Name="PreviewActions" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" Visibility="Collapsed">
-            <Button x:Name="PreviewMoveButton" Content="Move (F6)" Click="OnPreviewMoveClick" />
-            <Button x:Name="PreviewCopyButton" Content="Copy (F5)" Click="OnPreviewCopyClick" />
+      <!-- Splitter on the left edge of the preview pane (spec 9): drag to resize, double-click to hide. -->
+      <local:SidebarSplitter x:Name="PreviewGrip" Grid.Column="3" />
+
+      <!-- The preview and details pane (spec 9): the preview part on top, the details part below; either can be collapsed. -->
+      <Border x:Name="PreviewPane" Grid.Column="4" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" Padding="12">
+        <Grid RowSpacing="6">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="PreviewTitle" Text="Preview and details" Style="{StaticResource BodyStrongTextBlockStyle}"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+              <ToggleButton x:Name="VideoSmallButton" Content="S" Padding="8,2" MinWidth="0" Click="OnVideoSmallClick"
+                            ToolTipService.ToolTip="Small video" AutomationProperties.Name="Small video" />
+              <ToggleButton x:Name="VideoMediumButton" Content="M" Padding="8,2" MinWidth="0" Click="OnVideoMediumClick"
+                            ToolTipService.ToolTip="Medium video" AutomationProperties.Name="Medium video" />
+              <ToggleButton x:Name="VideoLargeButton" Content="L" Padding="8,2" MinWidth="0" Click="OnVideoLargeClick"
+                            ToolTipService.ToolTip="Large video (fills the pane width)" AutomationProperties.Name="Large video" />
+            </StackPanel>
+            <Button Grid.Column="2" Padding="6,2" Background="Transparent" BorderThickness="0" Click="OnPreviewToggleClick"
+                    ToolTipService.ToolTip="Hide the preview pane (Alt+P)" AutomationProperties.Name="Hide preview pane">
+              <FontIcon Glyph="&#xE8BB;" FontSize="10" />
+            </Button>
+          </Grid>
+
+          <StackPanel Grid.Row="1" Spacing="4">
+            <Button x:Name="PreviewSectionButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="4,2"
+                    Background="Transparent" BorderThickness="0" Click="OnPreviewSectionClick" AutomationProperties.Name="Preview section">
+              <TextBlock x:Name="PreviewSectionLabel" Text="▾ Preview" Style="{StaticResource CaptionTextBlockStyle}" />
+            </Button>
+            <StackPanel x:Name="PreviewBody" Spacing="0">
+              <Border x:Name="VideoArea" Height="130" CornerRadius="4" Background="{ThemeResource ControlAltFillColorSecondaryBrush}" Padding="12">
+                <TextBlock x:Name="VideoPlaceholder" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </Border>
+              <!-- Drag this to make the video taller or shorter (spec 9). -->
+              <local:ResizeHandle x:Name="VideoHandle" Height="10" Background="Transparent" AutomationProperties.Name="Resize video"
+                      ToolTipService.ToolTip="Drag to make the video taller or shorter">
+                <Border Height="3" Width="36" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+              </local:ResizeHandle>
+              <!-- Spec 15.1: with two panes, the selection can be sent to the other pane from here, right under the video. -->
+              <StackPanel x:Name="PreviewActions" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0" Visibility="Collapsed">
+                <Button x:Name="PreviewMoveButton" Content="Move (F6)" Click="OnPreviewMoveClick" />
+                <Button x:Name="PreviewCopyButton" Content="Copy (F5)" Click="OnPreviewCopyClick" />
+              </StackPanel>
+            </StackPanel>
           </StackPanel>
-        </StackPanel>
+
+          <Grid Grid.Row="2" RowSpacing="4">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Button x:Name="DetailsSectionButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="4,2"
+                    Background="Transparent" BorderThickness="0" Click="OnDetailsSectionClick" AutomationProperties.Name="Details section">
+              <TextBlock x:Name="DetailsSectionLabel" Text="▾ Details" Style="{StaticResource CaptionTextBlockStyle}" />
+            </Button>
+            <ScrollViewer x:Name="DetailsBody" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+              <StackPanel Spacing="4">
+                <TextBlock x:Name="PreviewName" TextWrapping="Wrap" Visibility="Collapsed" />
+                <TextBlock x:Name="PreviewSize" TextWrapping="Wrap" Visibility="Collapsed"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="Metadata and tags arrive in the next slices." TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
       </Border>
     </Grid>
     </Grid>
