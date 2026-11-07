@@ -51,5 +51,5 @@
 ```powershell
 .\tools\New-UatFixtures.ps1 -RemoveShare    # elevated
 net use U: /delete                          # only if you mapped U: in step 5
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

@@ -63,7 +63,7 @@ ask again.
 
 - Plain and short: a goal line, setup, numbered steps each with the **expected result**, then **Known edge cases** (what is
   deliberately not handled, what looks odd but is right, what is unverified).
-- **Never real data.** Steps use the folders built by `tools/New-UatFixtures.ps1` (`%LOCALAPPDATA%\Temp\leviathan-uat\uat\…`:
+- **Never real data.** Steps use the folders built by `tools/New-UatFixtures.ps1` (`D:\Playbooks\uat\…`:
   odd names, long paths, hidden/read-only, a 6 GiB sparse file, conflicts, 10,000 items, bulk copy, empty targets). If a slice
   needs a file kind the fixtures lack, extend the script in the same commit.
 - **Network steps** use `-Share` (an SMB share `\\localhost\LeviathanUat` on this machine) or are marked `[lab]` and aimed at a

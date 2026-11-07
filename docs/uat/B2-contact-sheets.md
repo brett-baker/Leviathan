@@ -10,10 +10,10 @@
    ```powershell
    pwsh .\tools\New-UatFixtures.ps1
    ```
-   Folder: `%LOCALAPPDATA%\Temp\leviathan-uat\uat\09-media`. Also make an empty scratch folder for the exports, for example `%LOCALAPPDATA%\Temp\leviathan-uat\sheets-out`.
+   Folder: `D:\Playbooks\uat\09-media`. Also make an empty scratch folder for the exports, for example `D:\Playbooks\sheets-out`.
 2. Start the app with scratch settings:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
 
@@ -60,5 +60,5 @@ Pass / fail / notes, and anything to tweak.
 ## Clean up
 
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data", "$env:LOCALAPPDATA\Temp\leviathan-uat\sheets-out"
+Remove-Item -Recurse -Force "D:\Playbooks\data", "D:\Playbooks\sheets-out"
 ```

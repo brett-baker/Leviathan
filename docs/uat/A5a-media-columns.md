@@ -10,10 +10,10 @@
    ```powershell
    pwsh .\tools\New-UatFixtures.ps1
    ```
-   Fixture folder: `%LOCALAPPDATA%\Temp\leviathan-uat\uat\09-media`. It holds `short-3s.mp4`, `medium-45s.mkv`, `long-2m05.avi`, `hdr10-5s.mkv`, `song-20s.flac`, `broken.mp4` (random bytes) and `notes.txt`.
+   Fixture folder: `D:\Playbooks\uat\09-media`. It holds `short-3s.mp4`, `medium-45s.mkv`, `long-2m05.avi`, `hdr10-5s.mkv`, `song-20s.flac`, `broken.mp4` (random bytes) and `notes.txt`.
 2. Start the app with scratch settings, so your real settings and favourites are untouched:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
 
@@ -59,5 +59,5 @@ Pass / fail / notes, and anything to tweak.
 ## Clean up
 
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

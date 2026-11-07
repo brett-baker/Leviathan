@@ -12,7 +12,7 @@ Fixtures built (with `-Share`, elevated, for step 2); app started with scratch s
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | Open `%LOCALAPPDATA%\Temp\leviathan-uat\uat\01-basic` (a local folder). | The status bar shows items and free space as before; **no** network text. |
+| 1 | Open `D:\Playbooks\uat\01-basic` (a local folder). | The status bar shows items and free space as before; **no** network text. |
 | 2 | Open `\\localhost\LeviathanUat\01-basic`. | The status bar shows `\\localhost\LeviathanUat` and **no speed** (a share on this PC never leaves the PC, so there is no link to measure). |
 | 3 | `[lab]` Open a folder on a test share on your NAS. | `\\nas\share · 1 Gb/s` (or `2.5 Gb/s`, `10 Gb/s`) appears within about a second of the folder opening; the folder itself did not wait for it. |
 | 4 | `[lab]` Open another folder on the same NAS, then switch between tabs. | The speed is there at once (remembered for a minute). |
@@ -37,5 +37,5 @@ Fixtures built (with `-Share`, elevated, for step 2); app started with scratch s
 
 ```powershell
 .\tools\New-UatFixtures.ps1 -RemoveShare    # elevated
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

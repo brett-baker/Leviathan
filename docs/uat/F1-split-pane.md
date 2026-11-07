@@ -10,13 +10,13 @@
    ```powershell
    .\tools\New-UatFixtures.ps1
    ```
-   Fixture root: `%LOCALAPPDATA%\Temp\leviathan-uat\uat` (folders `01-basic`, `02-odd-names`, `04-attributes` are used below).
+   Fixture root: `D:\Playbooks\uat` (folders `01-basic`, `02-odd-names`, `04-attributes` are used below).
 2. Start the app with scratch settings, so your real settings, favourites and saved servers are untouched:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
-3. In the first tab, go to `%LOCALAPPDATA%\Temp\leviathan-uat\uat\01-basic`.
+3. In the first tab, go to `D:\Playbooks\uat\01-basic`.
 
 ## Steps
 
@@ -70,5 +70,5 @@ Pass / fail / notes, and anything to tweak.
 ## Clean up
 
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

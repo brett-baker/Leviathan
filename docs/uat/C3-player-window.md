@@ -10,10 +10,10 @@
    ```powershell
    pwsh .\tools\New-UatFixtures.ps1
    ```
-   Folder: `%LOCALAPPDATA%\Temp\leviathan-uat\uat\09-media`.
+   Folder: `D:\Playbooks\uat\09-media`.
 2. Start the app with scratch settings:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
 3. Open `09-media`. The only way in for now is the contact sheet: right-click `medium-45s.mkv`, **Contact sheet**, then click a frame. (The preview pane and triage mode will open the player directly later.)
@@ -66,5 +66,5 @@ Pass / fail / notes, and anything to tweak.
 ## Clean up
 
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

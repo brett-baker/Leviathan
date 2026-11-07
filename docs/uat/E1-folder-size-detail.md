@@ -10,14 +10,14 @@
    ```powershell
    .\tools\New-UatFixtures.ps1 -Share      # elevated; the network steps need the share
    ```
-   Fixture root: `%LOCALAPPDATA%\Temp\leviathan-uat\uat`.
+   Fixture root: `D:\Playbooks\uat`.
 2. Map the test share to a drive letter that is free (not Y: or Z:):
    ```powershell
    net use U: \\localhost\LeviathanUat
    ```
 3. Start the app with scratch settings, so your real settings, favourites and saved servers are untouched:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
    Folder sizes must be on: Settings, Files, "Show folder sizes", and Quick settings, "Folder sizes on network drives".
@@ -26,7 +26,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | Open `%LOCALAPPDATA%\Temp\leviathan-uat\uat` (local) and show the Size column. | Folders show `…`, then a size. A size that is still counting starts with `≥`. |
+| 1 | Open `D:\Playbooks\uat` (local) and show the Size column. | Folders show `…`, then a size. A size that is still counting starts with `≥`. |
 | 2 | Hover the size of `01-basic`. | Tip like `5 MB · 9 files in 4 folders · counted just now`. |
 | 3 | Open `U:\` (the mapped share). | The drive card shows the usual usage lines. A "Counted:" line appears under them after a moment, with the total, file and folder counts and "counted … ago". |
 | 4 | In `U:\`, look at the Size column. | Each folder's size ends with its age, for example `5 MB · now`. The local folders in step 1 had no age in the cell. |
@@ -35,7 +35,7 @@
 | 7 | Click `01-basic` on `U:\`, add a file to it from Explorer, go back and forward in the tab. | The size may be shown in italic until recounted. The tip says "out of date, counted …" while it is. |
 | 8 | In Settings, turn "Show folder sizes" off. | Size cells for folders are empty, the tip is gone, the card line and preview size disappear. |
 | 9 | Open `U:\` again after the app has been running an hour or more `[optional]`. | The age in the cell reads `1 h`, later `2 d`; the tip reads "counted 2 days ago". |
-| 10 | Open `%LOCALAPPDATA%\Temp\leviathan-uat\uat\04-attributes`. | The 6 GiB sparse file is a file, so it shows its own size and no tip. The folder total uses what is on disk and does not hang the window. |
+| 10 | Open `D:\Playbooks\uat\04-attributes`. | The 6 GiB sparse file is a file, so it shows its own size and no tip. The folder total uses what is on disk and does not hang the window. |
 
 Steps 3, 4, 5 and 7 need the mapped share. Do not use Y:, Z: or `\\192.168.1.10`.
 
@@ -63,5 +63,5 @@ Pass / fail / notes, and anything to tweak.
 ```powershell
 net use U: /delete
 .\tools\New-UatFixtures.ps1 -RemoveShare   # elevated
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

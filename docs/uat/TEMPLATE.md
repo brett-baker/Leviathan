@@ -10,10 +10,10 @@
    ```powershell
    .\tools\New-UatFixtures.ps1          # add -Share (elevated) for the network steps
    ```
-   Fixture root: `%LOCALAPPDATA%\Temp\leviathan-uat\uat`.
+   Fixture root: `D:\Playbooks\uat`.
 2. Start the app with scratch settings, so your real settings, favourites and saved servers are untouched:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
 
@@ -41,5 +41,5 @@ Pass / fail / notes, and anything to tweak.
 
 ```powershell
 .\tools\New-UatFixtures.ps1 -RemoveShare   # if you used -Share (elevated)
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

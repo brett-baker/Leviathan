@@ -3,7 +3,7 @@
   Builds the test folders the UAT playbooks (docs/uat) use, so nobody tests with real data.
 
 .DESCRIPTION
-  Creates %TEMP%\leviathan-uat (or -Root) with the same content every time: ordinary files, odd names, long paths, hidden and
+  Creates D:\Playbooks (or -Root) with the same content every time: ordinary files, odd names, long paths, hidden and
   read-only files, empty files, a big sparse file, duplicates for conflict prompts, a 10,000-item folder and small media files.
   Running it again deletes and rebuilds the folder, so every playbook starts from a known state.
 
@@ -17,7 +17,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = (Join-Path $env:LOCALAPPDATA 'Temp\leviathan-uat'),
+    [string]$Root = 'D:\Playbooks',
     [switch]$Share,
     [switch]$RemoveShare
 )
@@ -43,14 +43,15 @@ if ((Test-Path $Root) -and -not (Test-Path $marker) -and (Get-ChildItem $Root -F
     throw "$Root exists and was not made by this script. Pick another -Root or empty it yourself."
 }
 
-if (Test-Path $Root) {
-    Get-ChildItem $Root -Force | ForEach-Object {
+$uat = Join-Path $Root 'uat'
+if (Test-Path $uat) {
+    # Only the fixture folder is rebuilt; the scratch data and export folders next to it (data, sheets-out) are left alone.
+    Get-ChildItem $uat -Force | ForEach-Object {
         # \\?\ lets Remove-Item delete the long paths made below.
         Remove-Item -LiteralPath ('\\?\' + $_.FullName) -Recurse -Force
     }
 }
 
-$uat = Join-Path $Root 'uat'
 New-Item -ItemType Directory -Path $uat -Force | Out-Null
 Set-Content -LiteralPath $marker -Value 'Made by tools/New-UatFixtures.ps1; safe to delete.'
 

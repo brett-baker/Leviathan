@@ -10,10 +10,10 @@
    ```powershell
    pwsh .\tools\New-UatFixtures.ps1
    ```
-   Folder: `%LOCALAPPDATA%\Temp\leviathan-uat\uat\09-media`.
+   Folder: `D:\Playbooks\uat\09-media`.
 2. Windows may already have thumbnails for your video types (a codec pack or VLC does). To see the ffmpeg path regardless, start the app with video frames forced on, and with scratch settings:
    ```powershell
-   $env:LEVIATHAN_DATA_DIR = "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+   $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    $env:LEVIATHAN_VIDEO_FRAMES = "1"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
@@ -26,7 +26,7 @@
 | 1 | Open `09-media` and switch to **Thumbnails** (Ctrl+Shift+2). | Icons first, then pictures replace them within about a second: a test pattern for each clip and the HDR clip. No window freeze. |
 | 2 | Look at the pictures. | Each shows a frame from partway in, not the very first frame (the test pattern has a running clock). |
 | 3 | Look at `broken.mp4`, `song-20s.flac` and `notes.txt`. | They keep their icons. No error dialogs. |
-| 4 | Open `%LOCALAPPDATA%\Temp\leviathan-uat-data\thumbs`. | Sub-folders of small `.jpg` files, one per drawn clip (4), none for the broken file. No `.part.jpg` files left. |
+| 4 | Open `D:\Playbooks\data\thumbs`. | Sub-folders of small `.jpg` files, one per drawn clip (4), none for the broken file. No `.part.jpg` files left. |
 | 5 | Close the app, start it again the same way, open `09-media` in Thumbnails. | Pictures appear at once, from the disk cache. |
 | 6 | Switch to **Gallery** (Ctrl+Shift+1). | Larger pictures; they take a moment the first time (a bigger size is a new thumbnail), then stay. |
 | 7 | Close the app, start it **without** `LEVIATHAN_VIDEO_FRAMES` (`Remove-Item Env:LEVIATHAN_VIDEO_FRAMES`), open the folder. | If Windows has thumbnails for these types you see Windows' own (possibly a different frame). If not, you see the ffmpeg frames as before. Either is correct. |
@@ -56,5 +56,5 @@ Pass / fail / notes, and anything to tweak.
 
 ```powershell
 Remove-Item Env:LEVIATHAN_VIDEO_FRAMES -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```

@@ -42,5 +42,5 @@ Fixtures built (with `-Share`, elevated, for steps 8–9); app started with scra
 
 ```powershell
 .\tools\New-UatFixtures.ps1 -RemoveShare    # elevated
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Temp\leviathan-uat-data"
+Remove-Item -Recurse -Force "D:\Playbooks\data"
 ```
