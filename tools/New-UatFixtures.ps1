@@ -172,6 +172,18 @@ if ($ff) {
 [IO.File]::WriteAllBytes((Join-Path $media 'broken.mp4'), [byte[]](1..200 | ForEach-Object { Get-Random -Maximum 256 }))
 [IO.File]::WriteAllText((Join-Path $media 'notes.txt'), 'not media')
 
+# 10. A triage inbox: six short clips of different lengths and sizes (for the triage playbook), plus an empty keep folder.
+$triage = Join-Path $uat '10-triage'
+New-Item -ItemType Directory -Path (Join-Path $triage 'inbox') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $triage 'keep') -Force | Out-Null
+if ($ff) {
+    $sizes = @{ 'clip1-red' = 8; 'clip2-blue' = 12; 'clip3-long' = 30; 'clip4-short' = 4; 'clip5-odd name (1) [x].mp4' = 10; 'clip6-last' = 6 }
+    foreach ($name in $sizes.Keys) {
+        $file = if ($name.EndsWith('.mp4')) { $name } else { "$name.mp4" }
+        & $ff -y -v error @(Pattern $sizes[$name]) @(Tone $sizes[$name]) -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest (Join-Path $triage "inbox\$file")
+    }
+}
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 
