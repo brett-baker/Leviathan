@@ -54,6 +54,9 @@ internal sealed partial class TriageWindow : Window
     private ITriageActions? _actions;
     private bool _handOffDone;
 
+    /// <summary>The inbox session this window works through, or null for a plain queue; decisions are saved to the inbox when the window closes (spec §10.1).</summary>
+    public InboxSession? Inbox { get; set; }
+
     /// <summary>Opens triage over <paramref name="queue"/>, starting at <paramref name="startIndex"/>.</summary>
     /// <param name="queue">The videos to go through.</param>
     /// <param name="startIndex">Where in the queue to start.</param>
@@ -113,6 +116,11 @@ internal sealed partial class TriageWindow : Window
         _handOffDone = true;
         try
         {
+            if (Inbox is { } inbox && _session is { } finished)
+            {
+                await App.Host.Inboxes.RecordAsync(inbox.Inbox, finished, CancellationToken.None);
+            }
+
             await HandOffAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -230,7 +238,10 @@ internal sealed partial class TriageWindow : Window
             return;
         }
 
-        ProgressText.Text = session.ProgressText;
+        ProgressText.Text = Inbox is { } inbox
+            ? InboxSession.Progress(session.Items.Count(i => i.Decision != TriageDecision.None), session.Items.Count, InboxCatalog.TriagedCount(inbox.Inbox, session), inbox.Total)
+              + $" · {session.Kept:N0} kept · {session.Discarded:N0} discarded"
+            : session.ProgressText;
         ReclaimedText.Text = session.ReclaimedText;
         Bar.Value = session.Items.Count == 0 ? 0 : (double)(session.IsFinished ? session.Items.Count : Math.Max(0, session.Index)) / session.Items.Count;
         ErrorText.Text = session.LastError ?? string.Empty;

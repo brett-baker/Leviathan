@@ -48,6 +48,10 @@ public sealed class WindowCommandsTests
 
         public void StartTriage() => TriageStarts++;
 
+        public void StartInboxTriage() => InboxStarts++;
+
+        public int InboxStarts { get; private set; }
+
         public bool Confirm { get; set; } = true;
 
         public List<string> Confirmations { get; } = [];

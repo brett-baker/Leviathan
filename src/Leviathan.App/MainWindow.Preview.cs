@@ -3,6 +3,7 @@ using Leviathan.Playback;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Preview;
+using Leviathan.ViewModels.Triage;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -582,9 +583,16 @@ public sealed partial class MainWindow
             return;
         }
 
+        OpenTriageWindow(queue, start, queue[0].Location.Parent?.Name ?? "videos", null);
+    });
+
+    // Opens the triage window over a queue; the other pane of a split tab is where kept files go (spec §10.1). When it closes, the file
+    // it was on is selected in the folder again.
+    private void OpenTriageWindow(IReadOnlyList<FileEntry> queue, int start, string title, InboxSession? inbox)
+    {
         var tab = _bound;
 
-        // The other pane of a split tab is where kept files go (spec §10.1); looked up when asked, as the user may move that pane meanwhile.
+        // Looked up when asked, as the user may move that pane meanwhile.
         string? OtherPaneFolder()
         {
             var shown = _viewModel.Tabs.Selected;
@@ -594,7 +602,7 @@ public sealed partial class MainWindow
                 : null;
         }
 
-        var window = new TriageWindow(queue, start, queue[0].Location.Parent?.Name ?? "videos", OtherPaneFolder);
+        var window = new TriageWindow(queue, start, title, OtherPaneFolder) { Inbox = inbox };
         window.Notice += (_, text) => OnUi(() => MessageText.Text = text);
         window.Exited += (_, file) => OnUi(() =>
         {
@@ -604,7 +612,7 @@ public sealed partial class MainWindow
             }
         });
         window.Activate();
-    });
+    }
 
     private QuickPreviewWindow? _quick;
 

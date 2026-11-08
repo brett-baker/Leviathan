@@ -82,7 +82,7 @@ Every slice follows `CLAUDE.md`.
   a queued job); Discard = soft delete via the Phase 2 engine.
 - [x] **E4. Triage window**: full-window player, overlay, progress bar (session and inbox totals, kept/discarded/skipped,
   space reclaimable), queue side list.
-- [ ] **E5. Inboxes and sessions**: saved named queues over a folder, new arrivals appended and marked New, batch of N
+- [x] **E5. Inboxes and sessions**: saved named queues over a folder, new arrivals appended and marked New, batch of N
   (default 1,000) ordered oldest/newest/largest/random; resume across sessions.
 - [ ] **E6. Skim playback**: 3 s bursts every 5%, next point decoded ahead; in triage and the preview pane.
 

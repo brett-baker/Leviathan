@@ -39,6 +39,9 @@ public interface IShellActions
     /// <summary>Opens triage mode over the videos of the folder view, starting at the selected one (spec §10.1).</summary>
     void StartTriage();
 
+    /// <summary>Opens the inbox chooser: a saved, named queue over a folder, worked in sessions of N (spec §10.1).</summary>
+    void StartInboxTriage();
+
     /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
     void ExportContactSheets(IReadOnlyList<FileEntry> videos);
 
@@ -384,6 +387,9 @@ public static class CommandIds
 
     /// <summary>Triage mode starting at the selected video (Phase 3).</summary>
     public static readonly CommandId TriageFromHere = new("triage.fromHere");
+
+    /// <summary>Triage a saved inbox in sessions of N (Phase 3, E5).</summary>
+    public static readonly CommandId TriageInbox = new("triage.inbox");
 
     /// <summary>Contact sheet of one video (a window with the grid, saved on request), or of every video in a selection (made into a folder in the background).</summary>
     public static readonly CommandId ContactSheet = new("media.contactSheet");
@@ -1207,6 +1213,7 @@ public static partial class WindowCommands
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
         // Alt+T, not the spec's plain T: a bare letter is type-ahead in the file list and would be eaten in the filter and address boxes.
         Add(CommandIds.TriageFromHere, "Triage mode from here", "Media", (_, _) => Run(shell.StartTriage), _ => Current() is not null, shortcut: "Alt+T");
+        Add(CommandIds.TriageInbox, "Triage an inbox…", "Media", (_, _) => Run(shell.StartInboxTriage), _ => Current() is not null, shortcut: "Alt+Shift+T");
         Add(CommandIds.PreviewQuick, "Quick preview", "View", (_, _) => Run(shell.ToggleQuickPreview), shortcut: "Space");
         Add(CommandIds.PreviewVideoSmall, "Preview video: small", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Small)));
         Add(CommandIds.PreviewVideoMedium, "Preview video: medium", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Medium)));
@@ -1313,6 +1320,7 @@ public static partial class WindowCommands
             ("Ctrl+L", CommandIds.AddressFocus),
             ("Alt+D", CommandIds.AddressFocus),
             ("Alt+T", CommandIds.TriageFromHere),
+            ("Alt+Shift+T", CommandIds.TriageInbox),
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),

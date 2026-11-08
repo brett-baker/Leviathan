@@ -118,6 +118,10 @@ public sealed class UiThreadAffinityTests
         public void StartTriage()
         {
         }
+
+        public void StartInboxTriage()
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher

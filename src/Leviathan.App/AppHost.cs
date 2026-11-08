@@ -395,6 +395,12 @@ internal sealed class AppHost
 
     private JsonFileStore<HubLayout> HubStore { get; init; } = null!;
 
+    /// <summary>The saved triage inboxes (spec §10.1).</summary>
+    public InboxCatalog Inboxes { get; private init; } = null!;
+
+    /// <summary>Finds the provider for a location, for work outside a tab (an inbox read).</summary>
+    public LocationProviderRegistry Providers { get; private init; } = null!;
+
     private HubLayout _hubLayout = new();
     private Timer? _hubSaveTimer;
 
@@ -714,6 +720,8 @@ internal sealed class AppHost
             SheetBatch = sheetBatch,
             WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
+            Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json"))),
+            Providers = providers,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             SettingsPath = Path.Combine(data, "settings.json"),
             ViewRulesStore = new ViewRulesPersistence(viewRules, new JsonFileStore<ViewRulesFile>(disk, Path.Combine(data, "viewrules.json"))),
