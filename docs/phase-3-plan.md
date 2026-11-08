@@ -66,7 +66,7 @@ Every slice follows `CLAUDE.md`.
     WebView2 with scripts and network off.
   - [x] **D2d. PDF, fonts, archives, folders, several items**: Windows.Data.Pdf pages; font samples; archive listing (7-Zip); folder
     count, size and mini space map; count, size and type breakdown with a strip of thumbnails.
-  - [ ] **D2e. Office documents**: the registered shell preview handler hosted out of process in ShellHost.
+  - [x] **D2e. Office documents**: the registered shell preview handler hosted out of process in ShellHost.
   - [ ] **D2f. Video extras**: filmstrip, hover frame preview on the seek bar, audio waveform and cover art.
 - [ ] **D3. Details**: grouped metadata (general, tags, media streams, image EXIF/IPTC/XMP, audio tags, document, all Windows
   properties), checksums on demand, in-place editing of tags/rating/title/comments.

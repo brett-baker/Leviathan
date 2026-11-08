@@ -25,6 +25,7 @@ public sealed partial class MainWindow
     private PdfPreview? _pdf;
     private FontPreview? _font;
     private SummaryPreview? _summary;
+    private ShellPreviewSurface? _shell;
     private bool _playerOpen;
     private string _previewKey = string.Empty;
     private bool _previewActive;
@@ -157,6 +158,11 @@ public sealed partial class MainWindow
                     var font = _font ??= AddSurface(new FontPreview());
                     ShowOnly(font);
                     await font.OpenAsync(path, request.Cancellation);
+                    break;
+                case PreviewKind.Office:
+                    var shell = _shell ??= AddShellSurface();
+                    ShowOnly(shell);
+                    await shell.OpenAsync(path, WinRT.Interop.WindowNative.GetWindowHandle(this), request.Cancellation);
                     break;
                 case PreviewKind.Archive when ArchiveListing.CanList(entry!.Extension):
                     await ShowArchiveAsync(entry, path, request.Cancellation);
@@ -302,6 +308,20 @@ public sealed partial class MainWindow
         return kind == PreviewKind.Markdown ? WebPreviewHtml.FromMarkdown(text) : WebPreviewHtml.FromHtml(text);
     }
 
+    // The shell surface keeps the handler's window over itself when the app window moves, which no layout event reports.
+    private ShellPreviewSurface AddShellSurface()
+    {
+        var surface = AddSurface(new ShellPreviewSurface());
+        AppWindow.Changed += (_, e) =>
+        {
+            if (e.DidPositionChange || e.DidSizeChange)
+            {
+                surface.Reposition();
+            }
+        };
+        return surface;
+    }
+
     private T AddSurface<T>(T surface)
         where T : FrameworkElement
     {
@@ -330,7 +350,7 @@ public sealed partial class MainWindow
     // Shows one renderer in the video area and clears and hides the others; null shows the placeholder text instead.
     private void ShowOnly(FrameworkElement? next)
     {
-        foreach (FrameworkElement? surface in new FrameworkElement?[] { _player, _images, _text, _web, _pdf, _font, _summary })
+        foreach (FrameworkElement? surface in new FrameworkElement?[] { _player, _images, _text, _web, _pdf, _font, _summary, _shell })
         {
             if (surface is null)
             {
@@ -364,6 +384,9 @@ public sealed partial class MainWindow
                 case SummaryPreview summary:
                     summary.Clear();
                     break;
+                case ShellPreviewSurface shell:
+                    shell.Clear();
+                    break;
             }
         }
 
@@ -388,6 +411,7 @@ public sealed partial class MainWindow
         _text?.Clear();
         _web?.Release();
         _pdf?.Clear();
+        _shell?.Clear();
         if (_player is { } player)
         {
             _player = null;

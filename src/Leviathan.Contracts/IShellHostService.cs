@@ -47,7 +47,36 @@ public interface IShellHostService
 
     /// <summary>Releases an open menu. Closing a menu that is already gone is not an error.</summary>
     Task CloseContextMenuAsync(Guid menuId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Shows the registered shell preview handler of a file (Word, Excel, PowerPoint, Outlook and whatever else registers one) in a
+    /// window of the host that floats over <see cref="ShellPreviewRequest"/>'s rectangle, owned by the UI's window. The handler's code
+    /// runs here, so a crash or hang in it costs a restart of this process, never the UI (spec §9.1, §3.4). When the file has no handler,
+    /// the result says so instead of throwing.
+    /// </summary>
+    Task<ShellPreviewResult> OpenPreviewAsync(ShellPreviewRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Moves and resizes an open preview; the UI calls it when the pane or the window moves. An unknown id is ignored.</summary>
+    Task MovePreviewAsync(Guid previewId, ShellRect bounds, CancellationToken cancellationToken);
+
+    /// <summary>Closes an open preview and releases its handler. Closing a preview that is already gone is not an error.</summary>
+    Task ClosePreviewAsync(Guid previewId, CancellationToken cancellationToken);
 }
+
+/// <summary>A rectangle in screen pixels.</summary>
+public sealed record ShellRect(int X, int Y, int Width, int Height);
+
+/// <summary>What a shell preview is for.</summary>
+/// <param name="Path">The file (a full Windows path).</param>
+/// <param name="OwnerWindow">Handle of the UI window that owns the preview window, so it stays above it and goes with it when it is minimised.</param>
+/// <param name="Bounds">Where the preview goes, in screen pixels.</param>
+public sealed record ShellPreviewRequest(string Path, long OwnerWindow, ShellRect Bounds);
+
+/// <summary>What became of a preview request.</summary>
+/// <param name="Id">Names the preview in later calls; <see cref="Guid.Empty"/> when there is none.</param>
+/// <param name="Handler">The registered handler's CLSID, when there is one.</param>
+/// <param name="Error">Why there is no preview (no handler registered, handler refused the file), or null.</param>
+public sealed record ShellPreviewResult(Guid Id, string? Handler, string? Error);
 
 /// <summary>What a context menu is for.</summary>
 /// <param name="Paths">The selected items (all on the same machine; Windows paths).</param>

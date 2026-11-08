@@ -13,9 +13,11 @@ internal sealed class ShellHostService : IShellHostService
 
     private readonly StaPool _pool;
     private readonly ShellMenuManager _menus;
+    private readonly ShellPreviewManager _previews;
 
-    public ShellHostService(StaPool pool, ShellMenuManager menus)
+    public ShellHostService(StaPool pool, ShellMenuManager menus, ShellPreviewManager previews)
     {
+        _previews = previews ?? throw new ArgumentNullException(nameof(previews));
         _pool = pool ?? throw new ArgumentNullException(nameof(pool));
         _menus = menus ?? throw new ArgumentNullException(nameof(menus));
     }
@@ -45,4 +47,13 @@ internal sealed class ShellHostService : IShellHostService
 
     /// <inheritdoc />
     public Task CloseContextMenuAsync(Guid menuId, CancellationToken cancellationToken) => _menus.CloseAsync(menuId);
+
+    /// <inheritdoc />
+    public Task<ShellPreviewResult> OpenPreviewAsync(ShellPreviewRequest request, CancellationToken cancellationToken) => _previews.OpenAsync(request, cancellationToken);
+
+    /// <inheritdoc />
+    public Task MovePreviewAsync(Guid previewId, ShellRect bounds, CancellationToken cancellationToken) => _previews.MoveAsync(previewId, bounds, cancellationToken);
+
+    /// <inheritdoc />
+    public Task ClosePreviewAsync(Guid previewId, CancellationToken cancellationToken) => _previews.CloseAsync(previewId);
 }

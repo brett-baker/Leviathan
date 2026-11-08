@@ -45,6 +45,8 @@ builder.Services.AddSingleton<IShellMenuSource>(_ => crashMarker is null
     ? new WindowsShellMenuSource()
     : new CrashOnceMenuSource(new WindowsShellMenuSource(), crashMarker));
 builder.Services.AddSingleton(sp => new ShellMenuManager(sp.GetRequiredService<IShellMenuSource>(), sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton<IShellPreviewSource>(_ => new WindowsShellPreviewSource());
+builder.Services.AddSingleton(sp => new ShellPreviewManager(sp.GetRequiredService<IShellPreviewSource>(), sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<ShellHostService>();
 builder.Services.AddSingleton(sp => new ShellPipeService(sp.GetRequiredService<ShellHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ShellPipeService>());

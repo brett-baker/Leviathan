@@ -7,6 +7,7 @@
     <AssemblyName>Leviathan.ShellHost</AssemblyName>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />

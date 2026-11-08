@@ -69,12 +69,13 @@ internal sealed class MenuSweeperService(ShellMenuManager menus) : BackgroundSer
 /// Ends the process with a failure code when the STA pool or the menus have too many threads stuck inside shell extensions, so
 /// the supervisor starts a clean host instead of the UI waiting on one that can no longer answer (spec §3.4).
 /// </summary>
-internal sealed class PoolHealthService(StaPool pool, ShellMenuManager menus, IHostApplicationLifetime lifetime, ILogger<PoolHealthService> logger) : IHostedService
+internal sealed class PoolHealthService(StaPool pool, ShellMenuManager menus, ShellPreviewManager previews, IHostApplicationLifetime lifetime, ILogger<PoolHealthService> logger) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
         pool.Unhealthy += OnUnhealthy;
         menus.Unhealthy += OnUnhealthy;
+        previews.Unhealthy += OnUnhealthy;
         return Task.CompletedTask;
     }
 
@@ -82,6 +83,7 @@ internal sealed class PoolHealthService(StaPool pool, ShellMenuManager menus, IH
     {
         pool.Unhealthy -= OnUnhealthy;
         menus.Unhealthy -= OnUnhealthy;
+        previews.Unhealthy -= OnUnhealthy;
         return Task.CompletedTask;
     }
 
