@@ -27,7 +27,8 @@ public static class TagIds
 
 /// <summary>Where Keep puts a file.</summary>
 /// <param name="KeepFolder">The folder Keep also moves the file to, or null or empty to leave it where it is.</param>
-public sealed record TriageKeepOptions(string? KeepFolder);
+/// <param name="MoveOnKeep">True to move at once (the file leaves the inbox when kept); false to only tag it and let the end of the session move the kept files together.</param>
+public sealed record TriageKeepOptions(string? KeepFolder, bool MoveOnKeep = true);
 
 /// <summary>
 /// What a decision really does to files (spec §10.1, D17, D26). Keep puts the green tag on the file and, when a keep folder is set,
@@ -47,8 +48,9 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         var before = await tags.GetAsync(path, cancellationToken).ConfigureAwait(false);
         await tags.SetAsync(path, new HashSet<int>(before) { TagIds.Green }, cancellationToken).ConfigureAwait(false);
 
-        var folder = keepOptions().KeepFolder;
-        if (string.IsNullOrWhiteSpace(folder) || SameFolder(path, folder))
+        var options = keepOptions();
+        var folder = options.KeepFolder;
+        if (!options.MoveOnKeep || string.IsNullOrWhiteSpace(folder) || SameFolder(path, folder))
         {
             return new TriageActionResult(() => tags.SetAsync(path, before, CancellationToken.None));
         }
@@ -90,6 +92,49 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
                 await tags.SetAsync(path, before, CancellationToken.None).ConfigureAwait(false);
             },
             movedFile);
+    }
+
+    /// <inheritdoc />
+    public async Task<TriageMoveResult> MoveKeptAsync(IReadOnlyList<FileEntry> kept, string folder, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(kept);
+        ArgumentException.ThrowIfNullOrWhiteSpace(folder);
+        var target = folder.Trim();
+        var problems = new List<string>();
+        var moved = 0;
+        var queued = 0;
+        var toMove = kept.Where(f => !SameFolder(f.Location.ToWin32Path(), target)).ToList();
+
+        var near = toMove.Where(f => SameVolume(f.Location.ToWin32Path(), target)).ToList();
+        if (near.Count > 0)
+        {
+            var result = await files.MoveAsync([.. near.Select(f => new ItemMove(f.Location.ToWin32Path(), Path.Combine(target, f.Name)))], cancellationToken).ConfigureAwait(false);
+            moved = result.Done.Count;
+            problems.AddRange(result.Problems);
+        }
+
+        var far = toMove.Except(near).ToList();
+        if (far.Count > 0)
+        {
+            if (transfers is null)
+            {
+                problems.Add($"{far.Count} kept file(s) are on another drive than {target}, and moving between drives is not available here.");
+            }
+            else
+            {
+                var outcome = await transfers.StartAsync(new TransferRequest([.. far.Select(f => f.Location)], LocationPath.Parse(target), TransferMode.Move), cancellationToken).ConfigureAwait(false);
+                if (outcome.Started)
+                {
+                    queued = far.Count;
+                }
+                else
+                {
+                    problems.Add(outcome.Message);
+                }
+            }
+        }
+
+        return new TriageMoveResult(moved, queued, problems);
     }
 
     /// <inheritdoc />

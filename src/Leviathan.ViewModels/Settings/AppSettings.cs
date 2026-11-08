@@ -203,6 +203,16 @@ public sealed record FilesSettings
         new(Math.Clamp(BinKeepDays, 0, 3650), Math.Clamp(BinMaxGiB, 0, 100_000) * (1L << 30));
 }
 
+/// <summary>When triage moves the files it keeps (spec §10.1).</summary>
+public enum TriageMoveMode
+{
+    /// <summary>Keep only tags the file; the kept files are moved together when triage closes.</summary>
+    AtEnd,
+
+    /// <summary>Keep tags the file and moves it at once.</summary>
+    OnKeep,
+}
+
 /// <summary>Media and preview page, the triage part (spec §10.1, §17.2).</summary>
 public sealed record MediaSettings
 {
@@ -220,6 +230,15 @@ public sealed record MediaSettings
     /// it is. On the same share or drive the move is a rename and instant; otherwise it is a queued job.
     /// </summary>
     public string TriageKeepFolder { get; init; } = string.Empty;
+
+    /// <summary>
+    /// When kept files go to the destination (the other pane of a split tab, else <see cref="TriageKeepFolder"/>): all together when
+    /// triage ends (default, one question and one job), or each file as it is kept.
+    /// </summary>
+    public TriageMoveMode TriageMoveWhen { get; init; } = TriageMoveMode.AtEnd;
+
+    /// <summary>Ask before moving the kept files when triage ends; the question's "always move" box turns this off.</summary>
+    public bool TriageAskBeforeMove { get; init; } = true;
 
     /// <summary>The values in range.</summary>
     public MediaSettings Clamped() => this with

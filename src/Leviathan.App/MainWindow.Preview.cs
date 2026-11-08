@@ -583,7 +583,19 @@ public sealed partial class MainWindow
         }
 
         var tab = _bound;
-        var window = new TriageWindow(queue, start, queue[0].Location.Parent?.Name ?? "videos");
+
+        // The other pane of a split tab is where kept files go (spec §10.1); looked up when asked, as the user may move that pane meanwhile.
+        string? OtherPaneFolder()
+        {
+            var shown = _viewModel.Tabs.Selected;
+            var other = shown?.Secondary is null ? null : ReferenceEquals(tab, shown) ? shown.Secondary : shown;
+            return other?.History.Current is { Kind: Core.Paths.LocationKind.Drive or Core.Paths.LocationKind.Unc } here && here != tab?.History.Current
+                ? here.ToWin32Path()
+                : null;
+        }
+
+        var window = new TriageWindow(queue, start, queue[0].Location.Parent?.Name ?? "videos", OtherPaneFolder);
+        window.Notice += (_, text) => OnUi(() => MessageText.Text = text);
         window.Exited += (_, file) => OnUi(() =>
         {
             if (file is not null && tab?.Items.Rows.FirstOrDefault(r => r.Location == file.Location) is { } row)

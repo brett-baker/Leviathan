@@ -99,7 +99,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **H1. Tweaks after E4**: Properties via `SHObjectProperties`, path in pane headers, icon buttons, slow-click rename.
 - [x] **H2. Eager list updates** (spec §12.5a): `PendingChanges`, dimmed pending rows, setting "Show deletes, moves and copies at once".
-- [ ] **H3. Triage hand-off** to the other pane at close, with a setting for move-on-Keep or batch at the end.
+- [x] **H3. Triage hand-off** to the other pane at close, with a setting for move-on-Keep or batch at the end.
 - [ ] **H4. Duplicates finder**: within a folder first (port of vlib's name similarity and title key), then source against destination.
 
 ### G. Verification and finish

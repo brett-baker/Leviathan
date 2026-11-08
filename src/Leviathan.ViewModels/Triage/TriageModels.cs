@@ -67,6 +67,43 @@ public interface ITriageActions
 
     /// <summary>Removes every colour tag from <paramref name="file"/> (Ctrl+0).</summary>
     Task ClearTagsAsync(FileEntry file, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Moves the files kept in a session to <paramref name="folder"/> together, when triage ends (spec §10.1). Files on the same drive or
+    /// share are renamed at once; others go to the queue as one move job. The default does nothing, for actions that cannot move.
+    /// </summary>
+    Task<TriageMoveResult> MoveKeptAsync(IReadOnlyList<FileEntry> kept, string folder, CancellationToken cancellationToken) =>
+        Task.FromResult(new TriageMoveResult(0, 0, ["Moving kept files is not available here."]));
+}
+
+/// <summary>What became of moving the kept files.</summary>
+/// <param name="Moved">Files moved at once (renamed on the same drive or share).</param>
+/// <param name="Queued">Files handed to the queue as a move job.</param>
+/// <param name="Problems">What went wrong, one line each.</param>
+public sealed record TriageMoveResult(int Moved, int Queued, IReadOnlyList<string> Problems)
+{
+    /// <summary>One line for the status bar.</summary>
+    public string Describe(string folder)
+    {
+        var name = Path.GetFileName(folder.TrimEnd('\\')) is { Length: > 0 } leaf ? leaf : folder;
+        var parts = new List<string>();
+        if (Moved > 0)
+        {
+            parts.Add($"Moved {Moved:N0} kept file{(Moved == 1 ? "" : "s")} to {name}");
+        }
+
+        if (Queued > 0)
+        {
+            parts.Add($"Moving {Queued:N0} kept file{(Queued == 1 ? "" : "s")} to {name} in the queue");
+        }
+
+        if (Problems.Count > 0)
+        {
+            parts.Add(Problems[0] + (Problems.Count > 1 ? $" (and {Problems.Count - 1} more problem{(Problems.Count == 2 ? "" : "s")})" : string.Empty));
+        }
+
+        return parts.Count == 0 ? "No kept files to move." : string.Join(". ", parts);
+    }
 }
 
 /// <summary>How a triage session behaves (spec §10.1 and the Media settings of §17).</summary>

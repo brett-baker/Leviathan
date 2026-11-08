@@ -172,6 +172,8 @@ internal sealed partial class SettingsSheet : UserControl
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
             EagerSwitch.IsOn = settings.Files.UiUpdates == UiUpdateMode.Immediate;
+            TriageAtEndSwitch.IsOn = settings.Media.TriageMoveWhen == TriageMoveMode.AtEnd;
+            TriageAskSwitch.IsOn = settings.Media.TriageAskBeforeMove;
             OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
             RecheckBox.Text = string.Join('\r', settings.Files.RecheckSizePaths);
             BinDaysBox.Value = settings.Files.BinKeepDays;
@@ -406,6 +408,18 @@ internal sealed partial class SettingsSheet : UserControl
         var ownTrash = OwnTrashSwitch.IsOn;
         var updates = EagerSwitch.IsOn ? UiUpdateMode.Immediate : UiUpdateMode.WhenFinished;
         await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash, UiUpdates = updates } });
+    }
+
+    private async void OnTriageToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var when = TriageAtEndSwitch.IsOn ? TriageMoveMode.AtEnd : TriageMoveMode.OnKeep;
+        var ask = TriageAskSwitch.IsOn;
+        await SaveAsync(s => s with { Media = s.Media with { TriageMoveWhen = when, TriageAskBeforeMove = ask } });
     }
 
     // Saved when the box is left; lines that are not drive letter paths are kept as typed but never counted.

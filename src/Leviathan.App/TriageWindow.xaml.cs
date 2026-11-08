@@ -50,12 +50,20 @@ internal sealed partial class TriageWindow : Window
     private MediaInfo? _info;
     private string? _infoFor;
     private FileEntry? _last;
+    private readonly Func<string?> _destination;
+    private ITriageActions? _actions;
+    private bool _handOffDone;
 
     /// <summary>Opens triage over <paramref name="queue"/>, starting at <paramref name="startIndex"/>.</summary>
-    public TriageWindow(IReadOnlyList<FileEntry> queue, int startIndex, string title)
+    /// <param name="queue">The videos to go through.</param>
+    /// <param name="startIndex">Where in the queue to start.</param>
+    /// <param name="title">The folder's name for the window title.</param>
+    /// <param name="destination">Where kept files go: the folder of the other pane of a split tab, or null for none (the keep folder of the settings is used then).</param>
+    public TriageWindow(IReadOnlyList<FileEntry> queue, int startIndex, string title, Func<string?>? destination = null)
     {
         _queue = queue;
         _startIndex = startIndex;
+        _destination = destination ?? (() => null);
         InitializeComponent();
         Title = $"Triage · {title}";
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 860));
@@ -82,6 +90,101 @@ internal sealed partial class TriageWindow : Window
             }
         };
         Closed += OnClosed;
+        AppWindow.Closing += OnAppWindowClosing;
+    }
+
+    /// <summary>Raised when the window closes with a line to show in the folder window (what became of the kept files).</summary>
+    public event EventHandler<string>? Notice;
+
+    // Where the kept files go: the other pane's folder, else the keep folder of the settings.
+    private string? Destination() =>
+        _destination() is { Length: > 0 } pane ? pane
+        : App.Host.Settings.Current.Media.TriageKeepFolder is { Length: > 0 } keep ? keep : null;
+
+    // Closing (Esc, the Close button, the X): when the session kept files and there is somewhere to put them, ask once, then close.
+    private async void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (_handOffDone)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        _handOffDone = true;
+        try
+        {
+            await HandOffAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notice?.Invoke(this, $"The kept files could not be moved: {ex.Message}");
+        }
+        finally
+        {
+            Close();
+        }
+    }
+
+    private async Task HandOffAsync()
+    {
+        if (_session is not { } session || _actions is not { } actions)
+        {
+            return;
+        }
+
+        var media = App.Host.Settings.Current.Media;
+        if (TriageHandOff.Plan(session, media, Destination()) is not { } plan)
+        {
+            return;
+        }
+
+        if (plan.Ask)
+        {
+            var always = new CheckBox { Content = "Always move them without asking" };
+            var count = plan.Files.Count;
+            var dialog = new ContentDialog
+            {
+                Title = count == 1 ? "Move the kept file?" : $"Move {count:N0} kept files?",
+                Content = new StackPanel
+                {
+                    Spacing = 12,
+                    Children =
+                    {
+                        new TextBlock { Text = $"To {plan.Folder}", TextWrapping = TextWrapping.Wrap },
+                        always,
+                    },
+                },
+                PrimaryButtonText = "Move",
+                CloseButtonText = "Not now",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = Root.XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            if (always.IsChecked == true)
+            {
+                try
+                {
+                    await App.Host.Settings.UpdateAsync(s => s with { Media = s.Media with { TriageAskBeforeMove = false } }, CancellationToken.None);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The choice still applies to this move; the file could not be written.
+                }
+            }
+        }
+
+        // The file on screen is still open in the player; a rename needs it released.
+        if (_engine is { } engine)
+        {
+            await engine.CloseAsync(CancellationToken.None);
+        }
+
+        var result = await Task.Run(() => actions.MoveKeptAsync(plan.Files, plan.Folder, CancellationToken.None));
+        Notice?.Invoke(this, result.Describe(plan.Folder));
     }
 
     /// <summary>Raised when the window closes, with the file triage was on, so the folder view can select it again (spec §10.2, Esc).</summary>
@@ -96,7 +199,8 @@ internal sealed partial class TriageWindow : Window
             _engine = new LibVlcEngine(libvlc, ownsLibVlc: true);
             Video.MediaPlayer = _engine.Player;
             var settings = App.Host.Settings.Current.Media;
-            var session = _session = new TriageSession(_queue, _engine, App.Host.TriageActions, settings.ToTriageOptions());
+            _actions = App.Host.TriageActionsFor(_destination);
+            var session = _session = new TriageSession(_queue, _engine, _actions, settings.ToTriageOptions());
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys);
             _dispatcher.WindowCommand += OnWindowCommand;
             session.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);

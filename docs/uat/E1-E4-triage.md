@@ -13,9 +13,11 @@
    Folder: `D:\Playbooks\uat\10-triage` with `inbox` (six clips, one called `clip5-odd name (1) [x].mp4`) and an empty `keep`.
 2. Point Keep at the scratch keep folder. Create `D:\Playbooks\data\settings.json` before the first start (or edit it after closing the app):
    ```json
-   { "Media": { "TriageKeepFolder": "D:\\Playbooks\\uat\\10-triage\\keep" } }
+   { "Media": { "TriageKeepFolder": "D:\\Playbooks\\uat\\10-triage\\keep", "TriageMoveWhen": "OnKeep" } }
    ```
-   There is no settings page for this yet. If you leave it out, Keep only tags the file and leaves it in place.
+   `TriageMoveWhen` is also a switch in Settings (Files page: "Triage: move kept files when it ends"). The default, `AtEnd`, only
+   tags a file when you keep it and moves the kept files together when triage closes (steps 19 to 23). `OnKeep` moves each file at once,
+   which steps 4 to 14 assume. Without a keep folder (and outside a split tab) Keep only tags the file.
 3. Start the app with scratch settings:
    ```powershell
    $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
@@ -44,7 +46,12 @@
 | 15 | Select two or three clips in `inbox`, press **Alt+T**. | The queue holds only the selected clips. |
 | 16 | Select nothing, use the command bar button **Triage mode from here**. | Starts at the top with every video in the folder. |
 | 17 | Open `09-media`, select `broken.mp4`, start triage. | The window shows an error line at the bottom for the broken file but the buttons and keys still work; Skip moves on. |
-| 18 | Press **Esc**. | The window closes. |
+| 18 | Press **Esc**. | The window closes (with `OnKeep`, or with nothing kept, with no question). |
+| 19 | Rebuild the fixtures. Remove `TriageMoveWhen` from `settings.json` (or switch the Settings option back on). Open `10-triage\inbox` in one pane and `10-triage\keep` in the other (Ctrl+\\ for a split), click a clip in the inbox pane, **Alt+T**. | Triage opens as before. |
+| 20 | Keep two clips, discard one, then close with **Esc**. | Kept clips stay in `inbox` while you work (they only get the green tag). On close a question: "Move 2 kept files?", the other pane's folder named, a box "Always move them without asking", **Move** and **Not now**. |
+| 21 | Press **Not now**. | The window closes; nothing moved. Repeat 19 and 20, then press **Move**. |
+| 22 | After **Move**. | The two kept clips are in `keep` (the other pane shows them at once); the status bar says "Moved 2 kept files to keep". The discarded clip is in the Recycle Bin. |
+| 23 | Repeat, tick **Always move them without asking**, press **Move**; repeat once more. | The second time there is no question; the kept files simply move. (Switch "Triage: ask before moving kept files" back on afterwards.) |
 
 ## Look at (tests cannot judge these)
 

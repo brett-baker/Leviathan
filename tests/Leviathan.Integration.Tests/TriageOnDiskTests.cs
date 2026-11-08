@@ -77,6 +77,32 @@ public sealed class TriageOnDiskTests : IDisposable
         }
     }
 
+    // Hand-off at the end of triage: keeping only tags, then the kept files move together and take their tags with them.
+    [Fact]
+    public async Task KeptFiles_MoveTogetherAtTheEnd_AndTheirTagsGoWithThem()
+    {
+        var a = MakeFile(@"inbox\a.mkv", "A");
+        var b = MakeFile(@"inbox\b.mkv", "B");
+        var c = MakeFile(@"inbox\c.mkv", "C");
+        var library = Path.Combine(_root, "library");
+        var actions = new TriageFileActions(new DiskFiles(Path.Combine(_root, "bin")), new AlternateStreamTagStore(), () => new TriageKeepOptions(library, MoveOnKeep: false));
+        var session = new TriageSession([Entry(a), Entry(b), Entry(c)], new FakeVideoEngine(), actions, new TriageOptions { StartOffset = 0 });
+        await session.StartAsync(0, TestContext.Current.CancellationToken);
+        await session.KeepAsync();
+        await session.DiscardAsync();
+        await session.KeepAsync();
+        Assert.True(File.Exists(a));
+
+        var plan = TriageHandOff.Plan(session, new Leviathan.ViewModels.Settings.MediaSettings(), library);
+        var result = await actions.MoveKeptAsync(plan!.Files, plan.Folder, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Moved);
+        Assert.False(File.Exists(a));
+        Assert.False(File.Exists(c));
+        Assert.Equal("A", File.ReadAllText(Path.Combine(library, "a.mkv")));
+        Assert.Equal([TagIds.Green], await new AlternateStreamTagStore().GetAsync(Path.Combine(library, "c.mkv"), TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task Tags_RoundTripThroughTheStream_AndLeaveTheModifiedTimeAlone()
     {

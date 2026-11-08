@@ -125,7 +125,11 @@ internal sealed class AppHost
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
     /// <summary>What Keep and Discard do in triage mode (spec §10.1): the worker's journaled delete and restore, the tag stream, the keep folder of the settings.</summary>
-    public ITriageActions TriageActions { get; private init; } = null!;
+    /// <summary>
+    /// Makes the actions of one triage window. <c>destination</c> says where kept files go right now (the other pane of a split tab), or
+    /// returns null to use the keep folder of the settings; it is asked each time, so navigating the other pane during triage counts.
+    /// </summary>
+    public Func<Func<string?>, ITriageActions> TriageActionsFor { get; private init; } = null!;
 
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
@@ -688,10 +692,14 @@ internal sealed class AppHost
             Transfers = transfers,
             Pending = pending,
             Undo = undo,
-            TriageActions = new TriageFileActions(
+            TriageActionsFor = destination => new TriageFileActions(
                 new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()),
                 new AlternateStreamTagStore(),
-                () => new TriageKeepOptions(built?.Settings.Current.Media.TriageKeepFolder),
+                () =>
+                {
+                    var media = built?.Settings.Current.Media;
+                    return new TriageKeepOptions(destination() ?? media?.TriageKeepFolder, media?.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.OnKeep);
+                },
                 transfers),
             Listings = listings,
             Icons = icons,
