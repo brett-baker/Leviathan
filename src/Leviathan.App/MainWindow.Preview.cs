@@ -12,13 +12,16 @@ namespace Leviathan.App;
 /// The preview and details pane (spec §9): its width and splitter, the S / M / L video size and the handle under the video, the two
 /// collapsible parts, the folder-size lines (spec §12.7), and the floating quick preview. The window's view model holds the sizes (so
 /// they are saved in sessions); this file connects them to the controls, within <see cref="PreviewLayout"/>'s limits. The renderers
-/// for video, audio and pictures fill the video area; the rest arrive in the next slices.
+/// for video, audio, pictures, text and Markdown/HTML fill the video area; the rest arrive in the next slices.
 /// </summary>
 public sealed partial class MainWindow
 {
     private PreviewCoordinator? _coordinator;
     private PreviewPlayer? _player;
     private ImagePreview? _images;
+    private TextPreview? _text;
+    private WebPreview? _web;
+    private bool _playerOpen;
     private string _previewKey = string.Empty;
     private bool _previewActive;
     private double _handleStartY;
@@ -90,13 +93,13 @@ public sealed partial class MainWindow
             else
             {
                 _coordinator?.Cancel();
-                _ = StopPlayerAsync();
+                ShowOnly(null);
             }
         }
     }
 
-    // What the pane shows for a selection that has rested: media is played by the engine, everything else keeps its placeholder until
-    // its own renderer exists (the next slices).
+    // What the pane shows for a selection that has rested: one renderer at a time fills the video area (the player, pictures, text or
+    // a web page); everything else keeps its placeholder until its own renderer exists (the next slices).
     private async Task ShowRequestedAsync(PreviewRequest request)
     {
         if (!_previewActive || _closed)
@@ -106,43 +109,72 @@ public sealed partial class MainWindow
 
         try
         {
-            if (request.Kind is PreviewKind.Video or PreviewKind.Audio)
+            var entry = request.Entries.Count > 0 ? request.Entries[0] : null;
+            var path = entry?.Location.ToWin32Path() ?? string.Empty;
+            switch (request.Kind)
             {
-                HideImages();
-                var entry = request.Entries[0];
-                var path = entry.Location.ToWin32Path();
-                var player = EnsurePlayer();
-                VideoPlaceholder.Visibility = Visibility.Collapsed;
-                player.Visibility = Visibility.Visible;
-                PreviewBar.Visibility = Visibility.Visible;
-                PreviewBar.Start();
+                case PreviewKind.Video or PreviewKind.Audio:
+                    var player = EnsurePlayer();
+                    ShowOnly(player);
+                    PreviewBar.Visibility = Visibility.Visible;
+                    PreviewBar.Start();
+                    _playerOpen = true;
 
-                // A file on a share is read ahead (its header and index) while the engine opens it (spec 10.1).
-                if (entry.Location.IsNetwork)
-                {
-                    _ = Task.Run(() => MediaPrefetcher.PrefetchAsync(path, request.Cancellation));
-                }
+                    // A file on a share is read ahead (its header and index) while the engine opens it (spec 10.1).
+                    if (entry!.Location.IsNetwork)
+                    {
+                        _ = Task.Run(() => MediaPrefetcher.PrefetchAsync(path, request.Cancellation));
+                    }
 
-                await player.OpenAsync(path, entry.Name, request.Kind == PreviewKind.Audio, request.Cancellation);
-            }
-            else if (request.Kind == PreviewKind.Image)
-            {
-                await StopPlayerAsync(keepPlaceholder: true);
-                var images = EnsureImages();
-                VideoPlaceholder.Visibility = Visibility.Collapsed;
-                images.Visibility = Visibility.Visible;
-                await images.OpenAsync(request.Entries[0].Location.ToWin32Path(), request.Cancellation);
-            }
-            else
-            {
-                HideImages();
-                await StopPlayerAsync();
+                    await player.OpenAsync(path, entry.Name, request.Kind == PreviewKind.Audio, request.Cancellation);
+                    break;
+                case PreviewKind.Image:
+                    var images = _images ??= AddSurface(new ImagePreview());
+                    ShowOnly(images);
+                    await images.OpenAsync(path, request.Cancellation);
+                    break;
+                case PreviewKind.Text:
+                    var text = _text ??= AddSurface(new TextPreview());
+                    ShowOnly(text);
+                    await text.OpenAsync(path, entry!.Extension, request.Cancellation);
+                    break;
+                case PreviewKind.Markdown or PreviewKind.Html:
+                    var web = _web ??= AddSurface(new WebPreview());
+                    ShowOnly(web);
+                    var html = await Task.Run(() => LoadWebPage(path, request.Kind), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, request.Cancellation);
+                    await web.ShowAsync(html, request.Cancellation);
+                    break;
+                default:
+                    ShowOnly(null);
+                    break;
             }
         }
         catch (OperationCanceledException)
         {
             // The selection moved on while this one was opening.
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TimeoutException)
+        {
+            VideoPlaceholder.Text = ex is TimeoutException ? "This file took too long to read." : $"This file could not be read: {ex.Message}";
+            ShowOnly(null);
+        }
+    }
+
+    // Reads the start of a Markdown or HTML file and makes it a page the sandbox accepts (off the UI thread).
+    private static string LoadWebPage(string path, PreviewKind kind)
+    {
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan);
+        var buffer = new byte[(int)Math.Min(file.Length, PreviewLimits.MaxWebBytes)];
+        var read = file.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+        var text = TextDecoder.Decode(buffer.AsSpan(0, read), file.Length > read).Text;
+        return kind == PreviewKind.Markdown ? WebPreviewHtml.FromMarkdown(text) : WebPreviewHtml.FromHtml(text);
+    }
+
+    private T AddSurface<T>(T surface)
+        where T : FrameworkElement
+    {
+        VideoHost.Children.Add(surface);
+        return surface;
     }
 
     private PreviewPlayer EnsurePlayer()
@@ -163,41 +195,47 @@ public sealed partial class MainWindow
         return _player = player;
     }
 
-    private ImagePreview EnsureImages()
+    // Shows one renderer in the video area and clears and hides the others; null shows the placeholder text instead.
+    private void ShowOnly(FrameworkElement? next)
     {
-        if (_images is { } existing)
+        foreach (FrameworkElement? surface in new FrameworkElement?[] { _player, _images, _text, _web })
         {
-            return existing;
+            if (surface is null)
+            {
+                continue;
+            }
+
+            if (surface == next)
+            {
+                surface.Visibility = Visibility.Visible;
+                continue;
+            }
+
+            surface.Visibility = Visibility.Collapsed;
+            switch (surface)
+            {
+                case ImagePreview images:
+                    images.Clear();
+                    break;
+                case TextPreview text:
+                    text.Clear();
+                    break;
+                case WebPreview web:
+                    web.Clear();
+                    break;
+            }
         }
 
-        var images = new ImagePreview();
-        VideoHost.Children.Add(images);
-        return _images = images;
-    }
-
-    private void HideImages()
-    {
-        if (_images is { } images)
+        VideoPlaceholder.Visibility = next is null ? Visibility.Visible : Visibility.Collapsed;
+        if (next != _player)
         {
-            images.Clear();
-            images.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private async Task StopPlayerAsync(bool keepPlaceholder = false)
-    {
-        PreviewBar.Stop();
-        PreviewBar.Visibility = Visibility.Collapsed;
-        if (!keepPlaceholder)
-        {
-            HideImages();
-            VideoPlaceholder.Visibility = Visibility.Visible;
-        }
-
-        if (_player is { } player)
-        {
-            player.Visibility = Visibility.Collapsed;
-            await player.CloseFileAsync();
+            PreviewBar.Stop();
+            PreviewBar.Visibility = Visibility.Collapsed;
+            if (_playerOpen && _player is { } player)
+            {
+                _playerOpen = false;
+                _ = player.CloseFileAsync();
+            }
         }
     }
 
@@ -206,6 +244,8 @@ public sealed partial class MainWindow
     {
         _coordinator?.Dispose();
         _images?.Clear();
+        _text?.Clear();
+        _web?.Release();
         if (_player is { } player)
         {
             _player = null;

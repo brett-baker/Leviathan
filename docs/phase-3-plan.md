@@ -62,7 +62,7 @@ Every slice follows `CLAUDE.md`.
 - [ ] **D2. Renderers** (spec 9.1), in slices:
   - [x] **D2a. Selection pipeline, video and audio** (done: `PreviewClassifier` picks the renderer by extension, `PreviewCoordinator` loads after the selection rests 150 ms and cancels when it moves on; the pane plays video and audio with LibVLC, opened paused on the first frame, with the icon controls and a seek bar; the player window and the pane share `PlaybackKeyMap`; a file on a share is read ahead)
   - [x] **D2b. Images**: WIC with zoom and pan, EXIF orientation, animated GIF and WebP, HEIC/AVIF/RAW where Windows has a codec.
-  - [ ] **D2c. Text, code, Markdown, HTML**: first 2 MB with encoding detection and syntax colours; Markdown and HTML in a sandboxed
+  - [x] **D2c. Text, code, Markdown, HTML**: first 2 MB with encoding detection and syntax colours; Markdown and HTML in a sandboxed
     WebView2 with scripts and network off.
   - [ ] **D2d. PDF, fonts, archives, folders, several items**: Windows.Data.Pdf pages; font samples; archive listing (7-Zip); folder
     count, size and mini space map; count, size and type breakdown with a strip of thumbnails.

@@ -57,6 +57,9 @@ public static class PreviewLimits
     /// <summary>How much of a text file is read for the preview.</summary>
     public const long MaxTextBytes = 2L << 20;
 
+    /// <summary>How much of a Markdown or HTML file is rendered (1 MiB): the web view takes at most 2 MB of page, and Markdown grows when it is turned into HTML.</summary>
+    public const long MaxWebBytes = 1L << 20;
+
     /// <summary>The largest picture file read for the pane (256 MiB); a bigger one shows its details instead, so one file never stalls the pane or fills memory.</summary>
     public const long MaxImageBytes = 256L << 20;
 

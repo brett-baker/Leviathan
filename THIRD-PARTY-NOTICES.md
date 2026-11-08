@@ -16,6 +16,7 @@ Leviathan uses the following packages (see `Directory.Packages.props` for versio
 | xunit.v3, xunit.runner.visualstudio | Apache-2.0 |
 | Microsoft.NET.Test.Sdk, coverlet.collector | MIT |
 | BenchmarkDotNet | MIT |
+| Markdig (Markdown to HTML in the preview pane) | BSD-2-Clause |
 | LibVLCSharp, LibVLCSharp.WinUI (SharpDX comes with the WinUI package) | LGPL-2.1+ (SharpDX: MIT) |
 | VideoLAN.LibVLC.Windows (the LibVLC 3 native libraries, dynamically linked, unmodified) | LGPL-2.1+ |
 
