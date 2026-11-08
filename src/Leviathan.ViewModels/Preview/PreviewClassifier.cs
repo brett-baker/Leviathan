@@ -57,6 +57,12 @@ public static class PreviewLimits
     /// <summary>How much of a text file is read for the preview.</summary>
     public const long MaxTextBytes = 2L << 20;
 
+    /// <summary>The largest picture file read for the pane (256 MiB); a bigger one shows its details instead, so one file never stalls the pane or fills memory.</summary>
+    public const long MaxImageBytes = 256L << 20;
+
+    /// <summary>The widest a picture is decoded for the pane; larger pictures are decoded smaller, which keeps memory bounded while zoom still reaches useful detail.</summary>
+    public const int MaxDecodeWidth = 6000;
+
     /// <summary>How long a renderer may take before the pane gives up and shows the file's details instead.</summary>
     public static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(5);
 }

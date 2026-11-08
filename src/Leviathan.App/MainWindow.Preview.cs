@@ -12,12 +12,13 @@ namespace Leviathan.App;
 /// The preview and details pane (spec §9): its width and splitter, the S / M / L video size and the handle under the video, the two
 /// collapsible parts, the folder-size lines (spec §12.7), and the floating quick preview. The window's view model holds the sizes (so
 /// they are saved in sessions); this file connects them to the controls, within <see cref="PreviewLayout"/>'s limits. The renderers
-/// that fill the video area arrive in the next slice.
+/// for video, audio and pictures fill the video area; the rest arrive in the next slices.
 /// </summary>
 public sealed partial class MainWindow
 {
     private PreviewCoordinator? _coordinator;
     private PreviewPlayer? _player;
+    private ImagePreview? _images;
     private string _previewKey = string.Empty;
     private bool _previewActive;
     private double _handleStartY;
@@ -107,6 +108,7 @@ public sealed partial class MainWindow
         {
             if (request.Kind is PreviewKind.Video or PreviewKind.Audio)
             {
+                HideImages();
                 var entry = request.Entries[0];
                 var path = entry.Location.ToWin32Path();
                 var player = EnsurePlayer();
@@ -123,8 +125,17 @@ public sealed partial class MainWindow
 
                 await player.OpenAsync(path, entry.Name, request.Kind == PreviewKind.Audio, request.Cancellation);
             }
+            else if (request.Kind == PreviewKind.Image)
+            {
+                await StopPlayerAsync(keepPlaceholder: true);
+                var images = EnsureImages();
+                VideoPlaceholder.Visibility = Visibility.Collapsed;
+                images.Visibility = Visibility.Visible;
+                await images.OpenAsync(request.Entries[0].Location.ToWin32Path(), request.Cancellation);
+            }
             else
             {
+                HideImages();
                 await StopPlayerAsync();
             }
         }
@@ -152,11 +163,37 @@ public sealed partial class MainWindow
         return _player = player;
     }
 
-    private async Task StopPlayerAsync()
+    private ImagePreview EnsureImages()
+    {
+        if (_images is { } existing)
+        {
+            return existing;
+        }
+
+        var images = new ImagePreview();
+        VideoHost.Children.Add(images);
+        return _images = images;
+    }
+
+    private void HideImages()
+    {
+        if (_images is { } images)
+        {
+            images.Clear();
+            images.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async Task StopPlayerAsync(bool keepPlaceholder = false)
     {
         PreviewBar.Stop();
         PreviewBar.Visibility = Visibility.Collapsed;
-        VideoPlaceholder.Visibility = Visibility.Visible;
+        if (!keepPlaceholder)
+        {
+            HideImages();
+            VideoPlaceholder.Visibility = Visibility.Visible;
+        }
+
         if (_player is { } player)
         {
             player.Visibility = Visibility.Collapsed;
@@ -168,6 +205,7 @@ public sealed partial class MainWindow
     private void ClosePreview()
     {
         _coordinator?.Dispose();
+        _images?.Clear();
         if (_player is { } player)
         {
             _player = null;
