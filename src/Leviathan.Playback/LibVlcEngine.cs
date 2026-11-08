@@ -168,7 +168,20 @@ public sealed class LibVlcEngine : IVideoEngine
 
                 if (!autoplay)
                 {
-                    await Task.Run(() => _player.SetPause(true), cancellationToken).ConfigureAwait(false);
+                    // Pausing the instant playback starts can leave the surface showing nothing, or the previous file's last frame, because no frame
+                    // of this file has been drawn yet. So wait (briefly) until the clock has moved, which means a frame was decoded, pause, and then
+                    // seek to the start: a seek while paused draws the frame it lands on, which is the picture the pane should show.
+                    await Task.Run(() =>
+                    {
+                        var deadline = Environment.TickCount64 + 1500;
+                        while (_player.Time <= 0 && Environment.TickCount64 < deadline && !cancellationToken.IsCancellationRequested)
+                        {
+                            Thread.Sleep(15);
+                        }
+
+                        _player.SetPause(true);
+                        _player.Time = (long)start.TotalMilliseconds;
+                    }, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex) when (ex is VLCException or InvalidOperationException or ArgumentException or NullReferenceException)
