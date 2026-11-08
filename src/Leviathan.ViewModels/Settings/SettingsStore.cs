@@ -121,6 +121,7 @@ public sealed class SettingsStore : IDisposable
         Appearance = (settings.Appearance ?? new AppearanceSettings()).Cleaned(),
         Files = settings.Files ?? new FilesSettings(),
         Tabs = settings.Tabs ?? new TabSettings(),
+        Media = (settings.Media ?? new MediaSettings()).Clamped(),
         Performance = (settings.Performance ?? new PerformanceSettings()).Clamped(),
         KeyBindings = settings.KeyBindings ?? [],
     };

@@ -121,6 +121,9 @@ internal sealed class AppHost
     /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
+    /// <summary>What Keep and Discard do in triage mode (spec §10.1): the worker's journaled delete and restore, the tag stream, the keep folder of the settings.</summary>
+    public ITriageActions TriageActions { get; private init; } = null!;
+
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
     /// <summary>
@@ -680,6 +683,11 @@ internal sealed class AppHost
             Connector = connector,
             Transfers = transfers,
             Undo = undo,
+            TriageActions = new TriageFileActions(
+                new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()),
+                new AlternateStreamTagStore(),
+                () => new TriageKeepOptions(built?.Settings.Current.Media.TriageKeepFolder),
+                transfers),
             Listings = listings,
             Icons = icons,
             Operations = operations,

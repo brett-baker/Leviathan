@@ -78,7 +78,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **E2. Key map** (§10.2, remappable): Space, ←/→ 30 s, Shift ±1 min, Ctrl ±5 min, Alt ±5 s, `.`/`,` frames, Ctrl+1–9
   percentage, Home/End, J/K/L, `[`/`]`, S skim, Enter/G keep, Del/X discard, 1–9 tags, ↓/Tab skip, ↑ previous, C contact
   sheet, R rename, M move to preset, Ctrl+Z undo, Esc exit.
-- [ ] **E3. Keep / Discard actions**: Keep = green tag, optionally also move to a chosen folder (same-share rename, otherwise
+- [x] **E3. Keep / Discard actions**: Keep = green tag, optionally also move to a chosen folder (same-share rename, otherwise
   a queued job); Discard = soft delete via the Phase 2 engine.
 - [ ] **E4. Triage window**: full-window player, overlay, progress bar (session and inbox totals, kept/discarded/skipped,
   space reclaimable), queue side list.

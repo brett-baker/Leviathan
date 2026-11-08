@@ -187,6 +187,40 @@ public sealed record FilesSettings
         new(Math.Clamp(BinKeepDays, 0, 3650), Math.Clamp(BinMaxGiB, 0, 100_000) * (1L << 30));
 }
 
+/// <summary>Media and preview page, the triage part (spec §10.1, §17.2).</summary>
+public sealed record MediaSettings
+{
+    /// <summary>Each video starts this many percent in (0 to 90) to skip intros; 0 starts at the beginning.</summary>
+    public int TriageStartOffsetPercent { get; init; } = 10;
+
+    /// <summary>Move to the next file after a decision: true advances (after <see cref="TriageAdvanceDelayMs"/>), false stays on the file.</summary>
+    public bool TriageAutoAdvance { get; init; } = true;
+
+    /// <summary>How long after a decision the next file opens, 0 to 1000 ms.</summary>
+    public int TriageAdvanceDelayMs { get; init; }
+
+    /// <summary>
+    /// A folder Keep also moves the file to (spec D26: "green tag, optionally also move to a chosen folder"); empty keeps the file where
+    /// it is. On the same share or drive the move is a rename and instant; otherwise it is a queued job.
+    /// </summary>
+    public string TriageKeepFolder { get; init; } = string.Empty;
+
+    /// <summary>The values in range.</summary>
+    public MediaSettings Clamped() => this with
+    {
+        TriageStartOffsetPercent = Math.Clamp(TriageStartOffsetPercent, 0, 90),
+        TriageAdvanceDelayMs = Math.Clamp(TriageAdvanceDelayMs, 0, 1000),
+        TriageKeepFolder = (TriageKeepFolder ?? string.Empty).Trim(),
+    };
+
+    /// <summary>How a triage session behaves with these settings.</summary>
+    public Leviathan.ViewModels.Triage.TriageOptions ToTriageOptions() => new()
+    {
+        StartOffset = Math.Clamp(TriageStartOffsetPercent, 0, 90) / 100.0,
+        AutoAdvanceDelay = TriageAutoAdvance ? TimeSpan.FromMilliseconds(Math.Clamp(TriageAdvanceDelayMs, 0, 1000)) : null,
+    };
+}
+
 /// <summary>Tabs and windows page (spec §4.1, §17.2).</summary>
 public sealed record TabSettings
 {
@@ -220,6 +254,9 @@ public sealed record AppSettings
 
     /// <summary>Tabs and windows page.</summary>
     public TabSettings Tabs { get; init; } = new();
+
+    /// <summary>Media and preview page (triage).</summary>
+    public MediaSettings Media { get; init; } = new();
 
     /// <summary>What runs at once and what is done over the network (the Quick settings tab).</summary>
     public PerformanceSettings Performance { get; init; } = new();
