@@ -52,6 +52,16 @@ public sealed class PlaybackController(IVideoEngine engine, CancellationToken ca
         }
     }
 
+    /// <summary>A click on a filmstrip frame or the waveform: to <paramref name="position"/>, kept inside the file.</summary>
+    public async Task SeekToAsync(TimeSpan position)
+    {
+        _skim = 0;
+        if (engine.Snapshot is { IsOpen: true } s)
+        {
+            await engine.SeekAsync(Clamp(position, s.Duration), cancellation).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Ctrl+1 … Ctrl+9: to <paramref name="tenths"/> tenths of the way through (1 = 10%).</summary>
     public async Task JumpToTenthAsync(int tenths)
     {

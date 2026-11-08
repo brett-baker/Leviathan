@@ -9,7 +9,7 @@ namespace Leviathan.MediaHost;
 /// The <see cref="IMediaService"/> the UI calls (spec §9.3). A thin layer over <see cref="MediaMetadataService"/>: it turns the wire
 /// requests into file keys and the cached or probed entries into answers, and nothing else, so what matters is tested there.
 /// </summary>
-public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, ContactSheetService sheets, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
+public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, ContactSheetService sheets, AudioArtService audioArt, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
 {
     private readonly DateTimeOffset _started = time.GetUtcNow();
 
@@ -120,6 +120,36 @@ public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools 
         ArgumentNullException.ThrowIfNull(request);
         return SheetAsync(request.Path, request.Size, request.ModifiedUtcTicks, request.IsNetwork,
             (width, height) => ContactSheetSpec.Strip(request.Frames, request.CellWidth, width, height), cancellationToken);
+    }
+
+    public async Task<MediaThumbnailAnswer> GetAudioArtAsync(MediaAudioArtRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var kind = request.Cover ? AudioArtKind.Cover : AudioArtKind.Waveform;
+        ThumbnailResult result;
+        try
+        {
+            result = await audioArt.GetAsync(kind, request.Path, request.Size, request.ModifiedUtcTicks, Math.Clamp(request.Width, 64, 1200), Math.Clamp(request.Height, 32, 400), request.IsNetwork, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Audio picture of {Path} was cancelled", request.Path);
+            throw;
+        }
+
+        if (result.Status != ThumbnailStatus.Ok)
+        {
+            return new MediaThumbnailAnswer(request.Path, result.Status == ThumbnailStatus.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, null, result.Message);
+        }
+
+        try
+        {
+            return new MediaThumbnailAnswer(request.Path, MediaThumbnailStatus.Ok, await File.ReadAllBytesAsync(result.File!, cancellationToken).ConfigureAwait(false), null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new MediaThumbnailAnswer(request.Path, MediaThumbnailStatus.Failed, null, ex.Message);
+        }
     }
 
     private async Task<MediaContactSheetAnswer> SheetAsync(string path, long size, long modifiedUtcTicks, bool isNetwork, Func<int?, int?, ContactSheetSpec> shape, CancellationToken cancellationToken)

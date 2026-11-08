@@ -72,6 +72,29 @@ public sealed class PlaybackControllerTests
         Assert.Equal(TimeSpan.FromSeconds(expected), engine.Snapshot.Position);
     }
 
+    [Theory]
+    [InlineData(250, 250)]
+    [InlineData(-5, 0)]
+    [InlineData(5000, 600)]
+    public async Task SeekTo_GoesThere_KeptInsideTheFile(double to, double expected)
+    {
+        var (engine, keys) = await OpenAsync(startSeconds: 100);
+
+        await keys.SeekToAsync(TimeSpan.FromSeconds(to));
+
+        Assert.Equal(TimeSpan.FromSeconds(expected), engine.Snapshot.Position);
+    }
+
+    [Fact]
+    public async Task SeekTo_DoesNothing_WhenNothingIsOpen()
+    {
+        var engine = new FakeVideoEngine();
+
+        await new PlaybackController(engine).SeekToAsync(TimeSpan.FromSeconds(30));
+
+        Assert.Empty(engine.Calls);
+    }
+
     [Fact]
     public async Task Keys_DoNothing_WhenNothingIsOpen()
     {

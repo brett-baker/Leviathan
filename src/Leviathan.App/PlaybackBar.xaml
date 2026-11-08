@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!-- Spec 9: the playback controls are buttons with tooltips that give their shortcut. -->
-  <StackPanel Spacing="2">
+  <StackPanel x:Name="Root" Spacing="2">
     <Grid ColumnSpacing="8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
@@ -13,6 +13,7 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <TextBlock x:Name="TimeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Text="0:00 / 0:00" />
+ <Popup x:Name="Hover" Grid.Column="1" IsHitTestVisible="False" />
       <Slider x:Name="Seek" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center"
               ValueChanged="OnSeekChanged" IsTabStop="False" AutomationProperties.Name="Position" />
       <TextBlock x:Name="SpeedText" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Text="1×" MinWidth="30" TextAlignment="Right" />
@@ -33,5 +34,7 @@
       <Button Grid.Column="6" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" Content="+5m" Click="OnFwd5" ToolTipService.ToolTip="Forward 5 minutes (Ctrl+Right)" AutomationProperties.Name="Forward 5 minutes" />
       <Button Grid.Column="7" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" Content="»" Click="OnSkim" ToolTipService.ToolTip="Skim forward: 1×, 2×, 4×, 8× (L)" AutomationProperties.Name="Skim forward" />
     </Grid>
+    <!-- The filmstrip: a few frames spread over the whole video; a click on one plays from there. -->
+    <Grid x:Name="Film" Height="0" ColumnSpacing="2" Margin="0,2,0,0" />
   </StackPanel>
 </UserControl>

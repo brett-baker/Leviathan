@@ -131,6 +131,12 @@ public sealed partial class MainWindow
                         _ = Task.Run(() => MediaPrefetcher.PrefetchAsync(path, request.Cancellation));
                     }
 
+                    PreviewBar.SetMedia(entry, request.Kind == PreviewKind.Video);
+                    if (request.Kind == PreviewKind.Audio)
+                    {
+                        _ = LoadAudioArtAsync(player, entry, request.Cancellation);
+                    }
+
                     await player.OpenAsync(path, entry.Name, request.Kind == PreviewKind.Audio, request.Cancellation);
                     break;
                 case PreviewKind.Image:
@@ -345,6 +351,29 @@ public sealed partial class MainWindow
         VideoHost.Children.Add(player);
         PreviewBar.Attach(player);
         return _player = player;
+    }
+
+    // The cover art and waveform of an audio file arrive after it has opened (ffmpeg draws them in the media process); each shows when it
+    // is there, and a file with no cover or no media process simply keeps the plain name.
+    private async Task LoadAudioArtAsync(PreviewPlayer player, FileEntry audio, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var scale = Content.XamlRoot?.RasterizationScale ?? 1;
+            var width = (int)(Math.Clamp(_viewModel.PreviewWidth - 32, 200, 1000) * scale);
+            var client = new AudioArtClient(() => App.Host.MediaHost);
+            var cover = client.GetAsync(audio, cover: true, (int)(256 * scale), 0, cancellationToken);
+            var wave = client.GetAsync(audio, cover: false, width, (int)(44 * scale), cancellationToken);
+            await Task.WhenAll(cover, wave);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                player.ShowAudioArt(await cover, await wave);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The pane moved on to another file.
+        }
     }
 
     // Shows one renderer in the video area and clears and hides the others; null shows the placeholder text instead.

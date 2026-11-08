@@ -7,6 +7,8 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using VirtualKey = Windows.System.VirtualKey;
 using Windows.UI.Core;
 
@@ -34,6 +36,10 @@ internal sealed partial class PreviewPlayer : Grid
         Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
     };
 
+    private readonly Image _cover = new() { Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(8, 8, 8, 0), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
+    private readonly Grid _waveBox = new() { VerticalAlignment = VerticalAlignment.Bottom, Height = 44, Margin = new Thickness(6, 0, 6, 6), Visibility = Visibility.Collapsed };
+    private readonly Image _wave = new() { Stretch = Stretch.Fill };
+    private readonly Microsoft.UI.Xaml.Shapes.Rectangle _playhead = new() { Width = 2, HorizontalAlignment = HorizontalAlignment.Left, Fill = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White), IsHitTestVisible = false };
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private LibVlcEngine? _engine;
     private PlaybackController? _keys;
@@ -43,6 +49,18 @@ internal sealed partial class PreviewPlayer : Grid
         Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Black);
         IsTabStop = true;
         Children.Add(_video);
+        Children.Add(_cover);
+        _waveBox.Children.Add(_wave);
+        _waveBox.Children.Add(_playhead);
+        _waveBox.PointerPressed += (_, e) =>
+        {
+            if (_waveBox.ActualWidth > 0)
+            {
+                WaveformClicked?.Invoke(this, ViewModels.Preview.ScrubPicker.FractionAt(e.GetCurrentPoint(_waveBox).Position.X, _waveBox.ActualWidth));
+                e.Handled = true;
+            }
+        };
+        Children.Add(_waveBox);
         Children.Add(_label);
         _video.Initialized += OnVideoInitialized;
         KeyDown += OnKeyDown;
@@ -53,6 +71,36 @@ internal sealed partial class PreviewPlayer : Grid
 
     /// <summary>The engine; null until it has started.</summary>
     public IVideoEngine? Engine => _engine;
+
+    /// <summary>Raised on the UI thread when the waveform is clicked, with the fraction of the file to seek to.</summary>
+    public event EventHandler<double>? WaveformClicked;
+
+    /// <summary>Shows the cover art and waveform of the audio file (either may be null), under the file name.</summary>
+    public void ShowAudioArt(BitmapImage? cover, BitmapImage? waveform)
+    {
+        _cover.Source = cover;
+        _cover.Visibility = cover is null ? Visibility.Collapsed : Visibility.Visible;
+        _cover.Margin = new Thickness(8, 8, 8, waveform is null ? 8 : 56); // above the waveform, not behind it
+        _wave.Source = waveform;
+        _waveBox.Visibility = waveform is null ? Visibility.Collapsed : Visibility.Visible;
+        _playhead.Visibility = Visibility.Collapsed;
+
+        // With a cover the picture is the point; the name is a caption at the top of the waveform instead of the middle of the pane.
+        _label.VerticalAlignment = cover is null ? VerticalAlignment.Center : VerticalAlignment.Bottom;
+        _label.Margin = cover is null ? new Thickness(12) : new Thickness(12, 0, 12, 56);
+    }
+
+    /// <summary>Moves the playhead over the waveform to <paramref name="fraction"/> of the file.</summary>
+    public void SetProgress(double fraction)
+    {
+        if (_waveBox.Visibility != Visibility.Visible || _waveBox.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        _playhead.Visibility = Visibility.Visible;
+        _playhead.Margin = new Thickness(Math.Clamp(fraction, 0, 1) * (_waveBox.ActualWidth - 2), 0, 0, 0);
+    }
 
     /// <summary>Raised on the UI thread when the engine could not start (no LibVLC, a bad install).</summary>
     public event EventHandler<string>? Failed;
@@ -82,6 +130,10 @@ internal sealed partial class PreviewPlayer : Grid
     {
         _label.Text = label;
         _label.Visibility = showLabel ? Visibility.Visible : Visibility.Collapsed;
+        ShowAudioArt(null, null);
+
+        // An audio file has no picture of its own: the surface would keep showing the last frame of the previous video behind the cover.
+        _video.Visibility = showLabel ? Visibility.Collapsed : Visibility.Visible;
         await _ready.Task.WaitAsync(cancellationToken);
         await _engine!.OpenAsync(path, TimeSpan.Zero, autoplay: false, cancellationToken);
     }

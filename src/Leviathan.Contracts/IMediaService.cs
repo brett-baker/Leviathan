@@ -94,6 +94,16 @@ public sealed record MediaContactSheetRequest(string Path, long Size, long Modif
 /// <param name="CellWidth">Width of one frame in pixels, 64 to 320.</param>
 public sealed record MediaScrubRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, int Frames, int CellWidth);
 
+/// <summary>A picture of an audio file wanted from the media process (spec §9.1).</summary>
+/// <param name="Path">Win32 path of the audio file.</param>
+/// <param name="Size">Size in bytes (part of the cache identity).</param>
+/// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
+/// <param name="IsNetwork">True for a file on a network drive (read with limits).</param>
+/// <param name="Cover">True for the embedded cover art, false for the waveform of the whole file.</param>
+/// <param name="Width">Width in pixels (the longest edge for cover art), 64 to 1200.</param>
+/// <param name="Height">Height of a waveform in pixels, 32 to 400; ignored for cover art.</param>
+public sealed record MediaAudioArtRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, bool Cover, int Width, int Height);
+
 /// <summary>A contact sheet as one JPEG with the moments its frames were taken at, or why there is none.</summary>
 /// <param name="Path">The video.</param>
 /// <param name="Status">What happened.</param>
@@ -151,4 +161,10 @@ public interface IMediaService
     /// as a contact sheet (<c>Rows</c> is 1) and <c>FrameSeconds</c> says where each frame is from.
     /// </summary>
     Task<MediaContactSheetAnswer> GetScrubStripAsync(MediaScrubRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The waveform or the embedded cover art of an audio file (spec §9.1) as a JPEG in <see cref="MediaThumbnailAnswer.Jpeg"/>, from
+    /// the disk cache or drawn now, one at a time. A file with no cover art answers <see cref="MediaThumbnailStatus.Failed"/>.
+    /// </summary>
+    Task<MediaThumbnailAnswer> GetAudioArtAsync(MediaAudioArtRequest request, CancellationToken cancellationToken);
 }
