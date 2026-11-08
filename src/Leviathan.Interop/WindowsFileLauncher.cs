@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
 
@@ -10,6 +11,29 @@ public interface IProcessStarter
 {
     /// <summary>Starts the process described by <paramref name="info"/> off the caller's thread.</summary>
     Task<LaunchResult> StartAsync(ProcessStartInfo info, CancellationToken cancellationToken);
+}
+
+/// <summary>Opens the shell's Properties sheet for a file or folder. Behind an interface so the command can be tested.</summary>
+public interface IPropertiesSheet
+{
+    /// <summary>Shows the sheet for <paramref name="win32Path"/>; false when Windows refused.</summary>
+    bool Show(string win32Path);
+}
+
+/// <summary>
+/// <see cref="IPropertiesSheet"/> over <c>SHObjectProperties</c>. The <c>properties</c> verb through <c>Process.Start</c> fails with
+/// "No application is associated" because that call does not ask ShellExecute for the item's context menu (spec §6.2).
+/// </summary>
+public sealed partial class ShellPropertiesSheet : IPropertiesSheet
+{
+    private const uint ShopFilePath = 0x2;
+
+    /// <inheritdoc />
+    public bool Show(string win32Path) => SHObjectProperties(IntPtr.Zero, ShopFilePath, win32Path, null);
+
+    [LibraryImport("shell32.dll", EntryPoint = "SHObjectProperties", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SHObjectProperties(IntPtr hwnd, uint type, string name, string? page);
 }
 
 /// <summary><see cref="IProcessStarter"/> over <see cref="Process"/>.</summary>
@@ -58,9 +82,14 @@ public sealed class ProcessStarter : IProcessStarter
 public sealed class WindowsFileLauncher : IFileLauncher
 {
     private readonly IProcessStarter _starter;
+    private readonly IPropertiesSheet _properties;
 
-    /// <summary>Creates a launcher that starts processes through <paramref name="starter"/>.</summary>
-    public WindowsFileLauncher(IProcessStarter? starter = null) => _starter = starter ?? new ProcessStarter();
+    /// <summary>Creates a launcher that starts processes through <paramref name="starter"/> and shows properties through <paramref name="properties"/>.</summary>
+    public WindowsFileLauncher(IProcessStarter? starter = null, IPropertiesSheet? properties = null)
+    {
+        _starter = starter ?? new ProcessStarter();
+        _properties = properties ?? new ShellPropertiesSheet();
+    }
 
     /// <inheritdoc />
     public Task<LaunchResult> OpenAsync(LocationPath path, CancellationToken cancellationToken) =>
@@ -71,8 +100,15 @@ public sealed class WindowsFileLauncher : IFileLauncher
         _starter.StartAsync(Shell(path, verb: "runas"), cancellationToken);
 
     /// <inheritdoc />
-    public Task<LaunchResult> ShowPropertiesAsync(LocationPath path, CancellationToken cancellationToken) =>
-        _starter.StartAsync(Shell(path, verb: "properties"), cancellationToken);
+    public Task<LaunchResult> ShowPropertiesAsync(LocationPath path, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // The sheet is created on a shell thread, but the call can still wait on a slow share, so it stays off the caller's thread.
+        return Task.Run(
+            () => _properties.Show(path.ToWin32Path()) ? LaunchResult.Ok : new LaunchResult(false, "Windows could not show the properties of " + path.Name + "."),
+            cancellationToken);
+    }
 
     /// <inheritdoc />
     public Task<LaunchResult> OpenWithAsync(LocationPath path, string executable, CancellationToken cancellationToken)

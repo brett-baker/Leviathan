@@ -27,12 +27,14 @@ internal sealed partial class PaneHeader : UserControl
     public void Clear() => Visibility = Visibility.Collapsed;
 
     /// <summary>Shows the summary of <paramref name="summary"/>, with <paramref name="counted"/> under it when the folder has a count.</summary>
+    /// <param name="path">The folder the pane shows: all the folded bar says, and the first line when unfolded.</param>
     /// <param name="summary">The drive or share the folder is on.</param>
     /// <param name="counted">What is counted in the folder, or empty.</param>
     /// <param name="folded">True to show only the thin bar.</param>
     /// <param name="canTerminal">False when a terminal cannot be opened in this folder (a network path).</param>
-    public void Show(DriveSummary summary, string counted, bool folded, bool canTerminal)
+    public void Show(string path, DriveSummary summary, string counted, bool folded, bool canTerminal)
     {
+        PathText.Text = path;
         TitleText.Text = summary.Title;
         TypeText.Text = summary.TypeText;
         UsageText.Text = summary.UsageText;
@@ -44,7 +46,7 @@ internal sealed partial class PaneHeader : UserControl
 
         Details.Visibility = folded ? Visibility.Collapsed : Visibility.Visible;
         FoldedText.Visibility = folded ? Visibility.Visible : Visibility.Collapsed;
-        FoldedText.Text = $"{summary.Title}  ·  {summary.UsageText}";
+        FoldedText.Text = path;
         TerminalButton.Visibility = PropertiesButton.Visibility = folded ? Visibility.Collapsed : Visibility.Visible;
         FoldIcon.Glyph = folded ? "" : "";
         ToolTipService.SetToolTip(FoldButton, folded ? "Show the drive and folder summary" : "Fold the drive and folder summary");

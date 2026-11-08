@@ -72,6 +72,6 @@ public sealed partial class MainWindow
             pane.Sizes.RequestNow(new FileEntry(folder.Name, folder, FileEntryKind.Folder, 0, DateTimeOffset.Now, DateTimeOffset.Now, FileAttributes.Directory));
         }
 
-        header.Show(DriveSummary.From(drive), counted, folded, _commands.CanExecute(CommandIds.TerminalHere, new CommandContext(folder.Value)) && folder.Kind == Core.Paths.LocationKind.Drive);
+        header.Show(folder.ToWin32Path(), DriveSummary.From(drive), counted, folded, _commands.CanExecute(CommandIds.TerminalHere, new CommandContext(folder.Value)) && folder.Kind == Core.Paths.LocationKind.Drive);
     }
 }

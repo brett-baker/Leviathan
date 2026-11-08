@@ -33,24 +33,48 @@ public sealed class LauncherTests
         Assert.Equal(string.Empty, info.Verb);
     }
 
-    [Theory]
-    [InlineData("runas")]
-    [InlineData("properties")]
-    public async Task ElevatedAndProperties_UseTheMatchingVerb(string verb)
+    [Fact]
+    public async Task RunAsAdministrator_UsesTheRunAsVerb()
     {
         var starter = new RecordingStarter();
-        var launcher = new WindowsFileLauncher(starter);
 
-        if (verb == "runas")
-        {
-            await launcher.RunAsAdministratorAsync(P(@"C:\Tools\setup.exe"), CancellationToken.None);
-        }
-        else
-        {
-            await launcher.ShowPropertiesAsync(P(@"C:\Tools\setup.exe"), CancellationToken.None);
-        }
+        await new WindowsFileLauncher(starter).RunAsAdministratorAsync(P(@"C:\Tools\setup.exe"), CancellationToken.None);
 
-        Assert.Equal(verb, Assert.Single(starter.Started).Verb);
+        Assert.Equal("runas", Assert.Single(starter.Started).Verb);
+    }
+
+    private sealed class RecordingSheet(bool result = true) : IPropertiesSheet
+    {
+        public List<string> Shown { get; } = [];
+
+        public bool Show(string win32Path)
+        {
+            Shown.Add(win32Path);
+            return result;
+        }
+    }
+
+    // Regression: Process.Start with the "properties" verb failed ("No application is associated"), so Properties showed an error.
+    [Fact]
+    public async Task ShowProperties_UsesTheShellPropertiesSheet_NotAProcess()
+    {
+        var starter = new RecordingStarter();
+        var sheet = new RecordingSheet();
+
+        var result = await new WindowsFileLauncher(starter, sheet).ShowPropertiesAsync(P(@"C:\Tools\setup.exe"), CancellationToken.None);
+
+        Assert.True(result.Started);
+        Assert.Equal([@"C:\Tools\setup.exe"], sheet.Shown);
+        Assert.Empty(starter.Started);
+    }
+
+    [Fact]
+    public async Task ShowProperties_WhenWindowsRefuses_SaysSo()
+    {
+        var result = await new WindowsFileLauncher(new RecordingStarter(), new RecordingSheet(false)).ShowPropertiesAsync(P(@"C:\Tools"), CancellationToken.None);
+
+        Assert.False(result.Started);
+        Assert.Contains("Tools", result.Error);
     }
 
     [Fact]

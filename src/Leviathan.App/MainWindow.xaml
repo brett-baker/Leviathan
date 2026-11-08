@@ -152,17 +152,20 @@
       </CommandBar>
 
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-        <DropDownButton x:Name="ViewButton" Content="View" AutomationProperties.Name="View">
+        <DropDownButton x:Name="ViewButton" AutomationProperties.Name="View" ToolTipService.ToolTip="View">
+          <FontIcon Glyph="&#xE8A9;" FontSize="14" />
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="ViewMenu" Opening="OnViewMenuOpening" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <DropDownButton x:Name="SortButton" Content="Sort" AutomationProperties.Name="Sort">
+        <DropDownButton x:Name="SortButton" AutomationProperties.Name="Sort" ToolTipService.ToolTip="Sort">
+          <FontIcon Glyph="&#xE8CB;" FontSize="14" />
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="SortMenu" Opening="OnSortMenuOpening" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <DropDownButton x:Name="GroupButton" Content="Group" AutomationProperties.Name="Group">
+        <DropDownButton x:Name="GroupButton" AutomationProperties.Name="Group" ToolTipService.ToolTip="Group">
+          <FontIcon Glyph="&#xF168;" FontSize="14" />
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="GroupMenu" Opening="OnGroupMenuOpening" />
           </DropDownButton.Flyout>

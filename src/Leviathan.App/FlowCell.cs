@@ -448,6 +448,10 @@ internal sealed class FlowCell : Grid
             entry.Location.IsNetwork ? ThumbnailMode.IconOnly : ThumbnailMode.Thumbnail);
         var loading = new CancellationTokenSource();
         _loading = loading;
+
+        // The token is read once, before any await: CancelLoading disposes the source when the cell is recycled, and reading
+        // loading.Token after that threw ObjectDisposedException into the finalizer (crash signature 07b90e1da38a).
+        var token = loading.Token;
         try
         {
             ThumbnailImage? image;
@@ -455,11 +459,11 @@ internal sealed class FlowCell : Grid
             {
                 // A cell that is recycled or hidden within a moment (switching view, scrolling past) never reaches the shell, so
                 // a burst of changes does not queue hundreds of thumbnail jobs behind the one the user waits for.
-                await Task.Delay(ThumbnailDelay, loading.Token);
-                image = await cache.GetAsync(request, loading.Token);
+                await Task.Delay(ThumbnailDelay, token);
+                image = await cache.GetAsync(request, token);
             }
 
-            if (image is not null && !loading.IsCancellationRequested && ReferenceEquals(Entry, entry))
+            if (image is not null && !token.IsCancellationRequested && ReferenceEquals(Entry, entry))
             {
                 using var scope = UiTrace.Begin("FlowCell.Thumbnail", 5);
                 var bitmap = new WriteableBitmap(image.Width, image.Height);

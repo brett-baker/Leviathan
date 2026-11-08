@@ -14,7 +14,8 @@
       </Grid.ColumnDefinitions>
 
       <StackPanel x:Name="Details" Spacing="4">
-        <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="PathText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" />
+        <TextBlock x:Name="TitleText" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="TypeText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
         <ProgressBar x:Name="UsageBar" Maximum="100" Height="6" Margin="0,6,0,2" />
         <TextBlock x:Name="UsageText" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
@@ -23,11 +24,15 @@
       </StackPanel>
 
       <!-- Shown instead of the details while folded. -->
-      <TextBlock x:Name="FoldedText" Visibility="Collapsed" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="FoldedText" Visibility="Collapsed" VerticalAlignment="Center" Style="{StaticResource BodyTextBlockStyle}" TextTrimming="CharacterEllipsis" />
 
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-        <Button x:Name="TerminalButton" Content="Open terminal here" Click="OnTerminalClick" />
-        <Button x:Name="PropertiesButton" Content="Properties" Click="OnPropertiesClick" />
+        <Button x:Name="TerminalButton" Click="OnTerminalClick" AutomationProperties.Name="Open terminal here" ToolTipService.ToolTip="Open terminal here">
+          <FontIcon Glyph="&#xE756;" FontSize="12" />
+        </Button>
+        <Button x:Name="PropertiesButton" Click="OnPropertiesClick" AutomationProperties.Name="Properties" ToolTipService.ToolTip="Properties (Alt+Enter)">
+          <FontIcon Glyph="&#xE946;" FontSize="12" />
+        </Button>
         <Button x:Name="FoldButton" Click="OnFoldClick" AutomationProperties.Name="Fold the summary">
           <FontIcon x:Name="FoldIcon" Glyph="&#xE70E;" FontSize="12" />
         </Button>

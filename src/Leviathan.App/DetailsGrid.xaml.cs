@@ -38,6 +38,7 @@ public sealed partial class DetailsGrid : UserControl
     private HeaderGesture? _gesture;
     private readonly BandDrag _band;
     private readonly ItemDragSource _dragSource;
+    private readonly SlowRenameTrigger _slowRename = new();
     private Core.Paths.LocationPath? _dropFolder;
 
     /// <summary>Creates the grid.</summary>
@@ -514,6 +515,7 @@ public sealed partial class DetailsGrid : UserControl
         }
 
         Focus(FocusState.Pointer);
+        _slowRename.Interrupt();
         var point = e.GetCurrentPoint(Scroller).Properties;
         if (point.IsMiddleButtonPressed)
         {
@@ -561,6 +563,13 @@ public sealed partial class DetailsGrid : UserControl
 
         // The name and icon are for drag and drop; the blank part of a row starts the rubber band (spec §8.4).
         var onName = point.IsLeftButtonPressed && row.HitsName(e.GetCurrentPoint(row).Position);
+        var wasOnlySelection = _tab.Selection.Count == 1 && _tab.Selection.IsSelected(entry);
+        if (onName)
+        {
+            var tab = _tab;
+            _slowRename.Press(entry, wasOnlySelection, plain: !additive && !range, e2 => tab.BeginRename(e2));
+        }
+
         var keepSelection = onName && _dragSource.Arm(e, row, entry, plain: !additive && !range);
         if (!keepSelection)
         {
@@ -647,6 +656,7 @@ public sealed partial class DetailsGrid : UserControl
     {
         if (!InEditor(e.OriginalSource) && RowOf(e.OriginalSource)?.Entry is { } entry)
         {
+            _slowRename.Cancel();
             e.Handled = true;
             ItemInvoked?.Invoke(this, entry);
         }

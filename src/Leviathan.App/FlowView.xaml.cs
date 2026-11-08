@@ -24,6 +24,7 @@ public sealed partial class FlowView : UserControl
     private TabViewModel? _tab;
     private readonly BandDrag _band;
     private readonly ItemDragSource _dragSource;
+    private readonly SlowRenameTrigger _slowRename = new();
     private Core.Paths.LocationPath? _dropFolder;
     private bool _hasFocus;
     private readonly DispatcherTimer _mediaTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
@@ -420,6 +421,7 @@ public sealed partial class FlowView : UserControl
         }
 
         Focus(FocusState.Pointer);
+        _slowRename.Interrupt();
         var point = e.GetCurrentPoint(Scroller).Properties;
         if (point.IsMiddleButtonPressed)
         {
@@ -466,6 +468,12 @@ public sealed partial class FlowView : UserControl
 
         // Dragging from an item that is part of a larger selection takes the whole selection along.
         var cell = CellOf(e.OriginalSource)!;
+        if (point.IsLeftButtonPressed)
+        {
+            var tab = _tab;
+            _slowRename.Press(entry, tab.Selection.Count == 1 && tab.Selection.IsSelected(entry), plain: !additive && !range, e2 => tab.BeginRename(e2));
+        }
+
         if (!(point.IsLeftButtonPressed && _dragSource.Arm(e, cell, entry, plain: !additive && !range)))
         {
             _tab.Selection.Click(entry, additive, range);
@@ -546,6 +554,7 @@ public sealed partial class FlowView : UserControl
     {
         if (!DetailsGrid.InEditor(e.OriginalSource) && CellOf(e.OriginalSource)?.Entry is { } entry)
         {
+            _slowRename.Cancel();
             e.Handled = true;
             ItemInvoked?.Invoke(this, entry);
         }
