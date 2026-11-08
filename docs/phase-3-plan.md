@@ -73,7 +73,7 @@ Every slice follows `CLAUDE.md`.
 
 ### E. Triage (§10.1–§10.3, §10 "working at scale")
 
-- [ ] **E1. Triage view model**: queue from selection or folder (optionally recursive), untagged-only filter, start offset,
+- [x] **E1. Triage view model**: queue from selection or folder (optionally recursive), untagged-only filter, start offset,
   auto-advance, decisions, undo stack, summary; fully unit-tested with the fake engine.
 - [ ] **E2. Key map** (§10.2, remappable): Space, ←/→ 30 s, Shift ±1 min, Ctrl ±5 min, Alt ±5 s, `.`/`,` frames, Ctrl+1–9
   percentage, Home/End, J/K/L, `[`/`]`, S skim, Enter/G keep, Del/X discard, 1–9 tags, ↓/Tab skip, ↑ previous, C contact
