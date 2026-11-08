@@ -17,6 +17,9 @@
     <!-- Markdown to HTML for the preview pane (spec 9.1); BSD-2-Clause -->
     <PackageVersion Include="Markdig" Version="0.38.0" />
 
+    <!-- Draws font samples from a font file in the preview pane (spec 9.1); MIT, Microsoft -->
+    <PackageVersion Include="System.Drawing.Common" Version="10.0.11" />
+
     <!-- Hosting, logging, data, IPC -->
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.367" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />

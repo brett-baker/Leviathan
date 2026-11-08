@@ -1,6 +1,7 @@
 using Leviathan.Core.Model;
 using Leviathan.Playback;
 using Leviathan.ViewModels.Commands;
+using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Preview;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
@@ -21,6 +22,9 @@ public sealed partial class MainWindow
     private ImagePreview? _images;
     private TextPreview? _text;
     private WebPreview? _web;
+    private PdfPreview? _pdf;
+    private FontPreview? _font;
+    private SummaryPreview? _summary;
     private bool _playerOpen;
     private string _previewKey = string.Empty;
     private bool _previewActive;
@@ -144,6 +148,29 @@ public sealed partial class MainWindow
                     var html = await Task.Run(() => LoadWebPage(path, request.Kind), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, request.Cancellation);
                     await web.ShowAsync(html, request.Cancellation);
                     break;
+                case PreviewKind.Pdf:
+                    var pdf = _pdf ??= AddSurface(new PdfPreview());
+                    ShowOnly(pdf);
+                    await pdf.OpenAsync(path, request.Cancellation);
+                    break;
+                case PreviewKind.Font:
+                    var font = _font ??= AddSurface(new FontPreview());
+                    ShowOnly(font);
+                    await font.OpenAsync(path, request.Cancellation);
+                    break;
+                case PreviewKind.Archive when ArchiveListing.CanList(entry!.Extension):
+                    await ShowArchiveAsync(entry, path, request.Cancellation);
+                    break;
+                case PreviewKind.Folder:
+                    await ShowFolderAsync(entry!, path, request.Cancellation);
+                    break;
+                case PreviewKind.Multiple:
+                    await ShowMultipleAsync(request.Entries, request.Cancellation);
+                    break;
+                case PreviewKind.Archive:
+                    VideoPlaceholder.Text = $"{entry!.Name}\nListing {entry.Extension} archives needs 7-Zip support, which comes with the archive feature.";
+                    ShowOnly(null);
+                    break;
                 default:
                     ShowOnly(null);
                     break;
@@ -153,11 +180,116 @@ public sealed partial class MainWindow
         {
             // The selection moved on while this one was opening.
         }
+        catch (Exception ex) when (ex is NotSupportedException or InvalidDataException)
+        {
+            VideoPlaceholder.Text = ex.Message;
+            ShowOnly(null);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TimeoutException)
         {
             VideoPlaceholder.Text = ex is TimeoutException ? "This file took too long to read." : $"This file could not be read: {ex.Message}";
             ShowOnly(null);
         }
+    }
+
+    private async Task ShowArchiveAsync(FileEntry entry, string path, CancellationToken cancellationToken)
+    {
+        var contents = await Task.Run(() => ArchiveListing.Read(path), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken);
+        var summary = _summary ??= AddSurface(new SummaryPreview());
+        ShowOnly(summary);
+        var rows = contents.Items.Select(i => i.IsFolder ? i.Path + "/" : $"{i.Path}  ·  {DisplayFormat.Size(i.Size)}").ToList();
+        var more = contents.Truncated ? $" · first {ArchiveListing.MaxItems:N0} shown" : string.Empty;
+        summary.Show($"{entry.Name}: {contents.Items.Count:N0} items · {DisplayFormat.Size(contents.TotalBytes)} unpacked{more}", rows);
+    }
+
+    private async Task ShowFolderAsync(FileEntry folder, string path, CancellationToken cancellationToken)
+    {
+        var children = await Task.Run(() => ListChildren(path), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken);
+        var sizes = _bound?.Sizes;
+        var rows = new List<(string Text, double Weight)>();
+        var map = new List<MapItem>();
+        var uncounted = 0;
+        foreach (var (name, isFolder, size) in children.Items)
+        {
+            double weight = size;
+            if (isFolder)
+            {
+                var child = new FileEntry(name, folder.Location.Combine(name), FileEntryKind.Folder, 0, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, FileAttributes.Directory);
+                if (sizes?.ValueOf(child, FolderMetric.TotalBytes) is { } total)
+                {
+                    weight = total;
+                }
+                else
+                {
+                    weight = 0;
+                    uncounted++;
+                }
+            }
+
+            map.Add(new MapItem(isFolder ? name + "/" : name, weight, isFolder));
+            rows.Add((isFolder ? $"{name}/  ·  {(weight > 0 ? DisplayFormat.Size((long)weight) : "not counted yet")}" : $"{name}  ·  {DisplayFormat.Size(size)}", weight));
+        }
+
+        var summary = _summary ??= AddSurface(new SummaryPreview());
+        ShowOnly(summary);
+        var files = children.Items.Count(i => !i.IsFolder);
+        var folders = children.Items.Count - files;
+        var note = (children.Capped ? $" · first {children.Items.Count:N0} listed" : string.Empty) + (uncounted > 0 ? $" · {uncounted:N0} folders not counted yet" : string.Empty);
+        summary.Show(
+            $"{folder.Name}: {files:N0} files, {folders:N0} folders{note}",
+            [.. rows.OrderByDescending(r => r.Weight).Select(r => r.Text)],
+            [.. map.Where(m => m.Weight > 0)]);
+    }
+
+    private async Task ShowMultipleAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
+    {
+        var summary = SelectionSummary.From(entries);
+        var rows = summary.Types.Select(t => $"{t.Label}  ·  {t.Count:N0} files  ·  {DisplayFormat.Size(t.Bytes)}").ToList();
+
+        // A strip of the first few pictures, opened off the UI thread and decoded small.
+        var pictures = entries.Where(e => e.Kind == FileEntryKind.File && PreviewClassifier.Classify(e) == PreviewKind.Image && e.Size < 32L << 20).Take(12).Select(e => e.Location.ToWin32Path()).ToList();
+        var thumbnails = new List<Microsoft.UI.Xaml.Media.Imaging.BitmapImage>();
+        foreach (var picture in pictures)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                using var file = await Task.Run(() => new FileStream(picture, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken);
+                var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage { DecodePixelWidth = 112 };
+                await bitmap.SetSourceAsync(file.AsRandomAccessStream()).AsTask(cancellationToken);
+                thumbnails.Add(bitmap);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TimeoutException or System.Runtime.InteropServices.COMException or ArgumentException)
+            {
+                // A picture that will not open is left out of the strip.
+            }
+        }
+
+        var surface = _summary ??= AddSurface(new SummaryPreview());
+        ShowOnly(surface);
+        surface.Show(summary.Headline, rows, null, thumbnails);
+    }
+
+    private sealed record Children(List<(string Name, bool IsFolder, long Size)> Items, bool Capped);
+
+    // The direct children of a folder with their sizes, off the UI thread; at most 2,000, so a huge folder cannot stall the pane.
+    private static Children ListChildren(string path)
+    {
+        const int max = 2000;
+        var items = new List<(string, bool, long)>();
+        var capped = false;
+        foreach (var info in new DirectoryInfo(path).EnumerateFileSystemInfos())
+        {
+            if (items.Count >= max)
+            {
+                capped = true;
+                break;
+            }
+
+            items.Add(info is FileInfo file ? (file.Name, false, file.Length) : (info.Name, true, 0L));
+        }
+
+        return new Children(items, capped);
     }
 
     // Reads the start of a Markdown or HTML file and makes it a page the sandbox accepts (off the UI thread).
@@ -198,7 +330,7 @@ public sealed partial class MainWindow
     // Shows one renderer in the video area and clears and hides the others; null shows the placeholder text instead.
     private void ShowOnly(FrameworkElement? next)
     {
-        foreach (FrameworkElement? surface in new FrameworkElement?[] { _player, _images, _text, _web })
+        foreach (FrameworkElement? surface in new FrameworkElement?[] { _player, _images, _text, _web, _pdf, _font, _summary })
         {
             if (surface is null)
             {
@@ -223,6 +355,15 @@ public sealed partial class MainWindow
                 case WebPreview web:
                     web.Clear();
                     break;
+                case PdfPreview pdf:
+                    pdf.Clear();
+                    break;
+                case FontPreview font:
+                    font.Clear();
+                    break;
+                case SummaryPreview summary:
+                    summary.Clear();
+                    break;
             }
         }
 
@@ -246,6 +387,7 @@ public sealed partial class MainWindow
         _images?.Clear();
         _text?.Clear();
         _web?.Release();
+        _pdf?.Clear();
         if (_player is { } player)
         {
             _player = null;

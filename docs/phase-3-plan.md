@@ -64,7 +64,7 @@ Every slice follows `CLAUDE.md`.
   - [x] **D2b. Images**: WIC with zoom and pan, EXIF orientation, animated GIF and WebP, HEIC/AVIF/RAW where Windows has a codec.
   - [x] **D2c. Text, code, Markdown, HTML**: first 2 MB with encoding detection and syntax colours; Markdown and HTML in a sandboxed
     WebView2 with scripts and network off.
-  - [ ] **D2d. PDF, fonts, archives, folders, several items**: Windows.Data.Pdf pages; font samples; archive listing (7-Zip); folder
+  - [x] **D2d. PDF, fonts, archives, folders, several items**: Windows.Data.Pdf pages; font samples; archive listing (7-Zip); folder
     count, size and mini space map; count, size and type breakdown with a strip of thumbnails.
   - [ ] **D2e. Office documents**: the registered shell preview handler hosted out of process in ShellHost.
   - [ ] **D2f. Video extras**: filmstrip, hover frame preview on the seek bar, audio waveform and cover art.
