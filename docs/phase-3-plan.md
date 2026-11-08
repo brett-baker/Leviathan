@@ -95,6 +95,13 @@ Every slice follows `CLAUDE.md`.
 - [ ] **F3. Display and filters**: dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing
   everything with a tag, `tag:` filter and query support, "tags may be lost" warning for destinations without streams.
 
+### H. Added during Phase 3 (Brett's requests, 2026-11-08)
+
+- [x] **H1. Tweaks after E4**: Properties via `SHObjectProperties`, path in pane headers, icon buttons, slow-click rename.
+- [x] **H2. Eager list updates** (spec §12.5a): `PendingChanges`, dimmed pending rows, setting "Show deletes, moves and copies at once".
+- [ ] **H3. Triage hand-off** to the other pane at close, with a setting for move-on-Keep or batch at the end.
+- [ ] **H4. Duplicates finder**: within a folder first (port of vlib's name similarity and title key), then source against destination.
+
 ### G. Verification and finish
 
 - [ ] **G1. Fixture generator script** and parser snapshot tests; corrupt-file suite (Media restarts, files quarantined, UI unaffected).

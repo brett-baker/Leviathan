@@ -141,6 +141,7 @@
                 <ToggleSwitch x:Name="SystemSwitch" Header="Show system files and folders" Toggled="OnFilesToggled" />
                 <StackPanel Spacing="4">
                   <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
+                  <ToggleSwitch x:Name="EagerSwitch" Header="Show deletes, moves and copies at once" OnContent="Rows go and arrive when you ask; a moved or copied file is dimmed until it is there" OffContent="Rows change as the job reports and when it ends" Toggled="OnFilesToggled" />
                   <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
                 </StackPanel>
                 <StackPanel Spacing="4">

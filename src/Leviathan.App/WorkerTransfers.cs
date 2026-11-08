@@ -6,6 +6,13 @@ using Leviathan.ViewModels.Transfers;
 
 namespace Leviathan.App;
 
+/// <summary>A copy, move or delete the worker accepted.</summary>
+/// <param name="Job">The worker's id for it; <see cref="TransferFinished.Job"/> carries the same id when it ends.</param>
+/// <param name="Kind">Copy, Move or Delete.</param>
+/// <param name="Sources">The items it works on.</param>
+/// <param name="Destination">The folder they go to; null for a delete.</param>
+internal sealed record TransferSubmitted(Guid Job, JobKind Kind, IReadOnlyList<LocationPath> Sources, LocationPath? Destination);
+
 /// <summary>A copy, move or delete job the worker finished (or gave up on), with what it was asked to do.</summary>
 /// <param name="Kind">Copy, Move or Delete.</param>
 /// <param name="Sources">The items it worked on.</param>
@@ -84,6 +91,9 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     /// <summary>Where the "keep Leviathan's own trash on shares" setting is read from; on until the settings exist.</summary>
     public Func<bool> KeepOwnTrashSource { get; set; } = () => true;
 
+    /// <summary>Raised once the worker has accepted a copy, move or delete, before it can end, so the views can show it at once.</summary>
+    public event EventHandler<TransferSubmitted>? Submitted;
+
     /// <summary>Raised on a thread-pool thread when a job ends.</summary>
     public event EventHandler<TransferFinished>? Finished;
 
@@ -116,6 +126,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
             };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(job.Kind, request.Sources, request.Destination, false);
+            Submitted?.Invoke(this, new TransferSubmitted(snapshot.Id, job.Kind, request.Sources, request.Destination));
             if (_early.TryRemove(snapshot.Id, out var early))
             {
                 Handle(early);
@@ -180,6 +191,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
             var job = new JobRequest(JobKind.Delete, [.. items.Select(i => i.Value)], null) { DeleteMode = permanent ? DeleteMode.Permanent : DeleteMode.RecycleBin, KeepOwnTrash = KeepOwnTrashSource() };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(JobKind.Delete, items, null, permanent);
+            Submitted?.Invoke(this, new TransferSubmitted(snapshot.Id, JobKind.Delete, items, null));
             if (_early.TryRemove(snapshot.Id, out var early))
             {
                 Handle(early);

@@ -48,6 +48,12 @@ public sealed record FileEntry(
     /// <summary>NTFS identity when the provider can supply it cheaply; otherwise null.</summary>
     public FileIdentity? Identity { get; init; }
 
+    /// <summary>
+    /// True for a placeholder of an item a running copy or move has not finished creating here; it is drawn dimmed until the real item
+    /// arrives (the "UI updates: Immediate" setting).
+    /// </summary>
+    public bool IsPending { get; init; }
+
     /// <summary>True when the item is hidden.</summary>
     public bool IsHidden => Attributes.HasFlag(FileAttributes.Hidden);
 

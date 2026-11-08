@@ -341,6 +341,6 @@ public sealed record ListingDiff(IReadOnlyList<FileEntry> Remove, IReadOnlyList<
     }
 
     private static bool Differs(FileEntry a, FileEntry b) =>
-        a.Kind != b.Kind || a.Size != b.Size || a.Modified != b.Modified || a.Created != b.Created || a.Attributes != b.Attributes
+        a.IsPending != b.IsPending || a.Kind != b.Kind || a.Size != b.Size || a.Modified != b.Modified || a.Created != b.Created || a.Attributes != b.Attributes
         || !string.Equals(a.Name, b.Name, StringComparison.Ordinal);
 }

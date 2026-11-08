@@ -171,6 +171,7 @@ internal sealed partial class SettingsSheet : UserControl
             HiddenSwitch.IsOn = settings.Files.ShowHidden;
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
+            EagerSwitch.IsOn = settings.Files.UiUpdates == UiUpdateMode.Immediate;
             OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
             RecheckBox.Text = string.Join('\r', settings.Files.RecheckSizePaths);
             BinDaysBox.Value = settings.Files.BinKeepDays;
@@ -403,7 +404,8 @@ internal sealed partial class SettingsSheet : UserControl
         var system = SystemSwitch.IsOn;
         var sizes = SizesSwitch.IsOn;
         var ownTrash = OwnTrashSwitch.IsOn;
-        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash } });
+        var updates = EagerSwitch.IsOn ? UiUpdateMode.Immediate : UiUpdateMode.WhenFinished;
+        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash, UiUpdates = updates } });
     }
 
     // Saved when the box is left; lines that are not drive letter paths are kept as typed but never counted.

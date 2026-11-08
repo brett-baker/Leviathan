@@ -150,6 +150,16 @@ public sealed record PerformanceSettings
 }
 
 /// <summary>Files and folders page (spec §17.2).</summary>
+/// <summary>When the file list shows what a delete, move or copy will do.</summary>
+public enum UiUpdateMode
+{
+    /// <summary>At once: rows leave and dimmed copies arrive as soon as the job is queued; a failed job puts things back.</summary>
+    Immediate,
+
+    /// <summary>Only as the job reports (deletes as items go) and when it ends.</summary>
+    WhenFinished,
+}
+
 public sealed record FilesSettings
 {
     /// <summary>Show hidden items.</summary>
@@ -169,6 +179,12 @@ public sealed record FilesSettings
     /// and Leviathan just cannot see its bin: items then go into a visible NAS bin, or are deleted on the share for the NAS to keep.
     /// </summary>
     public bool KeepOwnTrashOnShares { get; init; } = true;
+
+    /// <summary>
+    /// When the file list follows a delete, move or copy: <see cref="UiUpdateMode.Immediate"/> hides deleted and moved items and shows
+    /// dimmed copies at once, <see cref="UiUpdateMode.WhenFinished"/> waits for the job (spec §3.2, §12.5).
+    /// </summary>
+    public UiUpdateMode UiUpdates { get; init; } = UiUpdateMode.Immediate;
 
     /// <summary>How many days a soft-deleted item stays in the bin before the automatic purge removes it (spec §12.5); 0 keeps it for ever.</summary>
     public int BinKeepDays { get; init; } = 30;

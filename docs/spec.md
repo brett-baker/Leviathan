@@ -703,6 +703,19 @@ Soft delete moves the item into the share's own recycle folder when there is one
 - Ctrl+Z restores the last delete, wherever it went.
 - Leviathan hides `.leviathan-trash` folders by default; other tools will see them as hidden folders.
 
+### 12.5a Immediate list updates
+
+A delete, move or copy is shown in the file lists as soon as the worker accepts it (setting **Show deletes, moves and copies at
+once**, on by default; off = rows change as the job reports and when it ends).
+
+- **Delete:** the rows leave at once. If the job fails or is cancelled they come back when the folder is read again.
+- **Move:** the rows leave the source and appear in the destination dimmed ("pending"). When the job ends they become real rows.
+- **Copy:** as a move, but the source rows stay.
+- A listing made while the job runs keeps hiding the sources and keeping the dimmed rows (a refresh must not flicker them back).
+- When the job ends, whatever really happened is read back from the disk; a pending row whose item never arrived disappears.
+- A name clash is not previewed: the destination keeps what it has until the job resolves the clash. Items no open list shows
+  are hidden where they are but have no dimmed copy.
+
 ### 12.6 Activity strip and Operations panel
 
 **Activity strip.** A band of thin progress lines sits directly under the address bar, across the full width of every window. Each running job and each active background task draws its own line, 1 or 2 px high (setting), stacked one above another. **Every job gets its own color** when it is queued, taken in turn from a palette of 8 distinct colors and kept for the job's whole life. The same color marks that job's row in the Operations panel, its line in the strip and its entry in the status bar, so two copies running at once are easy to tell apart. The job type is shown by an icon, not by color.

@@ -77,6 +77,9 @@ public sealed partial class MainWindow
     {
         var message = finished.Describe();
 
+        // The rows shown ahead of the job (hidden sources, dimmed copies) are given up; the folders are read again to show what happened.
+        App.Host.Pending.Settle(finished.Job.Id);
+
         // In place, never a reload: a reload replaces every row and sends the view back to the top (shares are not watched, so this
         // is also how new and removed items show up there).
         foreach (var tab in _viewModel.Tabs.Tabs)

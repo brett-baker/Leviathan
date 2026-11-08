@@ -118,6 +118,9 @@ internal sealed class AppHost
     /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
     public WorkerTransfers Transfers { get; private init; } = null!;
 
+    /// <summary>What running deletes, moves and copies will do to the rows, shown at once when the setting says so.</summary>
+    public PendingChanges Pending { get; private init; } = null!;
+
     /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
@@ -600,9 +603,10 @@ internal sealed class AppHost
         // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
         var polling = new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable };
         background.Network = () => new NetworkStats(polling.Watching, listings.FolderCount, listings.EntryCount, listings.MaxEntries);
+        var pending = new PendingChanges();
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new CompositeFolderWatcher(
             new LocalFolderWatcher(),
-            polling), new MediaInfoSource(() => built!.MediaHost));
+            polling), new MediaInfoSource(() => built!.MediaHost), pending);
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
         NewItemService newItems;
@@ -682,6 +686,7 @@ internal sealed class AppHost
             WorkOffline = workOffline,
             Connector = connector,
             Transfers = transfers,
+            Pending = pending,
             Undo = undo,
             TriageActions = new TriageFileActions(
                 new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()),

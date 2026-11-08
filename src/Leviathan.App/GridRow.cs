@@ -120,6 +120,9 @@ internal sealed class GridRow : Grid
     public void Bind(FileEntry entry)
     {
         Entry = entry;
+
+        // A copy a running job has not finished creating here (the "UI updates: Immediate" setting).
+        Opacity = entry.IsPending ? 0.45 : 1;
         EnsureCells();
         Fill();
         UpdateVisuals();

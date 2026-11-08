@@ -126,6 +126,9 @@ internal sealed class FlowCell : Grid
         EndScrub();
         Entry = entry;
 
+        // A copy a running job has not finished creating here (the "UI updates: Immediate" setting).
+        Opacity = entry.IsPending ? 0.45 : 1;
+
         // Tiles and Gallery have their own picture size; only Thumbnails follows the tab's.
         size = ItemFlow.PictureEdge(layout, size);
         if (layout != _layout || size != _size || Children.Count == 0)

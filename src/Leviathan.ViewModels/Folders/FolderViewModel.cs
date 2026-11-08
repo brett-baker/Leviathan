@@ -179,7 +179,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     /// <param name="time">Clock.</param>
     /// <param name="cache">Remembered listings, or null to always list afresh.</param>
     /// <param name="watcher">Reports changes to the folder on screen so the rows follow the disk, or null to leave them as listed.</param>
-    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null, ListingCache? cache = null, IFolderWatcher? watcher = null)
+    /// <param name="pending">What running deletes, moves and copies are about to do to the rows, or null to show only what is on disk.</param>
+    public FolderViewModel(LocationProviderRegistry providers, IUiContext ui, TimeProvider? time = null, ListingCache? cache = null, IFolderWatcher? watcher = null, PendingChanges? pending = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(ui);
@@ -188,6 +189,83 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         _time = time ?? TimeProvider.System;
         Cache = cache;
         _watcher = watcher;
+        _pending = pending;
+        if (pending is not null)
+        {
+            pending.Changed += OnPendingChanged;
+        }
+    }
+
+    private readonly PendingChanges? _pending;
+
+    // A job began: show it now (hide the sources, add the dimmed copies). A job ended: read the folder again, which swaps a pending
+    // copy for the real item, brings back what a failed job did not remove and drops what never arrived.
+    private void OnPendingChanged(object? sender, PendingChange change) =>
+        _ui.Post(() =>
+        {
+            if (_disposed || Location is not { } here || !change.Folders.Contains(here))
+            {
+                return;
+            }
+
+            if (change.Settled)
+            {
+                RefreshInPlace();
+            }
+            else
+            {
+                ApplyPending(here);
+            }
+        });
+
+    private void ApplyPendingIfAny()
+    {
+        if (_pending is not null && Location is { } here && _pending.Affects(here))
+        {
+            ApplyPending(here);
+        }
+    }
+
+    /// <summary>Makes the rows match the real listing plus the pending changes, touching only the rows that differ. UI thread only.</summary>
+    private void ApplyPending(LocationPath here)
+    {
+        if (_pending is null || State is FolderLoadState.Loading)
+        {
+            return;
+        }
+
+        var real = new List<FileEntry>(Entries.Count);
+        foreach (var entry in Entries)
+        {
+            // Rows that are really there, as of the last listing; the pending copies are worked out again from the set.
+            if (!entry.IsPending)
+            {
+                real.Add(entry);
+            }
+        }
+
+        var target = _pending.Apply(here, real);
+        var diff = ListingDiff.Compute(Entries.ToArray(), target);
+        if (diff.IsEmpty)
+        {
+            return;
+        }
+
+        Entries.RemoveRange(diff.Remove);
+        if (diff.Add.Count > 0)
+        {
+            Entries.AddRange(diff.Add);
+        }
+
+        // A pending copy in an empty folder, or the last row hidden: the state follows what is shown.
+        if (State == FolderLoadState.Empty && Entries.Count > 0)
+        {
+            State = FolderLoadState.Loaded;
+        }
+        else if (State == FolderLoadState.Loaded && Entries.Count == 0)
+        {
+            State = FolderLoadState.Empty;
+        }
     }
 
     /// <summary>The remembered listings this folder view shows first, or null.</summary>
@@ -319,6 +397,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
             {
                 Kind = kind;
                 State = finished;
+                ApplyPendingIfAny();
             }));
         }
         catch (OperationCanceledException) when (source.IsCancellationRequested)
@@ -386,6 +465,7 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
         PostIfCurrent(generation, () => pump.Drain(() =>
         {
             State = count == 0 ? FolderLoadState.Empty : FolderLoadState.Loaded;
+            ApplyPendingIfAny();
             shown.TrySetResult();
         }));
 
@@ -560,6 +640,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     private void Settled()
     {
         _busy = false;
+        ApplyPendingIfAny();
+
         if (_dirty)
         {
             RequestRefresh();
@@ -578,7 +660,8 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
                     list.AddRange(batch.Items);
                 }
 
-                return (list, ListingDiff.Compute(shown, list));
+                // What the folder should show: the real listing with the pending changes applied.
+                return (list, ListingDiff.Compute(shown, _pending?.Apply(location, list) ?? list));
             }, token).ConfigureAwait(false);
 
             var kind = FolderKindDetector.Detect(fresh);
@@ -776,6 +859,11 @@ public sealed partial class FolderViewModel : ObservableObject, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_pending is not null)
+        {
+            _pending.Changed -= OnPendingChanged;
+        }
+
         IDisposable? watch;
         lock (_watchGate)
         {
