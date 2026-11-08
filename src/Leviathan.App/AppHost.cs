@@ -16,6 +16,7 @@ using Leviathan.ViewModels.Hub;
 using Leviathan.ViewModels.Icons;
 using Leviathan.ViewModels.Navigation;
 using Leviathan.ViewModels.Sessions;
+using Leviathan.ViewModels.Triage;
 using Leviathan.ViewModels.Settings;
 using Leviathan.ViewModels.NewMenu;
 using Leviathan.ViewModels.Sidebar;
@@ -96,6 +97,9 @@ internal sealed class AppHost
     public IVolumeInfo Volumes { get; }
 
     public KeyMap Keys { get; private set; }
+
+    /// <summary>The keys of triage mode (spec §10.2) with the settings file's changes.</summary>
+    public KeyMap TriageKeys { get; private set; } = TriageCommands.DefaultKeyMap();
 
     /// <summary>Entries of the settings file's <c>KeyBindings</c> that could not be used, for the Keyboard page.</summary>
     public IReadOnlyList<string> KeyProblems { get; private set; } = [];
@@ -271,10 +275,13 @@ internal sealed class AppHost
         }
 
         _appliedKeys = signature;
-        var result = KeyMapBuilder.Build(bindings, CommandIds.All.Contains);
+        // Triage has its own keys (TriageCommands); its entries share the file but are not the file view's commands.
+        var result = KeyMapBuilder.Build(bindings.Where(b => !TriageCommands.IsTriage(b.Key)).ToDictionary(b => b.Key, b => b.Value), CommandIds.All.Contains);
+        var triage = TriageCommands.BuildKeyMap(bindings);
         Keys = result.Map;
-        KeyProblems = result.Problems;
-        KeyNotes = result.Notes;
+        TriageKeys = triage.Map;
+        KeyProblems = [.. result.Problems, .. triage.Problems];
+        KeyNotes = [.. result.Notes, .. triage.Notes];
     }
 
     /// <summary>Tells the worker how many jobs may run at once.</summary>

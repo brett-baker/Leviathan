@@ -75,7 +75,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **E1. Triage view model**: queue from selection or folder (optionally recursive), untagged-only filter, start offset,
   auto-advance, decisions, undo stack, summary; fully unit-tested with the fake engine.
-- [ ] **E2. Key map** (§10.2, remappable): Space, ←/→ 30 s, Shift ±1 min, Ctrl ±5 min, Alt ±5 s, `.`/`,` frames, Ctrl+1–9
+- [x] **E2. Key map** (§10.2, remappable): Space, ←/→ 30 s, Shift ±1 min, Ctrl ±5 min, Alt ±5 s, `.`/`,` frames, Ctrl+1–9
   percentage, Home/End, J/K/L, `[`/`]`, S skim, Enter/G keep, Del/X discard, 1–9 tags, ↓/Tab skip, ↑ previous, C contact
   sheet, R rename, M move to preset, Ctrl+Z undo, Esc exit.
 - [ ] **E3. Keep / Discard actions**: Keep = green tag, optionally also move to a chosen folder (same-share rename, otherwise

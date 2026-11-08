@@ -252,6 +252,34 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>Ctrl+0: removes every colour tag from the current file.</summary>
+    public async Task ClearTagsAsync()
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (Current is not { } item)
+            {
+                return;
+            }
+
+            try
+            {
+                await _actions.ClearTagsAsync(item.File, CancellationToken.None).ConfigureAwait(false);
+                item.Tags.Clear();
+                LastError = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                LastError = $"The tags could not be cleared on {item.File.Name}: {ex.Message}";
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <summary>The files after the current one, for the player to read ahead (spec §10.1: the next two files are read ahead on a share).</summary>
     public IReadOnlyList<FileEntry> Upcoming(int count) =>
         [.. _items.Skip(_index + 1).Where(i => i.IsPlayable).Take(Math.Max(0, count)).Select(i => i.File)];

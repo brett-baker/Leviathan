@@ -61,6 +61,9 @@ public interface ITriageActions
 
     /// <summary>Toggles colour tag <paramref name="tagNumber"/> (1 to 9) on <paramref name="file"/>; returns true when it is on afterwards.</summary>
     Task<bool> ToggleTagAsync(FileEntry file, int tagNumber, CancellationToken cancellationToken);
+
+    /// <summary>Removes every colour tag from <paramref name="file"/> (Ctrl+0).</summary>
+    Task ClearTagsAsync(FileEntry file, CancellationToken cancellationToken);
 }
 
 /// <summary>How a triage session behaves (spec §10.1 and the Media settings of §17).</summary>

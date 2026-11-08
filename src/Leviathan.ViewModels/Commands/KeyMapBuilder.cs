@@ -26,10 +26,11 @@ public static class KeyMapBuilder
     /// <summary>Builds the map.</summary>
     /// <param name="overrides">The file's <c>KeyBindings</c>: command id to gesture text.</param>
     /// <param name="isKnownCommand">Tells whether a command id exists.</param>
-    public static KeyMapResult Build(IReadOnlyDictionary<string, string>? overrides, Func<CommandId, bool> isKnownCommand)
+    /// <param name="defaults">The map to start from; the file view's default keys when null (triage starts from its own).</param>
+    public static KeyMapResult Build(IReadOnlyDictionary<string, string>? overrides, Func<CommandId, bool> isKnownCommand, KeyMap? defaults = null)
     {
         ArgumentNullException.ThrowIfNull(isKnownCommand);
-        var map = WindowCommands.DefaultKeyMap();
+        var map = defaults ?? WindowCommands.DefaultKeyMap();
         var problems = new List<string>();
         var notes = new List<string>();
         foreach (var (id, text) in (overrides ?? new Dictionary<string, string>()).OrderBy(p => p.Key, StringComparer.Ordinal))

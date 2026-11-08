@@ -56,6 +56,12 @@ public sealed class TriageSessionTests
             return Task.FromResult(on);
         }
 
+        public Task ClearTagsAsync(FileEntry file, CancellationToken cancellationToken)
+        {
+            Log.Add($"cleartags {file.Name}");
+            return Task.CompletedTask;
+        }
+
         private Task Undo(string what)
         {
             Log.Add(what);
