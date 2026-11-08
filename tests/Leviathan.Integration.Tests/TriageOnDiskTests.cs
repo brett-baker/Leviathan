@@ -176,7 +176,7 @@ public sealed class TriageOnDiskTests : IDisposable
         var actions = new TriageFileActions(new DiskFiles(bin), store, () => new TriageKeepOptions(keepFolder));
         var engine = new FakeVideoEngine();
         var session = new TriageSession([Entry(a), Entry(b)], engine, actions, new TriageOptions { StartOffset = 0 });
-        await session.StartAsync(TestContext.Current.CancellationToken);
+        await session.StartAsync(0, TestContext.Current.CancellationToken);
 
         await session.KeepAsync();
         await session.DiscardAsync();
@@ -210,7 +210,7 @@ public sealed class TriageOnDiskTests : IDisposable
         var store = new AlternateStreamTagStore();
         var actions = new TriageFileActions(new DiskFiles(Path.Combine(_root, "bin")), store, () => new TriageKeepOptions(keepFolder));
         var session = new TriageSession([Entry(a)], new FakeVideoEngine(), actions, new TriageOptions { StartOffset = 0 });
-        await session.StartAsync(TestContext.Current.CancellationToken);
+        await session.StartAsync(0, TestContext.Current.CancellationToken);
 
         await session.KeepAsync();
 

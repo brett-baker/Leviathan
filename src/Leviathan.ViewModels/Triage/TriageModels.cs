@@ -26,6 +26,9 @@ public sealed class TriageItem(FileEntry file)
     /// <summary>The file; after a keep that moved it, its new place.</summary>
     public FileEntry File { get; internal set; } = file;
 
+    /// <summary>The file as it was when the queue was made, for putting it back.</summary>
+    public FileEntry Original { get; } = file;
+
     /// <summary>The decision, <see cref="TriageDecision.None"/> until one is made.</summary>
     public TriageDecision Decision { get; internal set; }
 

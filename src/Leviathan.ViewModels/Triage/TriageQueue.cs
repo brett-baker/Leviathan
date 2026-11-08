@@ -27,6 +27,38 @@ public static class TriageQueue
     }
 
     /// <summary>
+    /// The queue for "Triage mode from here" (spec §10.1), made from what the folder view shows: two or more videos selected make the
+    /// queue (in the order of the view); one video selected starts a queue of every video in the view at that one; nothing, or nothing
+    /// that is a video, queues every video in the view from the top. The order is the view's current sort order, as the spec asks.
+    /// </summary>
+    /// <param name="rows">The rows of the folder view in their sort order.</param>
+    /// <param name="selection">The selected entries.</param>
+    /// <param name="options">How to filter.</param>
+    /// <param name="isTriaged">True when a file already has a decision.</param>
+    /// <returns>The queue and the index of the file to start at.</returns>
+    public static (IReadOnlyList<FileEntry> Queue, int StartIndex) FromHere(
+        IReadOnlyList<FileEntry> rows, IReadOnlyList<FileEntry> selection, TriageOptions options, Func<FileEntry, bool>? isTriaged = null)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(selection);
+        var videos = selection.Where(IsVideo).ToList();
+        if (videos.Count >= 2)
+        {
+            var chosen = new HashSet<LocationPath>(videos.Select(v => v.Location));
+            return (FromSelection([.. rows.Where(r => chosen.Contains(r.Location))], options, isTriaged), 0);
+        }
+
+        var queue = FromSelection(rows, options, isTriaged);
+        if (videos.Count == 1)
+        {
+            var at = queue.ToList().FindIndex(f => f.Location == videos[0].Location);
+            return (queue, Math.Max(0, at));
+        }
+
+        return (queue, 0);
+    }
+
+    /// <summary>
     /// Every video in <paramref name="folder"/> (and below it when <see cref="TriageOptions.Recursive"/>), in <paramref name="order"/> (name,
     /// ignoring case, by default). Links are not followed, so a loop of junctions cannot make the walk endless. A sub-folder that cannot be
     /// read is skipped and reported through <paramref name="skipped"/>; the walk goes on.

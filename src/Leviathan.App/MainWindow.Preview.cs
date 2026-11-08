@@ -567,6 +567,33 @@ public sealed partial class MainWindow
         UpdateHeaders();
     });
 
+    /// <summary>
+    /// Alt+T or "Triage mode from here" (spec §10.1): a triage window over the videos of the folder view in their sort order, starting at the
+    /// selected one, or over the selected videos when several are. When it closes, the file it was on is selected in the folder again.
+    /// </summary>
+    public void StartTriage() => OnUi(() =>
+    {
+        var rows = _bound?.Items.Rows ?? [];
+        var selected = _bound?.Selection.SelectedEntries ?? [];
+        var (queue, start) = ViewModels.Triage.TriageQueue.FromHere(rows, selected, App.Host.Settings.Current.Media.ToTriageOptions());
+        if (queue.Count == 0)
+        {
+            MessageText.Text = "There are no videos here to triage.";
+            return;
+        }
+
+        var tab = _bound;
+        var window = new TriageWindow(queue, start, queue[0].Location.Parent?.Name ?? "videos");
+        window.Exited += (_, file) => OnUi(() =>
+        {
+            if (file is not null && tab?.Items.Rows.FirstOrDefault(r => r.Location == file.Location) is { } row)
+            {
+                tab.Selection.Click(row);
+            }
+        });
+        window.Activate();
+    });
+
     private QuickPreviewWindow? _quick;
 
     /// <summary>

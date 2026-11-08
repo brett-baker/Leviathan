@@ -44,6 +44,10 @@ public sealed class WindowCommandsTests
 
         public void ToggleQuickPreview() => QuickPreviewToggles++;
 
+        public int TriageStarts { get; private set; }
+
+        public void StartTriage() => TriageStarts++;
+
         public bool Confirm { get; set; } = true;
 
         public List<string> Confirmations { get; } = [];

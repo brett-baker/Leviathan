@@ -114,6 +114,10 @@ public sealed class UiThreadAffinityTests
         public void ToggleQuickPreview()
         {
         }
+
+        public void StartTriage()
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher

@@ -36,6 +36,9 @@ public interface IShellActions
     /// <summary>Opens the large floating preview of the selection, or closes it when it is open (Space, spec §9).</summary>
     void ToggleQuickPreview();
 
+    /// <summary>Opens triage mode over the videos of the folder view, starting at the selected one (spec §10.1).</summary>
+    void StartTriage();
+
     /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
     void ExportContactSheets(IReadOnlyList<FileEntry> videos);
 
@@ -1202,6 +1205,8 @@ public static partial class WindowCommands
         Add(CommandIds.HubToggle, "Status hub", "View", (c, _) => Run(() => window.Hub.Toggle(c.Parameter as Hub.HubTab?)), shortcut: "Ctrl+Shift+O");
         Add(CommandIds.ViewSidebar, "Sidebar", "View", (_, _) => Run(() => window.SidebarCollapsed = !window.SidebarCollapsed), shortcut: "Ctrl+B");
         Add(CommandIds.PreviewPane, "Preview pane", "View", (_, _) => Run(() => window.ShowPreview = !window.ShowPreview), shortcut: "Alt+P");
+        // Alt+T, not the spec's plain T: a bare letter is type-ahead in the file list and would be eaten in the filter and address boxes.
+        Add(CommandIds.TriageFromHere, "Triage mode from here", "Media", (_, _) => Run(shell.StartTriage), _ => Current() is not null, shortcut: "Alt+T");
         Add(CommandIds.PreviewQuick, "Quick preview", "View", (_, _) => Run(shell.ToggleQuickPreview), shortcut: "Space");
         Add(CommandIds.PreviewVideoSmall, "Preview video: small", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Small)));
         Add(CommandIds.PreviewVideoMedium, "Preview video: medium", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Medium)));
@@ -1307,6 +1312,7 @@ public static partial class WindowCommands
             ("Ctrl+R", CommandIds.NavReload),
             ("Ctrl+L", CommandIds.AddressFocus),
             ("Alt+D", CommandIds.AddressFocus),
+            ("Alt+T", CommandIds.TriageFromHere),
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),

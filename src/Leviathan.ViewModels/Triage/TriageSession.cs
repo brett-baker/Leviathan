@@ -88,8 +88,8 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     /// <summary>"1.4 GB reclaimed" beside the progress text.</summary>
     public string ReclaimedText => $"{DisplayFormat.Size(ReclaimedBytes)} reclaimed";
 
-    /// <summary>Opens the first file. Does nothing when already started; an empty queue is finished at once.</summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    /// <summary>Opens the file at <paramref name="startIndex"/> (the first by default). Does nothing when already started; an empty queue is finished at once.</summary>
+    public async Task StartAsync(int startIndex = 0, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -105,7 +105,75 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
                 return;
             }
 
-            await GoToCoreAsync(0).ConfigureAwait(false);
+            await GoToCoreAsync(Math.Clamp(startIndex, 0, _items.Count - 1)).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Goes to the file at <paramref name="index"/> (a click in the queue list); the file already showing is left playing.</summary>
+    public async Task GoToAsync(int index)
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (index < 0 || index >= _items.Count || (index == _index && !_finished))
+            {
+                return;
+            }
+
+            CancelNavigation();
+            _finished = false;
+            await GoToCoreAsync(index).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// "Review discarded" at the end of the queue (spec §10.1): takes the decision about <paramref name="item"/> back, whatever its age, so a
+    /// discarded file is restored (and a kept one untagged and moved home). The file shows as undecided again; Ctrl+Z history of it is dropped.
+    /// </summary>
+    public async Task RestoreAsync(TriageItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!_items.Contains(item) || item.Decision is not (TriageDecision.Kept or TriageDecision.Discarded))
+            {
+                return;
+            }
+
+            try
+            {
+                if (item.Undo is { } undo)
+                {
+                    await undo().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                LastError = $"{item.File.Name} could not be put back: {ex.Message}";
+                return;
+            }
+
+            item.Decision = TriageDecision.None;
+            item.Undo = null;
+            item.File = item.Original;
+            var kept = _history.Reverse().Where(h => h.Item != item).ToList();
+            _history.Clear();
+            foreach (var entry in kept)
+            {
+                _history.Push(entry);
+            }
+
+            LastError = null;
+            RaiseCounts();
         }
         finally
         {

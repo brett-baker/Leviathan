@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Leviathan.App.TriageWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vlc="using:LibVLCSharp.Platforms.Windows">
+
+  <!-- Triage mode (spec 10.1): the file full size, a slim list of the queue beside it, the progress across the top and the decision
+       buttons under it. The keys of spec 10.2 are handled on the whole window (PreviewKeyDown, so Tab and the arrows never move focus). -->
+  <Grid x:Name="Root" Background="Black" PreviewKeyDown="OnKeyDown" IsTabStop="True">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Grid Grid.Row="0" Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="12,6,12,0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontWeight="SemiBold" Text="Starting…" />
+      <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" Opacity="0.75" />
+      <ProgressBar x:Name="Bar" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Height="3" Margin="-12,6,-12,0" />
+    </Grid>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="260" />
+      </Grid.ColumnDefinitions>
+
+      <Grid x:Name="Stage" Background="Black">
+        <vlc:VideoView x:Name="Video" Initialized="OnVideoInitialized" />
+        <Border x:Name="Overlay" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="6"
+                Background="#B0000000" IsHitTestVisible="False" MaxWidth="900">
+          <StackPanel Spacing="2">
+            <TextBlock x:Name="OverlayTitle" Foreground="White" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="OverlayDetail" Foreground="#E0FFFFFF" FontSize="13" TextWrapping="Wrap" />
+            <TextBlock x:Name="OverlayState" Foreground="#FFFFD060" FontSize="13" />
+          </StackPanel>
+        </Border>
+        <TextBlock x:Name="Message" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620" Foreground="White" />
+        <Border x:Name="ErrorBox" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,16" Padding="12,6" CornerRadius="6"
+                Background="#DC962020" MaxWidth="900" IsHitTestVisible="False">
+          <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="White" />
+        </Border>
+
+        <!-- The summary when the queue ends: what was done, and the discarded files to look over and restore (spec 10.1). -->
+        <Grid x:Name="Summary" Visibility="Collapsed" Background="#F0101010" Padding="32" RequestedTheme="Dark">
+          <StackPanel MaxWidth="640" VerticalAlignment="Center" Spacing="10">
+            <TextBlock Text="Queue finished" Foreground="White" FontSize="26" FontWeight="SemiBold" />
+            <TextBlock x:Name="SummaryText" Foreground="White" FontSize="15" TextWrapping="Wrap" />
+            <TextBlock Text="Discarded files (select to restore)" Foreground="#C0FFFFFF" Margin="0,12,0,0" />
+            <ListView x:Name="DiscardedList" SelectionMode="Extended" MaxHeight="260" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="RestoreButton" Content="Restore selected" Click="OnRestoreClick" />
+              <Button Content="Back to the queue" Click="OnBackToQueueClick" />
+              <Button Content="Close" Click="OnCloseClick" Style="{StaticResource AccentButtonStyle}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Grid>
+
+      <ListView x:Name="Queue" Grid.Column="1" SelectionMode="Single" IsTabStop="False" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                SelectionChanged="OnQueueSelectionChanged" />
+    </Grid>
+
+    <Grid Grid.Row="2" Padding="12,8" ColumnSpacing="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Button Click="OnPreviousClick" Content="◀ Previous" IsTabStop="False" ToolTipService.ToolTip="Previous file (Up)" />
+      <Button Grid.Column="1" Click="OnKeepClick" Content="✓ Keep" IsTabStop="False" ToolTipService.ToolTip="Keep (Enter or G)" Style="{StaticResource AccentButtonStyle}" />
+      <Button Grid.Column="2" Click="OnDiscardClick" Content="✕ Discard" IsTabStop="False" ToolTipService.ToolTip="Discard: soft delete (Delete or X)" />
+      <Button Grid.Column="3" Click="OnSkipClick" Content="Skip ▶" IsTabStop="False" ToolTipService.ToolTip="Skip, no decision (Down or Tab)" />
+      <Button Grid.Column="4" Click="OnUndoClick" Content="↶ Undo" IsTabStop="False" ToolTipService.ToolTip="Undo the last decision (Ctrl+Z)" />
+      <Button x:Name="PlayButton" Grid.Column="5" Click="OnPlayClick" Content="Pause" IsTabStop="False" MinWidth="64" ToolTipService.ToolTip="Play or pause (Space)" />
+      <TextBlock x:Name="TimeText" Grid.Column="6" VerticalAlignment="Center" Text="0:00 / 0:00" MinWidth="110" />
+      <Slider x:Name="Seek" Grid.Column="7" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
+      <TextBlock x:Name="SpeedText" Grid.Column="8" VerticalAlignment="Center" Text="1×" MinWidth="40" TextAlignment="Right" />
+    </Grid>
+  </Grid>
+</Window>
