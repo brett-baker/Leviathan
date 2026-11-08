@@ -186,6 +186,9 @@ public sealed record FilesSettings
     /// </summary>
     public UiUpdateMode UiUpdates { get; init; } = UiUpdateMode.Immediate;
 
+    /// <summary>How alike two file names must be, in percent, for "Find duplicates" to group them (spec §12.7). 100 means the same words; vlib's loose guard uses 35.</summary>
+    public int DuplicateSimilarityPercent { get; init; } = 60;
+
     /// <summary>How many days a soft-deleted item stays in the bin before the automatic purge removes it (spec §12.5); 0 keeps it for ever.</summary>
     public int BinKeepDays { get; init; } = 30;
 

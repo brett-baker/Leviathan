@@ -122,6 +122,10 @@ public sealed class UiThreadAffinityTests
         public void StartInboxTriage()
         {
         }
+
+        public void FindDuplicates()
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher

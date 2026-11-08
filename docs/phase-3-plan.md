@@ -100,7 +100,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **H1. Tweaks after E4**: Properties via `SHObjectProperties`, path in pane headers, icon buttons, slow-click rename.
 - [x] **H2. Eager list updates** (spec §12.5a): `PendingChanges`, dimmed pending rows, setting "Show deletes, moves and copies at once".
 - [x] **H3. Triage hand-off** to the other pane at close, with a setting for move-on-Keep or batch at the end.
-- [ ] **H4. Duplicates finder**: within a folder first (port of vlib's name similarity and title key), then source against destination.
+- [x] **H4a. Duplicates finder, within a folder** (Alt+Shift+D): within a folder first (port of vlib's name similarity and title key), then source against destination.
 
 ### G. Verification and finish
 
@@ -113,3 +113,4 @@ Every slice follows `CLAUDE.md`.
 
 Triage 100 NAS videos at under 10 s each; a corrupt-file test set causes no crash. The 100-video run needs Brett: time it
 and record the result in `docs/phase-3.md`.
+- [ ] **H4b. Duplicates, source against destination**: compare the two panes of a split tab (and offer keep-best).

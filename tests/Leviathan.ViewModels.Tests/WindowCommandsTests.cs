@@ -50,6 +50,10 @@ public sealed class WindowCommandsTests
 
         public void StartInboxTriage() => InboxStarts++;
 
+        public void FindDuplicates()
+        {
+        }
+
         public int InboxStarts { get; private set; }
 
         public bool Confirm { get; set; } = true;
