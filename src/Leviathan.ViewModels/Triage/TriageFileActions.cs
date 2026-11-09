@@ -38,7 +38,7 @@ public sealed record TriageKeepOptions(string? KeepFolder, bool MoveOnKeep = tru
 /// Ctrl+Z. A step that fails leaves things as they were: a tag written before a move that then failed is taken off again. Nothing here
 /// touches the disk on the UI thread; the file work is the worker's and the tags go through <see cref="ITagStore"/>.
 /// </summary>
-public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<TriageKeepOptions> keepOptions, ITransferService? transfers = null) : ITriageActions
+public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<TriageKeepOptions> keepOptions, ITransferService? transfers = null, Func<Tags.TagCatalog>? catalog = null) : ITriageActions
 {
     /// <inheritdoc />
     public async Task<TriageActionResult> KeepAsync(FileEntry file, CancellationToken cancellationToken)
@@ -164,11 +164,13 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
     {
         ArgumentNullException.ThrowIfNull(file);
         var path = file.Location.ToWin32Path();
+        // The key means the tag at that place in the user's order (spec §11.1); with the default set that is the id itself.
+        var id = (catalog?.Invoke() ?? Tags.TagCatalog.Default).ForKey(tagNumber)?.Id ?? tagNumber;
         var current = new HashSet<int>(await tags.GetAsync(path, cancellationToken).ConfigureAwait(false));
-        var on = current.Add(tagNumber);
+        var on = current.Add(id);
         if (!on)
         {
-            current.Remove(tagNumber);
+            current.Remove(id);
         }
 
         await tags.SetAsync(path, current, cancellationToken).ConfigureAwait(false);

@@ -123,6 +123,7 @@ public sealed class SettingsStore : IDisposable
         Tabs = settings.Tabs ?? new TabSettings(),
         Media = (settings.Media ?? new MediaSettings()).Clamped(),
         Performance = (settings.Performance ?? new PerformanceSettings()).Clamped(),
+        Tags = (settings.Tags ?? new TagSettings()).Cleaned(),
         KeyBindings = settings.KeyBindings ?? [],
     };
 

@@ -131,6 +131,9 @@ internal sealed class AppHost
     /// </summary>
     public Func<Func<string?>, ITriageActions> TriageActionsFor { get; private init; } = null!;
 
+    /// <summary>Colour tags on the selection in the file view (spec §11.1): keys 1 to 9 and Ctrl+0.</summary>
+    public Leviathan.ViewModels.Tags.FileTagging Tagging { get; private init; } = null!;
+
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
     /// <summary>
@@ -706,7 +709,9 @@ internal sealed class AppHost
                     var media = built?.Settings.Current.Media;
                     return new TriageKeepOptions(destination() ?? media?.TriageKeepFolder, media?.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.OnKeep);
                 },
-                transfers),
+                transfers,
+                () => built!.Settings.Current.Tags.Catalog()),
+            Tagging = new Leviathan.ViewModels.Tags.FileTagging(new AlternateStreamTagStore(), () => built!.Settings.Current.Tags.Catalog()),
             Listings = listings,
             Icons = icons,
             Operations = operations,

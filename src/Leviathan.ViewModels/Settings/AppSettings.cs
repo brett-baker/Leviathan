@@ -13,6 +13,19 @@ public enum ThemeMode
     Dark,
 }
 
+/// <summary>The colour tags (spec §11.1): name, colour and order. Only what the user changed from the seven defaults matters, but the whole list is stored.</summary>
+public sealed record TagSettings
+{
+    /// <summary>The tags in order; keys 1 to 9 mean the first nine.</summary>
+    public List<Tags.ColorTag> Items { get; init; } = [.. Tags.TagCatalog.Default.Tags];
+
+    /// <summary>The catalog these settings describe (cleaned: a hand-edited file cannot leave the app without tags).</summary>
+    public Tags.TagCatalog Catalog() => new(Items);
+
+    /// <summary>The same settings with the list cleaned.</summary>
+    public TagSettings Cleaned() => this with { Items = [.. Catalog().Tags] };
+}
+
 /// <summary>Row and control spacing (spec D18).</summary>
 public enum Density
 {
@@ -312,6 +325,9 @@ public sealed record AppSettings
 
     /// <summary>What runs at once and what is done over the network (the Quick settings tab).</summary>
     public PerformanceSettings Performance { get; init; } = new();
+
+    /// <summary>The colour tags, in order (spec §11.1).</summary>
+    public TagSettings Tags { get; init; } = new();
 
     /// <summary>Key overrides: command id to gesture text (empty text unbinds). Only the user's changes are stored.</summary>
     public Dictionary<string, string> KeyBindings { get; init; } = [];

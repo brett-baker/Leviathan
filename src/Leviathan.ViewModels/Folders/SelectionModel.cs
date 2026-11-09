@@ -227,6 +227,9 @@ public sealed class SelectionModel
         Click(entry);
     }
 
+    /// <summary>True while a word is being typed for type-ahead (a key within the last second), so a digit then is part of the word and not a tag key (spec §5.3, §11.1).</summary>
+    public bool IsTypeAheadActive => _typed.Length > 0 && _time.GetElapsedTime(_lastTyped, _time.GetTimestamp()) <= TypeAheadTimeout;
+
     /// <summary>
     /// Type-ahead: a letter or digit jumps to the first row whose name starts with the characters typed within the last
     /// second (spec §5.3). Returns the row jumped to, or null when nothing matches.

@@ -64,7 +64,35 @@ public sealed partial class MainWindow
         FileList2.QuickPreviewRequested += OnQuickPreviewRequested;
         FlowList.QuickPreviewRequested += OnQuickPreviewRequested;
         FlowList2.QuickPreviewRequested += OnQuickPreviewRequested;
+        FileList.TagKeyRequested += OnTagKey;
+        FileList2.TagKeyRequested += OnTagKey;
+        FlowList.TagKeyRequested += OnTagKey;
+        FlowList2.TagKeyRequested += OnTagKey;
         SizeChanged += (_, _) => ApplyPreviewPane();
+    }
+
+    // Keys 1 to 9 toggle a colour tag on the selection and Ctrl+0 clears them (spec §11.1). The stream writes run off the UI thread.
+    private async void OnTagKey(object? sender, int key)
+    {
+        var selected = _bound?.Selection.SelectedEntries;
+        if (selected is not { Count: > 0 })
+        {
+            return;
+        }
+
+        try
+        {
+            var files = selected.ToList();
+            App.Actions.Record(key == 0 ? "tags.clear" : "tags.toggle", key.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var change = await (key == 0
+                ? App.Host.Tagging.ClearAsync(files, _closing.Token)
+                : App.Host.Tagging.ToggleAsync(files, key, _closing.Token));
+            MessageText.Text = change.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing.
+        }
     }
 
     /// <summary>Shows or hides the pane and gives its parts the saved width, video height and collapsed state.</summary>

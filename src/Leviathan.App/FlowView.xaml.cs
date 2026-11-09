@@ -63,6 +63,9 @@ public sealed partial class FlowView : UserControl
     /// <summary>Space was pressed: the window opens or closes the floating preview (spec §9). Ctrl+Space toggles the focused item instead.</summary>
     internal event EventHandler? QuickPreviewRequested;
 
+    /// <summary>A tag key was pressed on the selection: 1 to 9 toggles that tag, 0 clears all (spec §11.1).</summary>
+    internal event EventHandler<int>? TagKeyRequested;
+
     /// <summary>An item was middle-clicked (a folder opens in a new tab).</summary>
     internal event EventHandler<FileEntry>? MiddleClicked;
 
@@ -683,6 +686,13 @@ public sealed partial class FlowView : UserControl
         {
             e.Handled = true;
             _tab.Selection.Clear();
+            return;
+        }
+
+        if (TagKeys.Of(e.Key, ctrl, alt, _tab.Selection) is { } tagKey)
+        {
+            e.Handled = true;
+            TagKeyRequested?.Invoke(this, tagKey);
             return;
         }
 
