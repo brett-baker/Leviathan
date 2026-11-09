@@ -210,7 +210,7 @@ internal sealed class GridRow : Grid
         }
 
         var selected = selection.IsSelected(entry);
-        Background = _dropTarget ? DropBrush : selected ? SelectedBrush : _hover ? HoverBrush : new SolidColorBrush(Colors.Transparent);
+        Background = _dropTarget ? DropBrush : selected ? SelectedBrush : _hover ? HoverBrush : TagTint.For(_owner.FileTags?.TagsOf(entry) ?? []) ?? new SolidColorBrush(Colors.Transparent);
         var focused = selection.Focus == entry.Location && _owner.HasKeyboardFocus;
         _focus.Visibility = focused ? Visibility.Visible : Visibility.Collapsed;
         ((SolidColorBrush)_focus.Stroke).Color = focused ? Accent : Colors.Transparent;
@@ -245,6 +245,7 @@ internal sealed class GridRow : Grid
     {
         if (Entry is { } entry)
         {
+            UpdateVisuals();
             foreach (var cell in _cells.Where(c => c.ColumnId == FileColumns.Tags.Id))
             {
                 RefreshTagCell(cell, entry);

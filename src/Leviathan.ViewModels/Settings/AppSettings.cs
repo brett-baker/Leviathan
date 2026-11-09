@@ -19,6 +19,9 @@ public sealed record TagSettings
     /// <summary>The tags in order; keys 1 to 9 mean the first nine.</summary>
     public List<Tags.ColorTag> Items { get; init; } = [.. Tags.TagCatalog.Default.Tags];
 
+    /// <summary>Tint the row (or cell) of a tagged file with a faint wash of its first tag's colour (spec §11.1). Off by default; set in settings.json until the Tags page exists.</summary>
+    public bool TintRows { get; init; }
+
     /// <summary>The catalog these settings describe (cleaned: a hand-edited file cannot leave the app without tags).</summary>
     public Tags.TagCatalog Catalog() => new(Items);
 

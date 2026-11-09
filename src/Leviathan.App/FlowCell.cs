@@ -201,6 +201,7 @@ internal sealed class FlowCell : Grid
         }
 
         _badges.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateVisuals();
         ToolTipService.SetToolTip(_badges, tags.Count == 0 ? null : string.Join(", ", tags.Select(t => t.Name)));
     }
 
@@ -264,7 +265,8 @@ internal sealed class FlowCell : Grid
             return;
         }
 
-        Background = _dropTarget ? DropBrush : selection.IsSelected(entry) ? SelectedBrush : _hover ? HoverBrush : new SolidColorBrush(Colors.Transparent);
+        var wash = _layout == ViewLayout.List ? null : TagTint.For(_owner.FileTags?.TagsOf(entry) ?? []);
+        Background = _dropTarget ? DropBrush : selection.IsSelected(entry) ? SelectedBrush : _hover ? HoverBrush : wash ?? new SolidColorBrush(Colors.Transparent);
         var focused = selection.Focus == entry.Location && _owner.HasKeyboardFocus;
         _focus.Visibility = focused ? Visibility.Visible : Visibility.Collapsed;
         ((SolidColorBrush)_focus.Stroke).Color = focused ? Accent : Colors.Transparent;

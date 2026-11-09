@@ -428,7 +428,7 @@ public sealed partial class DetailsGrid : UserControl
 
         // The same rows, for the media columns (nothing happens unless one is shown).
         _tab.RequestMedia([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))]);
-        _tab.RequestTags([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))]);
+        _tab.RequestTags([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))], showsBadges: TagTint.Enabled);
     }
 
     private void OnItemsChanged(object? sender, PropertyChangedEventArgs e)
