@@ -50,7 +50,55 @@ public sealed partial class MainWindow
             _ = LoadMediaAsync(entry, media, token);
         }
 
+        var props = new StackPanel { Spacing = 4 };
+        DetailsSections.Children.Add(props);
+        _ = LoadPropertiesAsync(entry, props, token);
+
         DetailsSections.Children.Add(IntegritySection(entry, token));
+    }
+
+    // The Windows property system (spec 9.2): EXIF, audio tags, document properties and the rest, read through the shell's handlers.
+    private async Task LoadPropertiesAsync(FileEntry entry, StackPanel into, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(250, token); // arrowing through a folder must not read every file
+            var values = await Task.Run(async () =>
+            {
+                var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(entry.Location.ToWin32Path());
+                var raw = await file.Properties.RetrievePropertiesAsync(WindowsProperties.Keys);
+                return raw.ToDictionary(p => p.Key, p => (object?)p.Value, StringComparer.Ordinal);
+            }, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var sections = WindowsProperties.Sections(values, entry.Extension);
+            for (var i = 0; i < sections.Count; i++)
+            {
+                if (sections[i].Title == "All properties")
+                {
+                    var expander = new Expander { Header = "All properties", HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                    var inner = new StackPanel();
+                    AddSection(sections[i] with { Title = string.Empty }, inner);
+                    expander.Content = inner;
+                    into.Children.Add(expander);
+                }
+                else
+                {
+                    AddSection(sections[i], into);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The selection moved on.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Runtime.InteropServices.COMException)
+        {
+            // A path the shell cannot open (very long, or a provider without property handlers) simply has no extra properties.
+        }
     }
 
     private static bool IsMediaFile(FileEntry entry) =>
@@ -60,6 +108,7 @@ public sealed partial class MainWindow
     {
         try
         {
+            await Task.Delay(250, token);
             _detailsMedia ??= new MediaInfoSource(() => App.Host.MediaHost);
             var result = await _detailsMedia.ProbeAsync(new MediaFileRef(entry.Location.ToWin32Path(), entry.Size, entry.Modified.UtcDateTime.Ticks, entry.Location.IsNetwork), token);
             if (token.IsCancellationRequested)
