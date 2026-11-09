@@ -113,4 +113,4 @@ Every slice follows `CLAUDE.md`.
 
 Triage 100 NAS videos at under 10 s each; a corrupt-file test set causes no crash. The 100-video run needs Brett: time it
 and record the result in `docs/phase-3.md`.
-- [ ] **H4b. Duplicates, source against destination**: compare the two panes of a split tab (and offer keep-best).
+- [x] **H4b. Duplicates, source against destination**: compare the two panes of a split tab (and offer keep-best).

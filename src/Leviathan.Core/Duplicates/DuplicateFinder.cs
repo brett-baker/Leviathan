@@ -131,6 +131,14 @@ public sealed record DuplicateGroup(FileEntry Keeper, IReadOnlyList<FileEntry> O
     public long ReclaimableBytes => Others.Sum(f => f.Size);
 }
 
+/// <summary>A source file that already has a copy in the destination folder.</summary>
+/// <param name="Source">The file in the source folder.</param>
+/// <param name="Copies">The destination files that look like it, most similar first.</param>
+/// <param name="Similarity">Name similarity of the closest copy (1 when identical).</param>
+/// <param name="Identical">True when a copy has the same name (ignoring a ".N" suffix), extension and size.</param>
+/// <param name="DestinationIsBetter">True when the destination already holds the copy to keep (an identical copy always counts), so the source file is the extra one.</param>
+public sealed record DuplicateMatch(FileEntry Source, IReadOnlyList<FileEntry> Copies, double Similarity, bool Identical, bool DestinationIsBetter);
+
 /// <summary>
 /// Finds duplicate groups among the files of one folder by name (spec §12.7): "x.1.mp4" next to "x.mp4" with the same size is an exact
 /// conflict copy; otherwise names whose significant words overlap at least the threshold are grouped (single-link, so a chain of near
@@ -221,6 +229,97 @@ public static class DuplicateFinder
 
         return [.. groups.OrderByDescending(g => g.ReclaimableBytes).ThenBy(g => g.Keeper.Name, StringComparer.OrdinalIgnoreCase)];
     }
+
+    /// <summary>
+    /// Finds the source files that already have a copy among the <paramref name="destination"/> files (spec §12.7, source against destination):
+    /// the same exact-or-similar name rule as <see cref="Find"/>, but only across the two lists. Folders are ignored; the biggest source files first.
+    /// </summary>
+    public static IReadOnlyList<DuplicateMatch> FindAgainst(IReadOnlyList<FileEntry> source, IReadOnlyList<FileEntry> destination, double threshold = DefaultThreshold)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (threshold <= 0 || threshold > 1)
+        {
+            threshold = DefaultThreshold;
+        }
+
+        var targets = destination.Where(f => f.Kind == FileEntryKind.File).ToArray();
+        var targetWords = targets.Select(f => NameSimilarity.Normalize(Path.GetFileNameWithoutExtension(f.Name))).ToArray();
+        var index = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        for (var i = 0; i < targets.Length; i++)
+        {
+            foreach (var word in targetWords[i])
+            {
+                if (!index.TryGetValue(word, out var list))
+                {
+                    index[word] = list = [];
+                }
+
+                list.Add(i);
+            }
+        }
+
+        var exactKeys = new Dictionary<(string, string, long), List<int>>();
+        for (var i = 0; i < targets.Length; i++)
+        {
+            var key = ExactKey(targets[i]);
+            if (!exactKeys.TryGetValue(key, out var same))
+            {
+                exactKeys[key] = same = [];
+            }
+
+            same.Add(i);
+        }
+
+        var matches = new List<DuplicateMatch>();
+        foreach (var file in source.Where(f => f.Kind == FileEntryKind.File))
+        {
+            var words = NameSimilarity.Normalize(Path.GetFileNameWithoutExtension(file.Name));
+            var candidates = new HashSet<int>();
+
+            // An identical file is found by its exact key, so a name made only of noise words still matches.
+            if (exactKeys.TryGetValue(ExactKey(file), out var sameKey))
+            {
+                candidates.UnionWith(sameKey);
+            }
+
+            foreach (var word in words)
+            {
+                if (index.TryGetValue(word, out var list) && list.Count <= 2000)
+                {
+                    candidates.UnionWith(list);
+                }
+            }
+
+            var found = new List<(FileEntry File, double Score, bool Identical)>();
+            foreach (var c in candidates)
+            {
+                var identical = NameSimilarity.BaseName(file.Name).Equals(NameSimilarity.BaseName(targets[c].Name), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(Path.GetExtension(file.Name), Path.GetExtension(targets[c].Name), StringComparison.OrdinalIgnoreCase)
+                    && file.Size == targets[c].Size;
+                var score = identical ? 1 : NameSimilarity.Jaccard(words, targetWords[c]);
+                if (identical || score >= threshold)
+                {
+                    found.Add((targets[c], score, identical));
+                }
+            }
+
+            if (found.Count == 0)
+            {
+                continue;
+            }
+
+            found.Sort((x, y) => y.Score.CompareTo(x.Score));
+            var identicalCopy = found.Any(t => t.Identical);
+            var best = Keeper([file, .. found.Select(t => t.File)]);
+            matches.Add(new DuplicateMatch(file, [.. found.Select(t => t.File)], found[0].Score, identicalCopy, identicalCopy || !ReferenceEquals(best, file)));
+        }
+
+        return [.. matches.OrderByDescending(m => m.Source.Size).ThenBy(m => m.Source.Name, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private static (string, string, long) ExactKey(FileEntry f) =>
+        (NameSimilarity.BaseName(f.Name).ToUpperInvariant(), Path.GetExtension(f.Name).ToUpperInvariant(), f.Size);
 
     private static double Score(FileEntry keeper, FileEntry other, IReadOnlySet<string> a, IReadOnlySet<string> b) =>
         NameSimilarity.BaseName(keeper.Name).Equals(NameSimilarity.BaseName(other.Name), StringComparison.OrdinalIgnoreCase) && keeper.Size == other.Size

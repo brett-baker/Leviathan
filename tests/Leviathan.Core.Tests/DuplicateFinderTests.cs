@@ -96,6 +96,43 @@ public sealed class DuplicateFinderTests
     }
 
     [Fact]
+    public void FindAgainst_AnIdenticalFileInTheDestination_IsTheExtraOne()
+    {
+        var matches = DuplicateFinder.FindAgainst([F("clip.mp4", 500), F("new.thing.mp4")], [F("clip.mp4", 500), F("other.mp4")]);
+
+        var match = Assert.Single(matches);
+        Assert.Equal("clip.mp4", match.Source.Name);
+        Assert.True(match.Identical);
+        Assert.True(match.DestinationIsBetter);
+    }
+
+    [Fact]
+    public void FindAgainst_ABetterSourceCopy_IsNotMarkedAsTheExtraOne()
+    {
+        var matches = DuplicateFinder.FindAgainst([F(Plain, 900)], [F(Scott, 500)]);
+
+        var match = Assert.Single(matches);
+        Assert.False(match.DestinationIsBetter);
+        Assert.False(match.Identical);
+        Assert.True(match.Similarity > 0.9);
+    }
+
+    [Fact]
+    public void FindAgainst_ABetterDestinationCopy_MakesTheSourceTheExtraOne()
+    {
+        var matches = DuplicateFinder.FindAgainst([F(Scott, 500)], [F(Plain, 900)]);
+
+        Assert.True(Assert.Single(matches).DestinationIsBetter);
+    }
+
+    [Fact]
+    public void FindAgainst_UnrelatedNamesAndFolders_NeverMatch()
+    {
+        Assert.Empty(DuplicateFinder.FindAgainst([F("Holiday.In.Spain.mp4")], [F("Birthday.Party.Cake.mp4")]));
+        Assert.Empty(DuplicateFinder.FindAgainst([], [F("a.mp4")]));
+    }
+
+    [Fact]
     public void Find_IgnoresFolders_AndAFolderOfThousandsIsFast()
     {
         var files = Enumerable.Range(0, 5000).Select(i => F($"unique{i}.word{i}.thing{i}.mp4")).ToList();
