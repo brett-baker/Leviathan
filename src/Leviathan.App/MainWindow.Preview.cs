@@ -513,6 +513,7 @@ public sealed partial class MainWindow
         PreviewTitle.Text = PreviewText.Title(tab is { IsSplit: true } ? tab.Panes : ViewModels.Tabs.PaneLayout.Single, tab?.FocusedPane ?? 0);
         var chosen = _bound?.Selection.SelectedEntries ?? [];
         VideoPlaceholder.Text = PreviewText.Placeholder(chosen);
+        UpdateDetails(chosen);
         var key = string.Join('|', chosen.Select(e => e.Location.Value));
         if (key != _previewKey)
         {

@@ -419,8 +419,9 @@
                 <TextBlock x:Name="PreviewName" TextWrapping="Wrap" Visibility="Collapsed" />
                 <TextBlock x:Name="PreviewSize" TextWrapping="Wrap" Visibility="Collapsed"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="Metadata and tags arrive in the next slices." TextWrapping="Wrap"
+                <TextBlock x:Name="DetailsHint" Text="Select one item to see its details." TextWrapping="Wrap"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel x:Name="DetailsSections" Spacing="4" />
               </StackPanel>
             </ScrollViewer>
           </Grid>

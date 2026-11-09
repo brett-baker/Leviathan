@@ -68,7 +68,7 @@ Every slice follows `CLAUDE.md`.
     count, size and mini space map; count, size and type breakdown with a strip of thumbnails.
   - [x] **D2e. Office documents**: the registered shell preview handler hosted out of process in ShellHost.
   - [x] **D2f. Video extras**: filmstrip, hover frame preview on the seek bar, audio waveform and cover art.
-- [ ] **D3. Details**: grouped metadata (general, tags, media streams, image EXIF/IPTC/XMP, audio tags, document, all Windows
+- [ ] **D3. Details** (D3a done: General, Media from ffprobe and Integrity MD5/SHA-1/SHA-256 on demand in the pane; still to do: tags, image EXIF/IPTC/XMP, audio tags, document, all Windows properties, xxHash, in-place editing): grouped metadata (general, tags, media streams, image EXIF/IPTC/XMP, audio tags, document, all Windows
   properties), checksums on demand, in-place editing of tags/rating/title/comments.
 
 ### E. Triage (§10.1–§10.3, §10 "working at scale")
