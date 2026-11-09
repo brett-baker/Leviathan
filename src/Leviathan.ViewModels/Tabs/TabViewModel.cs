@@ -577,10 +577,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// The rows on screen, reported by the grid once it has settled: reads their tags when the Tags column is shown (a folder costs no
     /// stream reads until the column is asked for).
     /// </summary>
-    public void RequestTags(IReadOnlyList<FileEntry> visibleRows)
+    /// <param name="visibleRows">The rows on screen.</param>
+    /// <param name="showsBadges">True for the picture layouts, whose cells carry tag badges even without the Tags column.</param>
+    public void RequestTags(IReadOnlyList<FileEntry> visibleRows, bool showsBadges = false)
     {
         ArgumentNullException.ThrowIfNull(visibleRows);
-        if (ShowsTagsColumn || Items.Filter.UsesTags)
+        if (showsBadges || ShowsTagsColumn || Items.Filter.UsesTags)
         {
             FileTags.SetVisible(visibleRows);
         }

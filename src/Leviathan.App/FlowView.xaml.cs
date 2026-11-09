@@ -91,6 +91,9 @@ public sealed partial class FlowView : UserControl
     /// <summary>The media information of the shown files (Tiles read their facts from it).</summary>
     internal MediaInfoTracker? Media => _tab?.Media;
 
+    /// <summary>The colour tags of the shown files (cells draw them as badges).</summary>
+    internal Leviathan.ViewModels.Tags.FolderTagTracker? FileTags => _tab?.FileTags;
+
     internal bool HasKeyboardFocus => _hasFocus;
 
     internal static IThumbnailCache Thumbnails => App.Host.Thumbnails;
@@ -129,6 +132,7 @@ public sealed partial class FlowView : UserControl
         tab.Selection.Changed += OnSelectionChanged;
         tab.Folder.PropertyChanged += OnFolderChanged;
         tab.Media.Changed += OnMediaChanged;
+        tab.FileTags.Changed += OnTagsChanged;
         Configure();
         EnsureVisible();
     }
@@ -217,13 +221,15 @@ public sealed partial class FlowView : UserControl
         _tab.Selection.Changed -= OnSelectionChanged;
         _tab.Folder.PropertyChanged -= OnFolderChanged;
         _tab.Media.Changed -= OnMediaChanged;
+        _tab.FileTags.Changed -= OnTagsChanged;
         _mediaTimer.Stop();
     }
 
     // Tiles show duration, resolution and the like under the name: ask for the files on screen once scrolling settles (spec §8.1, §9.3).
+    // The picture layouts also carry colour tag badges, read for the same settled rows (spec §11.1).
     private void ScheduleMedia()
     {
-        if (Mode == ViewLayout.Tiles)
+        if (Mode != ViewLayout.List)
         {
             _mediaTimer.Stop();
             _mediaTimer.Start();
@@ -232,7 +238,7 @@ public sealed partial class FlowView : UserControl
 
     private void RequestVisibleMedia()
     {
-        if (_tab is null || Mode != ViewLayout.Tiles)
+        if (_tab is null || Mode == ViewLayout.List)
         {
             return;
         }
@@ -247,7 +253,22 @@ public sealed partial class FlowView : UserControl
                 order[rows[i].Location] = i;
             }
 
-            _tab.RequestMedia([.. visible.OrderBy(e => order.GetValueOrDefault(e.Location, int.MaxValue))]);
+            var ordered = visible.OrderBy(e => order.GetValueOrDefault(e.Location, int.MaxValue)).ToList();
+            if (Mode == ViewLayout.Tiles)
+            {
+                _tab.RequestMedia(ordered);
+            }
+
+            _tab.RequestTags(ordered, showsBadges: true);
+        }
+    }
+
+    private void OnTagsChanged(object? sender, IReadOnlyList<string> paths)
+    {
+        var changed = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var cell in _realized.Where(c => c.Entry is { } entry && changed.Contains(entry.Location.ToWin32Path())))
+        {
+            cell.RefreshTags();
         }
     }
 

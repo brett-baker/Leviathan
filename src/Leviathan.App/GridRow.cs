@@ -265,7 +265,7 @@ internal sealed class GridRow : Grid
         ToolTipService.SetToolTip(cell.Text, tags.Count == 0 ? null : string.Join(", ", tags.Select(t => t.Name)));
     }
 
-    private static Color TagColour(string hex) =>
+    internal static Color TagColour(string hex) =>
         hex.Length == 7 && hex[0] == '#' && uint.TryParse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var rgb)
             ? Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb)
             : Colors.Gray;

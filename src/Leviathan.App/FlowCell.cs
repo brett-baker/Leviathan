@@ -37,6 +37,8 @@ internal sealed class FlowCell : Grid
     private readonly Microsoft.UI.Xaml.Shapes.Rectangle _scrubLine = new() { IsHitTestVisible = false, Height = 3, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom };
     private readonly Border _scrubBadge = new() { IsHitTestVisible = false, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(4, 0, 0, 6), Padding = new Thickness(5, 1, 5, 1), CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)) };
     private readonly TextBlock _scrubTime = new() { IsHitTestVisible = false, FontSize = 11, Foreground = new SolidColorBrush(Colors.White) };
+    // Colour tag badges (spec §11.1): small dots in the corner of the picture, in the user's tag order.
+    private readonly StackPanel _badges = new() { IsHitTestVisible = false, Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 3, 3) };
     private CancellationTokenSource? _scrubbing;
     private ScrubStrip? _strip;
     private double _pointerX;
@@ -152,6 +154,7 @@ internal sealed class FlowCell : Grid
         UpdateVisuals();
         UpdateEditor();
         RefreshDetails();
+        RefreshTags();
         if (layout != ViewLayout.List)
         {
             _ = LoadThumbnailAsync(entry, size);
@@ -171,6 +174,34 @@ internal sealed class FlowCell : Grid
         _facts.Visibility = facts.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         _meta.Text = meta;
         _meta.Visibility = meta.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>Thumbnails, Tiles and Gallery: draws one dot per tag in the corner of the picture (the tags of this file may just have arrived).</summary>
+    public void RefreshTags()
+    {
+        _badges.Children.Clear();
+        if (_layout == ViewLayout.List || Entry is not { } entry)
+        {
+            _badges.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var tags = _owner.FileTags?.TagsOf(entry) ?? [];
+        var edge = _size >= 160 ? 14 : _size >= 96 ? 11 : 8;
+        foreach (var tag in tags)
+        {
+            _badges.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
+            {
+                Width = edge,
+                Height = edge,
+                Fill = new SolidColorBrush(GridRow.TagColour(tag.Colour)),
+                Stroke = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                StrokeThickness = 1,
+            });
+        }
+
+        _badges.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ToolTipService.SetToolTip(_badges, tags.Count == 0 ? null : string.Join(", ", tags.Select(t => t.Name)));
     }
 
     // The icon of the program that opens the file replaces the generic one as soon as the shell has answered for this file type.
@@ -366,6 +397,7 @@ internal sealed class FlowCell : Grid
             _picture.Children.Add(_kind);
             _picture.Children.Add(_image);
             _picture.Children.Add(_scrub);
+            _picture.Children.Add(_badges);
             Children.Add(_picture);
             _text.Children.Add(_name);
             _text.Children.Add(_facts);
@@ -397,6 +429,7 @@ internal sealed class FlowCell : Grid
             _picture.Children.Add(_kind);
             _picture.Children.Add(_image);
             _picture.Children.Add(_scrub);
+            _picture.Children.Add(_badges);
             Children.Add(_picture);
         }
         else
