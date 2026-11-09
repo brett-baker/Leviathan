@@ -117,6 +117,12 @@ public sealed partial class TagCatalog
         return new TagCatalog([.. Tags, new ColorTag(id, name, colour)]);
     }
 
+    /// <summary>
+    /// The standard tags back in their standard names, colours and order, with any tags the user added after them (ids above the
+    /// defaults) kept as they are, so nothing already tagged with them loses its meaning.
+    /// </summary>
+    public TagCatalog ResetStandard() => new([.. Defaults, .. Tags.Where(t => t.Id > Defaults.Length)]);
+
     private TagCatalog Change(int id, Func<ColorTag, ColorTag> change) =>
         IndexOf(id) < 0 ? this : new TagCatalog(Tags.Select(t => t.Id == id ? change(t) : t));
 

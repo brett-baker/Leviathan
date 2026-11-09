@@ -170,6 +170,20 @@
                 <ToggleSwitch x:Name="LastTabSwitch" Header="Closing the last tab opens your home folder instead of closing the window" Toggled="OnTabsToggled" />
               </StackPanel>
 
+              <!-- Tags -->
+              <StackPanel x:Name="TagsPage" Spacing="12" Visibility="Collapsed">
+                <TextBlock Text="Colour tags" Style="{StaticResource SettingTitle}" />
+                <TextBlock Style="{StaticResource SettingNote}"
+                           Text="Keys 1 to 9 tag the selected files with the first nine tags below; Ctrl+0 clears. Moving a tag changes which key it has, never what is already tagged. Tags can be renamed, recoloured and reordered; they cannot be deleted, so a tag on a file never loses its meaning." />
+                <StackPanel x:Name="TagRows" Spacing="6" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="AddTagButton" Content="Add a tag" Click="OnAddTagClick" />
+                  <Button Content="Back to the standard colours and names" Click="OnResetTagsClick" />
+                </StackPanel>
+                <ToggleSwitch x:Name="TintSwitch" Header="Tint the rows of tagged files with their first tag's colour" Toggled="OnTintToggled" />
+                <TextBlock Style="{StaticResource SettingNote}" Text="Writing the Windows Tags property is not built yet." />
+              </StackPanel>
+
               <!-- Advanced -->
               <StackPanel x:Name="AdvancedPage" Spacing="14" Visibility="Collapsed">
                 <StackPanel Spacing="4">

@@ -88,11 +88,11 @@ Every slice follows `CLAUDE.md`.
 
 ### F. Colour tags (§11)
 
-- [x] **F1. Tag model and settings** (done: model, settings, keys 1-9 and Ctrl+0 in the file view and triage; the editing UI waits for F3): 7 defaults (Green = Keep), rename/recolour/reorder up to 32, keys 1–9, Ctrl+0 clears.
+- [x] **F1. Tag model and settings** (done: model, settings, keys 1-9 and Ctrl+0 in the file view and triage; the editing UI is the Tags settings page, F3g): 7 defaults (Green = Keep), rename/recolour/reorder up to 32, keys 1–9, Ctrl+0 clears.
 - [~] **F2. Storage** (done: stream, SQLite index by file ID, fallback index for no-stream locations; open: Files `:files` import, Windows Tags property): `:leviathan.tags` alternate data stream (JSON), original modified time restored after writing, SQLite
   index keyed by volume serial + file ID, fallback index for FAT/SFTP/FTP/NFS; import the Files app's `:files` stream;
   optional Windows "Tags" property for supported formats.
-- [~] **F3. Display and filters** (F3a done: dots in the Tags column and the `tag:` filter; F3b done: badges on Thumbnails, Tiles and Gallery cells; F3c done: the Tags sidebar section; F3e done: dots with names in the details pane; F3d done: optional row tint (setting `Tags.TintRows`, off by default); F3f done: "tags may be lost" warning on copies): dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing
+- [~] **F3. Display and filters** (F3a done: dots in the Tags column and the `tag:` filter; F3b done: badges on Thumbnails, Tiles and Gallery cells; F3c done: the Tags sidebar section; F3e done: dots with names in the details pane; F3d done: optional row tint (setting `Tags.TintRows`, off by default); F3g done: the Tags settings page (rename, recolour, reorder, add, reset, tint switch); F3f done: "tags may be lost" warning on copies): dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing
   everything with a tag, `tag:` filter and query support, "tags may be lost" warning for destinations without streams.
 
 ### H. Added during Phase 3 (Brett's requests, 2026-11-08)

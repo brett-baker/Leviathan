@@ -25,6 +25,13 @@ public sealed record TagSettings
     /// <summary>The catalog these settings describe (cleaned: a hand-edited file cannot leave the app without tags).</summary>
     public Tags.TagCatalog Catalog() => new(Items);
 
+    /// <summary>The same settings holding <paramref name="catalog"/> (what the Tags page saves after an edit).</summary>
+    public TagSettings WithCatalog(Tags.TagCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        return this with { Items = [.. catalog.Tags] };
+    }
+
     /// <summary>The same settings with the list cleaned.</summary>
     public TagSettings Cleaned() => this with { Items = [.. Catalog().Tags] };
 }

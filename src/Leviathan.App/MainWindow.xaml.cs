@@ -105,6 +105,7 @@ public sealed partial class MainWindow : Window, IShellActions
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
         host.Favorites.Changed += OnFavoritesChanged;
+        host.Settings.Changed += OnTagSettingsChanged;
         host.SavedServers.Changed += OnSavedServersChanged;
         host.Nearby.Changed += OnNearbyChanged;
         host.ShareHealth.HealthChanged += OnShareHealthChanged;
@@ -907,10 +908,24 @@ public sealed partial class MainWindow : Window, IShellActions
     private void RebuildSidebar()
     {
         var host = App.Host;
+        _sidebarTags = string.Join('|', host.Settings.Current.Tags.Catalog().Tags.Select(t => $"{t.Id}:{t.Name}:{t.Colour}"));
         _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
+
+    private string _sidebarTags = string.Empty;
+
+    // The Tags section follows the tag set when it is edited on the Tags page (names, colours, order).
+    private void OnTagSettingsChanged(object? sender, Leviathan.ViewModels.Settings.AppSettings settings) => OnUi(() =>
+    {
+        var signature = string.Join('|', settings.Tags.Catalog().Tags.Select(t => $"{t.Id}:{t.Name}:{t.Colour}"));
+        if (signature != _sidebarTags)
+        {
+            _sidebarTags = signature;
+            RebuildSidebar();
+        }
+    });
 
     private void OnFavoritesChanged(object? sender, EventArgs e) => OnUi(() =>
     {
@@ -1121,6 +1136,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Transfers.Submitted -= OnTransferSubmitted;
         App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
+        App.Host.Settings.Changed -= OnTagSettingsChanged;
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;
         App.Host.AppearanceChanged -= OnAppearanceChanged;

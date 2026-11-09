@@ -70,7 +70,7 @@ internal sealed partial class SettingsSheet : UserControl
 
 
     /// <summary>How many pages <see cref="WarmPage"/> knows.</summary>
-    public const int WarmPageCount = 7;
+    public const int WarmPageCount = 8;
 
     /// <summary>
     /// Lays out one page once, while the sheet is invisible, so opening settings and visiting a page are not stalls (spec §3.2). The
@@ -83,7 +83,7 @@ internal sealed partial class SettingsSheet : UserControl
             return;
         }
 
-        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage];
+        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage, TagsPage];
         var page = pages[index];
         var before = page.Visibility;
         try
@@ -126,6 +126,7 @@ internal sealed partial class SettingsSheet : UserControl
             TabsPage.Visibility = Show("tabs");
             AdvancedPage.Visibility = Show("advanced");
             KeyboardPage.Visibility = Show("keyboard");
+            TagsPage.Visibility = Show("tags");
             var planned = !page.IsAvailable;
             PlannedPage.Visibility = planned ? Visibility.Visible : Visibility.Collapsed;
             if (planned)
@@ -200,6 +201,8 @@ internal sealed partial class SettingsSheet : UserControl
         {
             _ = ShowCacheSizesAsync();
         }
+
+        FillTags(settings.Tags);
 
         if (_model.IsOpen && _model.PageId == "keyboard")
         {
