@@ -92,7 +92,7 @@ Every slice follows `CLAUDE.md`.
 - [~] **F2. Storage** (done: stream, SQLite index by file ID, fallback index for no-stream locations; open: Files `:files` import, Windows Tags property): `:leviathan.tags` alternate data stream (JSON), original modified time restored after writing, SQLite
   index keyed by volume serial + file ID, fallback index for FAT/SFTP/FTP/NFS; import the Files app's `:files` stream;
   optional Windows "Tags" property for supported formats.
-- [~] **F3. Display and filters** (F3a done: dots in the Tags column and the `tag:` filter; F3b done: badges on Thumbnails, Tiles and Gallery cells; F3c done: the Tags sidebar section; F3d done: optional row tint (setting `Tags.TintRows`, off by default); open: dots in the details pane, "tags may be lost" warning): dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing
+- [~] **F3. Display and filters** (F3a done: dots in the Tags column and the `tag:` filter; F3b done: badges on Thumbnails, Tiles and Gallery cells; F3c done: the Tags sidebar section; F3e done: dots with names in the details pane; F3d done: optional row tint (setting `Tags.TintRows`, off by default); open: "tags may be lost" warning): dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing
   everything with a tag, `tag:` filter and query support, "tags may be lost" warning for destinations without streams.
 
 ### H. Added during Phase 3 (Brett's requests, 2026-11-08)

@@ -134,6 +134,9 @@ internal sealed class AppHost
     /// <summary>Colour tags on the selection in the file view (spec §11.1): keys 1 to 9 and Ctrl+0.</summary>
     public Leviathan.ViewModels.Tags.FileTagging Tagging { get; private init; } = null!;
 
+    /// <summary>Where colour tags are read and written (the details pane reads the selected file's tags from it).</summary>
+    public Leviathan.ViewModels.Triage.ITagStore TagStore { get; private init; } = null!;
+
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
     /// <summary>
@@ -720,6 +723,7 @@ internal sealed class AppHost
                 transfers,
                 () => built!.Settings.Current.Tags.Catalog()),
             Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore, () => built!.Settings.Current.Tags.Catalog()),
+            TagStore = tagStore,
             Listings = listings,
             Icons = icons,
             Operations = operations,

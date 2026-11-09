@@ -42,6 +42,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Colour tags (spec §11.1): the dots with their names; read off the UI thread, and again after a tag key.
+        _detailsTags = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        _detailsEntry = entry;
+        DetailsSections.Children.Add(_detailsTags);
+        _ = ShowDetailsTagsAsync(entry, _detailsTags, token);
+
         var media = new StackPanel { Spacing = 4 };
         DetailsSections.Children.Add(media);
         if (IsMediaFile(entry))
@@ -55,6 +61,48 @@ public sealed partial class MainWindow
         _ = LoadPropertiesAsync(entry, props, token);
 
         DetailsSections.Children.Add(IntegritySection(entry, token));
+    }
+
+    private TextBlock? _detailsTags;
+    private FileEntry? _detailsEntry;
+
+    /// <summary>The tags of the shown file changed (a tag key): reads them again.</summary>
+    private void RefreshDetailsTags()
+    {
+        if (_detailsTags is not null && _detailsEntry is { } entry && _detailsCts is { IsCancellationRequested: false } cts)
+        {
+            _ = ShowDetailsTagsAsync(entry, _detailsTags, cts.Token);
+        }
+    }
+
+    private static async Task ShowDetailsTagsAsync(FileEntry entry, TextBlock into, CancellationToken token)
+    {
+        try
+        {
+            var ids = await Task.Run(() => App.Host.TagStore.GetAsync(entry.Location.ToWin32Path(), token), token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            into.Inlines.Clear();
+            var tags = App.Host.Settings.Current.Tags.Catalog().Tags.Where(t => ids.Contains(t.Id)).ToList();
+            foreach (var tag in tags)
+            {
+                into.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "● ", Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(GridRow.TagColour(tag.Colour)) });
+                into.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = tag.Name + "   " });
+            }
+
+            into.Visibility = tags.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        }
+        catch (OperationCanceledException)
+        {
+            // The selection moved on.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A file whose tags cannot be read shows none.
+        }
     }
 
     // The Windows property system (spec 9.2): EXIF, audio tags, document properties and the rest, read through the shell's handlers.
