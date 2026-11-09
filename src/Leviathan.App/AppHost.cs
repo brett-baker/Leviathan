@@ -541,10 +541,13 @@ internal sealed class AppHost
         // A disconnected mapped drive is reconnected with the credentials Windows holds the first time it is used (spec 3.3).
         var connector = new WindowsShareConnector();
         // A server's own root (\\nas) lists its shares, so servers open and expand like drives (spec 7.1).
+        // The index behind the colour tags is opened on first use; the tag folders (shell:tag\N) list from it.
+        var tagIndex = new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath)));
         var providers = new LocationProviderRegistry([
             new HealthTrackingLocationProvider(
                 new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
-            new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline)]);
+            new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline),
+            new Leviathan.ViewModels.Tags.TagListingProvider(tagIndex, TagFileStat.Describe)]);
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -616,7 +619,7 @@ internal sealed class AppHost
         // Colour tags (spec §11.2): the stream on the file, plus the SQLite index (opened on first use) for lookups and for locations without streams.
         var tagStore = new Leviathan.ViewModels.Tags.IndexedTagStore(
             new AlternateStreamTagStore(),
-            new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath))),
+            tagIndex,
             new Leviathan.Interop.WindowsFileIdentity());
         // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
         var polling = new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable };

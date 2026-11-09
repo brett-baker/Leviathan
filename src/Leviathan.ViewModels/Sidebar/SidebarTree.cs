@@ -95,6 +95,9 @@ public sealed record SidebarPlace(string Title, LocationPath Location, SidebarIc
     /// <summary>For a server: the host name (<c>diskstation</c>), which makes the row show a health dot and offer Remove. Null for everything else.</summary>
     public string? Server { get; init; }
 
+    /// <summary>True for a place with no folders below it (a tag), so the row has no expander.</summary>
+    public bool IsLeaf { get; init; }
+
     /// <summary>True for a server the user saved (it can be removed); false for one that is only listed under Nearby.</summary>
     public bool IsSaved { get; init; }
 }
@@ -306,7 +309,7 @@ public sealed class SidebarTree
             Accent = place.Accent,
             Server = place.Server,
             IsSaved = place.IsSaved,
-            CanExpand = true,
+            CanExpand = !place.IsLeaf,
             Health = place.Server is null ? null : healthOf?.Invoke(place.Server) ?? ShareHealth.Unknown,
         };
 

@@ -174,7 +174,8 @@ public static class SidebarSections
         IEnumerable<CloudProviderInfo> cloud,
         IEnumerable<SavedConnection>? servers = null,
         IEnumerable<NearbyDevice>? nearby = null,
-        bool searching = false)
+        bool searching = false,
+        IEnumerable<Tags.ColorTag>? tags = null)
     {
         ArgumentNullException.ThrowIfNull(favorites);
         ArgumentNullException.ThrowIfNull(common);
@@ -186,7 +187,7 @@ public static class SidebarSections
         [
             new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })], "Press Ctrl+D to pin a folder"),
             new SidebarSection("Common folders", [.. common]),
-            new SidebarSection("Tags", [], "Tags arrive in Phase 3"),
+            new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags"),
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]),
             new SidebarSection(
                 "Network",

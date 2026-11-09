@@ -907,7 +907,7 @@ public sealed partial class MainWindow : Window, IShellActions
     private void RebuildSidebar()
     {
         var host = App.Host;
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching), HealthOfServer);
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
