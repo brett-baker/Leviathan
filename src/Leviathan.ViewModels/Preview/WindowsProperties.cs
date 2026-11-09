@@ -168,7 +168,7 @@ public static class WindowsProperties
             "System.Audio.EncodingBitrate" or "System.Video.EncodingBitrate" => n <= 0 ? null : FileDetails.BitRate((long)n),
             "System.Audio.SampleRate" => $"{(n / 1000).ToString("0.#", CultureInfo.InvariantCulture)} kHz",
             "System.Video.FrameRate" => n <= 0 ? null : $"{(n / 1000).ToString("0.###", CultureInfo.InvariantCulture)} fps",
-            "System.Rating" => n <= 0 ? null : $"{Math.Max(1, Math.Min(5, (int)Math.Ceiling(n / 20.0)))} of 5",
+            "System.Rating" => n <= 0 ? null : $"{PropertyEditor.StarsOf(value)} of 5",
             "System.GPS.LatitudeDecimal" or "System.GPS.LongitudeDecimal" => n.ToString("0.000000", CultureInfo.InvariantCulture),
             "System.Music.TrackNumber" or "System.Media.Year" or "System.Document.PageCount" or "System.Document.WordCount" => n <= 0 ? null : n.ToString("0", CultureInfo.InvariantCulture),
             _ => n.ToString("0.###", CultureInfo.InvariantCulture),

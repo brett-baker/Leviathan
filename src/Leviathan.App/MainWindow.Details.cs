@@ -122,6 +122,7 @@ public sealed partial class MainWindow
                 return;
             }
 
+            into.Children.Add(EditExpander(entry, values, token));
             var sections = WindowsProperties.Sections(values, entry.Extension);
             for (var i = 0; i < sections.Count; i++)
             {
