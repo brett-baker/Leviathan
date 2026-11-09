@@ -137,6 +137,12 @@ public sealed class MediaMetadataService : IDisposable
             slotHeld = true;
             lock (flight)
             {
+                // The slot can be won in the same instant the last caller leaves; a flight nobody waits for must not probe.
+                if (flight.Cancelled)
+                {
+                    throw new OperationCanceledException(flight.Source.Token);
+                }
+
                 flight.Started = true;
             }
 
