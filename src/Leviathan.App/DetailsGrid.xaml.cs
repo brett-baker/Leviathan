@@ -131,6 +131,7 @@ public sealed partial class DetailsGrid : UserControl
         tab.Selection.Changed += OnSelectionChanged;
         tab.Sizes.Changed += OnSizesChanged;
         tab.Media.Changed += OnMediaChanged;
+        tab.FileTags.Changed += OnTagsChanged;
         tab.Media.ProgressChanged += OnMediaProgressChanged;
         tab.Items.PropertyChanged += OnItemsChanged;
         tab.Items.Rows.CollectionChanged += OnRowsChanged;
@@ -181,6 +182,7 @@ public sealed partial class DetailsGrid : UserControl
         _tab.Selection.Changed -= OnSelectionChanged;
         _tab.Sizes.Changed -= OnSizesChanged;
         _tab.Media.Changed -= OnMediaChanged;
+        _tab.FileTags.Changed -= OnTagsChanged;
         _tab.Media.ProgressChanged -= OnMediaProgressChanged;
         _tab.Items.PropertyChanged -= OnItemsChanged;
         _tab.Items.Rows.CollectionChanged -= OnRowsChanged;
@@ -280,6 +282,17 @@ public sealed partial class DetailsGrid : UserControl
         foreach (var row in _realized.Where(r => r.Entry is { } entry && changed.Contains(entry.Location)))
         {
             row.RefreshSize();
+        }
+    }
+
+    internal Leviathan.ViewModels.Tags.FolderTagTracker? FileTags => _tab?.FileTags;
+
+    private void OnTagsChanged(object? sender, IReadOnlyList<string> paths)
+    {
+        var changed = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in _realized.Where(r => r.Entry is { } entry && changed.Contains(entry.Location.ToWin32Path())))
+        {
+            row.RefreshTags();
         }
     }
 
@@ -415,6 +428,7 @@ public sealed partial class DetailsGrid : UserControl
 
         // The same rows, for the media columns (nothing happens unless one is shown).
         _tab.RequestMedia([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))]);
+        _tab.RequestTags([.. rows.Skip(first).Take(Math.Max(0, last - first + 1))]);
     }
 
     private void OnItemsChanged(object? sender, PropertyChangedEventArgs e)

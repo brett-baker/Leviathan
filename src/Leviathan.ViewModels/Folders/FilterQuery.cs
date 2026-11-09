@@ -53,6 +53,9 @@ public sealed class FilterQuery
     /// <summary>True when the query has no usable terms.</summary>
     public bool IsEmpty => _terms.Count == 0;
 
+    /// <summary>True when a <c>tag:</c> term is present, so the tags of every file in the folder must be known before the filter is right.</summary>
+    public bool UsesTags { get; private set; }
+
     /// <summary>Parses filter text. Never throws.</summary>
     public static FilterQuery Parse(string? text)
     {
@@ -129,6 +132,7 @@ public sealed class FilterQuery
                     AddDuration(raw, exclude, value);
                     return;
                 case "tag":
+                    UsesTags = true;
                     _terms.Add(new Term(exclude, (e, m) => m.GetTags(e) is { } tags && tags.Any(t => t.Equals(value, StringComparison.OrdinalIgnoreCase))));
                     return;
                 case "ext":

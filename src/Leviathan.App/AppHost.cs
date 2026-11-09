@@ -624,7 +624,7 @@ internal sealed class AppHost
         var pending = new PendingChanges();
         var services = new TabServices(providers, ui, viewRules, TimeProvider.System, () => built?.NewTabLocation() ?? home, recent, sizes, viewOptions, listings, new CompositeFolderWatcher(
             new LocalFolderWatcher(),
-            polling), new MediaInfoSource(() => built!.MediaHost), pending);
+            polling), new MediaInfoSource(() => built!.MediaHost), pending, tagStore, () => built!.Settings.Current.Tags.Catalog());
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
         NewItemService newItems;
@@ -716,7 +716,7 @@ internal sealed class AppHost
                 },
                 transfers,
                 () => built!.Settings.Current.Tags.Catalog()),
-            Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore,() => built!.Settings.Current.Tags.Catalog()),
+            Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore, () => built!.Settings.Current.Tags.Catalog()),
             Listings = listings,
             Icons = icons,
             Operations = operations,

@@ -240,6 +240,36 @@ internal sealed class GridRow : Grid
         }
     }
 
+    /// <summary>Refreshes the Tags cell (the tags of this file were read or changed).</summary>
+    public void RefreshTags()
+    {
+        if (Entry is { } entry)
+        {
+            foreach (var cell in _cells.Where(c => c.ColumnId == FileColumns.Tags.Id))
+            {
+                RefreshTagCell(cell, entry);
+            }
+        }
+    }
+
+    // The Tags cell: one coloured dot per tag in the user's order, the names as the tip (spec §11.1). Empty for a folder or a file without tags.
+    private void RefreshTagCell(Cell cell, FileEntry entry)
+    {
+        var tags = _owner.FileTags?.TagsOf(entry) ?? [];
+        cell.Text.Inlines.Clear();
+        foreach (var tag in tags)
+        {
+            cell.Text.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "● ", Foreground = new SolidColorBrush(TagColour(tag.Colour)) });
+        }
+
+        ToolTipService.SetToolTip(cell.Text, tags.Count == 0 ? null : string.Join(", ", tags.Select(t => t.Name)));
+    }
+
+    private static Color TagColour(string hex) =>
+        hex.Length == 7 && hex[0] == '#' && uint.TryParse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var rgb)
+            ? Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb)
+            : Colors.Gray;
+
     // One cell of Duration, Resolution and the other media columns: the value, a dim "…" while the file waits to be read, "—" with the reason as the tip when it could not be.
     private void RefreshMediaCell(Cell cell, FileEntry entry)
     {
@@ -410,6 +440,12 @@ internal sealed class GridRow : Grid
             if (cell.Media is not null)
             {
                 RefreshMediaCell(cell, entry);
+                continue;
+            }
+
+            if (cell.ColumnId == FileColumns.Tags.Id)
+            {
+                RefreshTagCell(cell, entry);
                 continue;
             }
 

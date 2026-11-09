@@ -9,6 +9,8 @@ using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Tags;
+using Leviathan.ViewModels.Triage;
 using Leviathan.ViewModels.Views;
 
 namespace Leviathan.ViewModels.Tabs;
@@ -26,7 +28,9 @@ namespace Leviathan.ViewModels.Tabs;
 /// <param name="Cache">Remembered folder listings shown at once and checked in the background; null lists every folder afresh.</param>
 /// <param name="Watcher">Reports changes to the folder on screen so its rows follow the disk; null leaves them as listed.</param>
 /// <param name="Pending">What running deletes, moves and copies are about to do to the rows (the "UI updates: Immediate" setting); null shows only what is on disk.</param>
-public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null, IFolderWatcher? Watcher = null, IMediaInfoSource? MediaInfo = null, PendingChanges? Pending = null);
+/// <param name="TagStore">Where colour tags are read from for the Tags column and the tag: filter (spec §11); null shows no tags.</param>
+/// <param name="TagCatalogSource">The current tag set (names, colours, order); null means the defaults.</param>
+public sealed record TabServices(LocationProviderRegistry Providers, IUiContext Ui, FolderViewRules ViewRules, TimeProvider Time, Func<LocationPath> Home, RecentLocations? Recent = null, IFolderSizeSource? FolderSizes = null, ViewOptions? Options = null, ListingCache? Cache = null, IFolderWatcher? Watcher = null, IMediaInfoSource? MediaInfo = null, PendingChanges? Pending = null, ITagStore? TagStore = null, Func<TagCatalog>? TagCatalogSource = null);
 
 /// <summary>A tab in a form that can be copied (duplicate) or saved (closed-tab stack, startup profiles) (spec §4.1, §17.1).</summary>
 /// <param name="History">Back, current and forward locations.</param>
@@ -128,6 +132,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Columns = new ColumnLayout(_explicitView.Columns, _explicitView.ColumnWidths);
         Sizes = new FolderSizeTracker(services.FolderSizes, services.Ui);
         Media = new MediaInfoTracker(services.MediaInfo, services.Ui, services.Time);
+        FileTags = new FolderTagTracker(services.TagStore, services.Ui, services.TagCatalogSource, services.Time);
+        Items.SetMetadata(FileTags);
+        FileTags.Changed += (_, _) =>
+        {
+            if (Items.Filter.UsesTags)
+            {
+                Items.SetMetadata(FileTags); // the filter is evaluated again with the tags that arrived
+            }
+        };
 
         // Sorting by a folder's size, item count or file count: the view asks the tracker, and sorts again when a number arrives.
         Items.SetFolderMetrics(Sizes.ValueOf);
@@ -162,6 +175,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (Folder.State is FolderLoadState.Loading)
                 {
                     Media.SetFolder();
+                    FileTags.SetFolder();
                 }
 
                 if (Folder.State is FolderLoadState.Loaded)
@@ -545,6 +559,31 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         FilterText = text ?? string.Empty;
         Items.SetFilter(text);
+
+        // A tag: term can only be right once every file's tags are known, so the rest of the folder is read behind the rows on screen.
+        if (Items.Filter.UsesTags)
+        {
+            FileTags.LoadAll(Folder.Entries);
+        }
+    }
+
+    /// <summary>Colour tags of the files shown: dots in the Tags column and the <c>tag:</c> filter (spec §11.1).</summary>
+    public FolderTagTracker FileTags { get; }
+
+    /// <summary>True when the Tags column is among the visible columns.</summary>
+    public bool ShowsTagsColumn => Columns.Slots.Any(s => s.Column.Id == FileColumns.Tags.Id);
+
+    /// <summary>
+    /// The rows on screen, reported by the grid once it has settled: reads their tags when the Tags column is shown (a folder costs no
+    /// stream reads until the column is asked for).
+    /// </summary>
+    public void RequestTags(IReadOnlyList<FileEntry> visibleRows)
+    {
+        ArgumentNullException.ThrowIfNull(visibleRows);
+        if (ShowsTagsColumn || Items.Filter.UsesTags)
+        {
+            FileTags.SetVisible(visibleRows);
+        }
     }
 
     /// <summary>

@@ -88,6 +88,7 @@ public sealed partial class MainWindow
                 ? App.Host.Tagging.ClearAsync(files, _closing.Token)
                 : App.Host.Tagging.ToggleAsync(files, key, _closing.Token));
             MessageText.Text = change.Message;
+            _bound?.FileTags.Reload(files); // the Tags column shows the new dots
         }
         catch (OperationCanceledException)
         {
