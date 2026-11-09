@@ -35,6 +35,18 @@ public sealed class ManualTimeProvider : TimeProvider
         }
     }
 
+    /// <summary>How many timers are waiting to fire, so a test can wait until code has started its delay.</summary>
+    public int Pending
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _timers.Count;
+            }
+        }
+    }
+
     /// <summary>Moves time forward, firing due timers along the way.</summary>
     public void Advance(TimeSpan by)
     {

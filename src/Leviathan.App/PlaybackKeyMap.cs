@@ -22,6 +22,7 @@ internal static class PlaybackKeyMap
         (VirtualKey)221 => keys.SpeedUpAsync(),
         (VirtualKey)219 => keys.SlowDownAsync(),
         VirtualKey.J => keys.SkimBackAsync(),
+        VirtualKey.S when !ctrl && !alt => keys.ToggleBurstSkimAsync(App.Host.Settings.Current.Media.SkimBurst, App.Host.Settings.Current.Media.SkimInterval),
         VirtualKey.K => keys.PauseAsync(),
         VirtualKey.L => keys.SkimForwardAsync(),
         >= VirtualKey.Number1 and <= VirtualKey.Number9 when ctrl => keys.JumpToTenthAsync(key - VirtualKey.Number0),

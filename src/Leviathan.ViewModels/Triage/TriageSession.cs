@@ -534,6 +534,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     private async Task OpenCurrentAsync(TriageItem item)
     {
         var token = ResetNavigation();
+        Keys.StopBurstSkim();
         try
         {
             await _engine.OpenAsync(item.File.Location.ToWin32Path(), TimeSpan.Zero, autoplay: true, token).ConfigureAwait(false);

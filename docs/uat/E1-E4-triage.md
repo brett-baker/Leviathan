@@ -62,7 +62,7 @@
 
 ## Known edge cases
 
-- **Rename (R), Move to preset (M), Skim (S), Purge discarded now:** show "not in this build yet".
+- **Rename (R), Move to preset (M), Purge discarded now:** show "not in this build yet".
 - **Alt+T, not T:** a bare letter is type-ahead in the file list. Remappable in the key bindings.
 - **No settings page** for `Media` (keep folder, start offset, auto-advance); edit `settings.json`.
 - **Keep to a folder on another drive** is a queued move; its undo only removes the tag, it does not move the file back.

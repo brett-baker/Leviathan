@@ -466,9 +466,14 @@ internal sealed partial class TriageWindow : Window
         {
             new ContactSheetWindow(item.File, App.Host.SheetClient).Activate();
         }
+        else if (command == TriageCommands.ToggleSkim && _session is not null)
+        {
+            var media = App.Host.Settings.Current.Media;
+            _ = _session.Keys.ToggleBurstSkimAsync(media.SkimBurst, media.SkimInterval);
+        }
         else
         {
-            var what = command == TriageCommands.Rename ? "Renaming here" : command == TriageCommands.MoveToPreset ? "Moving to a preset folder" : "Skim playback";
+            var what = command == TriageCommands.Rename ? "Renaming here" : "Moving to a preset folder";
             ErrorText.Text = $"{what} is not in this build yet.";
             ErrorBox.Visibility = Visibility.Visible;
         }

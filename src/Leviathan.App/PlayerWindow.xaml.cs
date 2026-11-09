@@ -63,7 +63,7 @@ internal sealed partial class PlayerWindow : Window
             // The video surface hands over the options LibVLC needs to draw into it, so the instance is made only now.
             var libvlc = LibVlcEngine.CreateLibVlc(e.SwapChainOptions);
             _engine = new LibVlcEngine(libvlc, ownsLibVlc: true);
-            _keys = new PlaybackController(_engine, _closing.Token);
+            _keys = new PlaybackController(_engine, cancellation: _closing.Token);
             Video.MediaPlayer = _engine.Player;
             _timer.Start();
             Root.Focus(FocusState.Programmatic);

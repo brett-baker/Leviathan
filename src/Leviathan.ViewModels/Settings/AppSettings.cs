@@ -243,9 +243,23 @@ public sealed record MediaSettings
     /// <summary>Ask before moving the kept files when triage ends; the question's "always move" box turns this off.</summary>
     public bool TriageAskBeforeMove { get; init; } = true;
 
+    /// <summary>Skim playback (S): how many seconds each burst plays, 1 to 30 (spec §10.3).</summary>
+    public int SkimBurstSeconds { get; init; } = 3;
+
+    /// <summary>Skim playback: a burst every this many percent of the duration, 1 to 50.</summary>
+    public int SkimIntervalPercent { get; init; } = 5;
+
+    /// <summary>The burst length for <see cref="Leviathan.ViewModels.Playback.PlaybackController.ToggleBurstSkimAsync"/>.</summary>
+    public TimeSpan SkimBurst => TimeSpan.FromSeconds(Math.Clamp(SkimBurstSeconds, 1, 30));
+
+    /// <summary>The spacing as a fraction of the duration.</summary>
+    public double SkimInterval => Math.Clamp(SkimIntervalPercent, 1, 50) / 100.0;
+
     /// <summary>The values in range.</summary>
     public MediaSettings Clamped() => this with
     {
+        SkimBurstSeconds = Math.Clamp(SkimBurstSeconds, 1, 30),
+        SkimIntervalPercent = Math.Clamp(SkimIntervalPercent, 1, 50),
         TriageStartOffsetPercent = Math.Clamp(TriageStartOffsetPercent, 0, 90),
         TriageAdvanceDelayMs = Math.Clamp(TriageAdvanceDelayMs, 0, 1000),
         TriageKeepFolder = (TriageKeepFolder ?? string.Empty).Trim(),

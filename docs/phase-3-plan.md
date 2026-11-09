@@ -84,7 +84,7 @@ Every slice follows `CLAUDE.md`.
   space reclaimable), queue side list.
 - [x] **E5. Inboxes and sessions**: saved named queues over a folder, new arrivals appended and marked New, batch of N
   (default 1,000) ordered oldest/newest/largest/random; resume across sessions.
-- [ ] **E6. Skim playback**: 3 s bursts every 5%, next point decoded ahead; in triage and the preview pane.
+- [x] **E6. Skim playback**: 3 s bursts every 5%, next point decoded ahead; in triage and the preview pane.
 
 ### F. Colour tags (§11)
 
