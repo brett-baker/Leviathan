@@ -89,7 +89,7 @@ Every slice follows `CLAUDE.md`.
 ### F. Colour tags (§11)
 
 - [x] **F1. Tag model and settings** (done: model, settings, keys 1-9 and Ctrl+0 in the file view and triage; the editing UI waits for F3): 7 defaults (Green = Keep), rename/recolour/reorder up to 32, keys 1–9, Ctrl+0 clears.
-- [ ] **F2. Storage**: `:leviathan.tags` alternate data stream (JSON), original modified time restored after writing, SQLite
+- [~] **F2. Storage** (done: stream, SQLite index by file ID, fallback index for no-stream locations; open: Files `:files` import, Windows Tags property): `:leviathan.tags` alternate data stream (JSON), original modified time restored after writing, SQLite
   index keyed by volume serial + file ID, fallback index for FAT/SFTP/FTP/NFS; import the Files app's `:files` stream;
   optional Windows "Tags" property for supported formats.
 - [ ] **F3. Display and filters**: dots in Details, badges on thumbnails, optional row tint, Tags sidebar section listing

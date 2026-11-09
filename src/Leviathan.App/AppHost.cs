@@ -613,6 +613,11 @@ internal sealed class AppHost
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
         UiTrace.Mark("AppHost: listing cache");
+        // Colour tags (spec §11.2): the stream on the file, plus the SQLite index (opened on first use) for lookups and for locations without streams.
+        var tagStore = new Leviathan.ViewModels.Tags.IndexedTagStore(
+            new AlternateStreamTagStore(),
+            new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath))),
+            new Leviathan.Interop.WindowsFileIdentity());
         // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
         var polling = new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable };
         background.Network = () => new NetworkStats(polling.Watching, listings.FolderCount, listings.EntryCount, listings.MaxEntries);
@@ -703,7 +708,7 @@ internal sealed class AppHost
             Undo = undo,
             TriageActionsFor = destination => new TriageFileActions(
                 new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()),
-                new AlternateStreamTagStore(),
+                tagStore,
                 () =>
                 {
                     var media = built?.Settings.Current.Media;
@@ -711,7 +716,7 @@ internal sealed class AppHost
                 },
                 transfers,
                 () => built!.Settings.Current.Tags.Catalog()),
-            Tagging = new Leviathan.ViewModels.Tags.FileTagging(new AlternateStreamTagStore(), () => built!.Settings.Current.Tags.Catalog()),
+            Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore,() => built!.Settings.Current.Tags.Catalog()),
             Listings = listings,
             Icons = icons,
             Operations = operations,
