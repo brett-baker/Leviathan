@@ -37,11 +37,18 @@ static int Usage()
     return 64;
 }
 
+if (args.Contains("--media-gate"))
+{
+    // Preview start, thumbnails and triage decisions of Phase 3 (spec 3.1) on their own.
+    return await MediaGate.RunAsync();
+}
+
 if (args.Contains("--gate"))
 {
-    // The listing gate of Phase 0, then the view-model gates of Phase 1 (spec 3.1); --cold-start <Leviathan.exe> adds the real app's start.
+    // The listing gate of Phase 0, then the view-model gates of Phase 1 and the media gates of Phase 3 (spec 3.1); --cold-start <Leviathan.exe> adds the real app's start.
     var exit = EnumerationGate.Run(args);
     exit |= ViewModelGate.Run();
+    exit |= await MediaGate.RunAsync();
     var at = Array.IndexOf(args, "--cold-start");
     if (at >= 0 && at + 1 < args.Length)
     {

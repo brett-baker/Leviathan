@@ -106,7 +106,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **G1. Fixture generator script** and parser snapshot tests; corrupt-file suite (done: `CorruptMedia` makes 11 kinds of damage per clip, `CorruptMediaSuiteTests` sends 33 damaged files through the real media process (probe, thumbnail, contact sheet, scrub strip) and requires clean answers, the same process at the end and working intact clips; `toolsNew-UatFixtures.ps1` builds the same set as `14-corrupt`; the parser snapshots and `New-MediaSamples.ps1` already existed from A2; it found one bug, fixed: an empty .flac was reported readable).
 - [~] **G2. FlaUI triage flow** (written and compiling, NOT yet run: `TriageFlowTests` opens triage on 4 generated clips, then Keep, Discard, Undo, Skip, Keep, Discard, Restore selected and Esc, reading the results from the disk, the `:leviathan.tags` stream and the Recycle Bin; it needs `LEVIATHAN_UI_TESTS=1` and the desktop to itself, see the note on UI tests): open triage, keep/discard/skip/undo with keys, verify tags and soft deletes.
-- [ ] **G3. Benchmarks**: preview start < 300 ms local, thumbnail < 200 ms cached / < 1 s generated, triage advance latency.
+- [x] **G3. Benchmarks** (done: `MediaGate` in `Leviathan.Benchmarks`, run by `--media-gate` and as part of `--gate`; preview start measured as the 150 ms rest plus a cold ffprobe, thumbnails cached and drawn, triage Skip/Keep/Discard and re-order on a queue of 2,000; the ffmpeg parts report SKIPPED when ffmpeg is not found): preview start < 300 ms local, thumbnail < 200 ms cached / < 1 s generated, triage advance latency.
 - [ ] **G4. Gate and wrap-up**: `docs/phase-3.md`, README, tag `phase-3`, push, stop for review.
 
 ## Gate (from the build plan)

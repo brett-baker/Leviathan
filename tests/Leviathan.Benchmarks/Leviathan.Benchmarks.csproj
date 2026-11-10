@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\src\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Testing\Leviathan.Testing.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.Contracts\Leviathan.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.Interop\Leviathan.Interop.csproj" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>
