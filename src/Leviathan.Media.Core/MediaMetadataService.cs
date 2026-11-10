@@ -18,6 +18,24 @@ public sealed class MediaMetadataService : IDisposable
     /// <summary>The message stored for a file whose probe never finished because the process died.</summary>
     public const string InterruptedReason = "The media process stopped while reading this file.";
 
+    /// <summary>What an empty file is told.</summary>
+    public const string EmptyReason = "The file is empty.";
+
+    /// <summary>What a file is told when ffprobe named a format but found nothing to play in it.</summary>
+    public const string NoStreamsReason = "No playable audio or video was found in the file.";
+
+    /// <summary>
+    /// True when at least one stream has real content: a video with a size, an audio with a sample rate or channels, or a subtitle track.
+    /// ffprobe can describe damaged or truncated files as a format with a stream of zeros; those are not media.
+    /// </summary>
+    public static bool HasUsableStream(MediaInfo info)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        return info.Video.Any(v => v.Width is > 0 && v.Height is > 0)
+            || info.Audio.Any(a => a.SampleRate is > 0 || a.Channels is > 0)
+            || info.Subtitles.Count > 0;
+    }
+
     private readonly FfprobeRunner _probe;
     private readonly IMediaMetadataStore _store;
     private readonly TimeProvider _time;
@@ -146,6 +164,17 @@ public sealed class MediaMetadataService : IDisposable
                 flight.Started = true;
             }
 
+            // ffprobe answers for an empty file named .flac by guessing the format from the name (probe score 1), so an empty file is
+            // settled here, before any process is started (found by the corrupt-file suite).
+            if (key.Size == 0)
+            {
+                var empty = new MediaMetadataEntry(key, MetadataState.Unreadable, null, EmptyReason, _time.GetUtcNow());
+                _store.Put(empty);
+                Interlocked.Increment(ref _probed);
+                RaiseProbed(empty);
+                return empty;
+            }
+
             _store.MarkProbing(key, _time.GetUtcNow());
             var result = await _probe.ProbeAsync(key.Path, isNetwork, CancellationToken.None).ConfigureAwait(false);
             if (isNetwork && result.Status == ProbeStatus.Failed)
@@ -156,6 +185,7 @@ public sealed class MediaMetadataService : IDisposable
 
             var entry = result.Status switch
             {
+                ProbeStatus.Ok when FfprobeParser.TryParse(result.Json!) is { } info && !HasUsableStream(info) => new MediaMetadataEntry(key, MetadataState.Unreadable, null, NoStreamsReason, _time.GetUtcNow()),
                 ProbeStatus.Ok when FfprobeParser.TryParse(result.Json!) is { } info => new MediaMetadataEntry(key, MetadataState.Ok, info, null, _time.GetUtcNow()),
                 ProbeStatus.Ok => new MediaMetadataEntry(key, MetadataState.Unreadable, null, "ffprobe's answer could not be read.", _time.GetUtcNow()),
                 ProbeStatus.ToolMissing => new MediaMetadataEntry(key, MetadataState.ToolMissing, null, result.Message, _time.GetUtcNow()),

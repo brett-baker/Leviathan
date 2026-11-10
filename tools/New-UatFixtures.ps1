@@ -277,6 +277,35 @@ $tags = Join-Path $uat '13-tags'
 foreach ($n in 'alpha.txt', 'bravo.txt', 'charlie.txt', 'delta.txt', 'echo.txt', 'sub\foxtrot.txt') { New-TextFile (Join-Path $tags $n) "tag me: $n" }
 Copy-Item (Join-Path $preview 'photo.jpg') (Join-Path $tags 'golf.jpg') -ErrorAction SilentlyContinue
 
+# 14. Damaged media: eleven kinds of damage per clip (the same kinds, in the same order, as tests/Leviathan.Testing/CorruptMedia.cs), so
+#     the app can be shown every way a video or a song goes wrong. Needs the clips of 09-media (so ffmpeg).
+$corrupt = Join-Path $uat '14-corrupt'
+New-Item -ItemType Directory -Path $corrupt -Force | Out-Null
+function New-DamagedCopies([string]$Source, [string]$Stem) {
+    if (-not (Test-Path $Source)) { return }
+    $bytes = [IO.File]::ReadAllBytes($Source)
+    $ext = [IO.Path]::GetExtension($Source)
+    function Save([string]$Kind, [byte[]]$Data) { [IO.File]::WriteAllBytes((Join-Path $corrupt "$Stem.$Kind$ext"), $Data) }
+    function Head([int]$n) { $n = [Math]::Min($bytes.Length, [Math]::Max(1, $n)); $bytes[0..($n - 1)] }
+    Save 'Empty' ([byte[]]@())
+    Save 'OneByte' ([byte[]]@($bytes[0]))
+    Save 'TruncatedTenth' ([byte[]](Head ([int]($bytes.Length / 10))))
+    Save 'TruncatedHalf' ([byte[]](Head ([int]($bytes.Length / 2))))
+    Save 'TruncatedTail' ([byte[]](Head ($bytes.Length - 200)))
+    $zeroed = [byte[]]$bytes.Clone(); [Array]::Clear($zeroed, 0, [Math]::Min(4096, $zeroed.Length)); Save 'HeaderZeroed' $zeroed
+    $flipped = [byte[]]$bytes.Clone(); $rng = New-Object Random 20261110
+    if ($flipped.Length -gt 8192) { 1..64 | ForEach-Object { $at = [int]($flipped.Length / 4) + $rng.Next([int]($flipped.Length / 2)); $flipped[$at] = $flipped[$at] -bxor 0xFF } }
+    Save 'MiddleFlips' $flipped
+    $garbage = New-Object byte[] $bytes.Length; (New-Object Random 20261111).NextBytes($garbage); Save 'RandomGarbage' $garbage
+    Save 'ZeroFilled' (New-Object byte[] $bytes.Length)
+    Save 'TextInDisguise' ([Text.Encoding]::ASCII.GetBytes("This is not a video. It is a note someone renamed.`r`n"))
+    $huge = [byte[]]$bytes.Clone(); 0..3 | ForEach-Object { $huge[$_] = 0xFF }; Save 'HugeFirstSize' $huge
+}
+New-DamagedCopies (Join-Path $media 'medium-45s.mkv') 'video'
+New-DamagedCopies (Join-Path $media 'short-3s.mp4') 'clip'
+New-DamagedCopies (Join-Path $media 'song-20s.flac') 'song'
+Copy-Item (Join-Path $media 'short-3s.mp4') (Join-Path $corrupt 'intact-control.mp4') -ErrorAction SilentlyContinue
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 

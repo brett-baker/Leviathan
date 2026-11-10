@@ -313,4 +313,43 @@ public sealed class MediaMetadataServiceTests
 
         Assert.Equal([@"D:\v\one.mkv"], service.UnreadableFiles().Select(e => e.Key.Path));
     }
+
+    [Fact]
+    public async Task Get_ForAnEmptyFile_IsUnreadable_WithoutStartingFfprobe()
+    {
+        var (service, probe, _) = Create();
+
+        var entry = await service.GetAsync(Key(@"D:\v\empty.flac", size: 0), false, CancellationToken.None);
+
+        Assert.Equal(MetadataState.Unreadable, entry.State);
+        Assert.Equal(MediaMetadataService.EmptyReason, entry.Message);
+        Assert.Equal(0, probe.Calls);
+        Assert.Equal(MetadataState.Unreadable, (await service.GetAsync(Key(@"D:\v\empty.flac", size: 0), false, CancellationToken.None)).State);
+        Assert.Equal(0, probe.Calls);
+    }
+
+    [Fact]
+    public async Task Get_ForAFormatGuessedFromTheName_WithAStreamOfZeros_IsUnreadable()
+    {
+        // What ffprobe says about a damaged .flac: the format is named, the one stream has no sample rate and no channels.
+        const string Guessed = """{"streams":[{"index":0,"codec_type":"audio","codec_name":"flac","sample_rate":"0","channels":0}],"format":{"format_name":"flac","probe_score":1,"size":"0"}}""";
+        var (service, probe, _) = Create();
+        probe.Answer = (_, _) => new ProcessOutcome(0, Guessed, string.Empty, false, false);
+
+        var entry = await service.GetAsync(Key(@"D:\v\guess.flac", size: 4096), false, CancellationToken.None);
+
+        Assert.Equal(MetadataState.Unreadable, entry.State);
+        Assert.Equal(MediaMetadataService.NoStreamsReason, entry.Message);
+    }
+
+    [Theory]
+    [InlineData("""{"streams":[{"index":0,"codec_type":"audio","codec_name":"flac","sample_rate":"44100","channels":2}],"format":{"format_name":"flac"}}""", true)]
+    [InlineData("""{"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":640,"height":360}],"format":{"format_name":"mov,mp4"}}""", true)]
+    [InlineData("""{"streams":[{"index":0,"codec_type":"subtitle","codec_name":"subrip"}],"format":{"format_name":"srt"}}""", true)]
+    [InlineData("""{"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":0,"height":0}],"format":{"format_name":"mov,mp4"}}""", false)]
+    [InlineData("""{"streams":[],"format":{"format_name":"mov,mp4"}}""", false)]
+    public void HasUsableStream_NeedsSomethingToPlay(string json, bool usable)
+    {
+        Assert.Equal(usable, MediaMetadataService.HasUsableStream(FfprobeParser.TryParse(json)!));
+    }
 }

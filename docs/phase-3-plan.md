@@ -104,7 +104,7 @@ Every slice follows `CLAUDE.md`.
 
 ### G. Verification and finish
 
-- [ ] **G1. Fixture generator script** and parser snapshot tests; corrupt-file suite (Media restarts, files quarantined, UI unaffected).
+- [x] **G1. Fixture generator script** and parser snapshot tests; corrupt-file suite (done: `CorruptMedia` makes 11 kinds of damage per clip, `CorruptMediaSuiteTests` sends 33 damaged files through the real media process (probe, thumbnail, contact sheet, scrub strip) and requires clean answers, the same process at the end and working intact clips; `toolsNew-UatFixtures.ps1` builds the same set as `14-corrupt`; the parser snapshots and `New-MediaSamples.ps1` already existed from A2; it found one bug, fixed: an empty .flac was reported readable).
 - [ ] **G2. FlaUI triage flow**: open triage, keep/discard/skip/undo with keys, verify tags and soft deletes.
 - [ ] **G3. Benchmarks**: preview start < 300 ms local, thumbnail < 200 ms cached / < 1 s generated, triage advance latency.
 - [ ] **G4. Gate and wrap-up**: `docs/phase-3.md`, README, tag `phase-3`, push, stop for review.
