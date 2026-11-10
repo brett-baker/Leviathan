@@ -155,6 +155,9 @@ internal sealed partial class TriageWindow : Window
     /// <summary>Raised when the window closes with a line to show in the folder window (what became of the kept files).</summary>
     public event EventHandler<string>? Notice;
 
+    /// <summary>The folder kept files were (or would be) moved to, so the folder windows can show them once this one closes.</summary>
+    public string? KeptFolder => Destination();
+
     // Where the kept files go: the other pane's folder, else the keep folder of the settings.
     private string? Destination() =>
         _destination() is { Length: > 0 } pane ? pane
@@ -259,7 +262,9 @@ internal sealed partial class TriageWindow : Window
         try
         {
             // The video surface hands over the options LibVLC needs to draw into it, so the instance is made only now.
+            UiTrace.Mark("Triage: video surface ready");
             var libvlc = LibVlcEngine.CreateLibVlc(e.SwapChainOptions);
+            UiTrace.Mark("Triage: LibVLC created");
             _engine = new LibVlcEngine(libvlc, ownsLibVlc: true);
             Video.MediaPlayer = _engine.Player;
             var settings = App.Host.Settings.Current.Media;
@@ -273,7 +278,9 @@ internal sealed partial class TriageWindow : Window
             Queue.ItemsSource = session.Items;
             _timer.Start();
             Root.Focus(FocusState.Programmatic);
+            UiTrace.Mark("Triage: opening the first file");
             await session.StartAsync(_startIndex, _closing.Token);
+            UiTrace.Mark("Triage: first file playing");
 
             // The order used last time (not for an inbox, which has its own: oldest, newest, largest or random).
             if (Inbox is null && settings.TriageOrder != TriageListOrder.AsOpened)

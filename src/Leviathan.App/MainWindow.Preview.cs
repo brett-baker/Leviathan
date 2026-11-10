@@ -606,9 +606,11 @@ public sealed partial class MainWindow
     /// </summary>
     public void StartTriage() => OnUi(() =>
     {
+        UiTrace.Mark("Triage: Alt+T");
         var rows = _bound?.Items.Rows ?? [];
         var selected = _bound?.Selection.SelectedEntries ?? [];
         var (queue, start) = ViewModels.Triage.TriageQueue.FromHere(rows, selected, App.Host.Settings.Current.Media.ToTriageOptions());
+        UiTrace.Mark($"Triage: queue of {queue.Count} made");
         if (queue.Count == 0)
         {
             MessageText.Text = "There are no videos here to triage.";
@@ -638,12 +640,43 @@ public sealed partial class MainWindow
         window.Notice += (_, text) => OnUi(() => MessageText.Text = text);
         window.Exited += (_, file) => OnUi(() =>
         {
-            if (file is not null && tab?.Items.Rows.FirstOrDefault(r => r.Location == file.Location) is { } row)
+            // Files moved by Keep or the hand-off changed the keep folder and the folder triage ran in; the worker moves them without the
+            // views hearing of it, so forget what the cache holds and reload every pane showing either folder.
+            var changed = new List<Core.Paths.LocationPath>();
+            if (window.KeptFolder is { Length: > 0 } kept)
             {
-                tab.Selection.Click(row);
+                changed.Add(Core.Paths.LocationPath.Parse(kept));
             }
+
+            if (tab?.History.Current is { } source)
+            {
+                changed.Add(source);
+            }
+
+            foreach (var folder in changed)
+            {
+                App.Host.Listings.Invalidate(folder, includeDescendants: true);
+            }
+
+            foreach (var shown in _viewModel.Tabs.Tabs.SelectMany(t => new[] { t, t.Secondary }).OfType<Leviathan.ViewModels.Tabs.TabViewModel>())
+            {
+                if (shown.History.Current is { } at && changed.Contains(at))
+                {
+                    _ = shown.ReloadAsync(CancellationToken.None, forceFresh: true);
+                }
+            }
+
+            OnUi(() =>
+            {
+                if (file is not null && tab?.Items.Rows.FirstOrDefault(r => r.Location == file.Location) is { } row)
+                {
+                    tab.Selection.Click(row);
+                }
+            });
         });
+        UiTrace.Mark("Triage: window made");
         window.Activate();
+        UiTrace.Mark("Triage: window activated");
     }
 
     private QuickPreviewWindow? _quick;
