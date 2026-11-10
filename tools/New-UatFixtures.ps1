@@ -184,6 +184,99 @@ if ($ff) {
     }
 }
 
+# 11. One of each kind the preview pane and the details pane draw: pictures, text in two encodings, code, Markdown, HTML with a
+#     script (it must NOT run), a 3 MB log (the pane shows the first 2 MB), a PDF, a zip, a font, a Word document, a folder.
+$preview = Join-Path $uat '11-preview'
+New-Item -ItemType Directory -Path $preview -Force | Out-Null
+try {
+    Add-Type -AssemblyName System.Drawing
+    $bmp = New-Object System.Drawing.Bitmap 640, 400
+    $gfx = [System.Drawing.Graphics]::FromImage($bmp)
+    $gfx.Clear([System.Drawing.Color]::SteelBlue)
+    $gfx.FillEllipse([System.Drawing.Brushes]::Orange, 80, 60, 240, 240)
+    $gfx.DrawString('Leviathan UAT', (New-Object System.Drawing.Font 'Segoe UI', 32), [System.Drawing.Brushes]::White, 40, 320)
+    $gfx.Dispose()
+    $bmp.Save((Join-Path $preview 'picture.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Save((Join-Path $preview 'photo.jpg'), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    $bmp.Dispose()
+} catch { Write-Warning "System.Drawing is not available: no picture fixtures ($_)" }
+if ($ff) { & $ff -y -v error @(Pattern 2) -vf 'fps=10,scale=160:-1' (Join-Path $preview 'animated.gif') }
+New-TextFile (Join-Path $preview 'notes.txt') "Plain text`r`nsecond line`r`n"
+[IO.File]::WriteAllText((Join-Path $preview 'utf16.txt'), "UTF-16 text: caf$([char]0xE9) $([char]0x4E2D)$([char]0x6587)`r`n", [Text.Encoding]::Unicode)
+New-TextFile (Join-Path $preview 'sample.cs') "using System;`nclass Hello { static void Main() { Console.WriteLine(`"hi`"); } }`n"
+New-TextFile (Join-Path $preview 'readme.md') "# Heading`n`nSome **bold** text and a [link](https://example.com).`n`n- one`n- two`n"
+New-TextFile (Join-Path $preview 'page.html') "<html><body><h1>HTML page</h1><script>document.body.insertAdjacentHTML('beforeend','<p>SCRIPT RAN</p>')</script></body></html>"
+$logLine = ('log line ' * 10) + "`n"
+[IO.File]::WriteAllText((Join-Path $preview 'big.log'), ($logLine * 33000))
+
+# A one-page PDF with correct offsets, so every reader opens it without repairing it.
+$pdfText = 'BT /F1 24 Tf 40 100 Td (Leviathan PDF) Tj ET'
+$pdfBodies = @(
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    "<< /Length $($pdfText.Length) >>`nstream`n$pdfText`nendstream",
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
+$pdf = New-Object Text.StringBuilder
+[void]$pdf.Append("%PDF-1.4`n")
+$pdfOffsets = @()
+for ($i = 0; $i -lt $pdfBodies.Count; $i++) {
+    $pdfOffsets += $pdf.Length
+    [void]$pdf.Append("$($i + 1) 0 obj`n$($pdfBodies[$i])`nendobj`n")
+}
+$xref = $pdf.Length
+[void]$pdf.Append("xref`n0 6`n0000000000 65535 f `n")
+foreach ($o in $pdfOffsets) { [void]$pdf.Append(("{0:D10} 00000 n `n" -f $o)) }
+[void]$pdf.Append("trailer`n<< /Size 6 /Root 1 0 R >>`nstartxref`n$xref`n%%EOF`n")
+[IO.File]::WriteAllText((Join-Path $preview 'sample.pdf'), $pdf.ToString(), [Text.Encoding]::ASCII)
+
+# A zip with a folder inside, a font copied from Windows, and a minimal Word document built by hand.
+$zipSource = Join-Path $preview 'zip-source'
+New-TextFile (Join-Path $zipSource 'one.txt') 'first'
+New-TextFile (Join-Path $zipSource 'inner\two.txt') 'second'
+Compress-Archive -Path (Join-Path $zipSource '*') -DestinationPath (Join-Path $preview 'sample.zip') -Force
+Remove-Item -LiteralPath $zipSource -Recurse -Force
+$arial = Join-Path $env:WINDIR 'Fonts\arial.ttf'
+if (Test-Path $arial) { Copy-Item $arial (Join-Path $preview 'arial-copy.ttf') }
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+function Add-ZipText($zip, [string]$name, [string]$text) {
+    $entry = $zip.CreateEntry($name)
+    $writer = New-Object IO.StreamWriter($entry.Open())
+    $writer.Write($text)
+    $writer.Dispose()
+}
+$word = [IO.Compression.ZipFile]::Open((Join-Path $preview 'letter.docx'), 'Create')
+Add-ZipText $word '[Content_Types].xml' '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'
+Add-ZipText $word '_rels/.rels' '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'
+Add-ZipText $word 'word/document.xml' '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Leviathan UAT letter</w:t></w:r></w:p></w:body></w:document>'
+$word.Dispose()
+foreach ($n in 1..3) { New-TextFile (Join-Path $preview "a-folder\item-$n.txt") "item $n" }
+
+# 12. Duplicates: one folder with look-alike names, and a left/right pair for "files here that are already in the other pane".
+$dups = Join-Path $uat '12-duplicates'
+$one = Join-Path $dups 'one-folder'
+New-BinaryFile (Join-Path $one 'Movie.Name.2019.1080p.x264-GRP.mkv') 2MB
+New-BinaryFile (Join-Path $one 'Movie Name (2019) 720p.mp4') 1MB
+New-BinaryFile (Join-Path $one 'Movie.Name.2019.2160p.HEVC-OTHER.mkv') 3MB
+New-BinaryFile (Join-Path $one 'Other Film 2020.mkv') 1MB
+New-BinaryFile (Join-Path $one 'Holiday photos 2018.zip') 300KB
+New-BinaryFile (Join-Path $one 'Holiday Photos 2018 (1).zip') 300KB
+New-BinaryFile (Join-Path $one 'unrelated-thing.dat') 10KB
+$left = Join-Path $dups 'left'
+$right = Join-Path $dups 'right'
+New-BinaryFile (Join-Path $left 'Show S01E01 720p.mkv') 1MB
+New-BinaryFile (Join-Path $left 'Show S01E02 1080p.mkv') 2MB
+New-BinaryFile (Join-Path $left 'Show S01E03 1080p.mkv') 2MB
+New-BinaryFile (Join-Path $left 'Only on the left.mkv') 1MB
+New-BinaryFile (Join-Path $right 'Show.S01E01.1080p.x265.mkv') 3MB
+New-BinaryFile (Join-Path $right 'Show S01E02 1080p.mkv') 2MB
+New-BinaryFile (Join-Path $right 'Show S01E03 480p.mkv') 500KB
+
+# 13. Colour tags: six small files, one in a sub-folder. Tag them with the keys 1 to 9; the tags live on the files in this folder only.
+$tags = Join-Path $uat '13-tags'
+foreach ($n in 'alpha.txt', 'bravo.txt', 'charlie.txt', 'delta.txt', 'echo.txt', 'sub\foxtrot.txt') { New-TextFile (Join-Path $tags $n) "tag me: $n" }
+Copy-Item (Join-Path $preview 'photo.jpg') (Join-Path $tags 'golf.jpg') -ErrorAction SilentlyContinue
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 
