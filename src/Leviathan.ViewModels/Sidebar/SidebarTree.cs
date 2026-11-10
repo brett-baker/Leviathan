@@ -119,6 +119,12 @@ public sealed record SidebarSection(string Title, IReadOnlyList<SidebarPlace> Pl
 
     /// <summary>Text of a last line that does something when clicked ("Add connection…"), or null for none.</summary>
     public string? ActionTitle { get; init; }
+
+    /// <summary>Icon character shown beside the heading, or null for none.</summary>
+    public string? Glyph { get; init; }
+
+    /// <summary>True when the section starts folded (its places are one click away).</summary>
+    public bool StartCollapsed { get; init; }
 }
 
 /// <summary>One row of the sidebar tree.</summary>
@@ -257,6 +263,8 @@ public sealed class SidebarTree
             CancelLoading(node);
         }
 
+        var wasFolded = _roots.Where(r => !r.IsExpanded).Select(r => r.Title).ToHashSet(StringComparer.Ordinal);
+        var wasOpen = _roots.Where(r => r.IsExpanded).Select(r => r.Title).ToHashSet(StringComparer.Ordinal);
         _roots.Clear();
         Rows.Clear();
         _selected = null;
@@ -267,7 +275,7 @@ public sealed class SidebarTree
                 continue;
             }
 
-            var header = new SidebarNode(SidebarNodeKind.Section, section.Title) { IsExpanded = true, CanExpand = true };
+            var header = new SidebarNode(SidebarNodeKind.Section, section.Title) { IsExpanded = wasFolded.Contains(section.Title) ? false : wasOpen.Contains(section.Title) || !section.StartCollapsed, CanExpand = true, Glyph = section.Glyph };
             if (section.Places.Count == 0 && section.Groups.Count == 0)
             {
                 AddChild(header, new SidebarNode(SidebarNodeKind.Message, section.EmptyText!));
@@ -292,7 +300,7 @@ public sealed class SidebarTree
 
             _roots.Add(header);
             Rows.Add(header);
-            foreach (var row in Flatten(header.Children))
+            foreach (var row in header.IsExpanded ? Flatten(header.Children) : Array.Empty<SidebarNode>())
             {
                 Rows.Add(row);
             }

@@ -256,7 +256,7 @@
               </Button>
               <ContentControl Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" IsTabStop="False"
                               Content="{x:Bind local:SidebarFormat.IconOf(Icon, Glyph, Accent)}"
-                              Visibility="{x:Bind local:SidebarFormat.IsItem(Kind)}" />
+                              Visibility="{x:Bind local:SidebarFormat.HasIcon(Kind, Glyph)}" />
               <Ellipse Grid.Column="2" Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4"
                        Fill="{x:Bind local:SidebarFormat.HealthBrush(Health), Mode=OneWay}"
                        Visibility="{x:Bind local:SidebarFormat.HasHealth(Health), Mode=OneWay}"

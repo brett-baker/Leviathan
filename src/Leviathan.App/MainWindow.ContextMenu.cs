@@ -59,6 +59,11 @@ public sealed partial class MainWindow
             flyout.Items.Add(entry.Kind == MenuEntryKind.Separator ? new MenuFlyoutSeparator() : OwnItem(entry));
         }
 
+        if (tab.Selection.SelectedEntries.Any(e => e.Kind == FileEntryKind.File))
+        {
+            AddTagMenu(flyout);
+        }
+
         var extended = KeyTranslator.IsDown(VirtualKey.Shift);
         var shellRequest = ShellRequestFor(tab, extended);
         ShellSection? section = null;
@@ -73,6 +78,45 @@ public sealed partial class MainWindow
         {
             _ = LoadShellItemsAsync(section, shellRequest!);
         }
+    }
+
+    // "Tag" (spec §11.1): the colour tags of the user's catalog with their number keys, so the keys can be found; each one toggles the tag
+    // on the selected files, as the key does, and "Clear tags" is Ctrl+0.
+    private void AddTagMenu(MenuFlyout flyout)
+    {
+        var tags = App.Host.Settings.Current.Tags.Catalog().Tags;
+        if (tags.Count == 0)
+        {
+            return;
+        }
+
+        var menu = new MenuFlyoutSubItem { Text = "Tag" };
+        for (var i = 0; i < tags.Count; i++)
+        {
+            var tag = tags[i];
+            var key = i + 1 <= ViewModels.Tags.TagCatalog.KeyedTags ? i + 1 : 0;
+            var item = new MenuFlyoutItem { Text = tag.Name, KeyboardAcceleratorTextOverride = key == 0 ? string.Empty : key.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+            var colour = GridRow.TagColour(tag.Colour);
+            item.Icon = new FontIcon { Glyph = "", Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, colour.R, colour.G, colour.B)) };
+            var number = key;
+            if (number > 0)
+            {
+                item.Click += (_, _) => OnTagKey(this, number);
+            }
+            else
+            {
+                item.IsEnabled = false; // only the first nine tags have a key
+            }
+
+            menu.Items.Add(item);
+        }
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var clear = new MenuFlyoutItem { Text = "Clear tags", KeyboardAcceleratorTextOverride = "Ctrl+0" };
+        clear.Click += (_, _) => OnTagKey(this, 0);
+        menu.Items.Add(clear);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(menu);
     }
 
     private MenuFlyoutItem OwnItem(MenuEntry entry)

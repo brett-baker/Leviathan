@@ -185,10 +185,10 @@ public static class SidebarSections
         var saved = (servers ?? []).ToList();
         return
         [
-            new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })], "Press Ctrl+D to pin a folder"),
-            new SidebarSection("Common folders", [.. common]),
-            new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags"),
-            new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]),
+            new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })]) { Glyph = "\uE734" },
+            new SidebarSection("Common folders", [.. common.OrderBy(CommonOrder)]) { Glyph = "\uE8B7" },
+            new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags") { Glyph = "\uE8EC", StartCollapsed = true },
+            new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uEDA2" },
             new SidebarSection(
                 "Network",
                 [.. saved.Select(ServerPlace), .. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)],
@@ -196,8 +196,9 @@ public static class SidebarSections
             {
                 Groups = [NearbyGroup(nearby, saved, searching)],
                 ActionTitle = "Add connection…",
+                Glyph = "\uE839",
             },
-            new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud))]),
+            new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud))]) { Glyph = "\uE753" },
         ];
     }
 
@@ -217,6 +218,20 @@ public static class SidebarSections
             .ToList();
         return new SidebarGroup(NearbyTitle, places, searching ? "Searching…" : "No devices found");
     }
+
+    // Desktop, Documents, Downloads, Pictures, Videos, Music, then the user's home folder (Brett's order, 2026-11-10; Downloads was not
+    // in his list and sits where Explorer has it). Anything else keeps its place after them.
+    private static int CommonOrder(SidebarPlace place) => place.Icon switch
+    {
+        SidebarIcon.Desktop => 0,
+        SidebarIcon.Documents => 1,
+        SidebarIcon.Downloads => 2,
+        SidebarIcon.Pictures => 3,
+        SidebarIcon.Videos => 4,
+        SidebarIcon.Music => 5,
+        SidebarIcon.Home => 6,
+        _ => 7,
+    };
 
     private static SidebarPlace ServerPlace(SavedConnection server) =>
         new(server.Title, server.Location, SidebarIcon.Server, server.Title == server.Host ? string.Empty : server.Host)

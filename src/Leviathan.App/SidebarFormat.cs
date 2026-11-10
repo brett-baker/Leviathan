@@ -56,7 +56,8 @@ internal static class SidebarFormat
 
     public static string Chevron(bool expanded) => expanded ? "" : "";
 
-    public static double IndentWidth(int depth) => Math.Max(0, depth - 1) * 14;
+    // Places sit one step in from their section heading, and each folder level one more.
+    public static double IndentWidth(int depth) => Math.Max(0, depth) * 14;
 
     public static Windows.UI.Text.FontWeight Weight(SidebarNodeKind kind) =>
         kind == SidebarNodeKind.Section ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
@@ -69,6 +70,9 @@ internal static class SidebarFormat
     public static Visibility IsSection(SidebarNodeKind kind) => Show(kind == SidebarNodeKind.Section);
 
     public static Visibility IsItem(SidebarNodeKind kind) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder);
+
+    /// <summary>Rows with an icon: places and folders, and section headings that were given one.</summary>
+    public static Visibility HasIcon(SidebarNodeKind kind, string? glyph) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder || (kind == SidebarNodeKind.Section && !string.IsNullOrEmpty(glyph)));
 
     /// <summary>The dot beside a server's icon shows for servers only (spec 7.1).</summary>
     public static Visibility HasHealth(Core.Resilience.ShareHealth? health) => Show(health is not null);

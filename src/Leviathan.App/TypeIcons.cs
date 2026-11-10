@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Leviathan.Core.Model;
 using Leviathan.Core.Platform;
@@ -28,6 +29,11 @@ internal static class TypeIcons
     private static readonly Dictionary<string, ImageSource?> Known = [];
     private static readonly Dictionary<string, Task<ImageSource?>> Asking = [];
 
+    // Types the shell gave no icon for just now: asked again after a while, not for the rest of the session (a busy share or a shell
+    // that was not ready must not leave a type with the generic page icon until restart).
+    private static readonly Dictionary<string, long> Missed = [];
+    private static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(20);
+
     /// <summary>The icon when it is already known (the file type was asked about before); false while it still has to be asked for.</summary>
     public static bool TryGet(FileEntry entry, int size, out ImageSource? icon) =>
         Known.TryGetValue(KeyOf(entry, size), out icon);
@@ -39,6 +45,11 @@ internal static class TypeIcons
         if (Known.TryGetValue(key, out var known))
         {
             return Task.FromResult(known);
+        }
+
+        if (Missed.TryGetValue(key, out var missedAt) && Stopwatch.GetElapsedTime(missedAt) < RetryAfter)
+        {
+            return Task.FromResult<ImageSource?>(null);
         }
 
         if (!Asking.TryGetValue(key, out var asking))
@@ -85,7 +96,17 @@ internal static class TypeIcons
             Known.Clear();
         }
 
-        Known[key] = icon;
+        if (icon is null)
+        {
+            Missed[key] = Stopwatch.GetTimestamp();
+            UiTrace.Mark($"TypeIcons: the shell gave no icon for {key}");
+        }
+        else
+        {
+            Missed.Remove(key);
+            Known[key] = icon;
+        }
+
         Asking.Remove(key);
         return icon;
     }

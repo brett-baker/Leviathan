@@ -1,101 +1,96 @@
-using System.IO.Abstractions.TestingHelpers;
 using Leviathan.Core.Paths;
-using Leviathan.ViewModels.Commands;
-using Leviathan.ViewModels.Sessions;
-using Leviathan.ViewModels.Windows;
+using Leviathan.Core.Platform;
+using Leviathan.Testing;
+using Leviathan.ViewModels.Sidebar;
+using Leviathan.ViewModels.Tags;
 
 namespace Leviathan.ViewModels.Tests;
 
+/// <summary>How the sidebar sections look and start (spec §7): icons, the order of the common folders, hidden Favorites, folded Tags.</summary>
 public sealed class SidebarLayoutTests
 {
-    [Theory]
-    [InlineData(100, 1600, 140)]
-    [InlineData(139.9, 1600, 140)]
-    [InlineData(300, 1600, 300)]
-    [InlineData(900, 1600, 520)]
-    [InlineData(400, 600, 300)]
-    [InlineData(400, 200, 140)]
-    public void Clamp_KeepsTheWidthBetweenTheMinimumAndTheSmallerOfTheMaximumAndHalfTheWindow(double width, double window, double expected) =>
-        Assert.Equal(expected, SidebarLayout.Clamp(width, window));
+    private static LocationPath P(string path) => LocationPath.Parse(path);
 
-    [Fact]
-    public void Clamp_OfNotANumber_IsTheDefault() => Assert.Equal(SidebarLayout.DefaultWidth, SidebarLayout.Clamp(double.NaN, 1600));
-
-    [Fact]
-    public void ANewWindow_HasTheDefaultWidth_AndIsNotCollapsed()
+    private sealed class NoFolders : ISubfolderSource
     {
-        var window = new WindowManager(TabTestSupport.Services()).OpenWindow(LocationPath.Parse(@"C:\a"));
+        public Task<IReadOnlyList<LocationPath>> ListFoldersAsync(LocationPath location, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<LocationPath>>([]);
+    }
 
-        Assert.Equal(220, window.SidebarWidth);
-        Assert.False(window.SidebarCollapsed);
+    private static SidebarPlace Common(string name, SidebarIcon icon) => new(name, P($@"C:\Users\b\{name}"), icon);
+
+    private static IReadOnlyList<SidebarSection> Build(IEnumerable<FavoriteEntry>? favorites = null, IEnumerable<ColorTag>? tags = null) =>
+        SidebarSections.Build(
+            favorites ?? [],
+            [Common("Music", SidebarIcon.Music), Common("b", SidebarIcon.Home), Common("Videos", SidebarIcon.Videos), Common("Pictures", SidebarIcon.Pictures), Common("Documents", SidebarIcon.Documents), Common("Desktop", SidebarIcon.Desktop), Common("Downloads", SidebarIcon.Downloads)],
+            [],
+            [],
+            tags: tags ?? TagCatalog.Default.Tags);
+
+    private static SidebarTree Tree(IReadOnlyList<SidebarSection> sections)
+    {
+        var tree = new SidebarTree(new NoFolders(), new ManualTimeProvider());
+        tree.SetSections(sections);
+        return tree;
     }
 
     [Fact]
-    public async Task TheSidebarCommand_TogglesItAndKeepsTheWidth()
+    public void CommonFolders_AreInTheOrderDesktopDocumentsDownloadsPicturesVideosMusicHome()
     {
-        var h = new WindowCommandsTests.Harness();
-        await h.Ready;
-        h.Window.SidebarWidth = 333;
+        var common = Build().Single(s => s.Title == "Common folders");
 
-        await h.Run(CommandIds.ViewSidebar);
-        var collapsed = h.Window.SidebarCollapsed;
-        await h.Run(CommandIds.ViewSidebar);
-
-        Assert.True(collapsed);
-        Assert.False(h.Window.SidebarCollapsed);
-        Assert.Equal(333, h.Window.SidebarWidth);
-        Assert.Equal(CommandIds.ViewSidebar, WindowCommands.DefaultKeyMap().Resolve(KeyGesture.Parse("Ctrl+B"), isSplit: false));
+        Assert.Equal(["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music", "b"], common.Places.Select(p => p.Title));
     }
 
     [Fact]
-    public async Task TheWidthAndCollapse_AreSavedInTheSession_AndComeBack()
+    public void Favorites_AreLeftOutOfTheTree_WhenThereAreNone()
     {
-        var source = new WindowManager(TabTestSupport.Services());
-        var window = source.OpenWindow(LocationPath.Parse(@"C:\a"));
-        window.SidebarWidth = 301;
-        window.SidebarCollapsed = true;
-        var fs = new MockFileSystem();
-        using var store = new JsonFileStore<SessionFile>(fs, @"C:\data\session.json");
-        await store.SaveAsync(new SessionFile(1, DateTimeOffset.UnixEpoch, SessionCapture.Capture(source)), TestContext.Current.CancellationToken);
+        var tree = Tree(Build());
 
-        var loaded = await store.LoadAsync(TestContext.Current.CancellationToken);
-        var target = new WindowManager(TabTestSupport.Services());
-        SessionCapture.Restore(target, loaded!.State);
-
-        Assert.Equal(301, target.Windows[0].SidebarWidth);
-        Assert.True(target.Windows[0].SidebarCollapsed);
+        Assert.DoesNotContain(tree.Rows, r => r.Title == "Favorites");
+        Assert.DoesNotContain(tree.Rows, r => r.Title.Contains("Ctrl+D", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task ASessionSavedBeforeTheSplitterExisted_OpensWithTheDefaults()
+    public void Favorites_Show_WhenThereIsOne()
     {
-        var fs = new MockFileSystem();
-        using var store = new JsonFileStore<SessionFile>(fs, @"C:\data\session.json");
-        var source = new WindowManager(TabTestSupport.Services());
-        source.OpenWindow(LocationPath.Parse(@"C:\a"));
-        await store.SaveAsync(new SessionFile(1, DateTimeOffset.UnixEpoch, SessionCapture.Capture(source)), TestContext.Current.CancellationToken);
-        var text = fs.File.ReadAllText(@"C:\data\session.json");
-        var old = System.Text.RegularExpressions.Regex.Replace(text, "\\s*\"Sidebar(Width|Collapsed)\":\\s*[^,\\r\\n}]+,?", string.Empty);
-        fs.File.WriteAllText(@"C:\data\session.json", old);
+        var tree = Tree(Build([new FavoriteEntry(P(@"D:\Exports"))]));
 
-        var loaded = await store.LoadAsync(TestContext.Current.CancellationToken);
-        var target = new WindowManager(TabTestSupport.Services());
-        SessionCapture.Restore(target, loaded!.State);
-
-        Assert.DoesNotContain("SidebarWidth", old, StringComparison.Ordinal);
-        Assert.Equal(220, target.Windows[0].SidebarWidth);
-        Assert.False(target.Windows[0].SidebarCollapsed);
+        Assert.Contains(tree.Rows, r => r.Title == "Favorites");
+        Assert.Contains(tree.Rows, r => r.Title == "Exports");
     }
 
     [Fact]
-    public void ASavedWidthOutsideTheLimits_IsBroughtBackInside()
+    public void Tags_StartFolded_WithOnlyTheirHeadingShown()
     {
-        var state = new SessionState([new SessionWindow(new WindowBounds(WindowManager.DefaultRect), true, 0,
-            [new Tabs.TabState(new Navigation.NavigationSnapshot([], LocationPath.Parse(@"C:\a"), []), Views.FolderViewSettings.Default, null, null, false, false, false, [])], 9999, false)]);
+        var tree = Tree(Build());
 
-        var target = new WindowManager(TabTestSupport.Services());
-        SessionCapture.Restore(target, state);
+        var heading = tree.Rows.Single(r => r.Title == "Tags");
+        Assert.False(heading.IsExpanded);
+        Assert.DoesNotContain(tree.Rows, r => r.Title == "Red");
+        Assert.Contains(tree.Rows, r => r.Title == "Desktop"); // the other sections are open
+    }
 
-        Assert.Equal(SidebarLayout.MaxWidth, target.Windows[0].SidebarWidth);
+    [Fact]
+    public async Task Tags_OpenWhenAsked_AndStayAsTheUserLeftThemWhenTheTreeIsBuiltAgain()
+    {
+        var sections = Build();
+        var tree = Tree(sections);
+        await tree.ToggleAsync(tree.Rows.Single(r => r.Title == "Tags"), CancellationToken.None);
+        Assert.Contains(tree.Rows, r => r.Title == "Red");
+
+        tree.SetSections(sections); // a tag was renamed, say: the sidebar is rebuilt
+
+        Assert.True(tree.Rows.Single(r => r.Title == "Tags").IsExpanded);
+        Assert.Contains(tree.Rows, r => r.Title == "Red");
+    }
+
+    [Fact]
+    public void EverySectionHasAnIcon_ThatIsOnTheHeading()
+    {
+        var sections = Build([new FavoriteEntry(P(@"D:\Exports"))]);
+
+        Assert.All(sections.Where(s => s.Title is "Favorites" or "Common folders" or "Tags" or "Local" or "Network" or "Internet"), s => Assert.False(string.IsNullOrEmpty(s.Glyph), s.Title));
+        var tree = Tree(sections);
+        Assert.All(tree.Rows.Where(r => r.Kind == SidebarNodeKind.Section), r => Assert.False(string.IsNullOrEmpty(r.Glyph), r.Title));
     }
 }
