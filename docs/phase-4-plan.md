@@ -30,7 +30,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### A. Query and search core (§13, §13.1)
 
-- [ ] **A1. Query model and parser** — words, quoted phrases, wildcards, `-exclude`, `regex:`, `ext:`, `size:`, `modified:`, `created:`,
+- [x] **A1. Query model and parser** (done: `Leviathan.Search.Core`, 53 tests incl. seeded property tests) — words, quoted phrases, wildcards, `-exclude`, `regex:`, `ext:`, `size:`, `modified:`, `created:`,
   `tag:`, `type:`, `path:`, `duration:`, `res:`, `codec:`, `content:`. Errors become a message with a position, never an exception. FsCheck
   property tests: parse never throws, printing then parsing is stable, filters combine as AND.
 - [ ] **A2. Matcher** — evaluates a query against a file entry (and media/tag data through small interfaces with fakes). Size and date
