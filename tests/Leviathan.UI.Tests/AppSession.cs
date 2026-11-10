@@ -239,6 +239,10 @@ internal sealed class AppSession : IAsyncDisposable
     /// <summary>Where to click an element, found before the test starts acting (so no tree search disturbs the app while it is measured).</summary>
     public Point PointOf(string idOrName) => Get(idOrName).GetClickablePoint();
 
+    /// <summary>A top-level window of the app whose title contains <paramref name="titlePart"/> (the triage window is one), or null.</summary>
+    public Window? FindTopLevel(string titlePart) =>
+        _app.GetAllTopLevelWindows(_automation).FirstOrDefault(w => w.Title.Contains(titlePart, StringComparison.Ordinal));
+
     /// <summary>How many windows of the app are open.</summary>
     public int WindowCount() => _app.GetAllTopLevelWindows(_automation).Count(w => w.Properties.ClassName.ValueOrDefault?.StartsWith("WinUIDesktop", StringComparison.Ordinal) == true);
 
