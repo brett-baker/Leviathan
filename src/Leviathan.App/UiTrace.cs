@@ -15,6 +15,9 @@ internal static class UiTrace
 
     public static bool Enabled => !string.IsNullOrEmpty(Path);
 
+    // With a debugger attached every line also goes to the Output window (Debug), file or not.
+    private static bool Active => Enabled || Debugger.IsAttached;
+
     /// <summary>Times the work until the returned scope is disposed; writes a line when it took at least <paramref name="thresholdMs"/>.</summary>
     public static Scope Begin(string label, double thresholdMs = 0) => new(label, thresholdMs);
 
@@ -32,25 +35,36 @@ internal static class UiTrace
 
     internal static void Write(string text)
     {
-        if (!Enabled)
+        if (!Active)
         {
             return;
         }
 
         var sinceStart = (DateTime.Now.Ticks - Origin) / (double)TimeSpan.TicksPerMillisecond;
+        var line = $"{sinceStart,9:F1} ms  [t{Environment.CurrentManagedThreadId,2}]  {text}";
+        if (Debugger.IsAttached)
+        {
+            Debug.WriteLine("Leviathan: " + line);
+        }
+
+        if (!Enabled)
+        {
+            return;
+        }
+
         lock (Gate)
         {
-            File.AppendAllText(Path!, $"{sinceStart,9:F1} ms  [t{Environment.CurrentManagedThreadId,2}]  {text}{Environment.NewLine}");
+            File.AppendAllText(Path!, line + Environment.NewLine);
         }
     }
 
     internal readonly struct Scope(string label, double thresholdMs) : IDisposable
     {
-        private readonly long _start = Enabled ? Stopwatch.GetTimestamp() : 0;
+        private readonly long _start = Active ? Stopwatch.GetTimestamp() : 0;
 
         public void Dispose()
         {
-            if (!Enabled)
+            if (!Active)
             {
                 return;
             }
