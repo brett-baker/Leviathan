@@ -185,7 +185,7 @@ public static class SidebarSections
         var saved = (servers ?? []).ToList();
         return
         [
-            new SidebarSection("Favorites", [.. favorites.Select(f => new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color })]) { Glyph = "\uE734" },
+            new SidebarSection("Favorites", [.. favorites.Select(FavoritePlace)]) { Glyph = "\uE734" },
             new SidebarSection("Common folders", [.. common.OrderBy(CommonOrder)]) { Glyph = "\uE8B7" },
             new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags") { Glyph = "\uE8EC", StartCollapsed = true },
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uEDA2" },
@@ -221,6 +221,22 @@ public static class SidebarSections
 
     // Desktop, Documents, Downloads, Pictures, Videos, Music, then the user's home folder (Brett's order, 2026-11-10; Downloads was not
     // in his list and sits where Explorer has it). Anything else keeps its place after them.
+    // A pinned search (spec §13.2) is a folder that updates itself: it wears a magnifier unless the user chose an icon, shows what it looks for as its tooltip, and has no folders to open below it.
+    private static SidebarPlace FavoritePlace(FavoriteEntry f)
+    {
+        if (Search.SearchLocations.IsSearchLocation(f.Location))
+        {
+            return new SidebarPlace(f.Name ?? Search.SearchLocations.TitleOf(f.Location), f.Location, SidebarIcon.Favorite, Search.SearchLocations.DescribeOf(f.Location))
+            {
+                Glyph = f.Icon is null ? "" : FavoriteStyles.GlyphOf(f.Icon),
+                Accent = f.Color,
+                IsLeaf = true,
+            };
+        }
+
+        return new SidebarPlace(f.Name ?? f.Location.Name, f.Location, SidebarIcon.Favorite, f.Location.Value) { Glyph = FavoriteStyles.GlyphOf(f.Icon), Accent = f.Color };
+    }
+
     private static int CommonOrder(SidebarPlace place) => place.Icon switch
     {
         SidebarIcon.Desktop => 0,

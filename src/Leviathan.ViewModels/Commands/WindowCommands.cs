@@ -262,6 +262,9 @@ public static class CommandIds
     /// <summary>Focuses the search box (Ctrl+F).</summary>
     public static readonly CommandId SearchFocus = new("search.focus");
 
+    /// <summary>Pins the search results shown to Favorites, where it runs again each time it is opened (spec §13.2).</summary>
+    public static readonly CommandId SearchSave = new("search.save");
+
     /// <summary>Searches the folder shown and everything below it; the target is the query (spec §13).</summary>
     public static readonly CommandId SearchRun = new("search.run");
 
@@ -1320,6 +1323,18 @@ public static partial class WindowCommands
             var pinned = favorites!.Toggle(Current()!.History.Current);
             shell.ShowMessage(pinned ? "Added to Favorites" : "Removed from Favorites");
         }), _ => favorites is not null && Current() is not null, shortcut: "Ctrl+D");
+        Add(CommandIds.SearchSave, "Save this search to Favorites", "Tools", (_, _) => Run(() =>
+        {
+            var here = Current()!.History.Current;
+            if (favorites!.Contains(here))
+            {
+                shell.ShowMessage("This search is already in Favorites.");
+                return;
+            }
+
+            favorites.Toggle(here);
+            shell.ShowMessage("Search saved to Favorites. It runs again each time you open it; right-click it to rename it.");
+        }), _ => favorites is not null && Current() is { } tab && Search.SearchLocations.IsSearchLocation(tab.History.Current));
 
         Add(CommandIds.AddressFocus, "Focus address bar", "Navigation", (_, _) => Run(shell.FocusAddressBar), shortcut: "Ctrl+L");
         Add(CommandIds.AppDiagnostics, "Diagnostics", "App", (_, _) => Run(shell.OpenDiagnostics));
