@@ -33,7 +33,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 - [x] **A1. Query model and parser** (done: `Leviathan.Search.Core`, 53 tests incl. seeded property tests) — words, quoted phrases, wildcards, `-exclude`, `regex:`, `ext:`, `size:`, `modified:`, `created:`,
   `tag:`, `type:`, `path:`, `duration:`, `res:`, `codec:`, `content:`. Errors become a message with a position, never an exception. FsCheck
   property tests: parse never throws, printing then parsing is stable, filters combine as AND.
-- [ ] **A2. Matcher** — evaluates a query against a file entry (and media/tag data through small interfaces with fakes). Size and date
+- [x] **A2. Matcher** (done: `QueryMatcher`, `ISearchFacts`, `FileTypes`; 65 tests) — evaluates a query against a file entry (and media/tag data through small interfaces with fakes). Size and date
   units, relative dates (`lastweek`), case rules.
 - [ ] **A3. Live search** — parallel recursive enumeration in the worker, streamed in batches, cancellable, bounded parallelism per share;
   results appear in an ordinary file-view tab with every layout and column.

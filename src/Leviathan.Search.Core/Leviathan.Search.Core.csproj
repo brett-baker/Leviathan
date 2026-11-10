@@ -8,4 +8,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Leviathan.Search.Core.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+  </ItemGroup>
 </Project>
