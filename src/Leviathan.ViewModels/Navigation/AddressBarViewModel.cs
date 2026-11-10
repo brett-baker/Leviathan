@@ -27,8 +27,12 @@ public sealed partial class AddressBarViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(location);
         _location = location;
-        Breadcrumbs = location.GetBreadcrumbs();
+        Breadcrumbs = BreadcrumbsOf(location);
     }
+
+    // A search result folder has no folders to climb: one crumb says what was searched for (spec §13).
+    private static IReadOnlyList<Breadcrumb> BreadcrumbsOf(LocationPath location) =>
+        Search.SearchLocations.IsSearchLocation(location) ? [new Breadcrumb(Search.SearchLocations.DescribeOf(location), location)] : location.GetBreadcrumbs();
 
     /// <summary>The folder shown.</summary>
     public LocationPath Location
@@ -45,7 +49,7 @@ public sealed partial class AddressBarViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(location);
         Location = location;
-        Breadcrumbs = location.GetBreadcrumbs();
+        Breadcrumbs = BreadcrumbsOf(location);
         OnPropertyChanged(nameof(Breadcrumbs));
         IsEditing = false;
         EditText = string.Empty;
@@ -54,7 +58,7 @@ public sealed partial class AddressBarViewModel : ObservableObject
     /// <summary>Enters edit mode with the full path selected by the control. <paramref name="typed"/> replaces the path when the user started typing.</summary>
     public void BeginEdit(string? typed = null)
     {
-        EditText = typed ?? Location.Value;
+        EditText = typed ?? (Search.SearchLocations.IsSearchLocation(Location) ? Search.SearchLocations.DescribeOf(Location) : Location.Value);
         IsEditing = true;
     }
 

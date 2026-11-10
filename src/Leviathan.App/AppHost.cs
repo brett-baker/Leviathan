@@ -137,6 +137,9 @@ internal sealed class AppHost
     /// <summary>Where colour tags are read and written (the details pane reads the selected file's tags from it).</summary>
     public Leviathan.ViewModels.Triage.ITagStore TagStore { get; private init; } = null!;
 
+    /// <summary>Where search results report their progress to, and where the search gets tags and media information (spec 13).</summary>
+    public SearchHooks SearchHooks { get; private init; } = null!;
+
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
     /// <summary>
@@ -546,11 +549,16 @@ internal sealed class AppHost
         // A server's own root (\\nas) lists its shares, so servers open and expand like drives (spec 7.1).
         // The index behind the colour tags is opened on first use; the tag folders (shell:tag\N) list from it.
         var tagIndex = new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath)));
+        // Search results are a folder too (shell:search\...): listed by walking the folders, with tags and media information from the app's own stores (spec 13).
+        var searchHooks = new SearchHooks();
+        LocationProviderRegistry? searchProviders = null;
         var providers = new LocationProviderRegistry([
             new HealthTrackingLocationProvider(
                 new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
             new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline),
-            new Leviathan.ViewModels.Tags.TagListingProvider(tagIndex, TagFileStat.Describe)]);
+            new Leviathan.ViewModels.Tags.TagListingProvider(tagIndex, TagFileStat.Describe),
+            new Leviathan.Search.SearchListingProvider(() => searchProviders!, () => searchHooks.Facts(), TimeProvider.System, report => searchHooks.Reported?.Invoke(report))]);
+        searchProviders = providers;
         UiTrace.Mark("AppHost: providers");
         var recent = new RecentLocations();
         var lister = new ProviderFolderLister(providers);
@@ -624,6 +632,7 @@ internal sealed class AppHost
             new AlternateStreamTagStore(),
             tagIndex,
             new Leviathan.Interop.WindowsFileIdentity());
+        searchHooks.Facts = () => new Leviathan.ViewModels.Searches.AppSearchFacts(tagStore, () => built!.Settings.Current.Tags.Catalog(), new MediaInfoSource(() => built!.MediaHost));
         // Network folders: a cheap stat now and then, never while the server is unreachable or worked with offline (spec 3.3).
         var polling = new PollingFolderWatcher { CanPoll = folder => !workOffline.IsOffline(folder) && shareHealth.HealthOf(folder) != Leviathan.Core.Resilience.ShareHealth.Unreachable };
         background.Network = () => new NetworkStats(polling.Watching, listings.FolderCount, listings.EntryCount, listings.MaxEntries);
@@ -724,6 +733,7 @@ internal sealed class AppHost
                 () => built!.Settings.Current.Tags.Catalog()),
             Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore, () => built!.Settings.Current.Tags.Catalog()),
             TagStore = tagStore,
+            SearchHooks = searchHooks,
             Listings = listings,
             Icons = icons,
             Operations = operations,
@@ -826,4 +836,14 @@ internal static class KeyTranslator
         (VirtualKey)222 => "'",
         _ => null,
     };
+}
+
+/// <summary>The window-side ends of a search: where its facts come from and who hears its progress. Set once the app's stores exist.</summary>
+internal sealed class SearchHooks
+{
+    /// <summary>Tags, media information and content for search conditions that need them.</summary>
+    public Func<Leviathan.Search.ISearchFacts> Facts { get; set; } = () => Leviathan.Search.NoSearchFacts.Instance;
+
+    /// <summary>Raised on a pool thread after each batch of results and at the end of a search.</summary>
+    public Action<Leviathan.Search.SearchReport>? Reported { get; set; }
 }

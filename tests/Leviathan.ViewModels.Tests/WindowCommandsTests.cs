@@ -30,6 +30,10 @@ public sealed class WindowCommandsTests
 
         public void FocusFilterBox() => FilterFocusCalls++;
 
+        public int SearchFocusCalls { get; private set; }
+
+        public void FocusSearchBox() => SearchFocusCalls++;
+
         public void ShowMessage(string message) => Messages.Add(message);
 
         public List<Leviathan.Core.Model.FileEntry> Sheets { get; } = [];

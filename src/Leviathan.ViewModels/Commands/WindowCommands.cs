@@ -27,6 +27,9 @@ public interface IShellActions
     /// <summary>Moves keyboard focus into the filter box of the command bar (Ctrl+Shift+F).</summary>
     void FocusFilterBox();
 
+    /// <summary>Moves keyboard focus into the search box of the navigation row (Ctrl+F, spec §13).</summary>
+    void FocusSearchBox();
+
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
 
@@ -255,6 +258,12 @@ public static class CommandIds
 
     /// <summary>Focus the filter box (Ctrl+Shift+F).</summary>
     public static readonly CommandId FilterFocus = new("filter.focus");
+
+    /// <summary>Focuses the search box (Ctrl+F).</summary>
+    public static readonly CommandId SearchFocus = new("search.focus");
+
+    /// <summary>Searches the folder shown and everything below it; the target is the query (spec §13).</summary>
+    public static readonly CommandId SearchRun = new("search.run");
 
     /// <summary>Show or hide hidden and system items.</summary>
     public static readonly CommandId ViewHidden = new("view.hidden");
@@ -1201,6 +1210,18 @@ public static partial class WindowCommands
             c => Current() is not null && Enum.TryParse<Views.FolderPlacement>(c.Target, ignoreCase: true, out _));
         Add(CommandIds.FilterSet, "Filter this folder", "View", (c, _) => Run(() => Current()!.SetFilter(c.Target)), _ => Current() is not null);
         Add(CommandIds.FilterFocus, "Focus filter box", "View", (_, _) => Run(shell.FocusFilterBox), shortcut: "Ctrl+Shift+F");
+        Add(CommandIds.SearchFocus, "Search", "Tools", (_, _) => Run(shell.FocusSearchBox), shortcut: "Ctrl+F");
+        Add(CommandIds.SearchRun, "Search this folder and below", "Tools", async (c, ct) =>
+        {
+            var plan = Searches.SearchStarter.Plan(c.Target, Current()!.History.Current, viewOptions?.ShowHidden == true);
+            if (plan.Results is null)
+            {
+                shell.ShowMessage(plan.Message ?? "That search could not be started.");
+                return;
+            }
+
+            await Current()!.NavigateAsync(plan.Results, ct);
+        }, _ => Current() is not null);
 
         Add(CommandIds.ViewHidden, "Show hidden items", "View", async (_, ct) =>
         {
@@ -1339,6 +1360,7 @@ public static partial class WindowCommands
             ("Alt+Enter", CommandIds.Properties),
             ("Ctrl+Shift+N", CommandIds.NewFolder),
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
+            ("Ctrl+F", CommandIds.SearchFocus),
             ("Del", CommandIds.EditDelete),
             ("Shift+Del", CommandIds.EditDeletePermanent),
             ("Ctrl+X", CommandIds.EditCut),

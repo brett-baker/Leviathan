@@ -102,7 +102,9 @@
         </ToggleButton>
       </StackPanel>
 
-      <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" PlaceholderText="Search (Phase 4)" IsEnabled="False" QueryIcon="Find" />
+      <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" MinWidth="220" PlaceholderText="Search this folder (Ctrl+F)" QueryIcon="Find" AutomationProperties.Name="Search this folder and below"
+                      ToolTipService.ToolTip="Searches this folder and everything below it: holiday, *.mkv, type:video size:&gt;1GB modified:lastweek -tag:green"
+                      QuerySubmitted="OnSearchQuerySubmitted" KeyDown="OnSearchKeyDown" />
     </Grid>
 
     <!-- Row 2: the activity strip (spec 12.6): thin progress lines of the running jobs; no height when nothing runs. -->

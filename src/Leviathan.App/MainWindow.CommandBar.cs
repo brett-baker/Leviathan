@@ -108,7 +108,7 @@ public sealed partial class MainWindow
             : "Files cannot be pasted into this location");
         NewButton.IsEnabled = _commands.CanExecute(CommandIds.NewFolder);
         var hasTab = _bound is not null;
-        ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = FilterBox.IsEnabled = hasTab;
+        ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = FilterBox.IsEnabled = SearchBox.IsEnabled = hasTab;
         RefreshContextZone();
     }
 

@@ -67,6 +67,7 @@ public sealed partial class MainWindow : Window, IShellActions
         host.Transfers.Finished += OnTransferFinished;
         host.Transfers.Submitted += OnTransferSubmitted;
         host.Transfers.ItemsDeleted += OnItemsDeleted;
+        host.SearchHooks.Reported += OnSearchReported;
 
         viewModel.Tabs.Tabs.CollectionChanged += OnTabsChanged;
         viewModel.Tabs.PropertyChanged += OnStripPropertyChanged;
@@ -403,6 +404,10 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             OnUi(SyncFilterBox);
         }
+        else if (e.PropertyName == nameof(TabViewModel.Title))
+        {
+            OnUi(SyncSearchBox);
+        }
     }
 
     private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(Address.RefreshStatus);
@@ -544,10 +549,12 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             Address.Bind(null);
             SyncFilterBox();
+            SyncSearchBox();
             RefreshCommandBar();
             return;
         }
 
+        SyncSearchBox();
         using var bind = UiTrace.Begin("BindTab");
         tab.PropertyChanged += OnTabViewChanged;
         ApplyLayout();
@@ -1136,6 +1143,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Transfers.Finished -= OnTransferFinished;
         App.Host.Transfers.Submitted -= OnTransferSubmitted;
         App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
+        App.Host.SearchHooks.Reported -= OnSearchReported;
         App.Host.Settings.Changed -= OnTagSettingsChanged;
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;

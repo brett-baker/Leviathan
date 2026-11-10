@@ -37,7 +37,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
   units, relative dates (`lastweek`), case rules.
 - [x] **A3. Live search** (done: `LiveSearch` engine, 13 unit tests and 4 on-disk tests; hosted in-process for now, see decisions) — parallel recursive enumeration in the worker, streamed in batches, cancellable, bounded parallelism per share;
   results appear in an ordinary file-view tab with every layout and column.
-- [ ] **A4. Search UI** — search box and filter bar, results tab, status ("searched N folders"), cancel; no I/O on the UI thread.
+- [x] **A4. Search UI** (done: results folder, search box, Ctrl+F, status line; 14 + 20 tests; the UI is built and starts but is not yet seen by hand) — search box and filter bar, results tab, status ("searched N folders"), cancel; no I/O on the UI thread.
 - [ ] **A5. Saved searches** — save, pin to Favorites, open as a self-updating folder.
 
 ### B. Local index (§13)

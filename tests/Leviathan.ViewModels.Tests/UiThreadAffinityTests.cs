@@ -97,6 +97,10 @@ public sealed class UiThreadAffinityTests
         {
         }
 
+        public void FocusSearchBox()
+        {
+        }
+
         public void ShowMessage(string message)
         {
         }
