@@ -69,6 +69,14 @@ internal sealed partial class TriageWindow : Window
         _destination = destination ?? (() => null);
         InitializeComponent();
         Title = $"Triage · {title}";
+
+        // The video surface and the player take about a second to come up; show the file and the count at once instead of an empty window.
+        if (queue.Count > 0)
+        {
+            NameText.Text = queue[Math.Clamp(startIndex, 0, queue.Count - 1)].Name;
+            ProgressText.Text = $"Opening · {queue.Count:N0} videos";
+        }
+
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 860));
         _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(250);
