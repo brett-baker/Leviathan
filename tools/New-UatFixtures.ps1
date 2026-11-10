@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Builds the test folders the UAT playbooks (docs/uat) use, so nobody tests with real data.
 
