@@ -35,7 +35,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
   property tests: parse never throws, printing then parsing is stable, filters combine as AND.
 - [x] **A2. Matcher** (done: `QueryMatcher`, `ISearchFacts`, `FileTypes`; 65 tests) — evaluates a query against a file entry (and media/tag data through small interfaces with fakes). Size and date
   units, relative dates (`lastweek`), case rules.
-- [ ] **A3. Live search** — parallel recursive enumeration in the worker, streamed in batches, cancellable, bounded parallelism per share;
+- [x] **A3. Live search** (done: `LiveSearch` engine, 13 unit tests and 4 on-disk tests; hosted in-process for now, see decisions) — parallel recursive enumeration in the worker, streamed in batches, cancellable, bounded parallelism per share;
   results appear in an ordinary file-view tab with every layout and column.
 - [ ] **A4. Search UI** — search box and filter bar, results tab, status ("searched N folders"), cancel; no I/O on the UI thread.
 - [ ] **A5. Saved searches** — save, pin to Favorites, open as a self-updating folder.

@@ -55,7 +55,11 @@ public sealed class FakeLocationProvider : ILocationProvider
     public async IAsyncEnumerable<ListingBatch> ListAsync(LocationPath location, ListingOptions options, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ListCalls[location] = ListCalls.GetValueOrDefault(location) + 1;
+        lock (ListCalls)
+        {
+            // Searches list several folders at once.
+            ListCalls[location] = ListCalls.GetValueOrDefault(location) + 1;
+        }
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
         if (!_folders.Contains(location))
