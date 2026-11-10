@@ -263,6 +263,9 @@ public sealed record MediaSettings
     /// </summary>
     public TriageMoveMode TriageMoveWhen { get; init; } = TriageMoveMode.AtEnd;
 
+    /// <summary>The order of the queue list in the triage window, remembered from the last time (name, age or size).</summary>
+    public Leviathan.ViewModels.Triage.TriageListOrder TriageOrder { get; init; }
+
     /// <summary>Ask before moving the kept files when triage ends; the question's "always move" box turns this off.</summary>
     public bool TriageAskBeforeMove { get; init; } = true;
 
@@ -286,6 +289,7 @@ public sealed record MediaSettings
         TriageStartOffsetPercent = Math.Clamp(TriageStartOffsetPercent, 0, 90),
         TriageAdvanceDelayMs = Math.Clamp(TriageAdvanceDelayMs, 0, 1000),
         TriageKeepFolder = (TriageKeepFolder ?? string.Empty).Trim(),
+        TriageOrder = Enum.IsDefined(TriageOrder) ? TriageOrder : Leviathan.ViewModels.Triage.TriageListOrder.AsOpened,
     };
 
     /// <summary>How a triage session behaves with these settings.</summary>

@@ -52,6 +52,7 @@
 | 21 | Press **Not now**. | The window closes; nothing moved. Repeat 19 and 20, then press **Move**. |
 | 22 | After **Move**. | The two kept clips are in `keep` (the other pane shows them at once); the status bar says "Moved 2 kept files to keep". The discarded clip is in the Recycle Bin. |
 | 23 | Repeat, tick **Always move them without asking**, press **Move**; repeat once more. | The second time there is no question; the kept files simply move. (Switch "Triage: ask before moving kept files" back on afterwards.) |
+| 24 | Open triage on the `inbox` clips (any start). Look above the video. | The name of the current file in large letters, always visible (it does not fade like the overlay). When the queue ends it reads "Queue finished". || 25 | Press **Down** twice and look at the name. | It changes with each file; long names are cut with an ellipsis, not wrapped. || 26 | Above the list on the right press **Order: As opened ▾**. | A menu: As opened, Name A to Z, Name Z to A, Oldest first, Newest first, Largest first, Smallest first. The current one is ticked. || 27 | Choose **Largest first** while a middle clip is playing. | The clip on screen keeps playing and stays selected at the top of the undecided files; the rest are listed largest first. The keys carry on working (the focus returns to the window). || 28 | Keep one clip and skip another, then choose **Name A to Z**. | The kept and skipped clips stay at the top in the order you handled them; the undecided ones follow in name order (`clip2` before `clip10`). || 29 | Press **Down** (Skip). | It goes to the next clip of the new order. || 30 | Close triage and open it again. | The window starts with the last order you chose (inbox sessions keep their own order). |
 
 ## Look at (tests cannot judge these)
 
@@ -59,6 +60,7 @@
 - Is the list on the right easy to scan; do the tick, cross and skip marks read at a glance?
 - Does moving from one clip to the next feel instant enough on local files? (On a share it will be slower; that is measured at the end of the phase.)
 - Are the key choices comfortable: Enter/Delete/Down/Up/Ctrl+Z? Alt+T instead of the spec's plain T is a decision to review.
+- Is the file name big enough and in the right place? Is the order button easy to find, and would you like a key for it?
 
 ## Known edge cases
 

@@ -18,6 +18,7 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
@@ -25,7 +26,10 @@
       </Grid.ColumnDefinitions>
       <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontWeight="SemiBold" Text="Starting…" />
       <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" Opacity="0.75" />
-      <ProgressBar x:Name="Bar" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Height="3" Margin="-12,6,-12,0" />
+      <!-- The file being decided about, large and always there: the overlay on the video fades after a moment. -->
+      <TextBlock x:Name="NameText" Grid.Row="1" Grid.ColumnSpan="2" FontSize="28" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"
+                 IsTextSelectionEnabled="False" />
+      <ProgressBar x:Name="Bar" Grid.Row="2" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Height="3" Margin="-12,6,-12,0" />
     </Grid>
 
     <Grid Grid.Row="1">
@@ -66,8 +70,17 @@
         </Grid>
       </Grid>
 
-      <ListView x:Name="Queue" Grid.Column="1" SelectionMode="Single" IsTabStop="False" Background="{ThemeResource LayerFillColorDefaultBrush}"
-                SelectionChanged="OnQueueSelectionChanged" />
+      <Grid Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <!-- The order of the list: name, age or size. A menu, because the window handles the arrow keys itself. -->
+        <Button x:Name="OrderButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="8,8,8,4" IsTabStop="False" Content="Order: As opened ▾"
+                ToolTipService.ToolTip="Put the list in order: name, age or size" />
+        <ListView x:Name="Queue" Grid.Row="1" SelectionMode="Single" IsTabStop="False" Background="Transparent"
+                  SelectionChanged="OnQueueSelectionChanged" />
+      </Grid>
     </Grid>
 
     <Grid Grid.Row="2" Padding="12,8" ColumnSpacing="8" Background="{ThemeResource LayerFillColorDefaultBrush}">

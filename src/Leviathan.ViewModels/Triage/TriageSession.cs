@@ -18,6 +18,7 @@ namespace Leviathan.ViewModels.Triage;
 public sealed class TriageSession : ObservableObject, IAsyncDisposable
 {
     private readonly List<TriageItem> _items;
+    private readonly Dictionary<TriageItem, int> _opened = [];
     private readonly IVideoEngine _engine;
     private readonly ITriageActions _actions;
     private readonly TriageOptions _options;
@@ -35,6 +36,11 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(queue);
         _items = [.. queue.Select(f => new TriageItem(f))];
+        for (var i = 0; i < _items.Count; i++)
+        {
+            _opened[_items[i]] = i;
+        }
+
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
         _options = options ?? new TriageOptions();
@@ -65,6 +71,12 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
         get => _error;
         private set => SetProperty(ref _error, value);
     }
+
+    /// <summary>The order the list was last put in (see <see cref="SortAsync"/>).</summary>
+    public TriageListOrder Order { get; private set; }
+
+    /// <summary>Raised after the list was put in another order, so the window shows it again.</summary>
+    public event EventHandler? OrderChanged;
 
     /// <summary>Raised once, when the queue ends.</summary>
     public event EventHandler? Finished;
@@ -174,6 +186,61 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
 
             LastError = null;
             RaiseCounts();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Puts the files still to be decided in <paramref name="order"/> (name, age or size). What has been dealt with (kept, discarded,
+    /// skipped) keeps its place at the top and the file on screen stays on screen, so sorting never changes what is playing or loses the
+    /// way back; the undecided files after it follow in the chosen order, and the next file is the next one of that list. Before the
+    /// start everything is sorted.
+    /// </summary>
+    public async Task SortAsync(TriageListOrder order)
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var current = Current;
+            var handled = _items.Where(i => i.Decision != TriageDecision.None && i != current).ToList();
+            var open = _items.Where(i => i.Decision == TriageDecision.None && i != current);
+            var rest = TriageListOrdering.Sort(open, _opened, order);
+
+            // The file on screen sits right after what was dealt with, unless it was itself decided (then it keeps its place among those).
+            var arranged = new List<TriageItem>(_items.Count);
+            if (current is { Decision: not TriageDecision.None })
+            {
+                var position = _items.IndexOf(current);
+                var before = handled.Count(i => _items.IndexOf(i) < position);
+                arranged.AddRange(handled.Take(before));
+                arranged.Add(current);
+                arranged.AddRange(handled.Skip(before));
+            }
+            else
+            {
+                arranged.AddRange(handled);
+                if (current is not null)
+                {
+                    arranged.Add(current);
+                }
+            }
+
+            arranged.AddRange(rest);
+            _items.Clear();
+            _items.AddRange(arranged);
+            if (current is not null)
+            {
+                _index = _items.IndexOf(current);
+            }
+
+            Order = order;
+            OnPropertyChanged(nameof(Order));
+            OnPropertyChanged(nameof(Index));
+            OnPropertyChanged(nameof(ProgressText));
+            OrderChanged?.Invoke(this, EventArgs.Empty);
         }
         finally
         {

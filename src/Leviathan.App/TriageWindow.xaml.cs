@@ -92,8 +92,64 @@ internal sealed partial class TriageWindow : Window
                 RenderRow(row, item);
             }
         };
+        BuildOrderMenu();
         Closed += OnClosed;
         AppWindow.Closing += OnAppWindowClosing;
+    }
+
+    // The list order (spec 10.1): a menu of radio items on a button; the window keeps the arrow keys for itself, so a combo box would be unusable.
+    private void BuildOrderMenu()
+    {
+        var menu = new MenuFlyout();
+        foreach (var order in TriageListOrdering.All)
+        {
+            var item = new RadioMenuFlyoutItem { Text = TriageListOrdering.Title(order), GroupName = "triage-order", Tag = order, IsChecked = order == TriageListOrder.AsOpened };
+            item.Click += async (_, _) => await ChooseOrderAsync(order);
+            menu.Items.Add(item);
+        }
+
+        OrderButton.Flyout = menu;
+    }
+
+    private async Task ChooseOrderAsync(TriageListOrder order)
+    {
+        if (_session is not { } session)
+        {
+            return;
+        }
+
+        await session.SortAsync(order);
+        Root.Focus(FocusState.Programmatic); // the keys of the window carry on where they were
+        try
+        {
+            await App.Host.Settings.UpdateAsync(s => s with { Media = s.Media with { TriageOrder = order } }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The order still applies to this window; it is only not remembered.
+        }
+    }
+
+    // The list was put in another order: show it again, mark the order in the menu and on the button, keep the file on screen selected.
+    private void OnOrderChanged()
+    {
+        if (_session is not { } session)
+        {
+            return;
+        }
+
+        Queue.ItemsSource = null;
+        Queue.ItemsSource = session.Items;
+        OrderButton.Content = "Order: " + TriageListOrdering.Title(session.Order) + " ▾";
+        if (OrderButton.Flyout is MenuFlyout menu)
+        {
+            foreach (var radio in menu.Items.OfType<RadioMenuFlyoutItem>())
+            {
+                radio.IsChecked = radio.Tag is TriageListOrder o && o == session.Order;
+            }
+        }
+
+        OnSessionChanged();
     }
 
     /// <summary>Raised when the window closes with a line to show in the folder window (what became of the kept files).</summary>
@@ -213,10 +269,18 @@ internal sealed partial class TriageWindow : Window
             _dispatcher.WindowCommand += OnWindowCommand;
             session.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);
             session.Finished += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);
+            session.OrderChanged += (_, _) => DispatcherQueue.TryEnqueue(OnOrderChanged);
             Queue.ItemsSource = session.Items;
             _timer.Start();
             Root.Focus(FocusState.Programmatic);
             await session.StartAsync(_startIndex, _closing.Token);
+
+            // The order used last time (not for an inbox, which has its own: oldest, newest, largest or random).
+            if (Inbox is null && settings.TriageOrder != TriageListOrder.AsOpened)
+            {
+                await session.SortAsync(settings.TriageOrder);
+            }
+
             OnSessionChanged();
         }
         catch (OperationCanceledException)
@@ -249,10 +313,12 @@ internal sealed partial class TriageWindow : Window
         if (session.Current is { } item)
         {
             _last = item.File;
+            NameText.Text = item.File.Name;
             ShowCurrent(item);
         }
         else if (session.IsFinished)
         {
+            NameText.Text = "Queue finished";
             ShowSummary(session);
         }
 
