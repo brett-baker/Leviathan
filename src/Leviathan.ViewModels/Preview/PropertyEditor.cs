@@ -1,13 +1,8 @@
 using System.Runtime.InteropServices;
+using Leviathan.Core.Platform;
 
 namespace Leviathan.ViewModels.Preview;
 
-/// <summary>Writes Windows properties of a file through the shell's property handler (the seam to <c>StorageFile.Properties</c>).</summary>
-public interface IPropertyWriter
-{
-    /// <summary>Saves <paramref name="values"/> (property name to value) into the file at <paramref name="path"/>.</summary>
-    Task WriteAsync(string path, IReadOnlyDictionary<string, object> values, CancellationToken cancellationToken);
-}
 
 /// <summary>What a save did.</summary>
 /// <param name="Saved">True when the file now holds the new values (or nothing needed saving).</param>
@@ -125,7 +120,11 @@ public sealed class PropertyEditor
             await writer.WriteAsync(path, changes, cancellationToken).ConfigureAwait(false);
             return new PropertySaveResult(true, "Saved.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException or NotSupportedException or ArgumentException)
+        catch (UnauthorizedAccessException ex)
+        {
+            return new PropertySaveResult(false, $"This file did not take the change: {ex.Message} It may be read-only, open in another program, or of a type that cannot hold these properties.");
+        }
+        catch (Exception ex) when (ex is IOException or COMException or NotSupportedException or ArgumentException)
         {
             return new PropertySaveResult(false, $"This file did not take the change: {ex.Message}");
         }

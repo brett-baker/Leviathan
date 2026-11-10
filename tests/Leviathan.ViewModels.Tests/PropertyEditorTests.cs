@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Leviathan.Core.Platform;
 using Leviathan.ViewModels.Preview;
 
 namespace Leviathan.ViewModels.Tests;

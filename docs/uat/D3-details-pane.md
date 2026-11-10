@@ -57,7 +57,7 @@ The Details part fills about 250 ms after the selection settles; arrowing throug
 - Only title, comments and rating are editable; keywords, artist, album and photo fields are not.
 - What can be written depends on the file type's shell handler. The edit works on JPEG; text files and (usually) FLAC refuse.
 - The fixtures have no GPS data, so the map link is not exercised.
-- The real shell write is verified only by hand here: there is no automated test for it.
+- The shell write is covered by an automated test on a JPEG; other types (MP4, MP3, Office) are verified only by hand. Save stops the preview for that file for a moment and shows it again.
 
 ## Result
 

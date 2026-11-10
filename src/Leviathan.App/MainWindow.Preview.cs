@@ -68,6 +68,7 @@ public sealed partial class MainWindow
         FileList2.TagKeyRequested += OnTagKey;
         FlowList.TagKeyRequested += OnTagKey;
         FlowList2.TagKeyRequested += OnTagKey;
+        PreviewPane.PreviewKeyDown += OnPreviewPaneKeyDown;
         SizeChanged += (_, _) => ApplyPreviewPane();
     }
 
