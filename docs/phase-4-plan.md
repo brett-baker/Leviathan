@@ -42,7 +42,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### B. Local index (§13)
 
-- [ ] **B1. Everything SDK** — `IEverythingClient` wrapper (fake in `Leviathan.Testing`), detection of a running instance, query translation
+- [x] **B1. Everything SDK** (done and tested with a fake; the real library calls are unverified: no Everything on this machine) — `IEverythingClient` wrapper (fake in `Leviathan.Testing`), detection of a running instance, query translation
   from the parser, name search under 50 ms measured as a benchmark.
 - [ ] **B2. `Leviathan.Indexer` fallback** — MFT enumeration and USN journal tail for local NTFS volumes, SQLite or memory-mapped store, optional
   service install; tested against a temp VHD where the machine allows it. Indexer status in the Background tab.

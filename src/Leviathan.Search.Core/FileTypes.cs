@@ -12,6 +12,18 @@ public static class FileTypes
 
     private static HashSet<string> Set(string words) => new(words.Split(' '), StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The extensions (no dot) a kind stands for; empty for folders and plain "file".</summary>
+    public static IReadOnlyCollection<string> ExtensionsOf(FileTypeKind kind) => kind switch
+    {
+        FileTypeKind.Video => Video,
+        FileTypeKind.Audio => Audio,
+        FileTypeKind.Image => Image,
+        FileTypeKind.Document => Document,
+        FileTypeKind.Archive => Archive,
+        FileTypeKind.Code => Code,
+        _ => [],
+    };
+
     /// <summary>True when a file with this extension (no dot) belongs to <paramref name="kind"/>. Folders and plain "file" are decided by the caller.</summary>
     public static bool IsKind(string extensionWithoutDot, FileTypeKind kind) => kind switch
     {
