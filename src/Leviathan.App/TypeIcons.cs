@@ -31,8 +31,11 @@ internal static class TypeIcons
 
     // Types the shell gave no icon for just now: asked again after a while, not for the rest of the session (a busy share or a shell
     // that was not ready must not leave a type with the generic page icon until restart).
-    private static readonly Dictionary<string, long> Missed = [];
+    // The shell's "no icon" is remembered per file (the thumbnail cache keeps it), so while a type is missing the next few rows, each a
+    // different file, ask again instead of showing the generic icon for the whole window.
+    private static readonly Dictionary<string, (long At, int Tries)> Missed = [];
     private static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(20);
+    private const int TriesPerWindow = 6;
 
     /// <summary>The icon when it is already known (the file type was asked about before); false while it still has to be asked for.</summary>
     public static bool TryGet(FileEntry entry, int size, out ImageSource? icon) =>
@@ -47,7 +50,7 @@ internal static class TypeIcons
             return Task.FromResult(known);
         }
 
-        if (Missed.TryGetValue(key, out var missedAt) && Stopwatch.GetElapsedTime(missedAt) < RetryAfter)
+        if (Missed.TryGetValue(key, out var missed) && Stopwatch.GetElapsedTime(missed.At) < RetryAfter && missed.Tries >= TriesPerWindow)
         {
             return Task.FromResult<ImageSource?>(null);
         }
@@ -98,7 +101,8 @@ internal static class TypeIcons
 
         if (icon is null)
         {
-            Missed[key] = Stopwatch.GetTimestamp();
+            var tries = Missed.TryGetValue(key, out var before) && Stopwatch.GetElapsedTime(before.At) < RetryAfter ? before.Tries + 1 : 1;
+            Missed[key] = (before.At == 0 || tries == 1 ? Stopwatch.GetTimestamp() : before.At, tries);
             UiTrace.Mark($"TypeIcons: the shell gave no icon for {key}");
         }
         else
