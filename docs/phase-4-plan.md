@@ -55,7 +55,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### D. Space map (§14)
 
-- [ ] **D1. Layout** — squarified treemap, colour by type or age, minimum rectangle size, layout tests including degenerate trees.
+- [x] **D1. Layout** (done: `Leviathan.SpaceMap.Core` model, squarified layout with remainder tiles, colour groups, legend; 33 tests) — squarified treemap, colour by type or age, minimum rectangle size, layout tests including degenerate trees.
 - [ ] **D2. Scanner** — streams in the worker, limited parallelism on network, pause, resume from a checkpoint, cached with date, rescan changed folders only.
 - [ ] **D3. Space map tab** — sortable tree with size, percentage, file count and modified; treemap with linked selection, zoom, Backspace out, legend.
 - [ ] **D4. Actions and extras** — open, reveal, tag, soft delete, compress, find duplicates here; colour by age; size filter; hard links and
