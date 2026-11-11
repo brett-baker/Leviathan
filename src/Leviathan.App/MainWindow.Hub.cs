@@ -1,3 +1,4 @@
+using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Hub;
 using Microsoft.UI.Xaml;
@@ -110,6 +111,16 @@ public sealed partial class MainWindow
             panel.CancelJobRequested += async (_, id) => await App.Host.Transfers.CancelAsync(id);
             panel.UndoRequested += (_, _) => Run(CommandIds.EditUndo);
             panel.ExportRequested += async (_, export) => await ExportActivityAsync(export.Text, export.Extension);
+            panel.SpaceSource = () => _bound is { } shown ? new SpaceTabSource([.. shown.Folder.Entries], e => shown.Sizes?.ValueOf(e, FolderMetric.TotalBytes)) : null;
+            panel.SpaceItemChosen += (_, entry) =>
+            {
+                if (_bound is { } shown && shown.Items.Rows.FirstOrDefault(r => r.Location == entry.Location) is { } row)
+                {
+                    shown.Selection.Click(row);
+                    FocusFiles();
+                }
+            };
+            panel.OpenSpaceMapRequested += (_, _) => Run(CommandIds.SpaceMap);
             ApplyHubPlacement();
             panel.RefreshOperations();
             panel.RefreshActivity();

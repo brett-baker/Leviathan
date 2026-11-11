@@ -444,8 +444,30 @@
             <HyperlinkButton Content="All settings…" Click="OnAllSettingsClick" Padding="0" />
           </StackPanel>
         </ScrollViewer>
-        <TextBlock x:Name="SpacePage" Text="The space map of this folder arrives with Phase 4." TextWrapping="Wrap"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
+        <Grid x:Name="SpacePage" Margin="4,8,0,0" RowSpacing="6" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SpaceSummary" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Button Grid.Column="1" Content="Open space map" Click="OnOpenSpaceMapClick" />
+          </Grid>
+          <Grid Grid.Row="1" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="3*" />
+              <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+            <Grid x:Name="SpaceMapHost" MinHeight="80" SizeChanged="OnSpaceMapSizeChanged">
+              <Image x:Name="SpaceMapImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" PointerPressed="OnSpaceMapPressed" />
+            </Grid>
+            <ListView x:Name="SpaceItems" Grid.Column="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnSpaceItemClick" />
+          </Grid>
+        </Grid>
       </Grid>
     </Grid>
   </Border>

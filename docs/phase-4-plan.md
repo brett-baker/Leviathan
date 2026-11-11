@@ -60,7 +60,7 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 - [x] **D3. Space map window** (done as a window; scan to frame to bitmap verified on a 252 GB folder; the picture has not been looked at by a person) — sortable tree with size, percentage, file count and modified; treemap with linked selection, zoom, Backspace out, legend.
 - [x] **D4. Actions and extras** (done except compress, find duplicates here and hard links; see decisions) — open, reveal, tag, soft delete, compress, find duplicates here; colour by age; size filter; hard links and
   placeholders counted once.
-- [ ] **D5. Mini map and Status hub Space tab** — treemap for a selected folder in the preview pane; compact map plus largest items in the hub.
+- [x] **D5. Mini map and Status hub Space tab** (mini map existed; Space tab done; 5 tests; the tab has not been looked at by a person) — treemap for a selected folder in the preview pane; compact map plus largest items in the hub.
 
 ### E. More locations (§7.1)
 

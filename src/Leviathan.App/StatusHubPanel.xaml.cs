@@ -828,6 +828,7 @@ internal sealed partial class StatusHubPanel : UserControl
             BackgroundPage.Visibility = Show(HubTab.Background);
             QuickSettingsPage.Visibility = Show(HubTab.QuickSettings);
             SpacePage.Visibility = Show(HubTab.Space);
+            SyncSpaceTimer();
             PinButton.IsChecked = _model.IsPinned;
             PinButton.IsEnabled = _model.Placement == HubPlacement.Flyout;
             ShowGripFor(_model.Placement);

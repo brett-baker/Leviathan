@@ -23,7 +23,11 @@ internal static class TreemapBitmap
     }
 
     /// <summary>Draws <paramref name="frame"/> into a new bitmap of the given size, with <paramref name="selected"/> outlined.</summary>
-    public static WriteableBitmap Render(SpaceMapFrame frame, ColorMode mode, int width, int height, bool dark, TreemapTile? selected)
+    public static WriteableBitmap Render(SpaceMapFrame frame, ColorMode mode, int width, int height, bool dark, TreemapTile? selected) =>
+        Render(frame.Tiles, mode, width, height, dark, selected);
+
+    /// <summary>Draws <paramref name="tiles"/> into a new bitmap of the given size, with <paramref name="selected"/> outlined.</summary>
+    public static WriteableBitmap Render(IReadOnlyList<MapTile> tiles, ColorMode mode, int width, int height, bool dark, TreemapTile? selected)
     {
         var bitmap = new WriteableBitmap(width, height);
         var pixels = new byte[width * height * 4];
@@ -34,7 +38,7 @@ internal static class TreemapBitmap
             pixels[i + 3] = 255;
         }
 
-        foreach (var mapTile in frame.Tiles)
+        foreach (var mapTile in tiles)
         {
             Fill(pixels, width, height, mapTile.Tile.Bounds, ColourOf(mode, mapTile.Category), border: true);
         }
