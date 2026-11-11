@@ -23,7 +23,7 @@ Things Brett chose to leave for later (2026-11-06, after Phase 2). Nothing here 
 
 ## Added after Phase 4 (2026-11-11)
 
-- **Wire SFTP and FTP into the worker** so copy, move, rename, delete and new folder work between the file view and these servers (the providers already have the operations).
+- **Server transfers, the rest**: a copy interrupted by a crash starts that file again (no resume of a half-copied file), copies are checked by size only (no hash), modified times are not kept on a server, and opening a file on a server is not wired.
 - **The MFT/USN indexer** (`Leviathan.Indexer`, slice B2b): needs an elevated machine or a VHD to test.
 - **Everything:** run the SDK client against a real Everything and check the 50 ms name-search gate through it; decide whether dates can be pushed to it.
 - **FTPS and NFS** against real servers; the Client for NFS path on a machine that has it.

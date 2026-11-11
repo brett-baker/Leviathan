@@ -172,6 +172,12 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         var items = new List<IStorageItem>(locations.Count);
         foreach (var location in locations)
         {
+            // Another program cannot read a file on a server through a path; only Leviathan can paste those.
+            if (location.Kind is not (LocationKind.Drive or LocationKind.Unc))
+            {
+                continue;
+            }
+
             var path = location.Value;
             var isFolder = await Task.Run(() => Directory.Exists(path));
             items.Add(isFolder

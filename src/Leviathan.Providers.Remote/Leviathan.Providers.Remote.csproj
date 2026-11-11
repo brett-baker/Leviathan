@@ -10,8 +10,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.IO.Abstractions" />
     <PackageReference Include="SSH.NET" />
     <PackageReference Include="FluentFTP" />
   </ItemGroup>

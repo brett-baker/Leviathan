@@ -36,7 +36,7 @@
 
 ## Known edge cases
 
-- **Copy, move, rename, delete and new folder** between the file view and these servers are **not wired** yet (the worker speaks Win32 paths); you can browse, and the provider has the operations for the next step. Opening a file on a server is not wired either.
+- **Copy, move, delete, rename and new folder** work between the file view and these servers, and between two servers, but have had **no hand testing**: only unit tests and the Docker servers. Delete on a server is permanent and asks first. A copy stopped by a crash starts that file again; copies are checked by size only; modified times are not kept on a server. Opening a file on a server is not wired.
 - FTPS is built (with certificate trust on first use) but was not run against a server. NFS was not run on a machine with Client for NFS.
 - A changed host key is refused with a message to remove the connection and add it again.
 - Sidebar expansion of a server lists its folders through the same provider; health dots are not shown for these servers.

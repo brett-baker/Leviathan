@@ -83,6 +83,6 @@ See `docs/decisions.md` (entries marked Phase 4). The main ones:
 - **The NAS index does not piggy-back on the folder-size crawl**: folder sizes are computed in the worker, the index lives in the app; the two lists are separate (a share is listed twice when both are on).
 - **Search, scan and index crawl run in the app process, not the worker**: they write nothing, and the pipe contract is better changed once for all three.
 - **The space map is a window, not a tab**; compress, "find duplicates here", hard links counted once and "rescan only changed folders" are not built.
-- **SFTP and FTP browse but do not copy**: the worker's copy engine speaks Win32 paths, so copy, move, rename and delete from the file view to these servers are not wired. The provider has the operations; wiring them is a change to the worker contract.
+- **SFTP and FTP copy, move and delete were wired after the phase** (see `docs/decisions.md`, 2026-11-11): the worker has a second executor for jobs that touch a server.
 - **`content:` is refused** with a message until it is built.
 - Property tests use a seeded `Random` rather than FsCheck (a dependency for three properties).

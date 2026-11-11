@@ -9,6 +9,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Leviathan.Providers.Remote\Leviathan.Providers.Remote.csproj" />

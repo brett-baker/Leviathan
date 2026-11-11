@@ -62,14 +62,28 @@ builder.Services.AddSingleton<ILocationProvider, LocalLocationProvider>();
 builder.Services.AddSingleton(sp => new LocationProviderRegistry(sp.GetServices<ILocationProvider>()));
 builder.Services.AddSingleton<FolderSizeService>();
 builder.Services.AddSingleton(sp => new FolderSizeDeltas(sp.GetRequiredService<FolderSizeService>(), sp.GetRequiredService<IFileSystem>()));
+// Servers (spec 7.1): the worker signs in with the passwords in Credential Manager and the host keys the window already trusted; it cannot ask, so a server never seen is refused with a message.
+builder.Services.AddSingleton(sp =>
+{
+    var secrets = new Leviathan.Interop.WindowsRemoteSecrets();
+    var hosts = new Leviathan.Providers.Remote.KnownHostsFile();
+    Func<Leviathan.Providers.Remote.TrustRequest, Task<bool>> refuse = _ => Task.FromResult(false);
+    return new Leviathan.Providers.Remote.RemoteLocationProvider(new Dictionary<Leviathan.Providers.Remote.RemoteProtocol, Leviathan.Providers.Remote.IRemoteSessionFactory>
+    {
+        [Leviathan.Providers.Remote.RemoteProtocol.Sftp] = new Leviathan.Providers.Remote.SftpSessionFactory(secrets, hosts, refuse),
+        [Leviathan.Providers.Remote.RemoteProtocol.Ftp] = new Leviathan.Providers.Remote.FtpSessionFactory(secrets, hosts, refuse),
+        [Leviathan.Providers.Remote.RemoteProtocol.Ftps] = new Leviathan.Providers.Remote.FtpSessionFactory(secrets, hosts, refuse),
+    });
+});
+builder.Services.AddSingleton(sp => new Leviathan.Providers.Remote.RemoteTransferExecutor(sp.GetRequiredService<Leviathan.Providers.Remote.RemoteLocationProvider>(), sp.GetRequiredService<IFileSystem>()));
 builder.Services.AddSingleton<IJobExecutor, ComputeFolderSizeExecutor>();
-builder.Services.AddSingleton<IJobExecutor>(sp => new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.CopyMoveExecutor(sp.GetRequiredService<IFileSystem>(), planStore: new Leviathan.Engine.Transfers.FileTransferPlanStore(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "plans")), identities: sp.GetRequiredService<Leviathan.Core.Resilience.ServerIdentityMap>(), copier: new Leviathan.Interop.WindowsFileCopier(), bandwidth: sp.GetRequiredService<Leviathan.Engine.Execution.BandwidthController>(), journal: new Leviathan.Engine.Transfers.FileTransferJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "progress"))), sp.GetRequiredService<FolderSizeDeltas>()));
+builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Providers.Remote.RemoteAwareExecutor(sp.GetRequiredService<Leviathan.Providers.Remote.RemoteTransferExecutor>(), new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.CopyMoveExecutor(sp.GetRequiredService<IFileSystem>(), planStore: new Leviathan.Engine.Transfers.FileTransferPlanStore(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "plans")), identities: sp.GetRequiredService<Leviathan.Core.Resilience.ServerIdentityMap>(), copier: new Leviathan.Interop.WindowsFileCopier(), bandwidth: sp.GetRequiredService<Leviathan.Engine.Execution.BandwidthController>(), journal: new Leviathan.Engine.Transfers.FileTransferJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "progress"))), sp.GetRequiredService<FolderSizeDeltas>())));
 builder.Services.AddSingleton(sp => new Leviathan.Engine.Transfers.BinRegistry(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "bin-roots.json")));
 builder.Services.AddSingleton(sp => new Leviathan.Engine.Transfers.BinScanner(sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>()));
 builder.Services.AddSingleton<IJobExecutor>(sp => new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.RestoreExecutor(sp.GetRequiredService<IFileSystem>(), sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>()), sp.GetRequiredService<FolderSizeDeltas>()));
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Engine.Transfers.PurgeExecutor(sp.GetRequiredService<IFileSystem>(), sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>(), sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton<Leviathan.Core.Platform.IRecycleBin, Leviathan.Interop.WindowsRecycleBin>();
-builder.Services.AddSingleton<IJobExecutor>(sp => new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.DeleteExecutor(sp.GetRequiredService<IFileSystem>(), sp.GetRequiredService<Leviathan.Core.Platform.IRecycleBin>(), sp.GetRequiredService<TimeProvider>(), volumes: new Leviathan.Interop.WindowsVolumeInfo(), bin: sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>()), sp.GetRequiredService<FolderSizeDeltas>()));
+builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Providers.Remote.RemoteAwareExecutor(sp.GetRequiredService<Leviathan.Providers.Remote.RemoteTransferExecutor>(), new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.DeleteExecutor(sp.GetRequiredService<IFileSystem>(), sp.GetRequiredService<Leviathan.Core.Platform.IRecycleBin>(), sp.GetRequiredService<TimeProvider>(), volumes: new Leviathan.Interop.WindowsVolumeInfo(), bin: sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>()), sp.GetRequiredService<FolderSizeDeltas>())));
 
 builder.Services.AddSingleton(_ => new JobScheduler(new ConcurrencyLimits()));
 builder.Services.AddSingleton<IJobJournal>(sp => new FileJobJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "jobs.journal")));

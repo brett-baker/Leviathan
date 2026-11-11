@@ -958,13 +958,13 @@ public static partial class WindowCommands
             }
         }
 
-        bool CanCreateHere() => newItems is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc;
+        bool CanCreateHere() => newItems is not null && Current() is { } tab && (tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc || newItems.Remote?.Handles(tab.History.Current) == true);
 
         Add(CommandIds.NewFolder, "New folder", "New", (_, ct) => CreateNew(NewMenu.NewItemService.FolderTemplate.Id, ct), _ => CanCreateHere(), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
         Add(CommandIds.NewItem, "New item", "New", (c, ct) => CreateNew(c.Target!, ct), c => CanCreateHere() && !string.IsNullOrEmpty(c.Target));
 
         // Inline rename (spec §8.4): F2 shows the box, the box's Enter / Tab / click-away runs RenameCommit.
-        bool CanRenameHere() => renamer is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.RenameTarget() is not null;
+        bool CanRenameHere() => renamer is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.RenameTarget() is not null;
 
         Add(CommandIds.EditRename, "Rename", "Edit", (_, _) => Run(() => Current()!.BeginRename(Current()!.RenameTarget()!)), _ => CanRenameHere(), shortcut: "F2", icon: "Rename");
 
@@ -1066,7 +1066,7 @@ public static partial class WindowCommands
         }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
 
         // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
-        bool CanDeleteHere() => deleter is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.Count > 0;
+        bool CanDeleteHere() => deleter is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.Selection.Count > 0;
 
         async Task DeleteSelection(bool permanent, CancellationToken ct)
         {
@@ -1078,7 +1078,7 @@ public static partial class WindowCommands
             var noBin = !permanent && await deleter!.BehaviorAsync(items, ct) == Core.Platform.DeleteBehavior.PermanentAfterConfirmation;
             if (permanent || noBin)
             {
-                var why = noBin ? "This drive has no Recycle Bin. " : string.Empty;
+                var why = noBin ? (items[0].Kind is LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps ? "A server has no Recycle Bin. " : "This drive has no Recycle Bin. ") : string.Empty;
                 if (!await shell.ConfirmAsync("Delete permanently?", $"{why}{what} will be deleted for good and cannot be restored.", "Delete"))
                 {
                     return;
@@ -1095,7 +1095,7 @@ public static partial class WindowCommands
 
         // Clipboard (spec §6.1): cut and copy put the selection on the Windows clipboard, paste hands it to the transfer service,
         // so a paste is the same journaled copy or move a drop is. Pasting a cut moves; pasting a copy copies, even in the same volume.
-        bool InFolder() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc;
+        bool InFolder() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps;
         bool CanTakeSelection() => clipboard is not null && InFolder() && Current()!.Selection.Count > 0;
         bool CanPasteHere() => clipboard is { HasFiles: true } && InFolder();
 

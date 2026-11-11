@@ -629,7 +629,7 @@ internal sealed class AppHost
         var searchHooks = new SearchHooks();
         // SFTP, FTP and FTPS servers (spec 7.1): passwords in Credential Manager, trusted keys in known-hosts.json, new servers confirmed in a dialog (TrustPrompt, set by the first window).
         var remoteSecrets = new Leviathan.Interop.WindowsRemoteSecrets();
-        var knownHosts = new JsonKnownHosts();
+        var knownHosts = new Leviathan.Providers.Remote.KnownHostsFile();
         var trustPrompt = new TrustPrompt();
         var remoteProvider = new Leviathan.Providers.Remote.RemoteLocationProvider(new Dictionary<Leviathan.Providers.Remote.RemoteProtocol, Leviathan.Providers.Remote.IRemoteSessionFactory>
         {
@@ -772,7 +772,7 @@ internal sealed class AppHost
         NewItemService newItems;
         using (UiTrace.Begin("AppHost: new items"))
         {
-            newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk));
+            newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk)) { Remote = new RemoteItemsAdapter(remoteProvider) };
         }
         var transfers = new WorkerTransfers(() => worker.Value);
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()));
@@ -838,7 +838,7 @@ internal sealed class AppHost
             new ProviderSubfolderSource(providers),
             newItems,
             viewOptions,
-            new RenameService(disk))
+            new RenameService(disk, new RemoteItemsAdapter(remoteProvider)))
         {
             ShareHealth = shareHealth,
             SavedServers = new SavedConnectionList(new JsonSavedConnectionsStorage(Path.Combine(data, "servers.json"))),

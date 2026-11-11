@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
     <ProjectReference Include="..\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
+    <ProjectReference Include="..\Leviathan.Providers.Remote\Leviathan.Providers.Remote.csproj" />
     <ProjectReference Include="..\Leviathan.Data\Leviathan.Data.csproj" />
     <ProjectReference Include="..\Leviathan.Ipc\Leviathan.Ipc.csproj" />
     <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />

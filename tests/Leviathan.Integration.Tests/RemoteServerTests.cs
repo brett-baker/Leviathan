@@ -1,6 +1,11 @@
 using System.Diagnostics;
+using System.IO.Abstractions;
+using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Providers;
+using Leviathan.Engine.Execution;
+using Leviathan.Engine.Journal;
+using Leviathan.Engine.Scheduling;
 using Leviathan.Providers.Remote;
 
 namespace Leviathan.Integration.Tests;
@@ -206,6 +211,73 @@ public sealed class RemoteServerTests : IAsyncLifetime
         Assert.Empty(await NamesAsync(provider, root));
         Assert.Null(await provider.StatAsync(final, CancellationToken.None));
     }
+
+    // Copy, move and delete through the real executor and job host: this PC to the server and back, a move that removes the source only after the copy arrived, and a delete.
+    private static async Task<JobSnapshot> RunJobAsync(RemoteLocationProvider provider, JobRequest request)
+    {
+        await using var host = new JobHost(new JobScheduler(), [new RemoteTransferExecutor(provider, new FileSystem())], new InMemoryJobJournal());
+        host.Start();
+        var job = host.Submit(request, JobLane.Operations, null, "integration");
+        var deadline = DateTime.UtcNow.AddSeconds(120);
+        while (!host.Scheduler.Find(job.Id)!.IsFinished)
+        {
+            Assert.True(DateTime.UtcNow < deadline, "the job did not finish");
+            await Task.Delay(20);
+        }
+
+        return host.Snapshot(host.Scheduler.Find(job.Id)!);
+    }
+
+    private static async Task TransfersAsync(Server server)
+    {
+        var work = Path.Combine(Path.GetTempPath(), "leviathan-remote-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            var tree = Path.Combine(work, "photos");
+            Directory.CreateDirectory(Path.Combine(tree, "2026", "summer holiday"));
+            var big = new byte[2 * 1024 * 1024 + 5];
+            new Random(9).NextBytes(big);
+            File.WriteAllBytes(Path.Combine(tree, "big.bin"), big);
+            File.WriteAllText(Path.Combine(tree, "2026", "summer holiday", "Ünï ✓.txt"), "hello");
+            var root = server.Root;
+
+            var up = await RunJobAsync(server.Provider, new JobRequest(JobKind.Copy, [tree], root.Value) { OnError = ErrorMode.SkipAndReport });
+            Assert.Equal(JobState.Completed, up.State);
+            Assert.True(Directory.Exists(tree));
+            Assert.Equal(["photos/"], await NamesAsync(server.Provider, root));
+            Assert.Equal(["2026/", "big.bin"], await NamesAsync(server.Provider, root.Combine("photos")));
+            Assert.DoesNotContain(await NamesAsync(server.Provider, root.Combine("photos")), n => n.EndsWith(".leviathan-part", StringComparison.Ordinal));
+
+            var back = Path.Combine(work, "back");
+            Directory.CreateDirectory(back);
+            var down = await RunJobAsync(server.Provider, new JobRequest(JobKind.Copy, [root.Combine("photos").Value], back) { OnError = ErrorMode.SkipAndReport });
+            Assert.Equal(JobState.Completed, down.State);
+            Assert.Equal(big, File.ReadAllBytes(Path.Combine(back, "photos", "big.bin")));
+            Assert.Equal("hello", File.ReadAllText(Path.Combine(back, "photos", "2026", "summer holiday", "Ünï ✓.txt")));
+
+            var move = await RunJobAsync(server.Provider, new JobRequest(JobKind.Move, [tree], root.Value) { Conflict = ConflictPolicy.KeepBoth, OnError = ErrorMode.SkipAndReport });
+            Assert.Equal(JobState.Completed, move.State);
+            Assert.False(Directory.Exists(tree));
+            // A folder that is already there is merged into; the files that clash keep both.
+            Assert.Equal(["photos/"], await NamesAsync(server.Provider, root));
+            Assert.Equal(["2026/", "big (2).bin", "big.bin"], await NamesAsync(server.Provider, root.Combine("photos")));
+
+            var gone = await RunJobAsync(server.Provider, new JobRequest(JobKind.Delete, [root.Combine("photos").Value], null) { OnError = ErrorMode.SkipAndReport });
+            Assert.Equal(JobState.Completed, gone.State);
+            Assert.Empty(await NamesAsync(server.Provider, root));
+        }
+        finally
+        {
+            Directory.Delete(work, recursive: true);
+            await server.Provider.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Sftp_CopyMoveDelete_ThroughTheExecutor() => await TransfersAsync(await StartSftpAsync());
+
+    [Fact]
+    public async Task Ftp_CopyMoveDelete_ThroughTheExecutor() => await TransfersAsync(await StartFtpAsync());
 
     [Fact]
     public async Task Sftp_FullJourney()

@@ -59,7 +59,7 @@ public static class DropRules
             return Refuse("Open a share to drop into it");
         }
 
-        if (destination.Kind is not (LocationKind.Drive or LocationKind.Unc))
+        if (destination.Kind is not (LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps))
         {
             return Refuse($"Cannot drop into {destination.Name} yet");
         }

@@ -34,6 +34,9 @@ public sealed class NewItemService
         // The read is shared and not cancellable by one caller: a menu closed early must not leave the next one with a cancelled list.
         _templates ??= Task.Run(() => _catalog.GetTemplatesAsync(CancellationToken.None));
 
+    /// <summary>Makes folders on a server; null where servers are not available.</summary>
+    public Folders.IRemoteItems? Remote { get; set; }
+
     /// <summary>Forgets the list, so the next menu reads the registry and the templates folder again.</summary>
     public void Refresh() => _templates = null;
 
@@ -44,6 +47,24 @@ public sealed class NewItemService
     {
         ArgumentException.ThrowIfNullOrEmpty(templateId);
         ArgumentNullException.ThrowIfNull(folder);
+        if (Remote is { } remote && remote.Handles(folder))
+        {
+            if (templateId != FolderTemplate.Id)
+            {
+                throw new IOException("Only folders can be made on a server.");
+            }
+
+            var name = "New folder";
+            for (var n = 2; await remote.ExistsAsync(folder.Combine(name), cancellationToken).ConfigureAwait(false); n++)
+            {
+                name = $"New folder ({n})";
+            }
+
+            var made = folder.Combine(name);
+            await remote.CreateFolderAsync(made, cancellationToken).ConfigureAwait(false);
+            return made;
+        }
+
         var template = templateId == FolderTemplate.Id
             ? FolderTemplate
             : (await TemplatesAsync().ConfigureAwait(false)).FirstOrDefault(t => t.Id == templateId)

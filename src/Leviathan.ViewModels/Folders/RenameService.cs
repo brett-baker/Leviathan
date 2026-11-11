@@ -64,12 +64,14 @@ public static partial class RenameRules
 public sealed class RenameService
 {
     private readonly IFileSystem _fileSystem;
+    private readonly IRemoteItems? _remote;
 
-    /// <summary>Creates the service over <paramref name="fileSystem"/>.</summary>
-    public RenameService(IFileSystem fileSystem)
+    /// <summary>Creates the service over <paramref name="fileSystem"/>, and <paramref name="remote"/> for items on a server.</summary>
+    public RenameService(IFileSystem fileSystem, IRemoteItems? remote = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _fileSystem = fileSystem;
+        _remote = remote;
     }
 
     /// <summary>
@@ -86,7 +88,26 @@ public sealed class RenameService
             throw new ArgumentException(problem, nameof(newName));
         }
 
+        if (_remote is { } remote && remote.Handles(from))
+        {
+            return RenameOnServerAsync(remote, from, newName.Trim(), cancellationToken);
+        }
+
         return Task.Run(() => Rename(from, newName.Trim()), cancellationToken);
+    }
+
+    private static async Task<LocationPath> RenameOnServerAsync(IRemoteItems remote, LocationPath from, string newName, CancellationToken cancellationToken)
+    {
+        var parent = from.Parent ?? throw new IOException("A server cannot be renamed here.");
+        var target = parent.Combine(newName);
+        var onlyCase = string.Equals(from.Value, target.Value, StringComparison.OrdinalIgnoreCase);
+        if (!onlyCase && await remote.ExistsAsync(target, cancellationToken).ConfigureAwait(false))
+        {
+            throw new IOException($"Something named '{newName}' already exists in this folder.");
+        }
+
+        await remote.RenameAsync(from, target, cancellationToken).ConfigureAwait(false);
+        return target;
     }
 
     private LocationPath Rename(LocationPath from, string newName)
