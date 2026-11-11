@@ -17,6 +17,10 @@ public sealed class FolderTagTrackerTests
 
         public HashSet<string> Throws { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+        public HashSet<string> NotFound { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public HashSet<string> GoneFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         public List<string> Reads { get; } = [];
 
         public Task<IReadOnlySet<int>> GetAsync(string path, CancellationToken cancellationToken)
@@ -29,6 +33,16 @@ public sealed class FolderTagTrackerTests
             if (Throws.Contains(path))
             {
                 throw new IOException("refused");
+            }
+
+            if (NotFound.Contains(path))
+            {
+                throw new FileNotFoundException("gone", path);
+            }
+
+            if (GoneFiles.Contains(path))
+            {
+                return Task.FromResult(TagFiles.Gone);
             }
 
             return Task.FromResult<IReadOnlySet<int>>(Tags.TryGetValue(path, out var set) ? new HashSet<int>(set) : new HashSet<int>());
@@ -72,6 +86,40 @@ public sealed class FolderTagTrackerTests
         Assert.Equal(["Red", "Green"], tracker.TagsOf(one).Select(t => t.Name).ToArray());
         Assert.Empty(tracker.TagsOf(two));
         Assert.True(tracker.IsKnown(two));
+    }
+
+    [Fact]
+    public async Task AFileThatIsNotThereAnyMore_IsReportedGone_NotSwallowed()
+    {
+        var store = new Store();
+        store.GoneFiles.Add(@"C:\a\moved.jpg");
+        store.Tags[@"C:\a\here.jpg"] = [1];
+        using var tracker = new FolderTagTracker(store, new InlineUi());
+        var gone = new List<string>();
+        var changed = new List<string>();
+        tracker.FilesGone += (_, paths) => gone.AddRange(paths);
+        tracker.Changed += (_, paths) => changed.AddRange(paths);
+
+        tracker.SetVisible([File(@"C:\a\moved.jpg"), File(@"C:\a\here.jpg")]);
+        await Until(() => gone.Count == 1 && changed.Count == 1);
+
+        Assert.Equal([@"C:\a\moved.jpg"], gone);
+        Assert.Equal([@"C:\a\here.jpg"], changed);
+    }
+
+    [Fact]
+    public async Task AStoreThatThrowsFileNotFound_IsReadTheSameWay()
+    {
+        var store = new Store();
+        store.NotFound.Add(@"C:\a\old.jpg");
+        using var tracker = new FolderTagTracker(store, new InlineUi());
+        var gone = new List<string>();
+        tracker.FilesGone += (_, paths) => gone.AddRange(paths);
+
+        tracker.SetVisible([File(@"C:\a\old.jpg")]);
+        await Until(() => gone.Count == 1);
+
+        Assert.Equal([@"C:\a\old.jpg"], gone);
     }
 
     [Fact]

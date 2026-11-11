@@ -8,7 +8,10 @@ namespace Leviathan.ViewModels.Triage;
 /// <summary>The colour tags of a file (spec §11), as far as triage needs them until the tag index of Phase F stands beside them.</summary>
 public interface ITagStore
 {
-    /// <summary>The tags on the file; empty when it has none. Throws <see cref="IOException"/> when the location cannot be read.</summary>
+    /// <summary>
+    /// The tags on the file; empty when it has none. When the folder is there but the file is not (it was moved or deleted by another program) the answer is
+    /// <see cref="TagFiles.Gone"/>, not an exception, so a listing that remembers the file can drop it. Throws <see cref="IOException"/> when the location cannot be read.
+    /// </summary>
     Task<IReadOnlySet<int>> GetAsync(string path, CancellationToken cancellationToken);
 
     /// <summary>
@@ -16,6 +19,16 @@ public interface ITagStore
     /// <see cref="IOException"/> rather than lose a tag silently when the location cannot hold them.
     /// </summary>
     Task SetAsync(string path, IReadOnlySet<int> tags, CancellationToken cancellationToken);
+}
+
+/// <summary>The answer of <see cref="ITagStore.GetAsync"/> for a file that is no longer there.</summary>
+public static class TagFiles
+{
+    /// <summary>Stands for "the file is gone". Compared by reference with <see cref="IsGone"/>; it has no tags.</summary>
+    public static IReadOnlySet<int> Gone { get; } = new HashSet<int>();
+
+    /// <summary>True when <paramref name="answer"/> is <see cref="Gone"/>.</summary>
+    public static bool IsGone(IReadOnlySet<int> answer) => ReferenceEquals(answer, Gone);
 }
 
 /// <summary>The tag ids triage uses. The default set of §11.1 in order: Red 1, Orange 2, Yellow 3, Green 4, Blue 5, Purple 6, Gray 7.</summary>

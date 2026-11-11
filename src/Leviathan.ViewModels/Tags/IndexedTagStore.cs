@@ -33,6 +33,11 @@ public sealed class IndexedTagStore(ITagStore streams, Lazy<ITagIndex> index, IF
             onFile = new HashSet<int>(); // no streams here: the index is all there is
         }
 
+        if (TagFiles.IsGone(onFile))
+        {
+            return onFile;
+        }
+
         return await Task.Run(() => Reconcile(path, onFile), cancellationToken).ConfigureAwait(false);
     }
 

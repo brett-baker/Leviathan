@@ -134,6 +134,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Media = new MediaInfoTracker(services.MediaInfo, services.Ui, services.Time);
         FileTags = new FolderTagTracker(services.TagStore, services.Ui, services.TagCatalogSource, services.Time);
         Items.SetMetadata(FileTags);
+        FileTags.FilesGone += (_, paths) => DropGoneFiles(paths);
         FileTags.Changed += (_, _) =>
         {
             if (Items.Filter.UsesTags)
@@ -564,6 +565,32 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Items.Filter.UsesTags)
         {
             FileTags.LoadAll(Folder.Entries);
+        }
+    }
+
+    // Files another program moved or deleted after the listing was made (or that a remembered listing still holds): out of the rows now, and out of the remembered
+    // listing so the next start does not show them again. Reading their tags is what found them, so there is nothing to swallow and nothing left to draw.
+    private void DropGoneFiles(IReadOnlyList<string> paths)
+    {
+        var gone = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        var rows = new List<LocationPath>();
+        foreach (var entry in Folder.Entries)
+        {
+            if (entry.Kind == FileEntryKind.File && gone.Contains(entry.Location.ToWin32Path()))
+            {
+                rows.Add(entry.Location);
+            }
+        }
+
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        Folder.RemoveGone(rows);
+        if (Folder.Location is { } here)
+        {
+            Folder.Cache?.Invalidate(here);
         }
     }
 

@@ -28,6 +28,7 @@ public sealed class FolderTagTracker : IEntryMetadata, IDisposable
     private readonly Dictionary<string, IReadOnlySet<int>> _results = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _inFlight = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _dirty = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _gone = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _visible = [];
     private List<string> _rest = [];
     private CancellationTokenSource _generation = new();
@@ -47,6 +48,12 @@ public sealed class FolderTagTracker : IEntryMetadata, IDisposable
 
     /// <summary>Raised on the UI thread when the tags of these files (Win32 paths) became known.</summary>
     public event EventHandler<IReadOnlyList<string>>? Changed;
+
+    /// <summary>
+    /// Raised on the UI thread with files (Win32 paths) that turned out not to be there any more: another program moved or deleted them after the listing was made, or the
+    /// listing was remembered from an earlier run. The folder view takes them out of the list.
+    /// </summary>
+    public event EventHandler<IReadOnlyList<string>>? FilesGone;
 
     /// <summary>True when the tags of <paramref name="entry"/> have been read.</summary>
     public bool IsKnown(FileEntry entry)
@@ -233,6 +240,10 @@ public sealed class FolderTagTracker : IEntryMetadata, IDisposable
         {
             // The folder changed.
         }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            tags = TagFiles.Gone; // a store that reports a missing file by throwing is read the same way
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             tags = new HashSet<int>(); // unreadable counts as untagged, and is not asked again
@@ -244,8 +255,16 @@ public sealed class FolderTagTracker : IEntryMetadata, IDisposable
             _running--;
             if (tags is not null && !generation.IsCancellationRequested)
             {
-                _results[path] = tags;
-                _dirty.Add(path);
+                if (TagFiles.IsGone(tags))
+                {
+                    _results[path] = new HashSet<int>();
+                    _gone.Add(path);
+                }
+                else
+                {
+                    _results[path] = tags;
+                    _dirty.Add(path);
+                }
             }
         }
 
@@ -273,16 +292,24 @@ public sealed class FolderTagTracker : IEntryMetadata, IDisposable
         {
             await Task.Delay(FlushEvery, _time).ConfigureAwait(false);
             IReadOnlyList<string> changed;
+            IReadOnlyList<string> gone;
             lock (_lock)
             {
                 changed = [.. _dirty];
+                gone = [.. _gone];
                 _dirty.Clear();
+                _gone.Clear();
                 _flushScheduled = false;
             }
 
             if (changed.Count > 0 && !_disposed)
             {
                 _ui.Post(() => Changed?.Invoke(this, changed));
+            }
+
+            if (gone.Count > 0 && !_disposed)
+            {
+                _ui.Post(() => FilesGone?.Invoke(this, gone));
             }
         });
     }

@@ -173,7 +173,7 @@ public sealed class TriageOnDiskTests : IDisposable
         var store = new AlternateStreamTagStore();
         var missing = Path.Combine(_root, "nope.mkv");
 
-        await Assert.ThrowsAsync<FileNotFoundException>(() => store.GetAsync(missing, TestContext.Current.CancellationToken));
+        Assert.True(TagFiles.IsGone(await store.GetAsync(missing, TestContext.Current.CancellationToken)));
         await Assert.ThrowsAsync<FileNotFoundException>(() => store.SetAsync(missing, new HashSet<int> { 1 }, TestContext.Current.CancellationToken));
     }
 

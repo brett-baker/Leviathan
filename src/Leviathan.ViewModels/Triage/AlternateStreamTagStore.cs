@@ -38,11 +38,12 @@ public sealed class AlternateStreamTagStore(TimeProvider? time = null) : ITagSto
 
     private static string StreamPath(string path) => path + ":" + StreamName;
 
-    private static HashSet<int> Read(string path)
+    private static IReadOnlySet<int> Read(string path)
     {
         if (!File.Exists(path))
         {
-            throw new FileNotFoundException($"{Path.GetFileName(path)} is not there.", path);
+            // The folder answering while the file is missing means it was moved or deleted; an unanswering folder (a share that is down) says nothing about the file.
+            return Directory.Exists(Path.GetDirectoryName(path)) ? TagFiles.Gone : new HashSet<int>();
         }
 
         try
