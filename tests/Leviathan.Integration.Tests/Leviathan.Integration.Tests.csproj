@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\src\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.Search.Core\Leviathan.Search.Core.csproj" />
     <ProjectReference Include="..\..\src\Leviathan.Providers.Local\Leviathan.Providers.Local.csproj" />
+    <ProjectReference Include="..\..\src\Leviathan.Providers.Remote\Leviathan.Providers.Remote.csproj" />
     <ProjectReference Include="..\Leviathan.Testing\Leviathan.Testing.csproj" />
   </ItemGroup>
   <ItemGroup>

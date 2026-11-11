@@ -75,3 +75,61 @@ public interface ICloudProviderCatalog
     /// </summary>
     Task<IReadOnlyList<CloudProviderInfo>> DetectAsync(CancellationToken cancellationToken);
 }
+
+/// <summary>How a cloud sync client is doing, as far as can be told without asking its service (spec §7 "shows sync status").</summary>
+public enum CloudSyncState
+{
+    /// <summary>Not known (no way to tell for this client).</summary>
+    Unknown,
+
+    /// <summary>The client is running, so changes are being kept in step.</summary>
+    Running,
+
+    /// <summary>The folder is there but the client is not running, so nothing is syncing until it is started.</summary>
+    NotRunning,
+
+    /// <summary>The sync folder is gone (the client was removed, or the drive is missing).</summary>
+    FolderMissing,
+}
+
+/// <summary>Tells how each cloud sync client is doing. Reads the list of running programs once per call; call it off the UI thread.</summary>
+public interface ICloudSyncProbe
+{
+    /// <summary>The state of each client in <paramref name="providers"/>.</summary>
+    IReadOnlyDictionary<CloudProviderInfo, CloudSyncState> StatesOf(IReadOnlyList<CloudProviderInfo> providers);
+}
+
+/// <summary>The programs whose running means a cloud client is syncing (spec §7, Internet).</summary>
+public static class CloudClients
+{
+    /// <summary>Process names (no <c>.exe</c>) of a client; empty when none is known, which makes its state <see cref="CloudSyncState.Unknown"/>.</summary>
+    public static IReadOnlyList<string> ProcessNamesOf(CloudProviderKind kind) => kind switch
+    {
+        CloudProviderKind.OneDrive or CloudProviderKind.OneDriveCommercial => ["OneDrive"],
+        CloudProviderKind.GoogleDrive => ["GoogleDriveFS"],
+        CloudProviderKind.Dropbox => ["Dropbox"],
+        CloudProviderKind.Box => ["Box", "BoxSync"],
+        CloudProviderKind.SynologyDrive => ["cloud-drive-ui", "SynologyDrive", "cloud-drive-daemon"],
+        CloudProviderKind.ICloudDrive or CloudProviderKind.ICloudPhotos => ["iCloudDrive", "iCloudServices"],
+        CloudProviderKind.ProtonDrive => ["ProtonDrive"],
+        CloudProviderKind.Mega => ["MEGAsync"],
+        CloudProviderKind.Nextcloud => ["nextcloud"],
+        CloudProviderKind.OwnCloud => ["owncloud"],
+        CloudProviderKind.Jottacloud => ["JottaTray", "Jottacloud"],
+        CloudProviderKind.KDrive => ["kDrive"],
+        _ => [],
+    };
+
+    /// <summary>Decides the state from what is known: the folder, the running programs and the client's program names.</summary>
+    public static CloudSyncState Decide(CloudProviderKind kind, bool folderExists, IReadOnlySet<string> runningPrograms)
+    {
+        ArgumentNullException.ThrowIfNull(runningPrograms);
+        if (!folderExists)
+        {
+            return CloudSyncState.FolderMissing;
+        }
+
+        var names = ProcessNamesOf(kind);
+        return names.Count == 0 ? CloudSyncState.Unknown : names.Any(runningPrograms.Contains) ? CloudSyncState.Running : CloudSyncState.NotRunning;
+    }
+}

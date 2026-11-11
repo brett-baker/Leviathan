@@ -109,6 +109,8 @@ public sealed partial class MainWindow : Window, IShellActions
         host.Favorites.Changed += OnFavoritesChanged;
         host.Settings.Changed += OnTagSettingsChanged;
         host.SavedServers.Changed += OnSavedServersChanged;
+        host.RemoteConnections.Changed += OnSavedServersChanged;
+        host.Trust.Ask ??= AskToTrustAsync;
         host.Nearby.Changed += OnNearbyChanged;
         host.ShareHealth.HealthChanged += OnShareHealthChanged;
         Address.FavoriteToggleRequested += (_, _) => Run(CommandIds.FavoriteToggle);
@@ -411,7 +413,11 @@ public sealed partial class MainWindow : Window, IShellActions
         }
     }
 
-    private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(Address.RefreshStatus);
+    private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        Address.RefreshStatus();
+        RebuildSidebar();
+    });
 
     // Tabs -------------------------------------------------------------------------------------------------------------
 
@@ -765,6 +771,12 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         stripTab.FocusPane(0);
+        if (location.Kind is Core.Paths.LocationKind.Sftp or Core.Paths.LocationKind.Ftp or Core.Paths.LocationKind.Ftps)
+        {
+            await AskForRemotePasswordAsync(location);
+            return;
+        }
+
         SignInButton.IsEnabled = false;
         try
         {
@@ -917,7 +929,7 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         var host = App.Host;
         _sidebarTags = string.Join('|', host.Settings.Current.Tags.Catalog().Tags.Select(t => $"{t.Id}:{t.Name}:{t.Colour}"));
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags), HealthOfServer);
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags, host.RemoteConnections.Items, host.CloudStates), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
@@ -1061,6 +1073,12 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             var remove = new MenuFlyoutItem { Text = "Remove from Network" };
             remove.Click += (_, _) => RemoveServerFromTree(host);
+            menu.Items.Add(remove);
+        }
+        else if (node is { IsSaved: true } && where.Kind is Core.Paths.LocationKind.Sftp or Core.Paths.LocationKind.Ftp or Core.Paths.LocationKind.Ftps)
+        {
+            var remove = new MenuFlyoutItem { Text = "Remove connection" };
+            remove.Click += (_, _) => RemoveRemoteConnection(where);
             menu.Items.Add(remove);
         }
 

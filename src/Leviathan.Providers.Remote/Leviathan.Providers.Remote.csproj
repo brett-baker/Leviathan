@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Locations on other computers over SFTP and FTP/FTPS (spec 7.1): a session per server behind ILocationProvider, with errors classified so a dead server fails one tab, not the app (spec 3.3). Plain net10.0. -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.Providers.Remote</RootNamespace>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Providers.Remote.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SSH.NET" />
+    <PackageReference Include="FluentFTP" />
+  </ItemGroup>
+</Project>

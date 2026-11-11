@@ -34,6 +34,64 @@ public sealed partial class MainWindow
         }
     }
 
+    // Asked from a pool thread by a session that meets a server it has not seen (spec 7.1): shown here, on the window's own thread.
+    private Task<bool> AskToTrustAsync(Leviathan.Providers.Remote.TrustRequest request)
+    {
+        var answer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        OnUi(async () =>
+        {
+            try
+            {
+                var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+                {
+                    Title = $"Trust {request.Endpoint.Host}?",
+                    Content = $"This is the first time Leviathan connects to {request.Endpoint.Host}. Its {request.Kind} is:\n\n{request.Fingerprint}\n\nOnly trust it if you expect this server. Leviathan will remember it and warn you if it ever changes.",
+                    PrimaryButtonText = "Trust",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = Microsoft.UI.Xaml.Controls.ContentDialogButton.Close,
+                    XamlRoot = Content.XamlRoot,
+                };
+                answer.TrySetResult(await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+            {
+                // Another dialog is open or the window is closing: the server is not trusted this time.
+                answer.TrySetResult(false);
+            }
+        });
+        return answer.Task;
+    }
+
+    // The server refused the sign-in (spec 7.1): ask for the password again, keep it in Credential Manager, and try the folder once more.
+    private async Task AskForRemotePasswordAsync(LocationPath location)
+    {
+        var endpoint = Leviathan.Providers.Remote.RemoteLocationProvider.EndpointOf(location);
+        var box = new Microsoft.UI.Xaml.Controls.PasswordBox { Header = $"Password for {endpoint.User ?? "anonymous"}@{endpoint.Host}" };
+        var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+        {
+            Title = "Sign in",
+            Content = box,
+            PrimaryButtonText = "Sign in",
+            CloseButtonText = "Cancel",
+            DefaultButton = Microsoft.UI.Xaml.Controls.ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot,
+        };
+        if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)
+        {
+            App.Host.RemoteSecrets.Set(endpoint, box.Password);
+            Run(Leviathan.ViewModels.Commands.CommandIds.NavReload);
+        }
+    }
+
+    private static void RemoveRemoteConnection(LocationPath where)
+    {
+        if (App.Host.RemoteConnections.Remove(where) is { } removed)
+        {
+            App.Host.RemoteSecrets.Set(removed.Endpoint, null);
+            App.Actions.Record("network.remove", removed.Location.Value);
+        }
+    }
+
     /// <inheritdoc />
     public bool ToggleSearchIndex(LocationPath folder) => App.Host.ToggleSearchIndex(folder);
 

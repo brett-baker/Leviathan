@@ -93,3 +93,10 @@ NET_CONNECT_FLAGS
 
 GetFileInformationByHandleEx
 FILE_INFO_BY_HANDLE_CLASS
+CredReadW
+CredWriteW
+CredDeleteW
+CredFree
+CREDENTIALW
+CRED_TYPE
+CRED_PERSIST

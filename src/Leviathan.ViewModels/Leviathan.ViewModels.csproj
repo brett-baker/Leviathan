@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
     <ProjectReference Include="..\Leviathan.Search.Core\Leviathan.Search.Core.csproj" />
     <ProjectReference Include="..\Leviathan.SpaceMap.Core\Leviathan.SpaceMap.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Providers.Remote\Leviathan.Providers.Remote.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />

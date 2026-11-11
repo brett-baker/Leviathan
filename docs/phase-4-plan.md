@@ -64,12 +64,12 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### E. More locations (§7.1)
 
-- [ ] **E1. Connection model and dialog** — Add connection for SMB, SFTP, FTP(S), NFS; secrets in Windows Credential Manager; health dot.
-- [ ] **E2. SFTP** — SSH.NET provider: list (streamed), read, write via `*.leviathan-part`, rename, delete, host-key check, timeouts; integration tests against a container.
-- [ ] **E3. FTP(S)** — FluentFTP provider; compare Files' FTP storage first; integration tests against a container.
-- [ ] **E4. NFS** — through the Windows Client for NFS (UNC or mapped drive), detection of the feature, clear message when it is not installed.
-- [ ] **E5. Sidebar integration** — saved connections in Network, drill-down in the tree with the §7.2 rules, offline messages.
-- [ ] **E6. Internet section** — sync status for detected cloud folders (provider state from the cloud-provider registry and file attributes).
+- [x] **E1. Connection model and dialog** (done: model, list, input checks, Credential Manager secrets, known hosts, the dialog with five types; 32 + 7 tests; the dialog has not been looked at by a person) — Add connection for SMB, SFTP, FTP(S), NFS; secrets in Windows Credential Manager; health dot.
+- [x] **E2. SFTP** (done: listing, read, write, rename, delete, folders, host keys; against a real server in Docker. Not wired to copy/move in the worker, see decisions) — SSH.NET provider: list (streamed), read, write via `*.leviathan-part`, rename, delete, host-key check, timeouts; integration tests against a container.
+- [x] **E3. FTP(S)** (done like SFTP against a Docker FTP server; FTPS is built with certificate trust but was not run against a server; Files' FTP storage was not compared) — FluentFTP provider; compare Files' FTP storage first; integration tests against a container.
+- [x] **E4. NFS** (done as a network path through Windows' Client for NFS plus a clear message when it is missing; unverified: no NFS client here) — through the Windows Client for NFS (UNC or mapped drive), detection of the feature, clear message when it is not installed.
+- [x] **E5. Sidebar integration** (done: connections under Network, expand through the provider, remove, sign in again; health dots are not shown for them) — saved connections in Network, drill-down in the tree with the §7.2 rules, offline messages.
+- [x] **E6. Internet section** (done: sync client running / not running / folder missing; not per-file progress) — sync status for detected cloud folders (provider state from the cloud-provider registry and file attributes).
 
 ### F. Gate and wrap-up
 

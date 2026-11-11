@@ -50,6 +50,8 @@ internal sealed class AppHost
     private readonly object _backgroundLock = new();
     private IReadOnlyList<LocationPath> _favorites = [];
     private IReadOnlyList<CloudProviderInfo> _cloud = [];
+    private IReadOnlyDictionary<CloudProviderInfo, CloudSyncState> _cloudStates = new Dictionary<CloudProviderInfo, CloudSyncState>();
+    private readonly Leviathan.Providers.Cloud.ProcessCloudSyncProbe _cloudProbe = new();
 
     private AppHost(
         WindowManager windows,
@@ -136,6 +138,18 @@ internal sealed class AppHost
 
     /// <summary>Where colour tags are read and written (the details pane reads the selected file's tags from it).</summary>
     public Leviathan.ViewModels.Triage.ITagStore TagStore { get; private init; } = null!;
+
+    /// <summary>The SFTP, FTP and FTPS servers under Network (spec 7.1).</summary>
+    public Leviathan.ViewModels.Sidebar.RemoteConnectionList RemoteConnections { get; private init; } = null!;
+
+    /// <summary>Passwords of those servers, kept in Windows Credential Manager.</summary>
+    public Leviathan.Providers.Remote.IRemoteSecrets RemoteSecrets { get; private init; } = null!;
+
+    /// <summary>Lists those servers' folders.</summary>
+    public Leviathan.Providers.Remote.RemoteLocationProvider RemoteProvider { get; private init; } = null!;
+
+    /// <summary>Asks the user whether to trust a server seen for the first time.</summary>
+    public TrustPrompt Trust { get; private init; } = null!;
 
     /// <summary>Where search results report their progress to, and where the search gets tags and media information (spec 13).</summary>
     public SearchHooks SearchHooks { get; private init; } = null!;
@@ -549,6 +563,30 @@ internal sealed class AppHost
 
         var cloud = await CloudProviderCatalog.ForThisMachine().DetectAsync(cancellationToken);
         Volatile.Write(ref _cloud, cloud);
+        await RefreshCloudStatesAsync();
+        CloudFoldersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>How each cloud sync client is doing (spec 7 Internet): running, not running, or its folder gone.</summary>
+    public IReadOnlyDictionary<CloudProviderInfo, CloudSyncState> CloudStates => Volatile.Read(ref _cloudStates);
+
+    /// <summary>Looks at the running programs again and tells the windows when a client started or stopped.</summary>
+    public async Task RefreshCloudStatesAsync()
+    {
+        var providers = CloudProviders;
+        if (providers.Count == 0)
+        {
+            return;
+        }
+
+        var states = await Task.Run(() => _cloudProbe.StatesOf(providers));
+        var before = Volatile.Read(ref _cloudStates);
+        if (before.Count == states.Count && states.All(s => before.TryGetValue(s.Key, out var old) && old == s.Value))
+        {
+            return;
+        }
+
+        Volatile.Write(ref _cloudStates, states);
         CloudFoldersChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -589,6 +627,16 @@ internal sealed class AppHost
         var tagIndex = new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath)));
         // Search results are a folder too (shell:search\...): listed by walking the folders, with tags and media information from the app's own stores (spec 13).
         var searchHooks = new SearchHooks();
+        // SFTP, FTP and FTPS servers (spec 7.1): passwords in Credential Manager, trusted keys in known-hosts.json, new servers confirmed in a dialog (TrustPrompt, set by the first window).
+        var remoteSecrets = new Leviathan.Interop.WindowsRemoteSecrets();
+        var knownHosts = new JsonKnownHosts();
+        var trustPrompt = new TrustPrompt();
+        var remoteProvider = new Leviathan.Providers.Remote.RemoteLocationProvider(new Dictionary<Leviathan.Providers.Remote.RemoteProtocol, Leviathan.Providers.Remote.IRemoteSessionFactory>
+        {
+            [Leviathan.Providers.Remote.RemoteProtocol.Sftp] = new Leviathan.Providers.Remote.SftpSessionFactory(remoteSecrets, knownHosts, trustPrompt.AskAsync),
+            [Leviathan.Providers.Remote.RemoteProtocol.Ftp] = new Leviathan.Providers.Remote.FtpSessionFactory(remoteSecrets, knownHosts, trustPrompt.AskAsync),
+            [Leviathan.Providers.Remote.RemoteProtocol.Ftps] = new Leviathan.Providers.Remote.FtpSessionFactory(remoteSecrets, knownHosts, trustPrompt.AskAsync),
+        });
         var busyDevices = new Leviathan.ViewModels.Searches.BusyDevices();
         LocationProviderRegistry? searchProviders = null;
         var providers = new LocationProviderRegistry([
@@ -596,6 +644,7 @@ internal sealed class AppHost
                 new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
             new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline),
             new Leviathan.ViewModels.Tags.TagListingProvider(tagIndex, TagFileStat.Describe),
+            remoteProvider,
             new Leviathan.Search.SearchListingProvider(options => searchHooks.Coordinator(searchProviders!, options), () => searchHooks.Facts(), TimeProvider.System, report => searchHooks.Reported?.Invoke(report))]);
         searchProviders = providers;
         UiTrace.Mark("AppHost: providers");
@@ -683,6 +732,19 @@ internal sealed class AppHost
                 _ = Task.Run(() => indexManager.OnFolderListed(key.Location, entries, key.IncludeHidden && key.IncludeSystem));
             }
         };
+        // Connections to SFTP and FTP servers that nobody has used for a couple of minutes are closed.
+        _ = Task.Run(async () =>
+        {
+            using var tick = new PeriodicTimer(TimeSpan.FromMinutes(1));
+            while (await tick.WaitForNextTickAsync())
+            {
+                await remoteProvider.CloseIdleAsync();
+                if (built is not null)
+                {
+                    await built.RefreshCloudStatesAsync();
+                }
+            }
+        });
         _ = Task.Run(() =>
         {
             indexManager.Initialize();
@@ -799,6 +861,10 @@ internal sealed class AppHost
             Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore, () => built!.Settings.Current.Tags.Catalog()),
             TagStore = tagStore,
             SearchHooks = searchHooks,
+            RemoteConnections = new Leviathan.ViewModels.Sidebar.RemoteConnectionList(new JsonRemoteConnectionsStorage(Path.Combine(data, "remote-connections.json"))),
+            RemoteSecrets = remoteSecrets,
+            RemoteProvider = remoteProvider,
+            Trust = trustPrompt,
             SearchIndex = indexManager,
             SpaceScanner = new Leviathan.SpaceMap.SpaceScanner(providers, new LazySpaceScanStore(() => new SqliteSpaceScanStore(new LeviathanDatabase(LeviathanDatabase.DefaultPath)))),
             Listings = listings,
@@ -949,4 +1015,16 @@ internal sealed class LazySpaceScanStore(Func<Leviathan.SpaceMap.ISpaceScanStore
     public Leviathan.SpaceMap.SpaceScanSnapshot? Load(string root) => _store.Value.Load(root);
 
     public void Delete(string root) => _store.Value.Delete(root);
+}
+
+/// <summary>
+/// The question "do you trust this server?" for an SSH host key or a TLS certificate seen for the first time (spec 7.1). The sessions ask from a pool thread; the
+/// window that registered itself shows the dialog on its own thread and the answer comes back. With no window to ask, the server is not trusted.
+/// </summary>
+internal sealed class TrustPrompt
+{
+    /// <summary>Shows the question and returns the answer; set by a window.</summary>
+    public Func<Leviathan.Providers.Remote.TrustRequest, Task<bool>>? Ask { get; set; }
+
+    public Task<bool> AskAsync(Leviathan.Providers.Remote.TrustRequest request) => Ask is { } ask ? ask(request) : Task.FromResult(false);
 }

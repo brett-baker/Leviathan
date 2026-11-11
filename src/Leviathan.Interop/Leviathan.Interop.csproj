@@ -14,6 +14,7 @@
     <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
     <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
     <ProjectReference Include="..\Leviathan.Search.Core\Leviathan.Search.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Providers.Remote\Leviathan.Providers.Remote.csproj" />
     <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>

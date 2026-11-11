@@ -175,7 +175,9 @@ public static class SidebarSections
         IEnumerable<SavedConnection>? servers = null,
         IEnumerable<NearbyDevice>? nearby = null,
         bool searching = false,
-        IEnumerable<Tags.ColorTag>? tags = null)
+        IEnumerable<Tags.ColorTag>? tags = null,
+        IEnumerable<RemoteConnection>? remote = null,
+        IReadOnlyDictionary<CloudProviderInfo, CloudSyncState>? cloudStates = null)
     {
         ArgumentNullException.ThrowIfNull(favorites);
         ArgumentNullException.ThrowIfNull(common);
@@ -191,14 +193,14 @@ public static class SidebarSections
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uEDA2" },
             new SidebarSection(
                 "Network",
-                [.. saved.Select(ServerPlace), .. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)],
+                [.. saved.Select(ServerPlace), .. (remote ?? []).Select(RemotePlace), .. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)],
                 "No network locations yet")
             {
                 Groups = [NearbyGroup(nearby, saved, searching)],
                 ActionTitle = "Add connection…",
                 Glyph = "\uE839",
             },
-            new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud))]) { Glyph = "\uE753" },
+            new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud, SyncText(cloudStates?.GetValueOrDefault(c) ?? CloudSyncState.Unknown)))]) { Glyph = "\uE753" },
         ];
     }
 
@@ -248,6 +250,23 @@ public static class SidebarSections
         SidebarIcon.Home => 6,
         _ => 7,
     };
+
+    /// <summary>The words under a cloud drive: how its client is doing (spec §7). Nothing is said when it is not known.</summary>
+    public static string SyncText(CloudSyncState state) => state switch
+    {
+        CloudSyncState.Running => "Sync client running",
+        CloudSyncState.NotRunning => "Sync client not running",
+        CloudSyncState.FolderMissing => "Sync folder missing",
+        _ => string.Empty,
+    };
+
+    // An SFTP, FTP or FTPS server: its address is the tooltip, the password is nowhere in the tree.
+    private static SidebarPlace RemotePlace(RemoteConnection connection) =>
+        new(connection.Title, connection.Location, SidebarIcon.Server, $"{connection.Protocol.ToString().ToUpperInvariant()} · {connection.Host}{(connection.Port is { } port ? ":" + port.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty)}")
+        {
+            Glyph = connection.Protocol == Leviathan.Providers.Remote.RemoteProtocol.Sftp ? "" : "",
+            IsSaved = true,
+        };
 
     private static SidebarPlace ServerPlace(SavedConnection server) =>
         new(server.Title, server.Location, SidebarIcon.Server, server.Title == server.Host ? string.Empty : server.Host)
