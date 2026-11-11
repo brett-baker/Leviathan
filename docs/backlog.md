@@ -21,6 +21,18 @@ Things Brett chose to leave for later (2026-11-06, after Phase 2). Nothing here 
 - **Cleanups:** tick the C3 (Operations panel) plan entry once used; fix the flaky `LiveRefreshTests` and `ConcurrentWriters_DoNotFail`.
 - **Small gaps:** `\\server\share` paths without a drive letter are not counted for folder sizes; no draggable gap between panes; no Sign-in button in the second pane; undo of a partly copied folder leaves what arrived; extra mouse shortcuts (Shift+Backspace for Up, middle-click Back for the history list).
 
+## Added after Phase 4 (2026-11-11)
+
+- **Wire SFTP and FTP into the worker** so copy, move, rename, delete and new folder work between the file view and these servers (the providers already have the operations).
+- **The MFT/USN indexer** (`Leviathan.Indexer`, slice B2b): needs an elevated machine or a VHD to test.
+- **Everything:** run the SDK client against a real Everything and check the 50 ms name-search gate through it; decide whether dates can be pushed to it.
+- **FTPS and NFS** against real servers; the Client for NFS path on a machine that has it.
+- **Move the search, scan and index crawl into the worker** with one pipe contract (decided once for all three).
+- **Space map:** compress, "find duplicates in this folder", hard links counted once, "rescan only changed folders", a tab instead of a window, the look of the window.
+- **Search:** `content:` (Windows Search or a live text scan), regular-expression filter on the Everything side, dates pushed to Everything.
+- **UI stalls** of 50 to 150 ms while a big scan or search runs, and the cold start (about 1 s against 600 ms).
+- **Run the new FlaUI tests** (`SearchAndSpaceMapTests`) on a quiet machine, with Brett's say-so first.
+
 ## Next phase
 
 - **Phase 3, Media and triage:** starts on Brett's go-ahead (`docs/build-plan.md`). Specs for phases 6 to 10 are written (104d779) and not built.

@@ -306,6 +306,28 @@ New-DamagedCopies (Join-Path $media 'short-3s.mp4') 'clip'
 New-DamagedCopies (Join-Path $media 'song-20s.flac') 'song'
 Copy-Item (Join-Path $media 'short-3s.mp4') (Join-Path $corrupt 'intact-control.mp4') -ErrorAction SilentlyContinue
 
+# 15. Search and the space map: a small tree of videos, documents, pictures and archives of different sizes and ages, a hidden file, a folder that is empty and a folder with
+#     one huge (sparse) file, so a search, a size filter, "colour by age" and the biggest rectangle all have something to find.
+$find = Join-Path $uat '15-search'
+$old = (Get-Date).AddYears(-3)
+$recent = (Get-Date).AddDays(-2)
+foreach ($item in @(
+    @('videos\Summer holiday 2025.mkv', 8MB, $recent), @('videos\holiday-draft.mkv', 2MB, $recent), @('videos\Winter holiday 2022.mp4', 5MB, $old),
+    @('videos\archive\old clip.avi', 3MB, $old), @('documents\holiday plans.pdf', 400KB, $recent), @('documents\Invoice 2023.pdf', 300KB, $old),
+    @('documents\notes.txt', 2KB, $recent), @('pictures\IMG_0001.jpg', 1MB, $recent), @('pictures\IMG_0002.jpg', 1MB, $recent), @('pictures\scan.png', 600KB, $old),
+    @('backup\everything.zip', 20MB, $old), @('code\Program.cs', 4KB, $recent), @('.hidden.txt', 1KB, $recent)
+)) {
+    $path = Join-Path $find $item[0]
+    New-BinaryFile $path $item[1]
+    (Get-Item -LiteralPath $path -Force).LastWriteTime = $item[2]
+}
+(Get-Item -LiteralPath (Join-Path $find '.hidden.txt') -Force).Attributes = 'Hidden'
+New-Item -ItemType Directory -Path (Join-Path $find 'empty folder') -Force | Out-Null
+$huge = Join-Path $find 'huge\disk image.vhd'
+New-Item -ItemType Directory -Path (Split-Path $huge -Parent) -Force | Out-Null
+$stream = [IO.File]::Create($huge); $stream.SetLength(3GB); $stream.Dispose()
+fsutil sparse setflag $huge | Out-Null
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 

@@ -37,6 +37,12 @@ static int Usage()
     return 64;
 }
 
+if (args.Contains("--spacemap-gate"))
+{
+    // The space map of a 1 TB share: scan, stop half way, resume, and the layout (Phase 4 gate).
+    return await SpaceMapGate.RunAsync();
+}
+
 if (args.Contains("--search-gate"))
 {
     // The local name search of Phase 4 (spec 3.1) on its own.
@@ -56,6 +62,7 @@ if (args.Contains("--gate"))
     exit |= ViewModelGate.Run();
     exit |= await MediaGate.RunAsync();
     exit |= await SearchGate.RunAsync();
+    exit |= await SpaceMapGate.RunAsync();
     var at = Array.IndexOf(args, "--cold-start");
     if (at >= 0 && at + 1 < args.Length)
     {

@@ -73,10 +73,10 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### F. Gate and wrap-up
 
-- [ ] **F1. Benchmarks** — name search < 50 ms (Everything and own index), space-map layout of 1 million rectangles, scan resume.
-- [ ] **F2. Space map of a large share** — 1 TB share completes and resumes after a killed worker (chaos test with a synthetic tree; lab run on the NAS by Brett).
-- [ ] **F3. UI smoke test** (written; run only on Brett's say-so) and UAT playbooks for slices a person can see.
-- [ ] **F4. Wrap-up** — gate numbers, `docs/phase-4.md`, README status, tag `phase-4`.
+- [x] **F1. Benchmarks** (done: `--search-gate` and `--spacemap-gate`, both in `--gate`; name search through Everything is skipped without Everything) — name search < 50 ms (Everything and own index), space-map layout of 1 million rectangles, scan resume.
+- [x] **F2. Space map of a large share** (done on a synthetic 1 TB share with a stop half way and a resume; the run on the real NAS is a lab step in docs/phase-4.md) — 1 TB share completes and resumes after a killed worker (chaos test with a synthetic tree; lab run on the NAS by Brett).
+- [x] **F3. UI smoke test** (written, not run; four UAT playbooks written in docs/uat; fixture folder 15-search added) (written; run only on Brett's say-so) and UAT playbooks for slices a person can see.
+- [x] **F4. Wrap-up** (done: docs/phase-4.md, README, tag phase-4) — gate numbers, `docs/phase-4.md`, README status, tag `phase-4`.
 
 ## Order
 

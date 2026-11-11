@@ -71,7 +71,8 @@ internal sealed class AppSession : IAsyncDisposable
 
     /// <summary>Starts the app and waits for its window and for the first folder.</summary>
     /// <param name="settingsJson">Text for <c>settings.json</c>, or null for the defaults. <c>General.NewTabLocation</c> decides the folder the first tab opens in.</param>
-    public static async Task<AppSession> StartAsync(string? settingsJson = null)
+    /// <param name="environment">Extra environment variables for the app, such as <c>LEVIATHAN_OPEN_SPACEMAP</c>.</param>
+    public static async Task<AppSession> StartAsync(string? settingsJson = null, IReadOnlyDictionary<string, string>? environment = null)
     {
         // These tests take over the mouse and the keyboard of an interactive desktop and need it to themselves: they are run on purpose.
         Assert.SkipUnless(Environment.GetEnvironmentVariable("LEVIATHAN_UI_TESTS") == "1", "The UI tests drive the real app with the real mouse and keyboard. Set LEVIATHAN_UI_TESTS=1 and leave the desktop alone while they run.");
@@ -87,6 +88,10 @@ internal sealed class AppSession : IAsyncDisposable
         // The data folder also names the worker (pipe and mutex), so this run starts a worker of its own and never uses the user's.
         info.Environment["LEVIATHAN_DATA_DIR"] = data;
         info.Environment["LEVIATHAN_UI_TRACE"] = Path.Combine(data, "ui-trace.txt");
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            info.Environment[name] = value;
+        }
 
         var app = Application.Launch(info);
         var automation = new UIA3Automation();
