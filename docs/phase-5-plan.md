@@ -10,7 +10,7 @@ Every slice follows `CLAUDE.md`.
 
 ### A. Duplicate finder (§15.2)
 
-- [ ] **A1. Exact duplicates**: group by size → partial hash (first and last 1 MB) → full xxHash3 only for remaining
+- [x] **A1. Exact duplicates**: group by size → partial hash (first and last 1 MB) → full xxHash3 only for remaining
   candidates; scopes (folders, drives, shares), type and minimum-size filters; runs in the worker with progress.
 - [ ] **A2. Similar media**: perceptual hashes for images and for videos (frames at fixed percentages + duration) in
   `Leviathan.Media`, cached; tolerance setting.

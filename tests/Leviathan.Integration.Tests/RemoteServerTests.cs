@@ -94,7 +94,7 @@ public sealed class RemoteServerTests : IAsyncLifetime
         return name;
     }
 
-    private async Task<int> PortOfAsync(string container, int inside)
+    private static async Task<int> PortOfAsync(string container, int inside)
     {
         var (_, output) = await Docker($"port {container} {inside}/tcp", TimeSpan.FromSeconds(20));
         return int.Parse(output.Split('\n')[0].Split(':')[^1].Trim(), System.Globalization.CultureInfo.InvariantCulture);

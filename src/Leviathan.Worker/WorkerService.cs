@@ -101,7 +101,7 @@ public sealed class WorkerService : IWorkerService
         var sources = request.Sources.Select(LocationPath.Parse).ToList();
         var destination = request.Destination is null ? null : LocationPath.Parse(request.Destination);
         // The automatic purge (a policy, no items of its own) is upkeep and must never take a slot from the user's copies (spec §12.3).
-        var lane = request.Kind == JobKind.ComputeFolderSize || (request.Kind == JobKind.Purge && request.PurgePolicy is not null) ? JobLane.Background : JobLane.Operations;
+        var lane = request.Kind is JobKind.ComputeFolderSize or JobKind.FindDuplicates || (request.Kind == JobKind.Purge && request.PurgePolicy is not null) ? JobLane.Background : JobLane.Operations;
         IEnumerable<LocationPath> touched = destination is null ? sources : [destination, .. sources];
         string? device;
         if (_identities is null)

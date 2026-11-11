@@ -77,6 +77,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddSingleton(sp => new Leviathan.Providers.Remote.RemoteTransferExecutor(sp.GetRequiredService<Leviathan.Providers.Remote.RemoteLocationProvider>(), sp.GetRequiredService<IFileSystem>()));
 builder.Services.AddSingleton<IJobExecutor, ComputeFolderSizeExecutor>();
+builder.Services.AddSingleton<IJobExecutor, Leviathan.Engine.Duplicates.FindDuplicatesExecutor>();
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Providers.Remote.RemoteAwareExecutor(sp.GetRequiredService<Leviathan.Providers.Remote.RemoteTransferExecutor>(), new DeltaTrackingExecutor(new Leviathan.Engine.Transfers.CopyMoveExecutor(sp.GetRequiredService<IFileSystem>(), planStore: new Leviathan.Engine.Transfers.FileTransferPlanStore(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "plans")), identities: sp.GetRequiredService<Leviathan.Core.Resilience.ServerIdentityMap>(), copier: new Leviathan.Interop.WindowsFileCopier(), bandwidth: sp.GetRequiredService<Leviathan.Engine.Execution.BandwidthController>(), journal: new Leviathan.Engine.Transfers.FileTransferJournal(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "progress"))), sp.GetRequiredService<FolderSizeDeltas>())));
 builder.Services.AddSingleton(sp => new Leviathan.Engine.Transfers.BinRegistry(sp.GetRequiredService<IFileSystem>(), Path.Combine(appData, "bin-roots.json")));
 builder.Services.AddSingleton(sp => new Leviathan.Engine.Transfers.BinScanner(sp.GetRequiredService<Leviathan.Engine.Transfers.BinRegistry>()));
