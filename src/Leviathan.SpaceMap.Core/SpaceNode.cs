@@ -41,6 +41,9 @@ public sealed class SpaceNode
     /// <summary>The nodes directly inside (empty for a file).</summary>
     public IReadOnlyList<SpaceNode> Children => _children;
 
+    /// <summary>For a folder: true once the scan has listed it and added everything in it. A folder that is not listed is listed again when a scan is resumed.</summary>
+    public bool Listed { get; set; }
+
     /// <summary>True when the scan could not read this folder (access denied, share gone), so its size is a lower bound.</summary>
     public bool Unreadable { get; set; }
 

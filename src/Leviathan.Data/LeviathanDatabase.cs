@@ -71,6 +71,16 @@ public sealed class LeviathanDatabase
             crawled_at TEXT NULL
         );
         """,
+
+        // 6: the last scan of each location for the space map (spec §14), as one compressed blob per root
+        """
+        CREATE TABLE space_scan (
+            root       TEXT NOT NULL PRIMARY KEY COLLATE NOCASE,
+            scanned_at TEXT NOT NULL,
+            complete   INTEGER NOT NULL,
+            data       BLOB NOT NULL
+        );
+        """,
     ];
 
     private readonly string _connectionString;
