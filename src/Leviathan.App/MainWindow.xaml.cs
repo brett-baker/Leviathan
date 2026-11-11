@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window, IShellActions
         viewModel.Tabs.Groups.CollectionChanged += OnGroupsCollectionChanged;
         App.StallsChanged += OnStallsChanged;
         Closed += OnClosed;
+        OpenSpaceMapFromEnvironment();
         Address.Attach(host.AddressBar);
         using (UiTrace.Begin("ctor: chrome icons"))
         {

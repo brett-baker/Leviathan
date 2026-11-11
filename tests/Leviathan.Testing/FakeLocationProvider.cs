@@ -32,12 +32,12 @@ public sealed class FakeLocationProvider : ILocationProvider
     }
 
     /// <summary>Adds a file of <paramref name="size"/> bytes (and its parent folders).</summary>
-    public FakeLocationProvider AddFile(string path, long size)
+    public FakeLocationProvider AddFile(string path, long size, FileAttributes attributes = FileAttributes.Normal)
     {
         var location = LocationPath.Parse(path);
         var parent = location.Parent ?? throw new ArgumentException("A file needs a parent folder.", nameof(path));
         EnsureFolder(parent);
-        _children[parent].Add(new FileEntry(location.Name, location, FileEntryKind.File, size, _time, _time, FileAttributes.Normal));
+        _children[parent].Add(new FileEntry(location.Name, location, FileEntryKind.File, size, _time, _time, attributes));
         return this;
     }
 

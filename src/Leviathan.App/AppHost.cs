@@ -140,6 +140,9 @@ internal sealed class AppHost
     /// <summary>Where search results report their progress to, and where the search gets tags and media information (spec 13).</summary>
     public SearchHooks SearchHooks { get; private init; } = null!;
 
+    /// <summary>Scans folders for the space map and keeps the last scan of each (spec 14).</summary>
+    public Leviathan.SpaceMap.SpaceScanner SpaceScanner { get; private init; } = null!;
+
     /// <summary>Keeps the folders chosen for the search index listed (spec 13).</summary>
     public Leviathan.Search.IndexManager SearchIndex { get; private init; } = null!;
 
@@ -797,6 +800,7 @@ internal sealed class AppHost
             TagStore = tagStore,
             SearchHooks = searchHooks,
             SearchIndex = indexManager,
+            SpaceScanner = new Leviathan.SpaceMap.SpaceScanner(providers, new LazySpaceScanStore(() => new SqliteSpaceScanStore(new LeviathanDatabase(LeviathanDatabase.DefaultPath)))),
             Listings = listings,
             Icons = icons,
             Operations = operations,
@@ -933,4 +937,16 @@ internal sealed class LazyNameIndexStore(Func<Leviathan.Search.INameIndexStore> 
     public void Save(Leviathan.Search.IndexSnapshot snapshot) => _store.Value.Save(snapshot);
 
     public Leviathan.Search.IndexSnapshot? Load() => _store.Value.Load();
+}
+
+/// <summary>Opens the SQLite copy of the space map scans only when a scan is first saved or loaded.</summary>
+internal sealed class LazySpaceScanStore(Func<Leviathan.SpaceMap.ISpaceScanStore> create) : Leviathan.SpaceMap.ISpaceScanStore
+{
+    private readonly Lazy<Leviathan.SpaceMap.ISpaceScanStore> _store = new(create);
+
+    public void Save(Leviathan.SpaceMap.SpaceScanSnapshot snapshot) => _store.Value.Save(snapshot);
+
+    public Leviathan.SpaceMap.SpaceScanSnapshot? Load(string root) => _store.Value.Load(root);
+
+    public void Delete(string root) => _store.Value.Delete(root);
 }

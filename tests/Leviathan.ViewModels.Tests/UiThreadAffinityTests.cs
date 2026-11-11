@@ -103,6 +103,10 @@ public sealed class UiThreadAffinityTests
 
         public bool ToggleSearchIndex(LocationPath folder) => false;
 
+        public void OpenSpaceMap(LocationPath folder)
+        {
+        }
+
         public void ShowMessage(string message)
         {
         }

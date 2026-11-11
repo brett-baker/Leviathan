@@ -34,6 +34,10 @@ public sealed record SpaceScanProgress(int FoldersListed, int FoldersPending, lo
 /// </summary>
 public sealed class SpaceScanSession : IDisposable
 {
+    // FILE_ATTRIBUTE_RECALL_ON_OPEN and FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: how cloud sync clients mark a file that is not on the disk.
+    private const FileAttributes RecallOnOpen = (FileAttributes)0x40000;
+    private const FileAttributes RecallOnDataAccess = (FileAttributes)0x400000;
+
     private readonly Lock _lock = new();
     private readonly Func<SpaceScanSnapshot, Task>? _save;
     private readonly CancellationTokenSource _cts = new();
@@ -117,6 +121,24 @@ public sealed class SpaceScanSession : IDisposable
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Takes <paramref name="node"/> out of the tree after the item was deleted, so the totals and the map drop it at once without scanning again.</summary>
+    public bool Remove(SpaceNode parent, SpaceNode node)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(node);
+        lock (_lock)
+        {
+            var removed = parent.Remove(node);
+            if (removed)
+            {
+                Interlocked.Add(ref _files, -node.Files);
+                Interlocked.Add(ref _bytes, -node.Size);
+            }
+
+            return removed;
+        }
+    }
+
     /// <summary>Stops the scan. What was found is kept and saved, so the scan can be resumed.</summary>
     public void Cancel()
     {
@@ -179,8 +201,9 @@ public sealed class SpaceScanSession : IDisposable
                 }
                 else
                 {
-                    var size = entry.Kind == FileEntryKind.Link ? 0 : entry.Size;
-                    var file = new SpaceNode(entry.Name, false, size, entry.Modified, folder);
+                    var placeholder = (entry.Attributes & (FileAttributes.Offline | RecallOnOpen | RecallOnDataAccess)) != 0;
+                    var size = entry.Kind == FileEntryKind.Link || placeholder ? 0 : entry.Size;
+                    var file = new SpaceNode(entry.Name, false, size, entry.Modified, folder) { IsPlaceholder = placeholder };
                     folder.Add(file);
                     Interlocked.Increment(ref _files);
                     Interlocked.Add(ref _bytes, size);

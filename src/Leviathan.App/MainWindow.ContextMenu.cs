@@ -64,6 +64,16 @@ public sealed partial class MainWindow
             AddTagMenu(flyout);
         }
 
+        // The space map of a folder: the one selected, or the one shown when nothing is (spec §14).
+        if (tab.Selection.SelectedEntries is { Count: 1 } single && single[0].Kind == FileEntryKind.Folder)
+        {
+            flyout.Items.Add(OwnItem(new MenuEntry(MenuEntryKind.Command, "Space map of this folder", CommandIds.SpaceMap, new CommandContext(single[0].Location.Value, null), "Ctrl+Shift+M", true)));
+        }
+        else if (tab.Selection.SelectedEntries.Count == 0 && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc)
+        {
+            flyout.Items.Add(OwnItem(new MenuEntry(MenuEntryKind.Command, "Space map of this folder", CommandIds.SpaceMap, new CommandContext(tab.History.Current.Value, null), "Ctrl+Shift+M", true)));
+        }
+
         var extended = KeyTranslator.IsDown(VirtualKey.Shift);
         var shellRequest = ShellRequestFor(tab, extended);
         ShellSection? section = null;

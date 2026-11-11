@@ -136,6 +136,23 @@ public sealed class SpaceScannerTests
     }
 
     [Fact]
+    public async Task Scan_CountsCloudPlaceholdersAsNoSpace_AndMarksThem()
+    {
+        var files = new FakeLocationProvider()
+            .AddFile(@"D:\data\real.bin", 1000)
+            .AddFile(@"D:\data\cloud.bin", 5_000_000, (FileAttributes)0x400000)
+            .AddFile(@"D:\data\offline.bin", 7_000_000, FileAttributes.Offline);
+        using var session = Scanner(files).Start(P(@"D:\data"));
+        await session.Completion;
+
+        Assert.Equal(1000, session.Root.Size);
+        Assert.Equal(1000, session.Progress.Bytes);
+        Assert.Equal(3, session.Root.Files);
+        Assert.True(session.Root.Children.Single(c => c.Name == "cloud.bin").IsPlaceholder);
+        Assert.False(session.Root.Children.Single(c => c.Name == "real.bin").IsPlaceholder);
+    }
+
+    [Fact]
     public async Task Scan_ShowsTheTreeWhileItRuns_SoTheMapFillsIn()
     {
         var files = Tree(40, 10);

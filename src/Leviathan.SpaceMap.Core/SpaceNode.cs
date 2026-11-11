@@ -41,6 +41,12 @@ public sealed class SpaceNode
     /// <summary>The nodes directly inside (empty for a file).</summary>
     public IReadOnlyList<SpaceNode> Children => _children;
 
+    /// <summary>
+    /// True for a cloud placeholder (OneDrive and the like): the file shows its full size in Explorer but is not on this disk, so the map counts it as 0 bytes
+    /// and the tree says so (spec §14: "cloud placeholders separately so space isn't double-counted").
+    /// </summary>
+    public bool IsPlaceholder { get; set; }
+
     /// <summary>For a folder: true once the scan has listed it and added everything in it. A folder that is not listed is listed again when a scan is resumed.</summary>
     public bool Listed { get; set; }
 

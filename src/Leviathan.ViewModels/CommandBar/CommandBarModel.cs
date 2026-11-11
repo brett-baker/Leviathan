@@ -229,9 +229,15 @@ public static class ContextActions
             return new CommandContext(entry?.Location.Value);
         }
 
-        if (id == CommandIds.TabNew || id == CommandIds.TerminalHere || id == CommandIds.SpaceMap)
+        if (id == CommandIds.TabNew || id == CommandIds.TerminalHere)
         {
             return new CommandContext(current.Value);
+        }
+
+        if (id == CommandIds.SpaceMap)
+        {
+            // The map of the folder that is selected; with nothing or a file selected, of the folder shown.
+            return new CommandContext(entry is { Kind: Leviathan.Core.Model.FileEntryKind.Folder } ? entry.Location.Value : current.Value);
         }
 
         return new CommandContext(entry?.Location.Value, entry);

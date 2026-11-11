@@ -36,6 +36,9 @@ public interface IShellActions
     /// </summary>
     bool ToggleSearchIndex(LocationPath folder);
 
+    /// <summary>Opens the space map of a folder, drive or share in its own window (Ctrl+Shift+M, spec §14).</summary>
+    void OpenSpaceMap(LocationPath folder);
+
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
 
@@ -385,7 +388,7 @@ public static class CommandIds
     /// <summary>Delete a named profile. Target: the name.</summary>
     public static readonly CommandId ProfileDelete = new("profile.delete");
 
-    /// <summary>Space map of a folder (Phase 5).</summary>
+    /// <summary>Space map of a folder: the target names it, else the selected folder, else the folder shown (Ctrl+Shift+M, spec §14).</summary>
     public static readonly CommandId SpaceMap = new("spacemap.open");
 
     /// <summary>Open a folder in the second pane (Phase 2).</summary>
@@ -1332,6 +1335,32 @@ public static partial class WindowCommands
             var pinned = favorites!.Toggle(Current()!.History.Current);
             shell.ShowMessage(pinned ? "Added to Favorites" : "Removed from Favorites");
         }), _ => favorites is not null && Current() is not null, shortcut: "Ctrl+D");
+        Add(CommandIds.SpaceMap, "Space map", "Tools", (c, _) => Run(() =>
+        {
+            var tab = Current()!;
+            LocationPath? folder = null;
+            if (LocationPath.TryParse(c.Target, out var named))
+            {
+                folder = named;
+            }
+            else if (tab.Selection.SelectedEntries is { Count: 1 } one && one[0].Kind == FileEntryKind.Folder)
+            {
+                folder = one[0].Location;
+            }
+            else
+            {
+                folder = tab.History.Current;
+            }
+
+            if (folder.Kind is LocationKind.Drive or LocationKind.Unc && !(folder.Kind == LocationKind.Unc && folder.Share is null))
+            {
+                shell.OpenSpaceMap(folder);
+            }
+            else
+            {
+                shell.ShowMessage("Open a folder, a drive or a share first: the space map shows what is in it.");
+            }
+        }), _ => Current() is not null, shortcut: "Ctrl+Shift+M");
         Add(CommandIds.SearchIndexToggle, "Index this folder for search (or stop)", "Tools", (_, _) => Run(() =>
         {
             var here = Current()!.History.Current;
@@ -1392,6 +1421,7 @@ public static partial class WindowCommands
             ("Ctrl+Shift+N", CommandIds.NewFolder),
             ("Ctrl+Shift+F", CommandIds.FilterFocus),
             ("Ctrl+F", CommandIds.SearchFocus),
+            ("Ctrl+Shift+M", CommandIds.SpaceMap),
             ("Del", CommandIds.EditDelete),
             ("Shift+Del", CommandIds.EditDeletePermanent),
             ("Ctrl+X", CommandIds.EditCut),

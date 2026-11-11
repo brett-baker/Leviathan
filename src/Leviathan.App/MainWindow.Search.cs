@@ -25,8 +25,56 @@ public sealed partial class MainWindow
         }
     });
 
+    /// <summary>A hook for trying the space map without a click: LEVIATHAN_OPEN_SPACEMAP=&lt;folder&gt; opens its map once the window is up (docs/decisions.md).</summary>
+    private void OpenSpaceMapFromEnvironment()
+    {
+        if (Environment.GetEnvironmentVariable("LEVIATHAN_OPEN_SPACEMAP") is { Length: > 0 } path && LocationPath.TryParse(path, out var folder))
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => OpenSpaceMap(folder));
+        }
+    }
+
     /// <inheritdoc />
     public bool ToggleSearchIndex(LocationPath folder) => App.Host.ToggleSearchIndex(folder);
+
+    /// <inheritdoc />
+    public void OpenSpaceMap(LocationPath folder) => OnUi(() =>
+    {
+        var host = App.Host;
+        void Reveal(string path)
+        {
+            var location = LocationPath.TryParse(path, out var parsed) ? parsed : folder;
+            var where = location.Parent ?? location;
+            OnUi(() => Run(Leviathan.ViewModels.Commands.CommandIds.TabOpenInNewTab, where.Value, true));
+        }
+
+        var actions = new SpaceMapActions(
+            async path =>
+            {
+                var location = LocationPath.Parse(path);
+                if (Directory.Exists(location.ToWin32Path()))
+                {
+                    OnUi(() => Run(Leviathan.ViewModels.Commands.CommandIds.TabOpenInNewTab, location.Value, true));
+                    return;
+                }
+
+                var result = await host.Launcher.OpenAsync(location, CancellationToken.None);
+                if (!result.Started && !result.Cancelled)
+                {
+                    ShowMessage(result.Error ?? "That could not be opened.");
+                }
+            },
+            Reveal,
+            async paths =>
+            {
+                var outcome = await host.Transfers.DeleteAsync([.. paths.Select(LocationPath.Parse)], permanent: false, CancellationToken.None);
+                ShowMessage(outcome.Message);
+                return outcome.Started;
+            },
+            async (entry, number) => ShowMessage((await host.Tagging.ToggleAsync([entry], number, CancellationToken.None)).Message),
+            () => [.. host.Settings.Current.Tags.Catalog().Tags.Select(t => t.Name)]);
+        new SpaceMapWindow(host.SpaceScanner, folder, actions).Activate();
+    });
 
     private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {

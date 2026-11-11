@@ -44,6 +44,10 @@ public sealed class WindowCommandsTests
             return IndexedAfterToggle;
         }
 
+        public List<LocationPath> SpaceMaps { get; } = [];
+
+        public void OpenSpaceMap(LocationPath folder) => SpaceMaps.Add(folder);
+
         public void ShowMessage(string message) => Messages.Add(message);
 
         public List<Leviathan.Core.Model.FileEntry> Sheets { get; } = [];

@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
     <ProjectReference Include="..\Leviathan.Diagnostics\Leviathan.Diagnostics.csproj" />
     <ProjectReference Include="..\Leviathan.Search.Core\Leviathan.Search.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.SpaceMap.Core\Leviathan.SpaceMap.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
