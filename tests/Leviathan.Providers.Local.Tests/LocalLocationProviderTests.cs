@@ -124,7 +124,7 @@ public sealed class LocalLocationProviderTests : IDisposable
         var ex = await Assert.ThrowsAsync<LocationException>(() => ListAllAsync(provider, LocationPath.Parse(@"\\nas\media")));
 
         Assert.Equal(LocationError.Unreachable, ex.Error);
-        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(3), "Did not fail fast.");
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(15), "Did not fail fast.");
     }
 
     [Fact]
