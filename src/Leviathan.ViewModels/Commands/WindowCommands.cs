@@ -30,6 +30,12 @@ public interface IShellActions
     /// <summary>Moves keyboard focus into the search box of the navigation row (Ctrl+F, spec §13).</summary>
     void FocusSearchBox();
 
+    /// <summary>
+    /// Starts or stops keeping <paramref name="folder"/> in the search index (spec §13: "folders you opt in") and returns true when it is indexed afterwards.
+    /// The window owns the index, so the command only says which folder.
+    /// </summary>
+    bool ToggleSearchIndex(LocationPath folder);
+
     /// <summary>Shows a short message in the status bar, e.g. why an address could not be opened.</summary>
     void ShowMessage(string message);
 
@@ -261,6 +267,9 @@ public static class CommandIds
 
     /// <summary>Focuses the search box (Ctrl+F).</summary>
     public static readonly CommandId SearchFocus = new("search.focus");
+
+    /// <summary>Keeps the folder shown in the search index, or stops (spec §13: the NAS index).</summary>
+    public static readonly CommandId SearchIndexToggle = new("search.index");
 
     /// <summary>Pins the search results shown to Favorites, where it runs again each time it is opened (spec §13.2).</summary>
     public static readonly CommandId SearchSave = new("search.save");
@@ -1323,6 +1332,13 @@ public static partial class WindowCommands
             var pinned = favorites!.Toggle(Current()!.History.Current);
             shell.ShowMessage(pinned ? "Added to Favorites" : "Removed from Favorites");
         }), _ => favorites is not null && Current() is not null, shortcut: "Ctrl+D");
+        Add(CommandIds.SearchIndexToggle, "Index this folder for search (or stop)", "Tools", (_, _) => Run(() =>
+        {
+            var here = Current()!.History.Current;
+            shell.ShowMessage(shell.ToggleSearchIndex(here)
+                ? "This folder is now kept in the search index. It is listed in the background, a little at a time; see Background in the status hub."
+                : "This folder is no longer kept in the search index.");
+        }), _ => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc);
         Add(CommandIds.SearchSave, "Save this search to Favorites", "Tools", (_, _) => Run(() =>
         {
             var here = Current()!.History.Current;

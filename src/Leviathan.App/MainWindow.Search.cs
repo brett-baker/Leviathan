@@ -1,3 +1,4 @@
+using Leviathan.Core.Paths;
 using Leviathan.Search;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Searches;
@@ -23,6 +24,9 @@ public sealed partial class MainWindow
             box.SelectAll();
         }
     });
+
+    /// <inheritdoc />
+    public bool ToggleSearchIndex(LocationPath folder) => App.Host.ToggleSearchIndex(folder);
 
     private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {

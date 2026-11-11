@@ -13,6 +13,9 @@ public sealed record IndexCrawlOptions
 
     /// <summary>Folders listed at the same time on one share or server (default 1, as the NAS crawl is meant to be gentle).</summary>
     public int ParallelismPerShare { get; init; } = 1;
+
+    /// <summary>Awaited before each folder is listed; the manager uses it to hold a crawl back while the user has paused indexing or a job is copying to the same share.</summary>
+    public Func<LocationPath, CancellationToken, Task>? BeforeFolder { get; init; }
 }
 
 /// <summary>Where a crawl has got to.</summary>
@@ -67,6 +70,11 @@ public sealed class IndexCrawler(LocationProviderRegistry providers, NameIndex i
         async Task CrawlFolderAsync(int id)
         {
             var folder = index.PathOf(id);
+            if (_options.BeforeFolder is { } before)
+            {
+                await before(folder, cancellationToken).ConfigureAwait(false);
+            }
+
             var gate = GateFor(folder);
             if (gate is not null)
             {

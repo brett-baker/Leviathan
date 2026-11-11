@@ -8,6 +8,7 @@
     <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
     <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
     <ProjectReference Include="..\Leviathan.Media.Core\Leviathan.Media.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Search.Core\Leviathan.Search.Core.csproj" />
     <ProjectReference Include="..\Leviathan.ViewModels\Leviathan.ViewModels.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -54,6 +54,23 @@ public sealed class LeviathanDatabase
 
         // 4: folders directly inside a folder, for the Items column (spec §12.7); null until the folder is counted again
         "ALTER TABLE folder_size ADD COLUMN own_folders INTEGER NULL;",
+
+        // 5: the name index behind search (spec §13): every folder and file of the roots the user chose to index, and when each root was last listed completely
+        """
+        CREATE TABLE name_index (
+            id         INTEGER NOT NULL PRIMARY KEY,
+            parent     INTEGER NOT NULL,
+            name       TEXT NOT NULL,
+            is_folder  INTEGER NOT NULL,
+            size       INTEGER NOT NULL,
+            modified   INTEGER NOT NULL,
+            attributes INTEGER NOT NULL
+        );
+        CREATE TABLE name_index_roots (
+            id         INTEGER NOT NULL PRIMARY KEY,
+            crawled_at TEXT NULL
+        );
+        """,
     ];
 
     private readonly string _connectionString;

@@ -140,6 +140,41 @@ internal sealed class AppHost
     /// <summary>Where search results report their progress to, and where the search gets tags and media information (spec 13).</summary>
     public SearchHooks SearchHooks { get; private init; } = null!;
 
+    /// <summary>Keeps the folders chosen for the search index listed (spec 13).</summary>
+    public Leviathan.Search.IndexManager SearchIndex { get; private init; } = null!;
+
+    /// <summary>
+    /// Starts or stops indexing <paramref name="folder"/> for search and returns true when it is indexed afterwards. A folder inside an indexed folder is already covered
+    /// (nothing changes and the answer is true); an indexed folder that is chosen again is removed.
+    /// </summary>
+    public bool ToggleSearchIndex(LocationPath folder)
+    {
+        if (SearchIndex.Roots.Contains(folder))
+        {
+            SearchIndex.Remove(folder);
+            return false;
+        }
+
+        if (SearchIndex.IsIndexed(folder))
+        {
+            return true;
+        }
+
+        SearchIndex.Add(folder);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await SearchIndex.CrawlNowAsync(folder, CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
+                // Removed again before it finished.
+            }
+        });
+        return true;
+    }
+
     private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
 
     /// <summary>
@@ -551,6 +586,7 @@ internal sealed class AppHost
         var tagIndex = new Lazy<Leviathan.ViewModels.Tags.ITagIndex>(() => new SqliteTagIndex(new LeviathanDatabase(LeviathanDatabase.DefaultPath)));
         // Search results are a folder too (shell:search\...): listed by walking the folders, with tags and media information from the app's own stores (spec 13).
         var searchHooks = new SearchHooks();
+        var busyDevices = new Leviathan.ViewModels.Searches.BusyDevices();
         LocationProviderRegistry? searchProviders = null;
         var providers = new LocationProviderRegistry([
             new HealthTrackingLocationProvider(
@@ -592,6 +628,7 @@ internal sealed class AppHost
             {
                 operations.Apply(job);
                 background?.Apply(job);
+                busyDevices.Apply(job);
             };
             return connection;
         });
@@ -627,6 +664,31 @@ internal sealed class AppHost
         // Folder listings are kept between runs in their own file (nothing is opened until the first folder is shown).
         var listings = new ListingCache(store: new SqliteListingStore(Path.Combine(data, "listings.db")));
         UiTrace.Mark("AppHost: listing cache");
+        // The folders chosen for the search index (spec §13) are listed in the background, one at a time, never while a job copies to the same share, and saved in SQLite
+        // (opened only when a folder was chosen). A folder you open also refreshes its entries in the index.
+        var indexManager = new Leviathan.Search.IndexManager(
+            searchHooks.Index,
+            providers,
+            new LazyNameIndexStore(() => new SqliteNameIndexStore(new LeviathanDatabase(LeviathanDatabase.DefaultPath))),
+            new JsonIndexedFolders(Path.Combine(data, "indexed-folders.json")),
+            TimeProvider.System,
+            isBusy: busyDevices.IsBusy);
+        listings.Listed += (key, entries) =>
+        {
+            if (indexManager.IsIndexed(key.Location))
+            {
+                _ = Task.Run(() => indexManager.OnFolderListed(key.Location, entries, key.IncludeHidden && key.IncludeSystem));
+            }
+        };
+        _ = Task.Run(() =>
+        {
+            indexManager.Initialize();
+            return indexManager.RunAsync(CancellationToken.None);
+        });
+        background.SearchIndex = () => indexManager.Status();
+        background.SearchIndexPaused = () => indexManager.IsPaused;
+        background.SetSearchIndexPaused = indexManager.SetPaused;
+        indexManager.Changed += (_, _) => background.NotifyChanged();
         // Colour tags (spec §11.2): the stream on the file, plus the SQLite index (opened on first use) for lookups and for locations without streams.
         var tagStore = new Leviathan.ViewModels.Tags.IndexedTagStore(
             new AlternateStreamTagStore(),
@@ -734,6 +796,7 @@ internal sealed class AppHost
             Tagging = new Leviathan.ViewModels.Tags.FileTagging(tagStore, () => built!.Settings.Current.Tags.Catalog()),
             TagStore = tagStore,
             SearchHooks = searchHooks,
+            SearchIndex = indexManager,
             Listings = listings,
             Icons = icons,
             Operations = operations,
@@ -860,4 +923,14 @@ internal sealed class SearchHooks
 
     /// <summary>Raised on a pool thread after each batch of results and at the end of a search.</summary>
     public Action<Leviathan.Search.SearchReport>? Reported { get; set; }
+}
+
+/// <summary>Opens the SQLite copy of the search index only when it is first used, so starting the app never opens the database for an index nobody asked for.</summary>
+internal sealed class LazyNameIndexStore(Func<Leviathan.Search.INameIndexStore> create) : Leviathan.Search.INameIndexStore
+{
+    private readonly Lazy<Leviathan.Search.INameIndexStore> _store = new(create);
+
+    public void Save(Leviathan.Search.IndexSnapshot snapshot) => _store.Value.Save(snapshot);
+
+    public Leviathan.Search.IndexSnapshot? Load() => _store.Value.Load();
 }

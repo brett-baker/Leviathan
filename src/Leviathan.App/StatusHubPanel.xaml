@@ -380,6 +380,17 @@
               <TextBlock x:Name="SheetsText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
             <StackPanel Spacing="4">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Search index" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                <Button x:Name="IndexPauseButton" Grid.Column="1" Content="Pause" Click="OnIndexPauseClick" Visibility="Collapsed" />
+              </Grid>
+              <TextBlock x:Name="IndexText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
               <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />
               <TextBlock x:Name="NetworkText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>

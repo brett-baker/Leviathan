@@ -72,6 +72,23 @@ public sealed class NameIndexTests
     }
 
     [Fact]
+    public void ReplaceChildren_AListingThatLeavesOutHiddenItems_KeepsTheHiddenOnesTheIndexKnows()
+    {
+        using var index = new NameIndex();
+        var root = index.AddRoot(P(@"C:\"));
+        index.ReplaceChildren(root, [File("shown.txt"), new IndexedChild("secret.txt", false, 1, 1, FileAttributes.Hidden), File("gone.txt")]);
+
+        // The folder as a person sees it: no hidden items, and gone.txt has been deleted.
+        index.ReplaceChildren(root, [File("shown.txt")], listedHiddenAndSystem: false);
+
+        Assert.Equal([@"C:\secret.txt", @"C:\shown.txt"], Find(index, ".txt"));
+        Assert.Equal(2, index.ChildrenOf(root).Count);
+
+        index.ReplaceChildren(root, [File("shown.txt")]); // a full listing removes it
+        Assert.Equal([@"C:\shown.txt"], Find(index, ".txt"));
+    }
+
+    [Fact]
     public void ReplaceChildren_ACaseOnlyRename_ShowsTheNewCase()
     {
         using var index = new NameIndex();

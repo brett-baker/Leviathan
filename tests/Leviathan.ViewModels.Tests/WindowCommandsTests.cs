@@ -34,6 +34,16 @@ public sealed class WindowCommandsTests
 
         public void FocusSearchBox() => SearchFocusCalls++;
 
+        public List<LocationPath> IndexToggles { get; } = [];
+
+        public bool IndexedAfterToggle { get; set; } = true;
+
+        public bool ToggleSearchIndex(LocationPath folder)
+        {
+            IndexToggles.Add(folder);
+            return IndexedAfterToggle;
+        }
+
         public void ShowMessage(string message) => Messages.Add(message);
 
         public List<Leviathan.Core.Model.FileEntry> Sheets { get; } = [];

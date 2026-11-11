@@ -142,6 +142,12 @@ public sealed class ListingCache
         return fromDisk;
     }
 
+    /// <summary>
+    /// Raised, on the thread that listed the folder, each time a finished listing is stored. The search index listens to refresh the entries of a folder you open (spec §13 "change
+    /// detection"); the handler must be quick and must not touch the UI.
+    /// </summary>
+    public event Action<ListingKey, IReadOnlyList<FileEntry>>? Listed;
+
     /// <summary>Stores a finished listing, in memory and, when there is one, in the store (in the background).</summary>
     /// <param name="key">What was listed.</param>
     /// <param name="entries">The items.</param>
@@ -153,6 +159,7 @@ public sealed class ListingCache
         ArgumentNullException.ThrowIfNull(entries);
         var listing = new CachedListing(entries, listedAt, kind);
         Remember(key, listing);
+        Listed?.Invoke(key, entries);
         if (Store is { } store)
         {
             _ = changed ? SaveQuietlyAsync(store, key, listing) : TouchQuietlyAsync(store, key, listedAt);

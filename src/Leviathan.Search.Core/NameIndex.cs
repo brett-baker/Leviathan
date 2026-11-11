@@ -181,9 +181,10 @@ public sealed class NameIndex : IDisposable
     /// <summary>
     /// Makes the children of <paramref name="folder"/> exactly <paramref name="children"/>: new ones are added, ones that are still there keep their id and
     /// get the new size and time, ones that are gone are removed with everything below them. Returns the id of every child, in the same order, so a crawler
-    /// can go on into the folders.
+    /// can go on into the folders. With <paramref name="listedHiddenAndSystem"/> false (the listing a person was shown, which leaves hidden and system items out) the
+    /// hidden and system children that are not in <paramref name="children"/> are kept rather than removed.
     /// </summary>
-    public int[] ReplaceChildren(int folder, IReadOnlyList<IndexedChild> children)
+    public int[] ReplaceChildren(int folder, IReadOnlyList<IndexedChild> children, bool listedHiddenAndSystem = true)
     {
         ArgumentNullException.ThrowIfNull(children);
         var ids = new int[children.Count];
@@ -217,12 +218,19 @@ public sealed class NameIndex : IDisposable
                 ids[i] = id;
             }
 
+            var keptUnlisted = new List<int>();
             foreach (var old in existing.Values.Where(v => !kept.Contains(v)))
             {
+                if (!listedHiddenAndSystem && ((FileAttributes)_attributes[old] & (FileAttributes.Hidden | FileAttributes.System)) != 0)
+                {
+                    keptUnlisted.Add(old);
+                    continue;
+                }
+
                 Kill(old);
             }
 
-            Relink(folder, ids);
+            Relink(folder, keptUnlisted.Count == 0 ? ids : [.. ids, .. keptUnlisted]);
             return ids;
         }
         finally
@@ -405,6 +413,91 @@ public sealed class NameIndex : IDisposable
         finally
         {
             _lock.ExitReadLock();
+        }
+    }
+
+    /// <summary>
+    /// Copies the live entries out for saving (spec §13: the NAS index is kept in SQLite). Ids are renumbered from 0 without the dead entries, and a parent always
+    /// comes before its children, so <see cref="Import"/> can rebuild the index in one pass.
+    /// </summary>
+    public IndexSnapshot Export()
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            var map = new int[_count];
+            Array.Fill(map, -1);
+            var rows = new List<IndexRow>(_count - _dead);
+            for (var id = 0; id < _count; id++)
+            {
+                if ((_flags[id] & Dead) != 0 || (_parent[id] >= 0 && map[_parent[id]] < 0))
+                {
+                    continue;
+                }
+
+                map[id] = rows.Count;
+                rows.Add(new IndexRow(rows.Count, _parent[id] < 0 ? -1 : map[_parent[id]], NameOf(id), (_flags[id] & Folder) != 0, _size[id], _modified[id], _attributes[id]));
+            }
+
+            var roots = _roots.Where(r => map[r] >= 0).Select(r => new IndexRootState(map[r], _crawled.TryGetValue(r, out var when) ? when : null)).ToList();
+            return new IndexSnapshot(rows, roots);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    /// <summary>Fills an empty index from a snapshot made by <see cref="Export"/>.</summary>
+    /// <exception cref="InvalidOperationException">The index already holds entries, or the snapshot is not in parent-first order.</exception>
+    public void Import(IndexSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _lock.EnterWriteLock();
+        try
+        {
+            if (_count != 0)
+            {
+                throw new InvalidOperationException("The index is not empty.");
+            }
+
+            var children = new Dictionary<int, List<int>>();
+            foreach (var row in snapshot.Rows)
+            {
+                if (row.Parent >= row.Id || (row.Id != _count))
+                {
+                    throw new InvalidOperationException("The saved index is damaged.");
+                }
+
+                var id = NewEntry(row.Name, row.Parent, (byte)(row.IsFolder ? Folder : 0), row.Size, row.ModifiedTicks, row.Attributes);
+                if (row.Parent >= 0)
+                {
+                    if (!children.TryGetValue(row.Parent, out var list))
+                    {
+                        children[row.Parent] = list = [];
+                    }
+
+                    list.Add(id);
+                }
+            }
+
+            foreach (var (parent, list) in children)
+            {
+                Relink(parent, list);
+            }
+
+            foreach (var root in snapshot.Roots)
+            {
+                _roots.Add(root.Id);
+                if (root.CrawledAt is { } when)
+                {
+                    _crawled[root.Id] = when;
+                }
+            }
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
         }
     }
 
@@ -609,3 +702,33 @@ public sealed class NameIndex : IDisposable
 /// <param name="IsDone">True when nothing is left.</param>
 /// <param name="LastId">The last entry returned for a word search, so one name is not returned twice.</param>
 public readonly record struct IndexCursor(int Next = 0, bool IsDone = false, int LastId = -1);
+
+/// <summary>One saved entry of the <see cref="NameIndex"/>.</summary>
+/// <param name="Id">Position in the snapshot; a parent always has a smaller id than its children.</param>
+/// <param name="Parent">The parent's id, or -1 for a root.</param>
+/// <param name="Name">Name (the full path for a root).</param>
+/// <param name="IsFolder">True for a folder.</param>
+/// <param name="Size">Size in bytes.</param>
+/// <param name="ModifiedTicks">Last write time as UTC ticks.</param>
+/// <param name="Attributes">File-system attributes.</param>
+public sealed record IndexRow(int Id, int Parent, string Name, bool IsFolder, long Size, long ModifiedTicks, int Attributes);
+
+/// <summary>A root of a snapshot and when it was last listed completely.</summary>
+/// <param name="Id">The root's id in the snapshot.</param>
+/// <param name="CrawledAt">When its whole tree was last listed, or null if it never was.</param>
+public sealed record IndexRootState(int Id, DateTimeOffset? CrawledAt);
+
+/// <summary>A copy of a <see cref="NameIndex"/> for saving and loading.</summary>
+/// <param name="Rows">The entries, parents first.</param>
+/// <param name="Roots">The roots and their crawl times.</param>
+public sealed record IndexSnapshot(IReadOnlyList<IndexRow> Rows, IReadOnlyList<IndexRootState> Roots);
+
+/// <summary>Where the index is kept between runs (spec §13: SQLite).</summary>
+public interface INameIndexStore
+{
+    /// <summary>Replaces what is saved with <paramref name="snapshot"/>. Atomic: a failure leaves the previous copy.</summary>
+    void Save(IndexSnapshot snapshot);
+
+    /// <summary>Reads the saved index, or null when there is none or it cannot be read.</summary>
+    IndexSnapshot? Load();
+}

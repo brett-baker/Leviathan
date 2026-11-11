@@ -70,6 +70,9 @@ public sealed record ContactSheetBatchStats(string Folder, int Done, int Total, 
 /// <param name="Quarantined">Files the media process could not read, each with a "retry" button.</param>
 /// <param name="ContactSheets">The contact sheet line: a batch being made or just finished; empty when there is none.</param>
 /// <param name="ContactSheetsRunning">True while a batch runs (the Cancel button shows).</param>
+/// <param name="SearchIndex">The search index line: the folders indexed for search, when each was listed, what is running or held back (spec §13).</param>
+/// <param name="SearchIndexPaused">True while the user has paused indexing.</param>
+/// <param name="SearchIndexInUse">True when at least one folder is indexed (the pause button shows).</param>
 public sealed record BackgroundView(
     IReadOnlyList<BackgroundTaskEntry> Tasks,
     string FolderSizes,
@@ -81,7 +84,10 @@ public sealed record BackgroundView(
     string Media = "Not started",
     IReadOnlyList<QuarantinedFile>? Quarantined = null,
     string ContactSheets = "",
-    bool ContactSheetsRunning = false);
+    bool ContactSheetsRunning = false,
+    string SearchIndex = "Not in use",
+    bool SearchIndexPaused = false,
+    bool SearchIndexInUse = false);
 
 /// <summary>
 /// What the Background tab of the status hub shows (spec §16.1): the worker's background lane (folder sizes, later metadata
@@ -132,6 +138,15 @@ public sealed class BackgroundModel
 
     /// <summary>Reads the contact sheet batch, or null when none was started.</summary>
     public Func<ContactSheetBatchStats?>? ContactSheets { get; set; }
+
+    /// <summary>Where each folder indexed for search stands (spec §13); null when the index is not available.</summary>
+    public Func<IReadOnlyList<Leviathan.Search.IndexRootStatus>?>? SearchIndex { get; set; }
+
+    /// <summary>True while the user has paused indexing.</summary>
+    public Func<bool>? SearchIndexPaused { get; set; }
+
+    /// <summary>Pauses or resumes indexing for search (the hub's button).</summary>
+    public Action<bool>? SetSearchIndexPaused { get; set; }
 
     /// <summary>Stops the contact sheet batch after the video being worked on.</summary>
     public Action? CancelContactSheets { get; set; }
@@ -223,7 +238,28 @@ public sealed class BackgroundModel
             MediaLine(Media?.Invoke()),
             Media?.Invoke()?.Quarantined ?? [],
             ContactSheetLine(ContactSheets?.Invoke()),
-            ContactSheets?.Invoke() is { Running: true });
+            ContactSheets?.Invoke() is { Running: true },
+            SearchIndexLine(SearchIndex?.Invoke(), SearchIndexPaused?.Invoke() == true),
+            SearchIndexPaused?.Invoke() == true,
+            SearchIndex?.Invoke() is { Count: > 0 });
+    }
+
+    private static string SearchIndexLine(IReadOnlyList<Leviathan.Search.IndexRootStatus>? roots, bool paused)
+    {
+        if (roots is null || roots.Count == 0)
+        {
+            return "No folders are indexed · right-click a folder and choose \"Index this folder for search\", or search it live";
+        }
+
+        var parts = roots.Select(r =>
+        {
+            var state = r.IsWaiting ? $"held back ({r.Message?.ToLowerInvariant()})"
+                : r.IsCrawling ? $"listing{(r.Progress is { } p ? $" · {p.FoldersDone:N0} folders, {p.ItemsSeen:N0} items" : string.Empty)}"
+                : r.LastCrawled is { } at ? $"listed {at.ToLocalTime():yyyy-MM-dd HH:mm}" + (r.Message is { } m ? $" · {m}" : string.Empty)
+                : "not listed yet";
+            return $"{r.Root}: {state}";
+        });
+        return (paused ? "Paused · " : string.Empty) + string.Join("  |  ", parts);
     }
 
     private static string ContactSheetLine(ContactSheetBatchStats? batch)

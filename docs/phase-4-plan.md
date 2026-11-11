@@ -50,8 +50,8 @@ Every slice follows `CLAUDE.md`. Run and test from Visual Studio (F5, Test Explo
 
 ### C. NAS index (§13)
 
-- [ ] **C1. Index fill from the folder-size crawl** — the same pass writes name, size, date to a SQLite index for folders the user opts in.
-- [ ] **C2. Re-crawl and change detection** — low-priority schedule, pause while a job copies to the same NAS, crawl status in Background.
+- [x] **C1. Index fill** (done as its own crawl with an SQLite copy and an opt-in command, see decisions; 20 tests) — the same pass writes name, size, date to a SQLite index for folders the user opts in.
+- [x] **C2. Re-crawl and change detection** (done: schedule, pause, held back during a copy to the same server, folders you open refresh the index, Search index line and Pause button in the Background tab; 20 tests) — low-priority schedule, pause while a job copies to the same NAS, crawl status in Background.
 
 ### D. Space map (§14)
 

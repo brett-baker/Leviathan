@@ -308,6 +308,9 @@ internal sealed partial class StatusHubPanel : UserControl
         SheetsText.Text = view.ContactSheets;
         CancelSheetsButton.Visibility = view.ContactSheetsRunning ? Visibility.Visible : Visibility.Collapsed;
         ThumbText.Text = view.Thumbnails;
+        IndexText.Text = view.SearchIndex;
+        IndexPauseButton.Visibility = view.SearchIndexInUse ? Visibility.Visible : Visibility.Collapsed;
+        IndexPauseButton.Content = view.SearchIndexPaused ? "Resume" : "Pause";
         NetworkText.Text = view.Network;
         PauseAllButton.IsEnabled = view.AnyActive && !view.AllPaused;
         ResumeAllButton.IsEnabled = view.AllPaused || _background.PausedIds().Count > 0;
@@ -362,6 +365,12 @@ internal sealed partial class StatusHubPanel : UserControl
     }
 
     private void OnCancelSheetsClick(object sender, RoutedEventArgs e) => _background.CancelContactSheets?.Invoke();
+
+    private void OnIndexPauseClick(object sender, RoutedEventArgs e)
+    {
+        _background.SetSearchIndexPaused?.Invoke(_background.SearchIndexPaused?.Invoke() != true);
+        RefreshBackground();
+    }
 
     private async void OnRetryMediaClick(object sender, RoutedEventArgs e)
     {
