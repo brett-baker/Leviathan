@@ -37,6 +37,7 @@ public sealed class NameIndex : IDisposable
     private int _count;
     private int _dead;
     private readonly List<int> _roots = [];
+    private readonly Dictionary<int, DateTimeOffset> _crawled = [];
 
     /// <summary>Entries in the index, folders included, roots excluded.</summary>
     public int Count
@@ -96,6 +97,56 @@ public sealed class NameIndex : IDisposable
         {
             _lock.ExitWriteLock();
         }
+    }
+
+    /// <summary>Records that the whole tree below a root has been listed, as of <paramref name="when"/>. Only then does the index answer for it.</summary>
+    public void MarkCrawled(int root, DateTimeOffset when)
+    {
+        _lock.EnterWriteLock();
+        try
+        {
+            _crawled[root] = when;
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    /// <summary>When the root that holds <paramref name="path"/> was last listed completely, or null when the index does not cover it (never crawled, or crawl stopped).</summary>
+    public DateTimeOffset? CoveredSince(LocationPath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        _lock.EnterReadLock();
+        try
+        {
+            foreach (var root in _roots)
+            {
+                if (_crawled.TryGetValue(root, out var when) && (FindLocked(path) is var id && id >= 0) && IsUnderOrSame(id, root))
+                {
+                    return when;
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    private bool IsUnderOrSame(int id, int root)
+    {
+        for (var p = id; p >= 0; p = _parent[p])
+        {
+            if (p == root)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Finds the id of a folder or file that is in the index, or -1.</summary>

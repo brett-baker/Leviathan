@@ -160,6 +160,27 @@ public sealed class SearchBoxTests
     public void Status_ForMediaFields_SaysTheyOnlyKnowWhatHasBeenLookedAt() =>
         Assert.Contains("media information is already known", SearchStatusText.For(Report(0, 5, 0, finished: true, query: "duration:>1h")), StringComparison.Ordinal);
 
+    [Fact]
+    public void Status_SaysWhereTheAnswersCameFrom_WhenItWasNotAPlainLiveListing()
+    {
+        var report = Report(2, 5, 0, finished: true) with
+        {
+            Sources =
+            [
+                new SearchSourceChoice(SearchSourceKind.Everything, [P(@"C:\v")]),
+                new SearchSourceChoice(SearchSourceKind.Index, [P(@"\\nas\media")], new DateTimeOffset(2026, 11, 10, 8, 30, 0, TimeSpan.Zero)),
+                new SearchSourceChoice(SearchSourceKind.Live, [P(@"D:\x")], null, "Everything is installed but not running"),
+            ],
+        };
+
+        var text = SearchStatusText.For(report);
+
+        Assert.Contains("from Everything", text, StringComparison.Ordinal);
+        Assert.Contains("from the index, last listed 2026-11-10", text, StringComparison.Ordinal);
+        Assert.Contains("folders listed now (everything is installed but not running)", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("from Everything", SearchStatusText.For(Report(1, 1, 0, finished: true) with { Sources = [new SearchSourceChoice(SearchSourceKind.Live, [])] }), StringComparison.Ordinal);
+    }
+
     private sealed class Tags(Dictionary<string, HashSet<int>> byPath) : ITagStore
     {
         public Task<IReadOnlySet<int>> GetAsync(string path, CancellationToken cancellationToken) =>

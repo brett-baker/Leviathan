@@ -27,7 +27,7 @@ public sealed record CrawlProgress(int FoldersDone, long ItemsSeen, int Errors);
 /// consistent index: every folder is replaced as a whole, so the index is never left with half a folder. Running it again over a root re-lists the same
 /// folders and applies only the differences, keeping entry ids.
 /// </summary>
-public sealed class IndexCrawler(LocationProviderRegistry providers, NameIndex index, IndexCrawlOptions? options = null)
+public sealed class IndexCrawler(LocationProviderRegistry providers, NameIndex index, IndexCrawlOptions? options = null, TimeProvider? time = null)
 {
     private readonly IndexCrawlOptions _options = options ?? new IndexCrawlOptions();
 
@@ -151,6 +151,8 @@ public sealed class IndexCrawler(LocationProviderRegistry providers, NameIndex i
             }
         }
 
+        // Only a crawl that ran to the end makes the index answer for this root; a stopped one leaves what it found, and searches still use the live search.
+        index.MarkCrawled(rootId, (time ?? TimeProvider.System).GetUtcNow());
         return new CrawlProgress(done, seen, errors);
     }
 }

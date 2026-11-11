@@ -84,7 +84,7 @@ public sealed class SearchLocationTests
     {
         var reports = new List<SearchReport>();
         LocationProviderRegistry? registry = null;
-        var provider = new SearchListingProvider(() => registry!, () => facts ?? NoSearchFacts.Instance, new ManualTimeProvider(), reports.Add);
+        var provider = new SearchListingProvider(o => new SearchCoordinator(new LiveSearch(registry!, o)), () => facts ?? NoSearchFacts.Instance, new ManualTimeProvider(), reports.Add);
         registry = new LocationProviderRegistry([provider, files]);
         var batches = new List<ListingBatch>();
         await foreach (var batch in provider.ListAsync(SearchLocations.For(request), ListingOptions.Default, token))
@@ -155,7 +155,7 @@ public sealed class SearchLocationTests
         using var cts = new CancellationTokenSource();
         var reports = new List<SearchReport>();
         LocationProviderRegistry? registry = null;
-        var provider = new SearchListingProvider(() => registry!, () => NoSearchFacts.Instance, new ManualTimeProvider(), reports.Add);
+        var provider = new SearchListingProvider(o => new SearchCoordinator(new LiveSearch(registry!, o)), () => NoSearchFacts.Instance, new ManualTimeProvider(), reports.Add);
         registry = new LocationProviderRegistry([provider, files]);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -172,7 +172,7 @@ public sealed class SearchLocationTests
     [Fact]
     public async Task ListAsync_DamagedLocation_IsALocationErrorWithAMessage()
     {
-        var provider = new SearchListingProvider(() => new LocationProviderRegistry([]), () => NoSearchFacts.Instance, new ManualTimeProvider());
+        var provider = new SearchListingProvider(o => new SearchCoordinator(new LiveSearch(new LocationProviderRegistry([]), o)), () => NoSearchFacts.Instance, new ManualTimeProvider());
 
         var error = await Assert.ThrowsAsync<LocationException>(async () =>
         {

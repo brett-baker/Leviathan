@@ -41,7 +41,8 @@ public sealed record SearchFolderError(LocationPath Folder, string Message);
 /// <param name="Progress">The counts so far.</param>
 /// <param name="IsFinal">True on the last batch; a search that was cancelled never sends one.</param>
 /// <param name="Errors">The folders that could not be read; filled on the final batch only.</param>
-public sealed record SearchBatch(IReadOnlyList<FileEntry> Matches, SearchProgress Progress, bool IsFinal, IReadOnlyList<SearchFolderError> Errors);
+/// <param name="Sources">Which sources answered which folders, when the batch comes from a <see cref="SearchCoordinator"/>; null from a single source.</param>
+public sealed record SearchBatch(IReadOnlyList<FileEntry> Matches, SearchProgress Progress, bool IsFinal, IReadOnlyList<SearchFolderError> Errors, IReadOnlyList<SearchSourceChoice>? Sources = null);
 
 /// <summary>
 /// Searches a folder tree by listing it (spec §13 "Live search"): for anywhere no index covers. Folders are listed in parallel with a bound for

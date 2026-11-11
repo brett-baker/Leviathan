@@ -11,7 +11,8 @@ namespace Leviathan.Search;
 /// <param name="Errors">Folders that could not be read.</param>
 /// <param name="Cancelled">True when the search was stopped before it finished.</param>
 /// <param name="Finished">True on the report that ends a search that ran to the end.</param>
-public sealed record SearchReport(SearchRequest Request, SearchProgress Progress, IReadOnlyList<SearchFolderError> Errors, bool Cancelled, bool Finished = false)
+/// <param name="Sources">Which sources answered which folders; null before the first batch.</param>
+public sealed record SearchReport(SearchRequest Request, SearchProgress Progress, IReadOnlyList<SearchFolderError> Errors, bool Cancelled, bool Finished = false, IReadOnlyList<SearchSourceChoice>? Sources = null)
 {
     /// <summary>True while the search is still listing folders.</summary>
     public bool IsRunning => !Cancelled && !Finished;
@@ -22,11 +23,11 @@ public sealed record SearchReport(SearchRequest Request, SearchProgress Progress
 /// and actions, because the entries are the real files. Matches stream in as they are found. Progress is reported to <paramref name="progress"/>
 /// after every batch and the last report says whether the search finished or was stopped.
 /// </summary>
-/// <param name="providers">Where folders are listed; resolved on use because the registry holds this provider too.</param>
+/// <param name="coordinator">Chooses Everything, the index or a live search per folder; made on use because it needs the registry that holds this provider.</param>
 /// <param name="facts">Tags, media information and content for the conditions that need them; resolved on use.</param>
 /// <param name="time">The clock for date words such as <c>lastweek</c>.</param>
 /// <param name="progress">Receives a report after each batch and at the end.</param>
-public sealed class SearchListingProvider(Func<LocationProviderRegistry> providers, Func<ISearchFacts> facts, TimeProvider time, Action<SearchReport>? progress = null) : ILocationProvider
+public sealed class SearchListingProvider(Func<LiveSearchOptions, SearchCoordinator> coordinator, Func<ISearchFacts> facts, TimeProvider time, Action<SearchReport>? progress = null) : ILocationProvider
 {
     /// <inheritdoc />
     public string Name => "search";
@@ -43,23 +44,23 @@ public sealed class SearchListingProvider(Func<LocationProviderRegistry> provide
             ?? throw new LocationException(LocationError.NotFound, location, "This search is damaged and cannot be run again. Search again from the search box.");
         var query = QueryParser.Parse(request.QueryText);
         var matcher = new QueryMatcher(query, time);
-        var search = new LiveSearch(providers(), new LiveSearchOptions { IncludeHidden = request.IncludeHidden || options.IncludeHidden, IncludeSystem = options.IncludeSystem, BatchSize = options.BatchSize });
+        var search = coordinator(new LiveSearchOptions { IncludeHidden = request.IncludeHidden || options.IncludeHidden, IncludeSystem = options.IncludeSystem, BatchSize = options.BatchSize });
         var last = new SearchProgress(0, 0, 0, 0);
         var done = false;
         try
         {
-            await foreach (var batch in search.RunAsync(request.Roots, matcher, matcher.NeedsFacts ? facts() : NoSearchFacts.Instance, cancellationToken).ConfigureAwait(false))
+            await foreach (var batch in search.RunAsync(query, request.Roots, matcher, matcher.NeedsFacts ? facts() : NoSearchFacts.Instance, cancellationToken).ConfigureAwait(false))
             {
                 last = batch.Progress;
                 if (batch.IsFinal)
                 {
                     done = true;
-                    progress?.Invoke(new SearchReport(request, last, batch.Errors, false, Finished: true));
+                    progress?.Invoke(new SearchReport(request, last, batch.Errors, false, Finished: true, Sources: batch.Sources));
                     yield return new ListingBatch(batch.Matches, true);
                 }
                 else
                 {
-                    progress?.Invoke(new SearchReport(request, last, [], false));
+                    progress?.Invoke(new SearchReport(request, last, [], false, Sources: batch.Sources));
                     yield return new ListingBatch(batch.Matches, false);
                 }
             }

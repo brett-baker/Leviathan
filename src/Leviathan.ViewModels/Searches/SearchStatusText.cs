@@ -34,12 +34,39 @@ public static class SearchStatusText
             text += string.Create(CultureInfo.InvariantCulture, $" · {Count(p.ErrorCount, "folder", "folders")} could not be read");
         }
 
+        if (SourcesNote(report) is { } sources)
+        {
+            text += " · " + sources;
+        }
+
         if (!running && UsesMediaFields(report.Request))
         {
             text += " · duration, res and codec match only files whose media information is already known";
         }
 
         return text;
+    }
+
+    // Say where the answers came from whenever it was not a plain live listing: an index can be out of date, and a missing Everything is worth knowing.
+    private static string? SourcesNote(SearchReport report)
+    {
+        if (report.Sources is not { Count: > 0 } sources || sources.All(s => s.Kind == SearchSourceKind.Live && s.Note is null))
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+        foreach (var source in sources)
+        {
+            parts.Add(source.Kind switch
+            {
+                SearchSourceKind.Everything => "from Everything",
+                SearchSourceKind.Index => string.Create(CultureInfo.InvariantCulture, $"from the index, last listed {source.IndexedAt?.ToLocalTime():yyyy-MM-dd HH:mm}"),
+                _ => source.Note is null ? "folders listed now" : $"folders listed now ({source.Note.ToLowerInvariant()})",
+            });
+        }
+
+        return string.Join(", ", parts);
     }
 
     private static bool UsesMediaFields(SearchRequest request) =>
