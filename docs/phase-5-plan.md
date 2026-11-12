@@ -14,8 +14,9 @@ Every slice follows `CLAUDE.md`.
   candidates; scopes (folders, drives, shares), type and minimum-size filters; runs in the worker with progress.
 - [x] **A2. Similar media**: perceptual hashes for images and for videos (frames at fixed percentages + duration) in
   `Leviathan.Media`, cached; tolerance setting.
-- [ ] **A3. Results UI**: groups with thumbnails and metadata side by side; auto-select rules (highest resolution, largest,
+- [x] **A3. Results UI** (exact duplicates; Alt+Shift+F): groups with thumbnails and metadata side by side; auto-select rules (highest resolution, largest,
   newest, oldest, preferred folder); actions (soft delete, move, replace with hard link on the same volume, tag).
+- [ ] **A4. Similar media in the results window**: scan images and videos through the Media process (A2 signatures), show them as lookalike groups (no hard link), with the tolerance setting; video thumbnails in the window.
 
 ### B. Bulk rename (§15.3)
 

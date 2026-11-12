@@ -95,6 +95,17 @@ public sealed class DuplicateCleanupTests
     }
 
     [Fact]
+    public async Task Delete_TellsTheAppWhatWentToTheBin_SoCtrlZCanUndoIt()
+    {
+        var recorded = new List<ItemMove>();
+        var cleanup = new DuplicateCleanup(new Files(), new Tags(), recordDelete: moves => recorded.AddRange(moves));
+
+        await cleanup.RunAsync([Group(true, F(@"C:\k\a"), F(@"C:\x\a"))], CleanupKind.Delete, null, 0, CancellationToken.None);
+
+        Assert.Equal([new ItemMove(@"C:\x\a", @"C:\bin\a")], recorded);
+    }
+
+    [Fact]
     public async Task Delete_ReportsTheOnesThatFailed_AndCountsOnlyTheOthers()
     {
         var files = new Files();

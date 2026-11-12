@@ -57,6 +57,9 @@ public interface IShellActions
     /// <summary>Finds duplicate files by name in the folder view and offers to select the extra copies (spec §12.7).</summary>
     void FindDuplicates();
 
+    /// <summary>Opens the duplicate-files window for the current folder: identical contents, grouped, with rules to pick the copy to keep (spec §15.2).</summary>
+    void FindDuplicateFiles();
+
     /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
     void ExportContactSheets(IReadOnlyList<FileEntry> videos);
 
@@ -420,6 +423,9 @@ public static class CommandIds
 
     /// <summary>Find duplicate files by name in this folder.</summary>
     public static readonly CommandId FindDuplicates = new("tools.duplicates");
+
+    /// <summary>Find duplicate files by contents under the current folder (spec §15.2).</summary>
+    public static readonly CommandId FindDuplicateFiles = new("tools.duplicateFiles");
 
     /// <summary>Contact sheet of one video (a window with the grid, saved on request), or of every video in a selection (made into a folder in the background).</summary>
     public static readonly CommandId ContactSheet = new("media.contactSheet");
@@ -1257,6 +1263,7 @@ public static partial class WindowCommands
         Add(CommandIds.TriageFromHere, "Triage mode from here", "Media", (_, _) => Run(shell.StartTriage), _ => Current() is not null, shortcut: "Alt+T");
         Add(CommandIds.TriageInbox, "Triage an inbox…", "Media", (_, _) => Run(shell.StartInboxTriage), _ => Current() is not null, shortcut: "Alt+Shift+T");
         Add(CommandIds.FindDuplicates, "Find duplicates…", "Tools", (_, _) => Run(shell.FindDuplicates), _ => Current() is not null, shortcut: "Alt+Shift+D");
+        Add(CommandIds.FindDuplicateFiles, "Find duplicate files by contents…", "Tools", (_, _) => Run(shell.FindDuplicateFiles), _ => Current() is not null, shortcut: "Alt+Shift+F");
         Add(CommandIds.PreviewQuick, "Quick preview", "View", (_, _) => Run(shell.ToggleQuickPreview), shortcut: "Space");
         Add(CommandIds.PreviewVideoSmall, "Preview video: small", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Small)));
         Add(CommandIds.PreviewVideoMedium, "Preview video: medium", "View", (_, _) => Run(() => window.SetVideoSize(VideoSize.Medium)));
@@ -1410,6 +1417,7 @@ public static partial class WindowCommands
             ("Alt+T", CommandIds.TriageFromHere),
             ("Alt+Shift+T", CommandIds.TriageInbox),
             ("Alt+Shift+D", CommandIds.FindDuplicates),
+            ("Alt+Shift+F", CommandIds.FindDuplicateFiles),
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),

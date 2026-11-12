@@ -396,6 +396,9 @@ internal sealed class AppHost
 
     private Lazy<WorkerConnection> WorkerLazy { get; init; } = null!;
 
+    /// <summary>The connection to the worker, started on first use.</summary>
+    internal WorkerConnection WorkerConnection => WorkerLazy.Value;
+
     /// <summary>True once the shell host was needed (reading <see cref="ShellHost"/> would start it).</summary>
     internal bool IsShellHostStarted => _shellHost.IsValueCreated;
 

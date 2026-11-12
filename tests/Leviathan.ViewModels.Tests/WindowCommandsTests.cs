@@ -72,6 +72,10 @@ public sealed class WindowCommandsTests
         {
         }
 
+        public void FindDuplicateFiles()
+        {
+        }
+
         public int InboxStarts { get; private set; }
 
         public bool Confirm { get; set; } = true;

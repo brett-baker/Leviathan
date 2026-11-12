@@ -26,33 +26,23 @@ public enum CleanupKind
 /// <param name="Exact">True when the files are byte-for-byte equal (the exact finder), which a hard link needs; lookalikes are not.</param>
 public sealed record CleanupGroup(IReadOnlyList<ReviewFile> Files, ReviewFile Keep, bool Exact);
 
-/// <summary>The hard-link work, behind a seam so it is tested with a fake and done by the real file system in the app.</summary>
-public interface IHardLinker
-{
-    /// <summary>
-    /// Makes <paramref name="extraPath"/> a hard link to <paramref name="keepPath"/>, replacing the file there without ever leaving the
-    /// path missing (link beside it, then swap). Returns null on success, or one sentence saying why not (another volume, a file system
-    /// without links, the file in use) with everything as it was.
-    /// </summary>
-    Task<string?> ReplaceWithLinkAsync(string keepPath, string extraPath, CancellationToken cancellationToken);
-
-    /// <summary>Gives <paramref name="path"/> its own copy of the contents again (the undo of a link). Returns null on success or one sentence.</summary>
-    Task<string?> MakeIndependentAsync(string path, CancellationToken cancellationToken);
-}
-
 /// <summary>What a clean-up did.</summary>
 /// <param name="Done">Copies acted on.</param>
 /// <param name="Bytes">Their size added up: the space freed by Delete and HardLink, the amount moved by Move, 0 for Tag.</param>
 /// <param name="Problems">One sentence for each copy that could not be done; the others went ahead.</param>
 /// <param name="Undo">Puts back what was done, or null when nothing was.</param>
-public sealed record CleanupResult(int Done, long Bytes, IReadOnlyList<string> Problems, Func<Task>? Undo);
+/// <param name="DonePaths">The original paths of the copies that were acted on, so a window can drop them from its list.</param>
+public sealed record CleanupResult(int Done, long Bytes, IReadOnlyList<string> Problems, Func<Task>? Undo, IReadOnlyList<string>? DonePaths = null);
 
 /// <summary>
 /// Acts on the extra copies of duplicate groups (spec §15.2). Never touches a kept copy, and never a file that is the kept copy of any
 /// other group, so overlapping scopes cannot remove the last copy of something. Delete goes through the journaled soft delete, so
 /// nothing is lost for good; every action returns an undo that does the opposite. A copy that fails is reported and the rest go on.
 /// </summary>
-public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLinker? links = null)
+/// <remarks>
+/// <paramref name="recordDelete"/> hears about every soft delete so the app's Ctrl+Z (spec §12.5) can undo it after the window is gone.
+/// </remarks>
+public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLinker? links = null, Action<IReadOnlyList<ItemMove>>? recordDelete = null)
 {
     /// <summary>The copies <paramref name="groups"/> would act on, in group order, with the kept copy of each.</summary>
     public static IReadOnlyList<(ReviewFile Extra, ReviewFile Keep, bool Exact)> Plan(IReadOnlyList<CleanupGroup> groups)
@@ -97,8 +87,13 @@ public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLi
     private async Task<CleanupResult> DeleteAsync(IReadOnlyList<(ReviewFile Extra, ReviewFile Keep, bool Exact)> plan, CancellationToken cancellationToken)
     {
         var result = await files.DeleteAsync([.. plan.Select(p => p.Extra.Path)], cancellationToken).ConfigureAwait(false);
+        if (result.Done.Count > 0)
+        {
+            recordDelete?.Invoke(result.Done);
+        }
+
         var bytes = SizeOf(plan, result.Done.Select(d => d.From));
-        return new CleanupResult(result.Done.Count, bytes, result.Problems, UndoMoves(result.Done));
+        return new CleanupResult(result.Done.Count, bytes, result.Problems, UndoMoves(result.Done), [.. result.Done.Select(d => d.From)]);
     }
 
     private async Task<CleanupResult> MoveAsync(IReadOnlyList<(ReviewFile Extra, ReviewFile Keep, bool Exact)> plan, string? folder, CancellationToken cancellationToken)
@@ -116,7 +111,7 @@ public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLi
         }
 
         var result = await files.MoveAsync(moves, cancellationToken).ConfigureAwait(false);
-        return new CleanupResult(result.Done.Count, SizeOf(plan, result.Done.Select(d => d.From)), result.Problems, UndoMoves(result.Done));
+        return new CleanupResult(result.Done.Count, SizeOf(plan, result.Done.Select(d => d.From)), result.Problems, UndoMoves(result.Done), [.. result.Done.Select(d => d.From)]);
     }
 
     private async Task<CleanupResult> LinkAsync(IReadOnlyList<(ReviewFile Extra, ReviewFile Keep, bool Exact)> plan, CancellationToken cancellationToken)
@@ -159,7 +154,7 @@ public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLi
             return new CleanupResult(0, 0, problems, null);
         }
 
-        return new CleanupResult(linked.Count, linked.Sum(l => l.Extra.Size), problems, async () =>
+        return new CleanupResult(linked.Count, linked.Sum(l => l.Extra.Size), problems, DonePaths: [.. linked.Select(l => l.Extra.Path)], Undo: async () =>
         {
             foreach (var (extra, _, _) in linked)
             {
@@ -201,7 +196,7 @@ public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLi
             return new CleanupResult(0, 0, problems, null);
         }
 
-        return new CleanupResult(before.Count, 0, problems, async () =>
+        return new CleanupResult(before.Count, 0, problems, DonePaths: [.. before.Keys], Undo: async () =>
         {
             foreach (var (path, tagsBefore) in before)
             {

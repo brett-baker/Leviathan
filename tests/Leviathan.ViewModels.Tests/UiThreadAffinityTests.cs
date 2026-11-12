@@ -136,6 +136,10 @@ public sealed class UiThreadAffinityTests
         public void FindDuplicates()
         {
         }
+
+        public void FindDuplicateFiles()
+        {
+        }
     }
 
     private sealed class NoLauncher : IFileLauncher
