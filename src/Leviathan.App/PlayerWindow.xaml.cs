@@ -76,6 +76,7 @@ internal sealed partial class PlayerWindow : Window
         }
         catch (Exception ex) when (ex is VLCException or DllNotFoundException or BadImageFormatException)
         {
+            Video.Visibility = Visibility.Collapsed; // The surface is white and drawn on top: the message would not show.
             Show($"The video engine could not start: {ex.Message}");
         }
     }

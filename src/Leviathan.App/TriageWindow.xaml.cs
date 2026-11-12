@@ -304,6 +304,9 @@ internal sealed partial class TriageWindow : Window
         }
         catch (Exception ex) when (ex is VLCException or DllNotFoundException or BadImageFormatException)
         {
+            // The video surface is drawn over everything and is white until LibVLC draws: hide it, or the message cannot be seen.
+            Video.Visibility = Visibility.Collapsed;
+            NameText.Text = "The video engine could not start";
             Message.Text = $"The video engine could not start: {ex.Message}";
             Message.Visibility = Visibility.Visible;
         }
