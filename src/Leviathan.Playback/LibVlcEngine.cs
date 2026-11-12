@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Leviathan.Core.Platform;
 using LibVLCSharp.Shared;
 
@@ -106,6 +107,13 @@ public sealed class LibVlcEngine : IVideoEngine
     /// </summary>
     public static LibVLC CreateLibVlc(params string[] extra)
     {
+        // A build that lost the native files (a half-finished copy) must say so at once: LibVLC searches for them for a long time before it gives up.
+        var native = Path.Combine(AppContext.BaseDirectory, "libvlc", RuntimeInformation.ProcessArchitecture == Architecture.X86 ? "win-x86" : "win-x64", "libvlc.dll");
+        if (OperatingSystem.IsWindows() && !File.Exists(native))
+        {
+            throw new DllNotFoundException($"The video engine files are missing ({native}). Close Leviathan and rebuild the App project.");
+        }
+
         LibVLCSharp.Shared.Core.Initialize();
         return new LibVLC([.. DefaultOptions, .. extra]);
     }
