@@ -67,6 +67,14 @@ builder.Services.AddSingleton(sp => new AudioArtService(new AudioArtMaker(
     () => sp.GetRequiredService<FfmpegTools>(),
     new ThumbnailDiskCache(Path.Combine(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(thumbnailFolder)))!, "audioart"), 128L * 1024 * 1024))));
 
+// Look-alike search (spec 15.2): signatures are kept by file version in the database; the raw 72-byte frames pass through a work folder.
+builder.Services.AddSingleton<IMediaSignatureStore>(_ => new SqliteMediaSignatureStore(new LeviathanDatabase(databasePath)));
+builder.Services.AddSingleton(sp => new MediaSignatureService(new MediaSignatureMaker(
+    new SystemProcessRunner(),
+    () => sp.GetRequiredService<FfmpegTools>(),
+    sp.GetRequiredService<IMediaSignatureStore>(),
+    Path.Combine(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(thumbnailFolder)))!, "signature-work"))));
+
 // Whatever the previous process was reading when it died is the suspect: it is marked unreadable now, before any request, so one bad
 // file cannot make this process crash again and again (spec 9.3, 3.4).
 builder.Services.AddSingleton(sp =>
@@ -77,7 +85,7 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName).LogWarning("Quarantined {Count} file(s) that were being read when the last media process stopped", quarantined);
     }
 
-    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>(), sp.GetRequiredService<ContactSheetService>(), sp.GetRequiredService<AudioArtService>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName));
+    return new MediaHostService(sp.GetRequiredService<MediaMetadataService>(), sp.GetRequiredService<FfmpegTools>(), quarantined, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ThumbnailService>(), sp.GetRequiredService<ContactSheetService>(), sp.GetRequiredService<AudioArtService>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger(ProcessName), sp.GetRequiredService<MediaSignatureService>());
 });
 builder.Services.AddSingleton(sp => new MediaPipeService(sp.GetRequiredService<MediaHostService>(), sp.GetRequiredService<ILogger<PipeServer>>(), pipeName));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MediaPipeService>());

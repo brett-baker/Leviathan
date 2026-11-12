@@ -81,6 +81,18 @@ public sealed class LeviathanDatabase
             data       BLOB NOT NULL
         );
         """,
+
+        // 7: perceptual signatures of pictures and videos for the similar-media search (spec §15.2), by file version
+        """
+        CREATE TABLE media_signature (
+            location   TEXT NOT NULL PRIMARY KEY COLLATE NOCASE,
+            size       INTEGER NOT NULL,
+            modified   TEXT NOT NULL,
+            kind       INTEGER NOT NULL,
+            duration   REAL NOT NULL,
+            hashes     TEXT NOT NULL
+        );
+        """,
     ];
 
     private readonly string _connectionString;

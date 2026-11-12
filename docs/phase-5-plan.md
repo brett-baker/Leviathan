@@ -12,7 +12,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **A1. Exact duplicates**: group by size → partial hash (first and last 1 MB) → full xxHash3 only for remaining
   candidates; scopes (folders, drives, shares), type and minimum-size filters; runs in the worker with progress.
-- [ ] **A2. Similar media**: perceptual hashes for images and for videos (frames at fixed percentages + duration) in
+- [x] **A2. Similar media**: perceptual hashes for images and for videos (frames at fixed percentages + duration) in
   `Leviathan.Media`, cached; tolerance setting.
 - [ ] **A3. Results UI**: groups with thumbnails and metadata side by side; auto-select rules (highest resolution, largest,
   newest, oldest, preferred folder); actions (soft delete, move, replace with hard link on the same volume, tag).

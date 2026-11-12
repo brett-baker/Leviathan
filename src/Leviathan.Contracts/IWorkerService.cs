@@ -7,7 +7,7 @@ public static class ContractVersion
     public const int Major = 2;
 
     /// <summary>Minor version. Additive changes only.</summary>
-    public const int Minor = 16;
+    public const int Minor = 17;
 }
 
 /// <summary>Information the worker reports about itself.</summary>

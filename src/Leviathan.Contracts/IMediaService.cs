@@ -167,4 +167,27 @@ public interface IMediaService
     /// the disk cache or drawn now, one at a time. A file with no cover art answers <see cref="MediaThumbnailStatus.Failed"/>.
     /// </summary>
     Task<MediaThumbnailAnswer> GetAudioArtAsync(MediaAudioArtRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The perceptual signature of a picture, or of a video (five frames and its length), for the similar-media search (spec §15.2),
+    /// from the cache or made now, one at a time. A file ffmpeg cannot read answers <see cref="MediaThumbnailStatus.Failed"/>.
+    /// </summary>
+    Task<MediaSignatureAnswer> GetSignatureAsync(MediaSignatureRequest request, CancellationToken cancellationToken);
 }
+
+/// <summary>A signature wanted from the media process (spec §15.2).</summary>
+/// <param name="Path">Win32 path of the file.</param>
+/// <param name="Size">Size in bytes (part of the cache identity).</param>
+/// <param name="ModifiedUtcTicks">Last write time in UTC ticks.</param>
+/// <param name="IsNetwork">True for a file on a network drive (read with limits).</param>
+/// <param name="IsVideo">True to sample frames across the file, false for a picture.</param>
+public sealed record MediaSignatureRequest(string Path, long Size, long ModifiedUtcTicks, bool IsNetwork, bool IsVideo);
+
+/// <summary>A perceptual signature, or why there is none.</summary>
+/// <param name="Path">The file.</param>
+/// <param name="Status">What happened.</param>
+/// <param name="IsVideo">Whether the hashes are of frames of a video.</param>
+/// <param name="Hashes">One 64-bit difference hash for a picture; one per frame for a video.</param>
+/// <param name="DurationSeconds">Length of a video; 0 for a picture.</param>
+/// <param name="Message">Why there is none.</param>
+public sealed record MediaSignatureAnswer(string Path, MediaThumbnailStatus Status, bool IsVideo, ulong[] Hashes, double DurationSeconds, string? Message);

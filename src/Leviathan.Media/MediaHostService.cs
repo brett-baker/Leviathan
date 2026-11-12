@@ -9,7 +9,7 @@ namespace Leviathan.MediaHost;
 /// The <see cref="IMediaService"/> the UI calls (spec §9.3). A thin layer over <see cref="MediaMetadataService"/>: it turns the wire
 /// requests into file keys and the cached or probed entries into answers, and nothing else, so what matters is tested there.
 /// </summary>
-public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, ContactSheetService sheets, AudioArtService audioArt, Microsoft.Extensions.Logging.ILogger? logger = null) : IMediaService
+public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools tools, int quarantinedAtStart, TimeProvider time, ThumbnailService thumbnails, ContactSheetService sheets, AudioArtService audioArt, Microsoft.Extensions.Logging.ILogger? logger = null, MediaSignatureService? signatures = null) : IMediaService
 {
     private readonly DateTimeOffset _started = time.GetUtcNow();
 
@@ -151,6 +151,52 @@ public sealed class MediaHostService(MediaMetadataService metadata, FfmpegTools 
             return new MediaThumbnailAnswer(request.Path, MediaThumbnailStatus.Failed, null, ex.Message);
         }
     }
+
+    /// <inheritdoc />
+    public async Task<MediaSignatureAnswer> GetSignatureAsync(MediaSignatureRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (signatures is null)
+        {
+            return SignatureFailed(request, MediaThumbnailStatus.Failed, "Perceptual signatures are not available in this media process.");
+        }
+
+        var file = KeyOf(new MediaProbeRequest(request.Path, request.Size, request.ModifiedUtcTicks, request.IsNetwork));
+        TimeSpan? duration = null;
+        if (request.IsVideo)
+        {
+            // The frames are spaced across the whole video, so the (cached) probe comes first.
+            var probed = metadata.Peek(file) ?? await metadata.GetAsync(file, request.IsNetwork, cancellationToken).ConfigureAwait(false);
+            if (probed.Info?.PrimaryVideo is null)
+            {
+                return SignatureFailed(request, probed.State == MetadataState.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, probed.Message ?? "There is no video in this file.");
+            }
+
+            duration = probed.Info.Duration;
+        }
+
+        SignatureResult result;
+        try
+        {
+            result = await signatures.GetAsync(file, request.IsVideo, request.IsNetwork, duration, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Signature of {Path} was cancelled", request.Path);
+            throw;
+        }
+
+        if (result.Signature is not { } signature)
+        {
+            logger?.LogWarning("Signature of {Path} failed ({Status}) using {Ffmpeg}: {Message}", request.Path, result.Status, tools.FfmpegPath ?? "no ffmpeg", result.Message);
+            return SignatureFailed(request, result.Status == ThumbnailStatus.ToolMissing ? MediaThumbnailStatus.ToolMissing : MediaThumbnailStatus.Failed, result.Message);
+        }
+
+        return new MediaSignatureAnswer(request.Path, MediaThumbnailStatus.Ok, signature.Kind == SignatureKind.Video, [.. signature.Hashes], signature.DurationSeconds, null);
+    }
+
+    private static MediaSignatureAnswer SignatureFailed(MediaSignatureRequest request, MediaThumbnailStatus status, string? message) =>
+        new(request.Path, status, request.IsVideo, [], 0, message);
 
     private async Task<MediaContactSheetAnswer> SheetAsync(string path, long size, long modifiedUtcTicks, bool isNetwork, Func<int?, int?, ContactSheetSpec> shape, CancellationToken cancellationToken)
     {

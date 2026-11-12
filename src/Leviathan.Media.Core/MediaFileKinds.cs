@@ -17,6 +17,14 @@ public static class MediaFileKinds
         ".mp3", ".flac", ".wav", ".aac", ".m4a", ".ogg", ".oga", ".opus", ".wma", ".aif", ".aiff", ".ape", ".alac", ".mka", ".wv", ".dsf",
     };
 
+    private static readonly HashSet<string> Image = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".tif", ".tiff", ".heic", ".heif", ".avif", ".jfif",
+    };
+
+    /// <summary>True for a picture extension (the kinds ffmpeg can decode as one frame; spec §15.2).</summary>
+    public static bool IsImage(string extension) => Image.Contains(extension);
+
     /// <summary>True when <paramref name="extension"/> (with its dot) is a video or audio extension.</summary>
     public static bool IsMedia(string extension) => Video.Contains(extension) || Audio.Contains(extension);
 
