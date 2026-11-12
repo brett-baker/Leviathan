@@ -65,12 +65,20 @@ public sealed class PipeServerService : IHostedService, IAsyncDisposable
 public sealed class IdleShutdownService(JobHost host, PipeServerService pipe, IHostApplicationLifetime lifetime, ILogger<IdleShutdownService> logger) : BackgroundService
 {
     /// <summary>Idle time before exiting.</summary>
+#if DEBUG
+    // A debug session ends by Stop Debugging, which kills the UI without a goodbye. Leaving at once frees the output files for the next
+    // build; a release build keeps the two minutes so a quick restart reuses the warm process.
+    public static TimeSpan IdleTimeout { get; } = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CheckEvery = TimeSpan.FromSeconds(1);
+#else
     public static TimeSpan IdleTimeout { get; } = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan CheckEvery = TimeSpan.FromSeconds(15);
+#endif
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        using var timer = new PeriodicTimer(CheckEvery);
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
             var idle = pipe.Server.ConnectionCount == 0 && !host.IsBusy && DateTimeOffset.UtcNow - pipe.Server.LastDisconnect > IdleTimeout;

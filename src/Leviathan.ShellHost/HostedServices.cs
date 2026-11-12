@@ -35,11 +35,19 @@ internal sealed class ShellPipeService : IHostedService, IAsyncDisposable
 /// </summary>
 internal sealed class ShellIdleShutdownService(ShellPipeService pipe, IHostApplicationLifetime lifetime, ILogger<ShellIdleShutdownService> logger) : BackgroundService
 {
+#if DEBUG
+    // A debug session ends by Stop Debugging, which kills the UI without a goodbye. Leaving at once frees the output files for the next
+    // build; a release build keeps the two minutes so a quick restart reuses the warm process.
+    public static TimeSpan IdleTimeout { get; } = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CheckEvery = TimeSpan.FromSeconds(1);
+#else
     public static TimeSpan IdleTimeout { get; } = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan CheckEvery = TimeSpan.FromSeconds(15);
+#endif
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        using var timer = new PeriodicTimer(CheckEvery);
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
             if (pipe.Server.ConnectionCount == 0 && DateTimeOffset.UtcNow - pipe.Server.LastDisconnect > IdleTimeout)
