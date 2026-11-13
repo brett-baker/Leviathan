@@ -122,7 +122,7 @@ public sealed class JobHost : IAsyncDisposable
             Type = JournalRecordType.Enqueued,
             JobId = job.Id,
             At = _time.GetUtcNow(),
-            Request = request,
+            Request = request.ArchivePassword is null ? request : request with { ArchivePassword = null },
             Lane = lane,
             DeviceKey = deviceKey,
             Title = title,

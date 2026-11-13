@@ -16,5 +16,9 @@ public sealed class CompositeArchiveReader(IArchiveReader tar, IArchiveReader ge
     public Task ExtractEntryAsync(string archivePath, string entryPath, Stream destination, string? password, CancellationToken cancellationToken) =>
         For(archivePath).ExtractEntryAsync(archivePath, entryPath, destination, password, cancellationToken);
 
+    /// <inheritdoc />
+    public Task ExtractAllAsync(string archivePath, string? password, IArchiveExtractionSink sink, CancellationToken cancellationToken) =>
+        For(archivePath).ExtractAllAsync(archivePath, password, sink, cancellationToken);
+
     private IArchiveReader For(string archivePath) => TarArchiveReader.Handles(archivePath) ? tar : general;
 }

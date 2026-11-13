@@ -58,6 +58,41 @@ public sealed class FakeArchiveReader : IArchiveReader
         return _archives.TryGetValue(archivePath, out var list) ? [.. list.Select(e => e.Info)] : throw new ArchiveException(ArchiveError.Unreadable, "Not an archive.");
     }
 
+    /// <summary>Files whose extraction should fail (inner paths); the sink hears <see cref="IExtractionTarget.Failed"/>.</summary>
+    public HashSet<string> FailingEntries { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <inheritdoc />
+    public async Task ExtractAllAsync(string archivePath, string? password, IArchiveExtractionSink sink, CancellationToken cancellationToken)
+    {
+        if (Failure is { } failure)
+        {
+            throw failure;
+        }
+
+        if (!_archives.TryGetValue(archivePath, out var list))
+        {
+            throw new ArchiveException(ArchiveError.Unreadable, "Not an archive.");
+        }
+
+        foreach (var (info, content) in list)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (info.IsDirectory || sink.Open(info) is not { } target)
+            {
+                continue;
+            }
+
+            if (FailingEntries.Contains(info.Path))
+            {
+                target.Failed(new IOException("damaged data"));
+                continue;
+            }
+
+            await target.Stream.WriteAsync(content, cancellationToken).ConfigureAwait(false);
+            target.Completed();
+        }
+    }
+
     /// <inheritdoc />
     public async Task ExtractEntryAsync(string archivePath, string entryPath, Stream destination, string? password, CancellationToken cancellationToken)
     {

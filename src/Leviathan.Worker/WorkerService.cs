@@ -235,7 +235,7 @@ public static class JobTitles
             JobKind.Delete => $"Delete {what}",
             JobKind.Purge => $"Purge {what}",
             JobKind.Extract => $"Extract {what} to {destination}",
-            JobKind.Compress => $"Compress {what}",
+            JobKind.Compress => $"Compress {what} to {destination?.Name}",
             JobKind.Sync => $"Sync {what} → {destination}",
             JobKind.BulkRename => $"Rename {what}",
             JobKind.Rename => $"Rename {what}",

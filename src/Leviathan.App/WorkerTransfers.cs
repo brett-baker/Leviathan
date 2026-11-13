@@ -31,6 +31,8 @@ internal sealed record TransferFinished(JobKind Kind, IReadOnlyList<Leviathan.Co
             JobKind.Delete when Permanent => $"Deleted {what}",
             JobKind.Delete => $"Moved {what} to the Recycle Bin",
             JobKind.Restore => $"Restored {what} from the Soft-delete bin",
+            JobKind.Extract => $"Extracted {what} to {Destination?.Name}",
+            JobKind.Compress => $"Compressed {what} into {Destination?.Name}",
             JobKind.Purge when Sources.Count == 0 => "Emptied old items from the Soft-delete bin",
             JobKind.Purge => $"Deleted {what} from the Soft-delete bin",
             _ => $"Copied {what} to {Destination?.Name}",
@@ -146,13 +148,13 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
     /// Submits a job the window wants to hear the end of (a restore or purge from the Soft-delete bin): the activity log notes how it
     /// ended and folder listings that held its items are forgotten. <paramref name="shown"/> are the items as the user knows them.
     /// </summary>
-    public async Task<TransferOutcome> SubmitTrackedAsync(JobRequest job, IReadOnlyList<LocationPath> shown, string startedMessage, CancellationToken cancellationToken)
+    public async Task<TransferOutcome> SubmitTrackedAsync(JobRequest job, IReadOnlyList<LocationPath> shown, string startedMessage, CancellationToken cancellationToken, LocationPath? destination = null)
     {
         ArgumentNullException.ThrowIfNull(job);
         try
         {
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
-            _jobs[snapshot.Id] = new Pending(job.Kind, shown, null, false);
+            _jobs[snapshot.Id] = new Pending(job.Kind, shown, destination, false);
             if (_early.TryRemove(snapshot.Id, out var early))
             {
                 Handle(early);

@@ -66,6 +66,38 @@ public sealed class TarArchiveReader : IArchiveReader
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    public Task ExtractAllAsync(string archivePath, string? password, IArchiveExtractionSink sink, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(archivePath);
+        ArgumentNullException.ThrowIfNull(sink);
+        return Task.Run(
+            () => Walk(
+                archivePath,
+                entry =>
+                {
+                    var info = Describe(entry);
+                    if (info.IsDirectory || entry.DataStream is null || sink.Open(info) is not { } target)
+                    {
+                        return true;
+                    }
+
+                    try
+                    {
+                        entry.DataStream.CopyTo(new CancelCheckStream(target.Stream, cancellationToken));
+                        target.Completed();
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        target.Failed(ex);
+                    }
+
+                    return true;
+                },
+                cancellationToken),
+            cancellationToken);
+    }
+
     private static ArchiveEntryInfo Describe(TarEntry entry)
     {
         var path = ArchiveEntryInfo.NormalizePath(entry.Name);

@@ -33,6 +33,10 @@ public static class JobRequestValidator
                 return ValidateDestination(request);
             case JobKind.Rename:
                 return ValidateRename(request);
+            case JobKind.Extract:
+                return ValidateExtract(request);
+            case JobKind.Compress:
+                return ValidateCompress(request);
             case JobKind.Delete:
                 return request.Destination is null ? null : "A delete job has no destination.";
             case JobKind.Restore:
@@ -55,6 +59,39 @@ public static class JobRequestValidator
             if (source.Contains(destination) && request.Kind != JobKind.Link)
             {
                 return $"{source.Name} cannot be put inside itself.";
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ValidateExtract(JobRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Destination) || !LocationPath.TryParse(request.Destination, out _))
+        {
+            return "An extract job needs a destination folder.";
+        }
+
+        return request.Conflict == ConflictPolicy.Ask ? "An extract job cannot ask about name clashes; choose keep both, replace or skip." : null;
+    }
+
+    private static string? ValidateCompress(JobRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Destination) || !LocationPath.TryParse(request.Destination, out var archive) || archive.Parent is null)
+        {
+            return "A compress job needs the archive file to create.";
+        }
+
+        if (!(archive.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || archive.Name.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "The archive needs a .zip or .7z name.";
+        }
+
+        foreach (var text in request.Sources)
+        {
+            if (LocationPath.Parse(text).Contains(archive))
+            {
+                return $"The archive cannot be created inside {LocationPath.Parse(text).Name}, which it would contain.";
             }
         }
 

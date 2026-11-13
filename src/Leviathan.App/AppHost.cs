@@ -120,6 +120,9 @@ internal sealed class AppHost
     /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
     public WorkerTransfers Transfers { get; private init; } = null!;
 
+    /// <summary>Extract and compress jobs (spec 15.4).</summary>
+    public WorkerArchives Archives { get; private init; } = null!;
+
     /// <summary>What running deletes, moves and copies will do to the rows, shown at once when the setting says so.</summary>
     public PendingChanges Pending { get; private init; } = null!;
 
@@ -875,6 +878,7 @@ internal sealed class AppHost
             WorkOffline = workOffline,
             Connector = connector,
             Transfers = transfers,
+            Archives = new WorkerArchives(transfers),
             Pending = pending,
             Undo = undo,
             TriageActionsFor = destination => new TriageFileActions(

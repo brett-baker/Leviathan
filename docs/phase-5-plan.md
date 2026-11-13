@@ -29,7 +29,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **C1. Archive provider**: browse zip, 7z, rar (read-only), tar, gz, iso as folders via 7-Zip (`7z.dll`, as Files does),
   with preview.
-- [ ] **C2. Extract and compress jobs**: extract here / to folder / to location, create zip or 7z with level and optional
+- [x] **C2. Extract and compress jobs**: extract here / to folder / to location, create zip or 7z with level and optional
   password, through the queue with progress.
 - [ ] **C3. Checksums**: MD5, SHA-1, SHA-256, SHA-512, xxHash3, CRC32 for one or many files; verify against `.sha256`/`.md5`;
   export checksum files.

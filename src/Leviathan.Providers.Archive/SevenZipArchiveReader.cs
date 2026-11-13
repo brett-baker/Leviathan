@@ -64,6 +64,139 @@ public sealed class SevenZipArchiveReader : IArchiveReader
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    public Task ExtractAllAsync(string archivePath, string? password, IArchiveExtractionSink sink, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(archivePath);
+        ArgumentNullException.ThrowIfNull(sink);
+        return Task.Run(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var extractor = Open(archivePath, password);
+                var names = Entries(extractor, archivePath).ToDictionary(e => e.Index, e => e.Info);
+                try
+                {
+                    // 7-Zip cannot hand out the files of a solid archive one by one; those are unpacked to a staging folder first.
+                    if (extractor.IsSolid)
+                    {
+                        ExtractSolid(extractor, names.Values, sink, cancellationToken);
+                        return;
+                    }
+
+                    extractor.ExtractFiles(args =>
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            args.CancelExtraction = true;
+                            return;
+                        }
+
+                        var index = args.ArchiveFileInfo.Index;
+                        switch (args.Reason)
+                        {
+                            case ExtractFileCallbackReason.Start:
+                                if (names.TryGetValue(index, out var info) && !info.IsDirectory && sink.Open(info) is { } target)
+                                {
+                                    args.ObjectData = target;
+                                    args.ExtractToStream = new CancellableStream(target.Stream, cancellationToken);
+                                }
+
+                                break;
+                            case ExtractFileCallbackReason.Done:
+                                if (args.ObjectData is IExtractionTarget finished)
+                                {
+                                    finished.Completed();
+                                    args.ObjectData = null;
+                                }
+
+                                break;
+                            case ExtractFileCallbackReason.Failure:
+                                if (args.ObjectData is IExtractionTarget failed)
+                                {
+                                    failed.Failed(args.Exception);
+                                    args.ObjectData = null;
+                                }
+
+                                break;
+                        }
+                    });
+                }
+                catch (Exception ex) when (ex is not (OperationCanceledException or ArchiveException))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw Map(ex, password, archivePath);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+            },
+            cancellationToken);
+    }
+
+    private static void ExtractSolid(SevenZipExtractor extractor, IEnumerable<ArchiveEntryInfo> entries, IArchiveExtractionSink sink, CancellationToken cancellationToken)
+    {
+        var staging = Path.Combine(sink.StagingFolder ?? Path.GetTempPath(), ".leviathan-extract-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(staging);
+        try
+        {
+            extractor.Extracting += (_, e) => sink.Unpacking(e.PercentDone);
+            extractor.FileExtractionStarted += (_, e) =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    e.Cancel = true;
+                }
+            };
+            extractor.ExtractArchive(staging);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var info in entries.Where(e => !e.IsDirectory))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (sink.Open(info) is not { } target)
+                {
+                    continue;
+                }
+
+                var staged = Path.Combine(staging, info.Path.Replace('/', Path.DirectorySeparatorChar));
+                try
+                {
+                    if (!File.Exists(staged))
+                    {
+                        target.Failed(new FileNotFoundException("7-Zip did not unpack this file."));
+                    }
+                    else if (target.TryAdopt(staged))
+                    {
+                        target.Completed();
+                    }
+                    else
+                    {
+                        using (var source = File.OpenRead(staged))
+                        {
+                            source.CopyTo(new CancelCheckStream(target.Stream, cancellationToken));
+                        }
+
+                        target.Completed();
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    target.Failed(ex);
+                }
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(staging, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Left behind; it has a name no real file has and holds only copies.
+            }
+        }
+    }
+
     private sealed record Listed(int Index, ArchiveEntryInfo Info);
 
     private static IEnumerable<Listed> Entries(SevenZipExtractor extractor, string archivePath)
@@ -139,13 +272,13 @@ public sealed class SevenZipArchiveReader : IArchiveReader
 
         if (ex is SevenZipException)
         {
-            return new ArchiveException(ArchiveError.Unreadable, $"{name} could not be read as an archive: it is damaged, is not an archive, or its list of files is password protected.", ex);
+            return new ArchiveException(ArchiveError.Unreadable, $"{name} could not be read as an archive: it is damaged, is not an archive, or its list of files is password protected ({text.Split((char)10)[0].Trim()}).", ex);
         }
 
         return new ArchiveException(ArchiveError.Unreadable, $"{name} could not be read: {text}", ex);
     }
 
-    private static void EnsureLibrary()
+    internal static void EnsureLibrary()
     {
         lock (LibraryLock)
         {

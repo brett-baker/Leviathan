@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window, IShellActions
         var host = App.Host;
         using (UiTrace.Begin("ctor: commands"))
         {
-            _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, new Leviathan.ViewModels.Tags.TagLossWarningTransfers(host.Transfers, host.TagStore, new Leviathan.Interop.WindowsStreamSupport()), host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles);
+            _commands = WindowCommands.Create(App.Actions, viewModel, host.Windows, host.Resolver, host.Launcher, this, () => host.Home, host.Favorites, host.NewItems, host.ViewOptions, host.Renamer, new Leviathan.ViewModels.Tags.TagLossWarningTransfers(host.Transfers, host.TagStore, new Leviathan.Interop.WindowsStreamSupport()), host.DriveCards, host.Transfers, host.Undo, host.FileClipboard, host.Profiles, host.Archives);
         }
         host.DriveCards.Changed += (_, _) => OnUi(UpdateHeaders);
         host.Undo.Changed += OnUndoChanged;

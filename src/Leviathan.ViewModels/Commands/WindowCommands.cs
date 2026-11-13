@@ -68,6 +68,12 @@ public interface IShellActions
 
     /// <summary>Asks a yes/no question (for example before deleting for good) and returns true when the user confirmed.</summary>
     Task<bool> ConfirmAsync(string title, string message, string confirmText);
+
+    /// <summary>Asks for a folder (Extract to...); null when the user cancels. Services that cannot ask return null.</summary>
+    Task<LocationPath?> PickFolderAsync(string title) => Task.FromResult<LocationPath?>(null);
+
+    /// <summary>Asks how to compress (format, level, password, name); null when the user cancels. Services that cannot ask return null.</summary>
+    Task<Archives.CompressChoice?> AskCompressAsync(string suggestedName) => Task.FromResult<Archives.CompressChoice?>(null);
 }
 
 /// <summary>Stable ids of the window-level commands (spec §6, §17.3).</summary>
@@ -457,6 +463,12 @@ public static class CommandIds
     /// <summary>Preview the selected item in the preview pane (Phase 3).</summary>
     public static readonly CommandId Preview = new("item.preview");
 
+    /// <summary>Extract an archive to a folder the user picks (Phase 5).</summary>
+    public static readonly CommandId ExtractTo = new("archive.extractTo");
+
+    /// <summary>Compress with a chosen format, level and password (Phase 5).</summary>
+    public static readonly CommandId CompressWith = new("archive.compressWith");
+
     /// <summary>Extract an archive next to itself (Phase 2).</summary>
     public static readonly CommandId ExtractHere = new("archive.extractHere");
 
@@ -558,7 +570,8 @@ public static partial class WindowCommands
         Transfers.IDeleteService? deleter = null,
         Undo.UndoService? undo = null,
         Transfers.IFileClipboard? clipboard = null,
-        Sessions.ProfileService? profiles = null)
+        Sessions.ProfileService? profiles = null,
+        Archives.IArchiveService? archives = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -915,6 +928,78 @@ public static partial class WindowCommands
         Add(CommandIds.ViewThumbnails, "Thumbnails layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Thumbnails)), _ => Current() is not null, shortcut: "Ctrl+Shift+2");
         Add(CommandIds.ViewTiles, "Tiles layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Tiles)), _ => Current() is not null, shortcut: "Ctrl+Shift+4");
         Add(CommandIds.ViewGallery, "Gallery layout", "View", (_, _) => Run(() => Current()!.SetLayout(Views.ViewLayout.Gallery)), _ => Current() is not null, shortcut: "Ctrl+Shift+1");
+
+        // Archives (spec §15.4): extract and compress are worker jobs. The items are the one the command was run on, else the selection.
+        IReadOnlyList<LocationPath> ArchiveTargets(CommandContext c) =>
+            c.Parameter is FileEntry one ? [one.Location] : Current() is { } here ? [.. here.Selection.SelectedEntries.Select(e => e.Location)] : [];
+        async Task RunExtract(CommandContext c, CancellationToken ct, bool subfolder, bool pick)
+        {
+            var items = ArchiveTargets(c);
+            var why = archives is null ? "Archives are not available yet." : Archives.ArchiveNaming.WhyNotExtract(items);
+            if (archives is null || why is not null)
+            {
+                shell.ShowMessage(why!);
+                return;
+            }
+
+            LocationPath? destination = items[0].Parent;
+            if (pick)
+            {
+                destination = await shell.PickFolderAsync("Extract to");
+            }
+
+            if (destination is null)
+            {
+                return;
+            }
+
+            var outcome = await archives.ExtractAsync(items, destination, subfolder, ct);
+            if (!outcome.Started)
+            {
+                shell.ShowMessage(outcome.Message);
+            }
+        }
+
+        async Task RunCompress(CommandContext c, CancellationToken ct, bool ask)
+        {
+            var items = ArchiveTargets(c);
+            var why = archives is null ? "Archives are not available yet." : Archives.ArchiveNaming.WhyNotCompress(items);
+            if (archives is null || why is not null)
+            {
+                shell.ShowMessage(why!);
+                return;
+            }
+
+            var choice = new Archives.CompressChoice(Archives.ArchiveNaming.Suggest(items, ".zip"), Contracts.ArchiveFormat.Zip, Contracts.ArchiveLevel.Normal, null);
+            if (ask)
+            {
+                if (await shell.AskCompressAsync(choice.FileName) is not { } chosen)
+                {
+                    return;
+                }
+
+                choice = chosen with { FileName = Archives.ArchiveNaming.WithExtension(chosen.FileName, chosen.Format) };
+            }
+
+            var folder = items[0].Parent;
+            if (folder is null)
+            {
+                return;
+            }
+
+            var outcome = await archives.CompressAsync(items, folder.Combine(choice.FileName), choice, ct);
+            if (!outcome.Started)
+            {
+                shell.ShowMessage(outcome.Message);
+            }
+        }
+
+        bool CanArchive(CommandContext c) => archives is not null && Current() is not null;
+        Add(CommandIds.ExtractHere, "Extract here", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: false), CanArchive);
+        Add(CommandIds.ExtractToFolder, "Extract to folder", "Archives", (c, ct) => RunExtract(c, ct, subfolder: true, pick: false), CanArchive);
+        Add(CommandIds.ExtractTo, "Extract to...", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: true), CanArchive);
+        Add(CommandIds.Compress, "Compress", "Archives", (c, ct) => RunCompress(c, ct, ask: false), CanArchive);
+        Add(CommandIds.CompressWith, "Compress with options...", "Archives", (c, ct) => RunCompress(c, ct, ask: true), CanArchive);
 
         // A contact sheet of the video the command was run on, or of the videos in the selection (spec §10.4).
         static bool IsVideo(FileEntry e) => e.Kind == FileEntryKind.File && Leviathan.Media.MediaFileKinds.IsVideo(e.Extension);

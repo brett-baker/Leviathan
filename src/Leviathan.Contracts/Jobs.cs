@@ -49,6 +49,38 @@ public enum JobKind
     FindDuplicates,
 }
 
+/// <summary>The kind of archive a compress job writes (spec §15.4).</summary>
+public enum ArchiveFormat
+{
+    /// <summary>A zip file; opens everywhere.</summary>
+    Zip,
+
+    /// <summary>A 7z file; smaller, opens with 7-Zip.</summary>
+    SevenZip,
+}
+
+/// <summary>How hard a compress job works (spec §15.4); the same steps as 7-Zip.</summary>
+public enum ArchiveLevel
+{
+    /// <summary>Store only, no compression.</summary>
+    Store,
+
+    /// <summary>Fastest.</summary>
+    Fastest,
+
+    /// <summary>Fast.</summary>
+    Fast,
+
+    /// <summary>Normal; the default.</summary>
+    Normal,
+
+    /// <summary>Maximum.</summary>
+    Maximum,
+
+    /// <summary>Ultra: smallest and slowest.</summary>
+    Ultra,
+}
+
 /// <summary>What to do when an item with the same name is already in the destination (spec §12.2). Asking is a later slice; until then the choice is made up front.</summary>
 public enum ConflictPolicy
 {
@@ -321,6 +353,21 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>Also look at hidden and system files (find duplicates only).</summary>
     public bool DuplicateIncludeHidden { get; init; }
+
+    /// <summary>The kind of archive to write (compress only). <see cref="Destination"/> is the archive file to create.</summary>
+    public ArchiveFormat ArchiveFormat { get; init; } = ArchiveFormat.Zip;
+
+    /// <summary>How hard to compress (compress only).</summary>
+    public ArchiveLevel ArchiveLevel { get; init; } = ArchiveLevel.Normal;
+
+    /// <summary>
+    /// A password to protect the archive (compress) or to open it (extract). It travels to the worker but is never written to the
+    /// job journal, so a job recovered after a crash asks to be started again instead of keeping a secret on disk.
+    /// </summary>
+    public string? ArchivePassword { get; init; }
+
+    /// <summary>Extract into a new folder named after the archive inside <see cref="Destination"/> (extract only).</summary>
+    public bool ExtractIntoSubfolder { get; init; }
 }
 
 /// <summary>A point-in-time view of a job, as shown in the Operations panel.</summary>

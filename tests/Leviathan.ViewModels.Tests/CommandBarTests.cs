@@ -79,7 +79,7 @@ public sealed class ContextActionsTests
         Assert.Contains(nothing, b => b.Command == CommandIds.TabNew);
         Assert.Contains(nothing, b => b.Command == CommandIds.SpaceMap);
         Assert.Equal([CommandIds.ItemOpen, CommandIds.TriageFromHere, CommandIds.ContactSheet], video.Select(b => b.Command));
-        Assert.Equal([CommandIds.BulkRename, CommandIds.ContactSheet], ContextActions.For(SelectionClass.Several, h.Commands).Select(b => b.Command));
+        Assert.Equal([CommandIds.BulkRename, CommandIds.Compress, CommandIds.ContactSheet], ContextActions.For(SelectionClass.Several, h.Commands).Select(b => b.Command));
     }
 
     [Fact]
