@@ -20,7 +20,7 @@ Every slice follows `CLAUDE.md`.
 
 ### B. Bulk rename (§15.3)
 
-- [ ] **B1. Rename pipeline**: ordered operations (find/replace plain or regex, insert, remove, case, trim, numbering) and
+- [x] **B1. Rename pipeline**: ordered operations (find/replace plain or regex, insert, remove, case, trim, numbering) and
   tokens (`{name}`, `{ext}`, `{date:…}`, `{taken}`, `{duration}`, `{resolution}`, `{codec}`, `{parent}`, `{counter}`);
   property tests (no collisions created silently, reversible).
 - [ ] **B2. Dialog**: live preview table, conflicts highlighted, presets, one undo for the batch, runs as a worker job.
