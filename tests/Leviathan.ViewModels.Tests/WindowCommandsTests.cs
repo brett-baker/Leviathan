@@ -72,6 +72,10 @@ public sealed class WindowCommandsTests
         {
         }
 
+        public int BulkRenames { get; private set; }
+
+        public void BulkRename() => BulkRenames++;
+
         public void FindDuplicateFiles()
         {
         }

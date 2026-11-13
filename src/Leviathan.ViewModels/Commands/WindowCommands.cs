@@ -60,6 +60,9 @@ public interface IShellActions
     /// <summary>Opens the duplicate-files window for the current folder: identical contents, grouped, with rules to pick the copy to keep (spec §15.2).</summary>
     void FindDuplicateFiles();
 
+    /// <summary>Opens the bulk-rename dialog for the selected items: ordered steps, a live preview, presets and one undo (spec §15.3).</summary>
+    void BulkRename();
+
     /// <summary>Asks for a folder and makes a contact sheet of each of <paramref name="videos"/> into it, in the background (spec §10.4).</summary>
     void ExportContactSheets(IReadOnlyList<FileEntry> videos);
 
@@ -400,7 +403,7 @@ public static class CommandIds
     /// <summary>Compress to an archive (Phase 2).</summary>
     public static readonly CommandId Compress = new("archive.compress");
 
-    /// <summary>Bulk rename (Phase 2).</summary>
+    /// <summary>Bulk rename of the selected items (spec §15.3); F2 with several items selected does the same.</summary>
     public static readonly CommandId BulkRename = new("edit.bulkRename");
 
     /// <summary>Compute the total size of the selection (Phase 2).</summary>
@@ -970,9 +973,23 @@ public static partial class WindowCommands
         Add(CommandIds.NewItem, "New item", "New", (c, ct) => CreateNew(c.Target!, ct), c => CanCreateHere() && !string.IsNullOrEmpty(c.Target));
 
         // Inline rename (spec §8.4): F2 shows the box, the box's Enter / Tab / click-away runs RenameCommit.
+        bool CanBulkRenameHere() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.SelectedEntries.Count > 0;
+
         bool CanRenameHere() => renamer is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.RenameTarget() is not null;
 
-        Add(CommandIds.EditRename, "Rename", "Edit", (_, _) => Run(() => Current()!.BeginRename(Current()!.RenameTarget()!)), _ => CanRenameHere(), shortcut: "F2", icon: "Rename");
+        // F2 renames the one selected item in place; with several selected it opens the bulk-rename dialog (spec §15.3).
+        Add(CommandIds.EditRename, "Rename", "Edit", (_, _) => Run(() =>
+        {
+            if (Current()!.RenameTarget() is { } one)
+            {
+                Current()!.BeginRename(one);
+            }
+            else
+            {
+                shell.BulkRename();
+            }
+        }), _ => CanRenameHere() || (CanBulkRenameHere() && Current()!.Selection.SelectedEntries.Count > 1), shortcut: "F2", icon: "Rename");
+        Add(CommandIds.BulkRename, "Bulk rename…", "Edit", (_, _) => Run(shell.BulkRename), _ => CanBulkRenameHere(), shortcut: "Shift+F2");
 
         Add(CommandIds.RenameCommit, "Finish renaming", "Edit", async (c, ct) =>
         {
@@ -1445,6 +1462,7 @@ public static partial class WindowCommands
             ("Ctrl+Shift+O", CommandIds.HubToggle),
             ("Ctrl+,", CommandIds.SettingsOpen),
             ("F2", CommandIds.EditRename),
+            ("Shift+F2", CommandIds.BulkRename),
             ("Ctrl+Shift+6", CommandIds.ViewDetails),
             ("Ctrl+Shift+5", CommandIds.ViewList),
             ("Ctrl+Shift+2", CommandIds.ViewThumbnails),

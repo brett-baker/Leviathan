@@ -144,14 +144,16 @@ public sealed class RenameCommandTests
     }
 
     [Fact]
-    public async Task EditRename_NeedsExactlyOneItem_AndARenamer()
+    public async Task EditRename_NeedsAnItem_OneRenamesInPlace_SeveralOpenBulkRename_AndAnInPlaceRenamer()
     {
         var (h, _) = Make();
         await h.Ready;
         Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.EditRename));
 
         h.Tab.Selection.SelectAll();
-        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.EditRename));
+        Assert.Equal(CommandResult.Executed, await h.Run(CommandIds.EditRename));
+        Assert.Equal(1, h.Shell.BulkRenames);
+        Assert.Null(h.Tab.Renaming);
 
         var without = new WindowCommandsTests.Harness();
         await without.Ready;

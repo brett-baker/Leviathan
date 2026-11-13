@@ -545,6 +545,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         SelectAfterLoad(null);
     }
 
+    /// <summary>Reloads the folder and selects <paramref name="locations"/> once it is listed, e.g. the items a bulk rename just renamed (spec §15.3).</summary>
+    public async Task ReloadAndSelectAsync(IReadOnlyList<LocationPath> locations, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(locations);
+        _pendingSelection = [.. locations];
+        Renaming = null;
+        Folder.Options = ListingNow();
+        await Folder.LoadAsync(History.Current, cancellationToken, forceFresh: true);
+        SelectAfterLoad(null);
+    }
+
     /// <summary>Groups this tab's view by a column, or ungroups with null.</summary>
     public void SetGroupBy(string? columnId)
     {

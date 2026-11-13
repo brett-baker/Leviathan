@@ -8,6 +8,12 @@ public enum UndoKind
 
     /// <summary>Items went to the Recycle Bin or a share's recycle folder; undo puts them back.</summary>
     Delete,
+
+    /// <summary>
+    /// Many items were renamed in one step (spec §15.3). The moves are stored in the reverse of the order they were done in, so that undo
+    /// (which does them in stored order, each turned round) takes the temporary names a swap or shift went through back out in order.
+    /// </summary>
+    BulkRename,
 }
 
 /// <summary>One item that was moved from <paramref name="From"/> to <paramref name="To"/> by an action: the new name, or the place in the bin.</summary>
@@ -187,6 +193,20 @@ public sealed class UndoService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Remembers a bulk rename as one action: <paramref name="doneInOrder"/> are the moves as they were carried out, first to last
+    /// (including any through temporary names). One Ctrl+Z puts every name back; one Ctrl+Y does the batch again.
+    /// </summary>
+    public void RecordBulkRename(IReadOnlyList<ItemMove> doneInOrder)
+    {
+        ArgumentNullException.ThrowIfNull(doneInOrder);
+        var real = doneInOrder.Count(m => !m.To.Contains(".leviathan-rename-", StringComparison.Ordinal));
+        if (doneInOrder.Count > 0)
+        {
+            Record(UndoKind.BulkRename, real == 1 ? $"Rename {NameOf(doneInOrder[^1].From)}" : $"Rename {real} items", [.. doneInOrder.Reverse()]);
+        }
+    }
+
     /// <summary>Undoes the last action.</summary>
     public async Task<UndoOutcome> UndoAsync(CancellationToken cancellationToken)
     {
@@ -283,6 +303,13 @@ public sealed class UndoService : IDisposable
                 // Entries are stored as the action did them (From = before, To = after). Undo reports the reverse move, so turn it
                 // back; redo already reports the action again, which for a delete also gives the item's new place in the bin.
                 IReadOnlyList<ItemMove> moves = undoing ? [.. result.Done.Select(d => new ItemMove(d.To, d.From))] : result.Done;
+
+                // A bulk rename is stored last-move-first; each pass runs in stored order, so what a pass did is turned round to keep that.
+                if (entry.Kind == UndoKind.BulkRename)
+                {
+                    moves = [.. moves.Reverse()];
+                }
+
                 to.Add(entry with { Moves = moves, At = _time.GetUtcNow() });
                 Persist();
             }

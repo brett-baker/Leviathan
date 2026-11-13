@@ -137,6 +137,10 @@ public sealed class UiThreadAffinityTests
         {
         }
 
+        public void BulkRename()
+        {
+        }
+
         public void FindDuplicateFiles()
         {
         }
