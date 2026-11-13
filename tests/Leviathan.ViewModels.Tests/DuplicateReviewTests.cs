@@ -12,6 +12,29 @@ public sealed class DuplicateReviewTests
     private static ReviewGroup G(params ReviewFile[] files) => new("k" + files[0].Path, files, true, files[0]);
 
     [Fact]
+    public void SimilarGroupsFrom_MakesInexactGroups_DropsSingles_AndPutsTheBiggestSavingFirst()
+    {
+        var groups = DuplicateReview.SimilarGroupsFrom(
+        [
+            [F(@"C:\small1", 10), F(@"C:\small2", 10)],
+            [F(@"C:\lone", 999)],
+            [F(@"C:\big1", 500), F(@"C:\big2", 400)],
+        ]);
+
+        Assert.Equal(2, groups.Count);
+        Assert.All(groups, g => Assert.False(g.Exact));
+        Assert.Equal(@"C:\big1", groups[0].Files[0].Path);
+    }
+
+    [Fact]
+    public void ALookalikeGroup_IsNotOfferedAsExact_ForHardLinks()
+    {
+        var review = new DuplicateReview(DuplicateReview.SimilarGroupsFrom([[F(@"C:\a"), F(@"C:\b")]]));
+
+        Assert.All(review.ToCleanup(), g => Assert.False(g.Exact));
+    }
+
+    [Fact]
     public void ANewReview_KeepsTheOldestCopyOfEachGroup()
     {
         var review = new DuplicateReview([G(F(@"C:\a", day: 5), F(@"C:\b", day: 2))]);

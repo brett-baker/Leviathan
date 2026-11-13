@@ -1,4 +1,5 @@
 using Leviathan.Core.Duplicates;
+using Leviathan.Media;
 using Leviathan.ViewModels.Duplicates;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Tags;
@@ -37,19 +38,42 @@ internal sealed class DuplicateReviewWindow : Window
     private readonly Button _go = new() { Content = "Apply", IsEnabled = false };
     private readonly Button _undo = new() { Content = "Undo last", IsEnabled = false };
     private readonly Button _cancel = new() { Content = "Stop searching" };
+    private readonly ComboBox _mode = new() { Header = "Find" };
+    private readonly NumberBox _tolerance = new() { Header = "Tolerance (0 to 20)", Minimum = 0, Maximum = SimilarityOptions.LargestDistance, Value = 6, SmallChange = 1, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 140, Visibility = Visibility.Collapsed };
+    private readonly Button _again = new() { Content = "Search again", VerticalAlignment = VerticalAlignment.Bottom };
+    private readonly ISimilarMediaScanner? _similar;
+    private readonly Func<string, long, long, CancellationToken, Task<byte[]?>>? _videoFrame;
     private readonly Func<Func<Task>, Task> _guard;
+    private CancellationTokenSource _search = new();
     private DuplicateReview? _review;
     private Func<Task>? _undoLast;
+    private string _kind = "identical";
 
-    /// <summary>Opens the window and starts searching <paramref name="roots"/> at once.</summary>
-    public DuplicateReviewWindow(IReadOnlyList<string> roots, IDuplicateScanner scanner, DuplicateCleanup cleanup, IReadOnlyList<ColorTag> tags, Func<Func<Task>, Task>? guard = null)
+    /// <summary>
+    /// Opens the window and starts searching <paramref name="roots"/> at once. <paramref name="similar"/> adds the "similar pictures"
+    /// searches; <paramref name="videoFrame"/> (path, size, modified ticks, token) returns a small JPEG of a video for its thumbnail.
+    /// </summary>
+    public DuplicateReviewWindow(IReadOnlyList<string> roots, IDuplicateScanner scanner, DuplicateCleanup cleanup, IReadOnlyList<ColorTag> tags, Func<Func<Task>, Task>? guard = null, ISimilarMediaScanner? similar = null, Func<string, long, long, CancellationToken, Task<byte[]?>>? videoFrame = null)
     {
         _roots = roots;
         _scanner = scanner;
         _cleanup = cleanup;
         _tags = tags;
+        _similar = similar;
+        _videoFrame = videoFrame;
         _guard = guard ?? (work => work());
         Title = "Duplicate files";
+
+        _mode.Items.Add("Identical files");
+        if (similar is not null)
+        {
+            _mode.Items.Add("Similar pictures");
+            _mode.Items.Add("Similar pictures and videos");
+        }
+
+        _mode.SelectedIndex = 0;
+        _mode.SelectionChanged += (_, _) => _tolerance.Visibility = _mode.SelectedIndex > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _again.Click += (_, _) => _ = StartAsync();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 760));
 
         foreach (var name in new[] { "Oldest copy", "Newest copy", "Largest file", "Highest resolution", "Copy in the preferred folder" })
@@ -87,10 +111,13 @@ internal sealed class DuplicateReviewWindow : Window
         _tag.SelectedIndex = tags.Count > 0 ? 0 : -1;
         _go.Click += async (_, _) => await RunActionAsync();
         _undo.Click += async (_, _) => await UndoLastAsync();
-        _cancel.Click += (_, _) => _closing.Cancel();
+        _cancel.Click += (_, _) => _search.Cancel();
         _list.ContainerContentChanging += OnContainerContentChanging;
 
         var top = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Padding = new Thickness(16, 8, 16, 8) };
+        top.Children.Add(_mode);
+        top.Children.Add(_tolerance);
+        top.Children.Add(_again);
         top.Children.Add(_rule);
         top.Children.Add(_preferred);
         top.Children.Add(_action);
@@ -110,39 +137,66 @@ internal sealed class DuplicateReviewWindow : Window
         Closed += (_, _) =>
         {
             _closing.Cancel();
+            _search.Cancel();
             _closing.Dispose();
+            _search.Dispose();
         };
 
-        _status.Text = "Searching…";
         _ = StartAsync();
     }
 
+    // One search at a time: starting another stops the one running. The window's own token ends them all when it closes.
     private async Task StartAsync()
     {
+        _search.Cancel();
+        _search.Dispose();
+        var source = _search = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var token = source.Token;
+        var mode = _mode.SelectedIndex;
+        var tolerance = (int)Math.Clamp(double.IsNaN(_tolerance.Value) ? 6 : _tolerance.Value, 0, SimilarityOptions.LargestDistance);
+        _review = null;
+        _list.ItemsSource = null;
+        _go.IsEnabled = false;
+        _busy.IsActive = true;
+        _busy.Visibility = Visibility.Visible;
+        _cancel.Visibility = Visibility.Visible;
+        _status.Text = "Searching…";
         var progress = new Progress<string>(text => _status.Text = "Searching: " + text);
         try
         {
-            var scan = await _scanner.ScanAsync(_roots, 1, null, includeHidden: false, progress, _closing.Token);
+            var scan = mode == 0 || _similar is null
+                ? await _scanner.ScanAsync(_roots, 1, null, includeHidden: false, progress, token)
+                : await _similar.ScanAsync(_roots, includeVideos: mode == 2, tolerance, progress, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             _review = new DuplicateReview(scan.Groups);
-            _busy.IsActive = false;
-            _busy.Visibility = Visibility.Collapsed;
-            _cancel.Visibility = Visibility.Collapsed;
+            _kind = mode == 0 ? "identical" : "similar";
+            StopBusy();
             Refresh(scan.Notes.Count > 0 ? $" {scan.Notes.Count:N0} item(s) could not be read." : string.Empty);
         }
         catch (OperationCanceledException)
         {
-            _busy.IsActive = false;
-            _busy.Visibility = Visibility.Collapsed;
-            _cancel.Visibility = Visibility.Collapsed;
-            _status.Text = "Search stopped.";
+            if (!_closing.IsCancellationRequested && token.IsCancellationRequested && ReferenceEquals(source, _search))
+            {
+                StopBusy();
+                _status.Text = "Search stopped.";
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException)
         {
-            _busy.IsActive = false;
-            _busy.Visibility = Visibility.Collapsed;
-            _cancel.Visibility = Visibility.Collapsed;
+            StopBusy();
             _status.Text = $"The search failed: {ex.Message}";
         }
+    }
+
+    private void StopBusy()
+    {
+        _busy.IsActive = false;
+        _busy.Visibility = Visibility.Collapsed;
+        _cancel.Visibility = Visibility.Collapsed;
     }
 
     private void ApplyRule()
@@ -177,8 +231,8 @@ internal sealed class DuplicateReviewWindow : Window
         _list.ItemsSource = _review.Groups;
         _go.IsEnabled = _review.Groups.Count > 0;
         _status.Text = _review.Groups.Count == 0
-            ? "No duplicates found." + extra
-            : $"{_review.Groups.Count:N0} group{(_review.Groups.Count == 1 ? string.Empty : "s")} of identical files, {_review.ExtraCount:N0} extra cop{(_review.ExtraCount == 1 ? "y" : "ies")} taking {DisplayFormat.Size(_review.ExtraBytes)}.{extra}";
+            ? (_kind == "identical" ? "No duplicates found." : "No look-alikes found.") + extra
+            : $"{_review.Groups.Count:N0} group{(_review.Groups.Count == 1 ? string.Empty : "s")} of {_kind} files,{_review.ExtraCount:N0} extra cop{(_review.ExtraCount == 1 ? "y" : "ies")} taking {DisplayFormat.Size(_review.ExtraBytes)}.{extra}";
     }
 
     // The group views are made when the list shows them, so thousands of groups stay light.
@@ -196,12 +250,14 @@ internal sealed class DuplicateReviewWindow : Window
         }
     }
 
-    private static StackPanel BuildGroup(ReviewGroup group)
+    private StackPanel BuildGroup(ReviewGroup group)
     {
         var panel = new StackPanel { Margin = new Thickness(0, 6, 0, 10), Spacing = 4 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"{group.Files.Count} {(group.Exact ? "identical" : "similar")} files · {DisplayFormat.Size(group.Files[0].Size)} each · {DisplayFormat.Size(group.ExtraBytes)} to free",
+            Text = group.Exact
+                ? $"{group.Files.Count} identical files · {DisplayFormat.Size(group.Files[0].Size)} each · {DisplayFormat.Size(group.ExtraBytes)} to free"
+                : $"{group.Files.Count} similar files · {DisplayFormat.Size(group.ExtraBytes)} in the extra copies",
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         });
 
@@ -224,17 +280,25 @@ internal sealed class DuplicateReviewWindow : Window
         return panel;
     }
 
-    private static Grid BuildFile(ReviewFile file)
+    private Grid BuildFile(ReviewFile file)
     {
         var row = new Grid { ColumnSpacing = 12 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        if (Pictures.Contains(Path.GetExtension(file.Path)))
+        var extension = Path.GetExtension(file.Path);
+        if (Pictures.Contains(extension))
         {
             // Decoded small and off the UI thread by the image pipeline; an unreadable file just shows nothing.
             var image = new Image { Width = 72, Height = 54, Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill };
             image.Source = new BitmapImage { DecodePixelWidth = 144, UriSource = new Uri(file.Path) };
             row.Children.Add(image);
+        }
+        else if (_videoFrame is not null && MediaFileKinds.IsVideo(extension))
+        {
+            // A frame drawn by the media process; the image appears when it arrives and stays empty if there is none.
+            var image = new Image { Width = 72, Height = 54, Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill };
+            row.Children.Add(image);
+            _ = LoadVideoFrameAsync(image, file);
         }
 
         var text = new StackPanel { Spacing = 0 };
@@ -245,6 +309,28 @@ internal sealed class DuplicateReviewWindow : Window
         Grid.SetColumn(text, 1);
         row.Children.Add(text);
         return row;
+    }
+
+    private async Task LoadVideoFrameAsync(Image image, ReviewFile file)
+    {
+        try
+        {
+            if (await _videoFrame!(file.Path, file.Size, file.ModifiedUtc.Ticks, _closing.Token) is not { Length: > 0 } jpeg)
+            {
+                return;
+            }
+
+            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await stream.WriteAsync(System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.AsBuffer(jpeg));
+            stream.Seek(0);
+            var bitmap = new BitmapImage { DecodePixelWidth = 144 };
+            await bitmap.SetSourceAsync(stream);
+            image.Source = bitmap;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or InvalidOperationException or ObjectDisposedException or System.Runtime.InteropServices.COMException)
+        {
+            // No picture for this one: the row still has its name, size and date.
+        }
     }
 
     private async Task RunActionAsync()

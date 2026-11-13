@@ -55,6 +55,16 @@ public interface IDuplicateScanner
     Task<DuplicateScan> ScanAsync(IReadOnlyList<string> roots, long minimumBytes, IReadOnlyList<string>? extensions, bool includeHidden, IProgress<string>? progress, CancellationToken cancellationToken);
 }
 
+/// <summary>Finds look-alike pictures and videos for the window (spec §15.2); the real one asks the media process for signatures.</summary>
+public interface ISimilarMediaScanner
+{
+    /// <summary>
+    /// Looks under <paramref name="roots"/> for pictures (and videos when <paramref name="includeVideos"/>) that look alike.
+    /// <paramref name="tolerance"/> is how many of 64 hash bits may differ: 0 is the same picture, 6 catches resized and re-compressed copies.
+    /// </summary>
+    Task<DuplicateScan> ScanAsync(IReadOnlyList<string> roots, bool includeVideos, int tolerance, IProgress<string>? progress, CancellationToken cancellationToken);
+}
+
 /// <summary>What a scan found.</summary>
 /// <param name="Groups">The groups, the ones that waste most first.</param>
 /// <param name="Notes">What the search could not read, and the like, for the person to see.</param>
@@ -110,6 +120,23 @@ public sealed class DuplicateReview
     {
         var set = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
         _groups.RemoveAll(g => !g.Remove(set));
+    }
+
+    /// <summary>
+    /// Makes look-alike groups from sets of files (lookalikes are never <see cref="ReviewGroup.Exact"/>, so no hard link is offered).
+    /// Sets of fewer than two files are dropped; the groups that would free most come first.
+    /// </summary>
+    public static IReadOnlyList<ReviewGroup> SimilarGroupsFrom(IEnumerable<IReadOnlyList<ReviewFile>> sets)
+    {
+        ArgumentNullException.ThrowIfNull(sets);
+        var groups = new List<ReviewGroup>();
+        var n = 0;
+        foreach (var set in sets.Where(s => s.Count >= 2))
+        {
+            groups.Add(new ReviewGroup("similar:" + ++n, set, exact: false, set[0]));
+        }
+
+        return [.. groups.OrderByDescending(g => g.ExtraBytes).ThenBy(g => g.Files[0].Path, StringComparer.OrdinalIgnoreCase)];
     }
 
     /// <summary>

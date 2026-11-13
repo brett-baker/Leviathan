@@ -27,6 +27,27 @@ public sealed partial class MainWindow
             host.TagStore,
             new FileHardLinker(),
             moves => host.Undo.RecordDelete(moves));
-        new DuplicateReviewWindow([folder.ToWin32Path()], new WorkerDuplicateScanner(() => host.WorkerConnection), cleanup, host.Settings.Current.Tags.Catalog().Tags).Activate();
+        new DuplicateReviewWindow(
+            [folder.ToWin32Path()],
+            new WorkerDuplicateScanner(() => host.WorkerConnection),
+            cleanup,
+            host.Settings.Current.Tags.Catalog().Tags,
+            similar: new MediaSimilarScanner(() => host.MediaHost),
+            videoFrame: (path, size, ticks, token) => VideoFrameAsync(host, path, size, ticks, token)).Activate();
     });
+
+    // A small frame of a video from the media process, or null when it cannot be drawn.
+    private static async Task<byte[]?> VideoFrameAsync(AppHost host, string path, long size, long modifiedTicks, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var service = await host.MediaHost.GetServiceAsync(TimeSpan.FromSeconds(8), cancellationToken).ConfigureAwait(false);
+            var answer = await service.GetThumbnailAsync(new Leviathan.Contracts.MediaThumbnailRequest(path, size, modifiedTicks, path.StartsWith(@"\\", StringComparison.Ordinal), 144), cancellationToken).ConfigureAwait(false);
+            return answer.Status == Leviathan.Contracts.MediaThumbnailStatus.Ok ? answer.Jpeg : null;
+        }
+        catch (Exception ex) when (ex is Leviathan.Engine.Supervision.MediaHostUnavailableException or StreamJsonRpc.ConnectionLostException or StreamJsonRpc.RemoteInvocationException or IOException or ObjectDisposedException)
+        {
+            return null;
+        }
+    }
 }

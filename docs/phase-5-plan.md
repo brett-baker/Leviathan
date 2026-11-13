@@ -16,7 +16,7 @@ Every slice follows `CLAUDE.md`.
   `Leviathan.Media`, cached; tolerance setting.
 - [x] **A3. Results UI** (exact duplicates; Alt+Shift+F): groups with thumbnails and metadata side by side; auto-select rules (highest resolution, largest,
   newest, oldest, preferred folder); actions (soft delete, move, replace with hard link on the same volume, tag).
-- [ ] **A4. Similar media in the results window**: scan images and videos through the Media process (A2 signatures), show them as lookalike groups (no hard link), with the tolerance setting; video thumbnails in the window.
+- [x] **A4. Similar media in the results window**: scan images and videos through the Media process (A2 signatures), show them as lookalike groups (no hard link), with the tolerance setting; video thumbnails in the window.
 
 ### B. Bulk rename (§15.3)
 
