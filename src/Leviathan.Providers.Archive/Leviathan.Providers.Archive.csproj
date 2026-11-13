@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Browses zip, 7z, rar, tar, gz, iso and more as folders, through 7-Zip (spec 15.4, 18). -->
+  <PropertyGroup>
+    <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+    <RootNamespace>Leviathan.Providers.Archive</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Squid-Box.SevenZipSharp" />
+    <PackageReference Include="System.IO.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The 7-Zip engine the wrapper loads (x64 and ARM64); copied beside every program that uses this project. -->
+    <Content Include="..\..\third-party\7zip\7z64.dll" Link="7z64.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third-party\7zip\7zArm64.dll" Link="7zArm64.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leviathan.Providers.Archive.Tests" />
+  </ItemGroup>
+</Project>

@@ -27,7 +27,7 @@ Every slice follows `CLAUDE.md`.
 
 ### C. Archives and checksums (§15.4)
 
-- [ ] **C1. Archive provider**: browse zip, 7z, rar (read-only), tar, gz, iso as folders via 7-Zip (`7z.dll`, as Files does),
+- [x] **C1. Archive provider**: browse zip, 7z, rar (read-only), tar, gz, iso as folders via 7-Zip (`7z.dll`, as Files does),
   with preview.
 - [ ] **C2. Extract and compress jobs**: extract here / to folder / to location, create zip or 7z with level and optional
   password, through the queue with progress.

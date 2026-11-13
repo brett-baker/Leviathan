@@ -890,7 +890,9 @@ public static partial class WindowCommands
                 return;
             }
 
-            if (Folders.FileColumns.IsFolderLike(entry))
+            // An archive opens as a folder (spec §15.4); "Open with" is how to hand it to another program. An archive inside an
+            // archive is only a file, and is unpacked and opened by its program.
+            if (Folders.FileColumns.IsFolderLike(entry) || (entry.Kind == FileEntryKind.File && Core.Archives.ArchiveKinds.IsBrowsable(entry.Extension) && !Core.Archives.ArchiveKinds.IsInside(entry.Location)))
             {
                 await tab.NavigateAsync(entry.Location, ct);
                 return;

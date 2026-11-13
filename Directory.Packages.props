@@ -45,6 +45,8 @@
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="System.IO.Abstractions" Version="21.0.29" />
+    <!-- Archives (spec 15.4): 7-Zip through Squid-Box.SevenZipSharp (LGPL-3.0), the maintained SevenZipSharp. The copy Files uses loads 7z.dll with LoadPackagedLibrary, which only works in a packaged app; Leviathan is unpackaged. -->
+    <PackageVersion Include="Squid-Box.SevenZipSharp" Version="1.6.2.24" />
     <PackageVersion Include="TestableIO.System.IO.Abstractions.TestingHelpers" Version="21.0.29" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />

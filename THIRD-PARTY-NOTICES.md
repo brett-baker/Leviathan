@@ -54,3 +54,11 @@ a `pack.json` naming the upstream icon behind every file. The user chooses the p
 | Package | Licence | Used for |
 | --- | --- | --- |
 | FlaUI.Core, FlaUI.UIA3 5.0.0 | MIT | `tests/Leviathan.UI.Tests`: drives the running app through UI Automation |
+| Squid-Box.SevenZipSharp (archives: zip, 7z, rar, iso and more; wrapper around 7-Zip) | LGPL-3.0 |
+
+## 7-Zip engine
+
+`third-party/7zip/7z64.dll` and `7zArm64.dll` (7-Zip 26.00, Igor Pavlov, https://www.7-zip.org) are loaded by the archive provider
+(spec 15.4, 18), unmodified, and copied beside the program. 7-Zip is GNU LGPL; the unRAR code in it carries the unRAR restriction
+(it may not be used to re-create the RAR compression algorithm), so Leviathan only reads rar archives. The files came from the Files
+repository (`src/Files.App/7z64.dll`, `7zArm64.dll`).

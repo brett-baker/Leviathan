@@ -147,7 +147,23 @@ public sealed partial class MainWindow
         try
         {
             var entry = request.Entries.Count > 0 ? request.Entries[0] : null;
-            var path = entry?.Location.ToWin32Path() ?? string.Empty;
+
+            // Something inside an archive (spec §15.4) has no path of its own: it is unpacked to the scratch folder first, unless it is
+            // too big to be worth unpacking just to look at.
+            var inArchive = entry is not null && Core.Archives.ArchiveKinds.IsInside(entry.Location);
+            if (inArchive && entry!.Kind != FileEntryKind.File)
+            {
+                VideoPlaceholder.Text = $"{entry.Name}\nA folder inside an archive.";
+                ShowOnly(null);
+                return;
+            }
+
+            if (inArchive && entry!.Size > PreviewLimits.MaxArchiveStageBytes)
+            {
+                throw new NotSupportedException($"{entry.Name} is {DisplayFormat.Size(entry.Size)}, too big to preview from inside an archive. Extract it to look at it.");
+            }
+
+            var path = entry is null ? string.Empty : inArchive ? await StageForPreviewAsync(entry, request.Cancellation) : entry.Location.ToWin32Path();
             switch (request.Kind)
             {
                 case PreviewKind.Video or PreviewKind.Audio:
@@ -202,18 +218,14 @@ public sealed partial class MainWindow
                     ShowOnly(shell);
                     await shell.OpenAsync(path, WinRT.Interop.WindowNative.GetWindowHandle(this), request.Cancellation);
                     break;
-                case PreviewKind.Archive when ArchiveListing.CanList(entry!.Extension):
-                    await ShowArchiveAsync(entry, path, request.Cancellation);
+                case PreviewKind.Archive:
+                    await ShowArchiveAsync(entry!, path, request.Cancellation);
                     break;
                 case PreviewKind.Folder:
                     await ShowFolderAsync(entry!, path, request.Cancellation);
                     break;
                 case PreviewKind.Multiple:
                     await ShowMultipleAsync(request.Entries, request.Cancellation);
-                    break;
-                case PreviewKind.Archive:
-                    VideoPlaceholder.Text = $"{entry!.Name}\nListing {entry.Extension} archives needs 7-Zip support, which comes with the archive feature.";
-                    ShowOnly(null);
                     break;
                 default:
                     ShowOnly(null);
@@ -236,14 +248,48 @@ public sealed partial class MainWindow
         }
     }
 
+    // Unpacks an item of an archive to the scratch folder. The work has its own, longer limit than a renderer: unpacking is not drawing.
+    private static async Task<string> StageForPreviewAsync(FileEntry entry, CancellationToken cancellationToken)
+    {
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(PreviewLimits.ArchiveStageTimeout);
+        try
+        {
+            return await App.Host.ArchiveStager.StageAsync(entry.Location, limit.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException();
+        }
+    }
+
+    // The framework lists zip and tar quickly without 7-Zip; everything else (7z, rar, iso, a lone gzip) goes through the archive index
+    // the folder listing uses, so an archive being browsed is not read twice.
     private async Task ShowArchiveAsync(FileEntry entry, string path, CancellationToken cancellationToken)
     {
-        var contents = await Task.Run(() => ArchiveListing.Read(path), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken);
+        var frameworkKind = ArchiveListing.CanList(entry.Extension) && !(entry.Extension.Equals(".gz", StringComparison.OrdinalIgnoreCase) && !entry.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase));
+        if (!frameworkKind && !Core.Archives.ArchiveKinds.IsBrowsable(entry.Extension))
+        {
+            VideoPlaceholder.Text = $"{entry.Name}\nListing {entry.Extension} archives is not supported yet.";
+            ShowOnly(null);
+            return;
+        }
+
+        var contents = frameworkKind
+            ? await Task.Run(() => ArchiveListing.Read(path), CancellationToken.None).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken)
+            : await ListWithSevenZipAsync(path, cancellationToken);
         var summary = _summary ??= AddSurface(new SummaryPreview());
         ShowOnly(summary);
         var rows = contents.Items.Select(i => i.IsFolder ? i.Path + "/" : $"{i.Path}  ·  {DisplayFormat.Size(i.Size)}").ToList();
         var more = contents.Truncated ? $" · first {ArchiveListing.MaxItems:N0} shown" : string.Empty;
         summary.Show($"{entry.Name}: {contents.Items.Count:N0} items · {DisplayFormat.Size(contents.TotalBytes)} unpacked{more}", rows);
+    }
+
+    private static async Task<ArchiveContents> ListWithSevenZipAsync(string path, CancellationToken cancellationToken)
+    {
+        var snapshot = await App.Host.ArchiveIndex.GetAsync(path, cancellationToken).WaitAsync(PreviewLimits.LoadTimeout, cancellationToken);
+        var items = snapshot.Entries.Take(ArchiveListing.MaxItems).Select(e => new ArchiveItem(e.Path, e.Size, e.IsDirectory)).ToList();
+        return new ArchiveContents(items, snapshot.Entries.Sum(e => e.Size), snapshot.Entries.Count > ArchiveListing.MaxItems);
     }
 
     private async Task ShowFolderAsync(FileEntry folder, string path, CancellationToken cancellationToken)

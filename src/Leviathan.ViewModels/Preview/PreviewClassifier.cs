@@ -66,6 +66,12 @@ public static class PreviewLimits
     /// <summary>The widest a picture is decoded for the pane; larger pictures are decoded smaller, which keeps memory bounded while zoom still reaches useful detail.</summary>
     public const int MaxDecodeWidth = 6000;
 
+    /// <summary>The largest item unpacked from an archive just to preview it (256 MiB); bigger ones say so instead of filling the scratch folder.</summary>
+    public const long MaxArchiveStageBytes = 256L << 20;
+
+    /// <summary>How long unpacking an item of an archive for the preview may take.</summary>
+    public static readonly TimeSpan ArchiveStageTimeout = TimeSpan.FromSeconds(30);
+
     /// <summary>How long a renderer may take before the pane gives up and shows the file's details instead.</summary>
     public static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(5);
 }

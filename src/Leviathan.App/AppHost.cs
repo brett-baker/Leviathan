@@ -151,6 +151,12 @@ internal sealed class AppHost
     /// <summary>Asks the user whether to trust a server seen for the first time.</summary>
     public TrustPrompt Trust { get; private init; } = null!;
 
+    /// <summary>The cached lists of the archives being browsed (spec §15.4); the preview pane lists 7z and rar files from it.</summary>
+    public Leviathan.Providers.Archive.ArchiveIndex ArchiveIndex { get; private init; } = null!;
+
+    /// <summary>Unpacks an item inside an archive to the scratch folder so a renderer or program that wants a path can use it.</summary>
+    public Leviathan.Providers.Archive.ArchiveStager ArchiveStager { get; private init; } = null!;
+
     /// <summary>Where search results report their progress to, and where the search gets tags and media information (spec 13).</summary>
     public SearchHooks SearchHooks { get; private init; } = null!;
 
@@ -645,9 +651,25 @@ internal sealed class AppHost
         });
         var busyDevices = new Leviathan.ViewModels.Searches.BusyDevices();
         LocationProviderRegistry? searchProviders = null;
+        // Archives open as folders (spec 15.4): the local provider is wrapped so a path below a zip, 7z, rar, tar or iso is listed from the
+        // archive. Unpacked copies for opening and previewing go to a scratch folder in the temp folder, swept of old files at start.
+        var archiveDisk = new FileSystem();
+        var archiveIndex = new Leviathan.Providers.Archive.ArchiveIndex(Leviathan.Providers.Archive.CompositeArchiveReader.Default(), archiveDisk);
+        var archiveStager = new Leviathan.Providers.Archive.ArchiveStager(archiveIndex, archiveDisk, Path.Combine(Path.GetTempPath(), "Leviathan", "archive-stage"));
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                archiveStager.Clean(TimeSpan.FromDays(2));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Old scratch files stay until the next start.
+            }
+        });
         var providers = new LocationProviderRegistry([
             new HealthTrackingLocationProvider(
-                new ReconnectingLocationProvider(new LocalLocationProvider(), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
+                new ReconnectingLocationProvider(new Leviathan.Providers.Archive.ArchiveAwareLocationProvider(new LocalLocationProvider(), archiveIndex), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
             new HealthTrackingLocationProvider(new ServerSharesProvider(new WindowsShareEnumerator()), shareHealth, offline: workOffline),
             new Leviathan.ViewModels.Tags.TagListingProvider(tagIndex, TagFileStat.Describe),
             remoteProvider,
@@ -831,8 +853,8 @@ internal sealed class AppHost
         UiTrace.Mark("AppHost: stores");
         var host = new AppHost(
             windows,
-            new AddressResolver(new FileSystemEntryProbe(new FileSystem())),
-            new WindowsFileLauncher(),
+            new AddressResolver(new ArchiveAwareEntryProbe(new FileSystemEntryProbe(new FileSystem()), new Leviathan.Providers.Archive.ArchiveCatalog(archiveIndex))),
+            new Leviathan.Core.Archives.StagingFileLauncher(new WindowsFileLauncher(), archiveStager),
             new WindowsKnownFolders(),
             new WindowsVolumeInfo(),
             UiTrace.Measure("AppHost: key map", WindowCommands.DefaultKeyMap),
@@ -872,6 +894,8 @@ internal sealed class AppHost
             RemoteSecrets = remoteSecrets,
             RemoteProvider = remoteProvider,
             Trust = trustPrompt,
+            ArchiveIndex = archiveIndex,
+            ArchiveStager = archiveStager,
             SearchIndex = indexManager,
             SpaceScanner = new Leviathan.SpaceMap.SpaceScanner(providers, new LazySpaceScanStore(() => new SqliteSpaceScanStore(new LeviathanDatabase(LeviathanDatabase.DefaultPath)))),
             Listings = listings,
