@@ -37,4 +37,22 @@ public static class TriageHandOff
             .ToList();
         return kept.Count == 0 ? null : new TriageHandOffPlan(kept, folder, media.TriageAskBeforeMove);
     }
+
+    /// <summary>
+    /// The kept files whose move no longer needs remembering after <paramref name="result"/>: those no longer at their place (renamed
+    /// away), and, when part of the move was queued as a job, those on another drive than <paramref name="plan"/> (the job carries them).
+    /// What stays is a file the move failed for, which is offered again.
+    /// </summary>
+    /// <param name="plan">The plan that was run.</param>
+    /// <param name="result">What running it did.</param>
+    /// <param name="exists">Whether a file is still at a Win32 path (the real one asks the disk; tests pass a fake).</param>
+    public static IReadOnlyList<string> Handled(TriageHandOffPlan plan, TriageMoveResult result, Func<string, bool> exists)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(exists);
+        return [.. plan.Files
+            .Where(f => !exists(f.Location.ToWin32Path()) || (result.Queued > 0 && !TriageFileActions.SameVolume(f.Location.ToWin32Path(), plan.Folder)))
+            .Select(f => f.Location.Value)];
+    }
 }

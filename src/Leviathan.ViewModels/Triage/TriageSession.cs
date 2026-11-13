@@ -78,6 +78,9 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     /// <summary>Raised after the list was put in another order, so the window shows it again.</summary>
     public event EventHandler? OrderChanged;
 
+    /// <summary>Raised after a file's decision changed: kept, discarded, skipped, or taken back. The window journals it at once so a crash loses nothing.</summary>
+    public event EventHandler<TriageItem>? DecisionChanged;
+
     /// <summary>Raised once, when the queue ends.</summary>
     public event EventHandler? Finished;
 
@@ -277,6 +280,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             {
                 _history.Push(new HistoryEntry(item, TriageDecision.None, null, item.File));
                 item.Decision = TriageDecision.Skipped;
+                DecisionChanged?.Invoke(this, item);
                 RaiseCounts();
             }
 
@@ -339,6 +343,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             entry.Item.Decision = entry.Previous;
             entry.Item.Undo = entry.PreviousUndo;
             entry.Item.File = entry.PreviousFile;
+            DecisionChanged?.Invoke(this, entry.Item);
             _finished = false;
             LastError = null;
             await GoToCoreAsync(_items.IndexOf(entry.Item)).ConfigureAwait(false);
@@ -508,6 +513,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             }
 
             item.Decision = decision;
+            DecisionChanged?.Invoke(this, item);
             _history.Push(previous);
             LastError = null;
             RaiseCounts();

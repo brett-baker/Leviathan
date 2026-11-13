@@ -56,7 +56,7 @@ public sealed class TriageHandOffTests
     {
         var session = await RunAsync((@"C:\inbox\a.mkv", TriageDecision.Kept), (@"C:\inbox\b.mkv", TriageDecision.Discarded), (@"C:\inbox\c.mkv", TriageDecision.Kept), (@"C:\inbox\d.mkv", TriageDecision.Skipped));
 
-        var plan = TriageHandOff.Plan(session, new MediaSettings(), @"D:\library");
+        var plan = TriageHandOff.Plan(session, new MediaSettings { TriageMoveWhen = TriageMoveMode.AtEnd }, @"D:\library");
 
         Assert.NotNull(plan);
         Assert.Equal(["a.mkv", "c.mkv"], plan.Files.Select(f => f.Name));
@@ -80,7 +80,7 @@ public sealed class TriageHandOffTests
     {
         var session = await RunAsync((@"C:\inbox\a.mkv", TriageDecision.Kept));
 
-        Assert.Null(TriageHandOff.Plan(session, new MediaSettings(), destination));
+        Assert.Null(TriageHandOff.Plan(session, new MediaSettings { TriageMoveWhen = TriageMoveMode.AtEnd }, destination));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class TriageHandOffTests
     {
         var session = await RunAsync((@"C:\inbox\a.mkv", TriageDecision.Discarded), (@"C:\inbox\b.mkv", TriageDecision.Skipped));
 
-        Assert.Null(TriageHandOff.Plan(session, new MediaSettings(), @"D:\library"));
+        Assert.Null(TriageHandOff.Plan(session, new MediaSettings { TriageMoveWhen = TriageMoveMode.AtEnd }, @"D:\library"));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class TriageHandOffTests
     {
         var session = await RunAsync((@"D:\library\a.mkv", TriageDecision.Kept), (@"C:\inbox\b.mkv", TriageDecision.Kept));
 
-        var plan = TriageHandOff.Plan(session, new MediaSettings(), @"d:\LIBRARY\");
+        var plan = TriageHandOff.Plan(session, new MediaSettings { TriageMoveWhen = TriageMoveMode.AtEnd }, @"d:\LIBRARY\");
 
         Assert.Equal(["b.mkv"], plan!.Files.Select(f => f.Name));
     }
@@ -106,17 +106,17 @@ public sealed class TriageHandOffTests
     {
         var session = await RunAsync((@"C:\inbox\a.mkv", TriageDecision.Kept));
 
-        var plan = TriageHandOff.Plan(session, new MediaSettings { TriageAskBeforeMove = false }, @"D:\library");
+        var plan = TriageHandOff.Plan(session, new MediaSettings { TriageMoveWhen = TriageMoveMode.AtEnd, TriageAskBeforeMove = false }, @"D:\library");
 
         Assert.False(plan!.Ask);
     }
 
     [Fact]
-    public void MediaSettings_DefaultToMovingAtTheEnd_AndAsking()
+    public void MediaSettings_DefaultToMovingOnKeep_AndAskingWhenMovingAtTheEnd()
     {
         var media = new MediaSettings();
 
-        Assert.Equal(TriageMoveMode.AtEnd, media.TriageMoveWhen);
+        Assert.Equal(TriageMoveMode.OnKeep, media.TriageMoveWhen);
         Assert.True(media.TriageAskBeforeMove);
     }
 

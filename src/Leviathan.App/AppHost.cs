@@ -460,6 +460,9 @@ internal sealed class AppHost
     private JsonFileStore<HubLayout> HubStore { get; init; } = null!;
 
     /// <summary>The saved triage inboxes (spec §10.1).</summary>
+    /// <summary>Every triage decision, written as it is made, so a crash loses none and kept files waiting for a move are offered again (spec §10.1, §3.4).</summary>
+    public Leviathan.ViewModels.Triage.TriageJournal TriageJournal { get; private init; } = null!;
+
     public InboxCatalog Inboxes { get; private init; } = null!;
 
     /// <summary>Finds the provider for a location, for work outside a tab (an inbox read).</summary>
@@ -772,6 +775,7 @@ internal sealed class AppHost
             polling), new MediaInfoSource(() => built!.MediaHost), pending, tagStore, () => built!.Settings.Current.Tags.Catalog());
         UiTrace.Mark("AppHost: tab services");
         var disk = new FileSystem();
+        var triageJournal = new Leviathan.ViewModels.Triage.TriageJournal(disk, Path.Combine(Leviathan.Core.Platform.DataLocation.Root(), "triage-journal.jsonl"));
         NewItemService newItems;
         using (UiTrace.Begin("AppHost: new items"))
         {
@@ -883,7 +887,8 @@ internal sealed class AppHost
             SheetBatch = sheetBatch,
             WorkerLazy = worker,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
-            Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json"))),
+            TriageJournal = triageJournal,
+            Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json")), journal: triageJournal),
             Providers = providers,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),
             SettingsPath = Path.Combine(data, "settings.json"),

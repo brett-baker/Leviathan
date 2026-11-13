@@ -142,7 +142,7 @@
                 <StackPanel Spacing="4">
                   <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
                   <ToggleSwitch x:Name="EagerSwitch" Header="Show deletes, moves and copies at once" OnContent="Rows go and arrive when you ask; a moved or copied file is dimmed until it is there" OffContent="Rows change as the job reports and when it ends" Toggled="OnFilesToggled" />
-                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="Triage: move kept files when it ends" OnContent="Kept files go to the other pane (or the keep folder) together when you close triage" OffContent="Each file moves as soon as you keep it" Toggled="OnTriageToggled" />
+                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="Triage: move kept files when it ends" OnContent="Kept files go to the other pane (or the keep folder) together when you close triage" OffContent="Each file moves as soon as you keep it (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
                   <ToggleSwitch x:Name="TriageAskSwitch" Header="Triage: ask before moving kept files" Toggled="OnTriageToggled" />
                   <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
                 </StackPanel>

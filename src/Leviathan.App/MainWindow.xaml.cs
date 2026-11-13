@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window, IShellActions
         }
         host.DriveCards.Changed += (_, _) => OnUi(UpdateHeaders);
         host.Undo.Changed += OnUndoChanged;
+        _ = OfferWaitingKeepMovesAsync();
         host.FileClipboard.Changed += OnClipboardChanged;
         host.Transfers.Finished += OnTransferFinished;
         host.Transfers.Submitted += OnTransferSubmitted;

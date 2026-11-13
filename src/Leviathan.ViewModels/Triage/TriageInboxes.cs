@@ -93,16 +93,21 @@ public sealed record InboxSession(TriageInbox Inbox, IReadOnlyList<FileEntry> Qu
 public sealed class InboxCatalog : IDisposable
 {
     private readonly JsonFileStore<InboxesFile> _store;
+    private readonly TriageJournal? _journal;
     private readonly TimeProvider _time;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private InboxesFile? _file;
 
-    /// <summary>Creates a catalog over <paramref name="store"/>.</summary>
-    public InboxCatalog(JsonFileStore<InboxesFile> store, TimeProvider? time = null)
+    /// <summary>
+    /// Creates a catalog over <paramref name="store"/>. With a <paramref name="journal"/>, decisions a session made but never got to save
+    /// (the app crashed) are folded into the inboxes the first time they are read.
+    /// </summary>
+    public InboxCatalog(JsonFileStore<InboxesFile> store, TimeProvider? time = null, TriageJournal? journal = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
         _time = time ?? TimeProvider.System;
+        _journal = journal;
     }
 
     /// <inheritdoc />
@@ -198,11 +203,11 @@ public sealed class InboxCatalog : IDisposable
     }
 
     /// <summary>Remembers what a session decided: kept and discarded files are triaged for good; every file it reached stops being New.</summary>
-    public Task RecordAsync(TriageInbox inbox, TriageSession session, CancellationToken cancellationToken)
+    public async Task RecordAsync(TriageInbox inbox, TriageSession session, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(inbox);
         ArgumentNullException.ThrowIfNull(session);
-        return MutateAsync(_ =>
+        await MutateAsync(_ =>
         {
             foreach (var item in session.Items)
             {
@@ -217,7 +222,66 @@ public sealed class InboxCatalog : IDisposable
                     inbox.New.Remove(path);
                 }
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
+
+        // Saved in full now, so the journal no longer needs this inbox's decisions (kept files still waiting for a move stay in it).
+        if (_journal is not null)
+        {
+            try
+            {
+                await Task.Run(() => _journal.Compact(r => r.Scope == inbox.Id && !r.IsPendingMove), cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Left as it is: the next start folds the same decisions in again, which changes nothing.
+            }
+        }
+    }
+
+    /// <summary>How many decisions were recovered from the journal when the inboxes were first read (non-zero after a crash).</summary>
+    public int RecoveredCount { get; private set; }
+
+    // Folds what the journal holds into the inboxes: a kept or discarded file is decided, an undone or skipped one is not. What was
+    // folded in is then dropped from the journal, except kept files still waiting for their move, which the app offers again.
+    private void Recover(InboxesFile file)
+    {
+        if (_journal is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var applied = 0;
+            foreach (var record in _journal.Replay())
+            {
+                if (file.Inboxes.FirstOrDefault(i => i.Id == record.Scope) is not { } inbox)
+                {
+                    continue;
+                }
+
+                if (record.Decision is TriageDecision.Kept or TriageDecision.Discarded)
+                {
+                    applied += inbox.Decided.Add(record.Path) ? 1 : 0;
+                }
+                else if (record.Decision == TriageDecision.None)
+                {
+                    applied += inbox.Decided.Remove(record.Path) ? 1 : 0;
+                }
+
+                if (record.Decision != TriageDecision.None)
+                {
+                    inbox.New.Remove(record.Path);
+                }
+            }
+
+            RecoveredCount = applied;
+            _journal.Compact(r => !r.IsPendingMove);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The journal is a safety net; if it cannot be read the inboxes are used as they were saved.
+        }
     }
 
     /// <summary>How many files in this inbox are decided, for the progress line.</summary>
@@ -246,7 +310,19 @@ public sealed class InboxCatalog : IDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return _file ??= await _store.LoadAsync(cancellationToken).ConfigureAwait(false) ?? new InboxesFile();
+            if (_file is not null)
+            {
+                return _file;
+            }
+
+            var file = await _store.LoadAsync(cancellationToken).ConfigureAwait(false) ?? new InboxesFile();
+            await Task.Run(() => Recover(file), cancellationToken).ConfigureAwait(false);
+            if (_journal is not null && file.Inboxes.Count > 0 && RecoveredCount > 0)
+            {
+                await _store.SaveAsync(file, cancellationToken).ConfigureAwait(false);
+            }
+
+            return _file = file;
         }
         finally
         {

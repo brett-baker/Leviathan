@@ -42,6 +42,7 @@ internal sealed partial class TriageWindow : Window
     private readonly HashSet<string> _prefetched = new(StringComparer.OrdinalIgnoreCase);
     private LibVlcEngine? _engine;
     private TriageSession? _session;
+    private Leviathan.ViewModels.Triage.TriageRecorder? _recorder;
     private TriageDispatcher? _dispatcher;
     private bool _updating;
     private bool _syncingQueue;
@@ -183,9 +184,19 @@ internal sealed partial class TriageWindow : Window
         _handOffDone = true;
         try
         {
+            if (_recorder is { } recorder)
+            {
+                await recorder.Flushed;
+                recorder.Dispose();
+            }
+
             if (Inbox is { } inbox && _session is { } finished)
             {
                 await App.Host.Inboxes.RecordAsync(inbox.Inbox, finished, CancellationToken.None);
+            }
+            else
+            {
+                await Task.Run(() => App.Host.TriageJournal.Compact(r => r.Scope.Length == 0 && !r.IsPendingMove));
             }
 
             await HandOffAsync();
@@ -260,6 +271,9 @@ internal sealed partial class TriageWindow : Window
 
         var result = await Task.Run(() => actions.MoveKeptAsync(plan.Files, plan.Folder, CancellationToken.None));
         Notice?.Invoke(this, result.Describe(plan.Folder));
+
+        // Moved at once, or handed to the queue as a job (which is journaled by the worker): either way no longer waiting.
+        await Task.Run(() => App.Host.TriageJournal.AppendMoved(TriageHandOff.Handled(plan, result, File.Exists)));
     }
 
     /// <summary>Raised when the window closes, with the file triage was on, so the folder view can select it again (spec §10.2, Esc).</summary>
@@ -278,6 +292,13 @@ internal sealed partial class TriageWindow : Window
             var settings = App.Host.Settings.Current.Media;
             _actions = App.Host.TriageActionsFor(_destination);
             var session = _session = new TriageSession(_queue, _engine, _actions, settings.ToTriageOptions());
+            // Every decision goes to the journal as it is made (spec §10.1, §3.4), so a crash loses none of them; a kept file that is to
+            // be moved when triage ends is remembered with its folder, and offered again on the next start if the move never happened.
+            _recorder = new Leviathan.ViewModels.Triage.TriageRecorder(
+                session,
+                App.Host.TriageJournal,
+                Inbox?.Inbox.Id ?? string.Empty,
+                () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null);
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys);
             _dispatcher.WindowCommand += OnWindowCommand;
             session.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);

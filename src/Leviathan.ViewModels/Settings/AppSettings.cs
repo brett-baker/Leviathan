@@ -258,10 +258,10 @@ public sealed record MediaSettings
     public string TriageKeepFolder { get; init; } = string.Empty;
 
     /// <summary>
-    /// When kept files go to the destination (the other pane of a split tab, else <see cref="TriageKeepFolder"/>): all together when
-    /// triage ends (default, one question and one job), or each file as it is kept.
+    /// When kept files go to the destination (the other pane of a split tab, else <see cref="TriageKeepFolder"/>): each file as it is kept (default: nothing is left waiting, and a crash cannot strand it), or all together when
+    /// triage ends (one question and one job; the kept files are remembered meanwhile, so a crash only postpones the question).
     /// </summary>
-    public TriageMoveMode TriageMoveWhen { get; init; } = TriageMoveMode.AtEnd;
+    public TriageMoveMode TriageMoveWhen { get; init; } = TriageMoveMode.OnKeep;
 
     /// <summary>The order of the queue list in the triage window, remembered from the last time (name, age or size).</summary>
     public Leviathan.ViewModels.Triage.TriageListOrder TriageOrder { get; init; }
