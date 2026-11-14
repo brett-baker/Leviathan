@@ -133,6 +133,7 @@ public static class ContextActions
             new(CommandIds.TabNew, "New tab here", ""),
             new(CommandIds.TerminalHere, "Open terminal here", ""),
             new(CommandIds.SpaceMap, "Space map of this folder", ""),
+            new(CommandIds.SyncFolders, "Compare and sync", ""),
         ],
         SelectionClass.Folder =>
         [

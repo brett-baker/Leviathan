@@ -54,6 +54,13 @@ public enum JobKind
     /// are checksum files and every file they name is checked. Changes nothing.
     /// </summary>
     Checksum,
+
+    /// <summary>
+    /// Compare two folders (spec §15.5): <see cref="JobRequest.Sources"/> holds the left folder and <see cref="JobRequest.Destination"/> the
+    /// right one. Every path found in either comes back as an item whose source is the path below the folders and whose
+    /// <see cref="ItemOutcome.Result"/> is the comparison. Changes nothing.
+    /// </summary>
+    Compare,
 }
 
 /// <summary>The kind of archive a compress job writes (spec §15.4).</summary>
@@ -381,6 +388,15 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>The sources are checksum files (.sha256, .md5, .sfv and the like): check every file they name instead of computing (checksum only).</summary>
     public bool ChecksumVerify { get; init; }
+
+    /// <summary>Tell files of equal size apart by their contents instead of trusting name, size and time (compare only).</summary>
+    public bool CompareByChecksum { get; init; }
+
+    /// <summary>Times this many seconds apart count as the same (compare only).</summary>
+    public int CompareToleranceSeconds { get; init; } = 2;
+
+    /// <summary>Also count times a whole hour apart as the same, for a drive that does not follow daylight saving (compare only).</summary>
+    public bool CompareIgnoreDaylightSaving { get; init; }
 }
 
 /// <summary>A point-in-time view of a job, as shown in the Operations panel.</summary>

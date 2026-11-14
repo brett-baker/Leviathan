@@ -101,7 +101,7 @@ public sealed class WorkerService : IWorkerService
         var sources = request.Sources.Select(LocationPath.Parse).ToList();
         var destination = request.Destination is null ? null : LocationPath.Parse(request.Destination);
         // The automatic purge (a policy, no items of its own) is upkeep and must never take a slot from the user's copies (spec §12.3).
-        var lane = request.Kind is JobKind.ComputeFolderSize or JobKind.FindDuplicates or JobKind.Checksum || (request.Kind == JobKind.Purge && request.PurgePolicy is not null) ? JobLane.Background : JobLane.Operations;
+        var lane = request.Kind is JobKind.ComputeFolderSize or JobKind.FindDuplicates or JobKind.Checksum or JobKind.Compare || (request.Kind == JobKind.Purge && request.PurgePolicy is not null) ? JobLane.Background : JobLane.Operations;
         IEnumerable<LocationPath> touched = destination is null ? sources : [destination, .. sources];
         string? device;
         if (_identities is null)
@@ -237,6 +237,7 @@ public static class JobTitles
             JobKind.Extract => $"Extract {what} to {destination}",
             JobKind.Compress => $"Compress {what} to {destination?.Name}",
             JobKind.Checksum => $"Checksums of {what}",
+            JobKind.Compare => $"Compare {what} with {destination}",
             JobKind.Sync => $"Sync {what} → {destination}",
             JobKind.BulkRename => $"Rename {what}",
             JobKind.Rename => $"Rename {what}",

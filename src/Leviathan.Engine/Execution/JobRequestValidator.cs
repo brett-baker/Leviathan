@@ -39,6 +39,8 @@ public static class JobRequestValidator
                 return ValidateCompress(request);
             case JobKind.Checksum:
                 return ValidateChecksum(request);
+            case JobKind.Compare:
+                return ValidateCompare(request);
             case JobKind.Delete:
                 return request.Destination is null ? null : "A delete job has no destination.";
             case JobKind.Restore:
@@ -65,6 +67,17 @@ public static class JobRequestValidator
         }
 
         return null;
+    }
+
+    private static string? ValidateCompare(JobRequest request)
+    {
+        if (request.Sources.Count != 1 || string.IsNullOrWhiteSpace(request.Destination) || !LocationPath.TryParse(request.Destination, out var right))
+        {
+            return "A compare job needs a left folder and a right folder.";
+        }
+
+        var left = LocationPath.Parse(request.Sources[0]);
+        return left.Contains(right) || right.Contains(left) ? "A folder cannot be compared with itself or with a folder inside it." : null;
     }
 
     private static string? ValidateChecksum(JobRequest request)

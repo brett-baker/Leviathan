@@ -6,7 +6,14 @@ namespace Leviathan.ViewModels.Transfers;
 /// <param name="Sources">The dragged or pasted items.</param>
 /// <param name="Destination">The folder they go into.</param>
 /// <param name="Mode">Move, copy or shortcut.</param>
-public sealed record TransferRequest(IReadOnlyList<LocationPath> Sources, LocationPath Destination, TransferMode Mode);
+public sealed record TransferRequest(IReadOnlyList<LocationPath> Sources, LocationPath Destination, TransferMode Mode)
+{
+    /// <summary>
+    /// Replace items of the same name without asking. A sync sets it: the preview the person confirmed already says which files are
+    /// overwritten, so the job must not stop to ask about each one (spec §15.5).
+    /// </summary>
+    public bool Replace { get; init; }
+}
 
 /// <summary>What became of a <see cref="TransferRequest"/>.</summary>
 /// <param name="Started">True when the work was handed on; false when nothing was done.</param>

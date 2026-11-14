@@ -37,7 +37,7 @@ Every slice follows `CLAUDE.md`.
 ### D. Folder compare and sync (§15.5)
 
 - [x] **D1. Compare engine**: by name + size + date or by checksum; left-only, right-only, newer left/right, identical.
-- [ ] **D2. Sync modes**: mirror left→right, mirror right→left, two-way (newer wins, conflicts flagged), update; deletions go to
+- [x] **D2. Sync modes**: mirror left→right, mirror right→left, two-way (newer wins, conflicts flagged), update; deletions go to
   soft delete / Recycle Bin; dry-run preview always first.
 - [ ] **D3. Saved sync pairs**: re-run with one click, pinned to Favorites, optional schedule.
 

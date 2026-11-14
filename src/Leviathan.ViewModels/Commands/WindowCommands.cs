@@ -74,6 +74,11 @@ public interface IShellActions
     {
     }
 
+    /// <summary>Opens the compare and sync window for two folders (spec §15.5); either may be null when the person has to choose.</summary>
+    void OpenSync(LocationPath? left, LocationPath? right)
+    {
+    }
+
     /// <summary>Asks for a folder (Extract to...); null when the user cancels. Services that cannot ask return null.</summary>
     Task<LocationPath?> PickFolderAsync(string title) => Task.FromResult<LocationPath?>(null);
 
@@ -470,6 +475,9 @@ public static class CommandIds
 
     /// <summary>Extract an archive to a folder the user picks (Phase 5).</summary>
     public static readonly CommandId ExtractTo = new("archive.extractTo");
+
+    /// <summary>Compare two folders and bring them into line (Phase 5).</summary>
+    public static readonly CommandId SyncFolders = new("folder.sync");
 
     /// <summary>Compress with a chosen format, level and password (Phase 5).</summary>
     public static readonly CommandId CompressWith = new("archive.compressWith");
@@ -1012,6 +1020,16 @@ public static partial class WindowCommands
             var verify = items.All(i => Core.Hashing.ChecksumKinds.FromExtension(Path.GetExtension(i.Name)) is not null);
             shell.OpenChecksums(items, verify);
         }), c => Current() is not null);
+
+        // Compare and sync (spec §15.5): this folder against the other pane of a split tab, else the person picks the second one.
+        Add(CommandIds.SyncFolders, "Compare and sync folders...", "Files", (_, _) => Run(() =>
+        {
+            var tab = window.Tabs.Selected;
+            var here = tab?.Focused.History.Current;
+            var other = tab?.Other?.History.Current;
+            static LocationPath? Usable(LocationPath? p) => p is { Kind: LocationKind.Drive or LocationKind.Unc } ? p : null;
+            shell.OpenSync(Usable(here), Usable(other));
+        }), _ => Current() is not null);
 
         bool CanArchive(CommandContext c) => archives is not null && Current() is not null;
         Add(CommandIds.ExtractHere, "Extract here", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: false), CanArchive);

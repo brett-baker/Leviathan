@@ -96,6 +96,10 @@ public sealed class WindowCommandsTests
 
         public void OpenChecksums(IReadOnlyList<LocationPath> items, bool verify) => ChecksumWindows.Add((items, verify));
 
+        public List<(LocationPath? Left, LocationPath? Right)> SyncWindows { get; } = [];
+
+        public void OpenSync(LocationPath? left, LocationPath? right) => SyncWindows.Add((left, right));
+
         public LocationPath? PickedFolder { get; set; }
 
         public Task<LocationPath?> PickFolderAsync(string title) => Task.FromResult(PickedFolder);

@@ -79,6 +79,7 @@ builder.Services.AddSingleton(sp => new Leviathan.Providers.Remote.RemoteTransfe
 builder.Services.AddSingleton<IJobExecutor, ComputeFolderSizeExecutor>();
 builder.Services.AddSingleton<IJobExecutor, Leviathan.Engine.Duplicates.FindDuplicatesExecutor>();
 builder.Services.AddSingleton<IJobExecutor, Leviathan.Engine.Checksums.ChecksumExecutor>();
+builder.Services.AddSingleton<IJobExecutor, Leviathan.Engine.Compare.CompareExecutor>();
 // Archives (spec 15.4): extract and compress jobs through 7-Zip; tar and tar.gz are read by the framework.
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Providers.Archive.ArchiveExtractExecutor(Leviathan.Providers.Archive.CompositeArchiveReader.Default(), sp.GetRequiredService<IFileSystem>()));
 builder.Services.AddSingleton<IJobExecutor>(sp => new Leviathan.Providers.Archive.ArchiveCompressExecutor(new Leviathan.Providers.Archive.SevenZipArchiveWriter(), sp.GetRequiredService<IFileSystem>()));

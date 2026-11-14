@@ -124,7 +124,7 @@ internal sealed class WorkerTransfers : ITransferService, IDeleteService
                 Verify = VerifySource(),
 
                 // Name clashes are asked once for the whole job, with the list of files (spec §12.4). The job never overwrites on its own.
-                Conflict = ConflictPolicy.Ask,
+                Conflict = request.Replace ? ConflictPolicy.Replace : ConflictPolicy.Ask,
             };
             var snapshot = await Task.Run(() => Connection().SubmitAsync(job), cancellationToken).ConfigureAwait(true);
             _jobs[snapshot.Id] = new Pending(job.Kind, request.Sources, request.Destination, false);
