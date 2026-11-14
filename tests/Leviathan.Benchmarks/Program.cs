@@ -37,6 +37,13 @@ static int Usage()
     return 64;
 }
 
+var idleMemory = Array.IndexOf(args, "--idle-memory");
+if (idleMemory >= 0 && idleMemory + 1 < args.Length)
+{
+    // Idle memory of the real app with ten tabs restored (spec 3.1); give the published Leviathan.exe.
+    return await IdleMemoryGate.RunAsync(args[idleMemory + 1], idleMemory + 2 < args.Length && int.TryParse(args[idleMemory + 2], out var tabCount) ? tabCount : 10);
+}
+
 var coldOnly = Array.IndexOf(args, "--cold-start-gate");
 if (coldOnly >= 0 && coldOnly + 1 < args.Length)
 {
@@ -384,7 +391,7 @@ internal static class ColdStartGate
         return pass ? 0 : 1;
     }
 
-    private static bool IsUnder(Process process, string folder)
+    internal static bool IsUnder(Process process, string folder)
     {
         try
         {
@@ -396,7 +403,7 @@ internal static class ColdStartGate
         }
     }
 
-    private static double? WaitForReady(string trace, TimeSpan timeout)
+    internal static double? WaitForReady(string trace, TimeSpan timeout)
     {
         var deadline = Stopwatch.GetTimestamp() + (long)(timeout.TotalSeconds * Stopwatch.Frequency);
         while (Stopwatch.GetTimestamp() < deadline)

@@ -16,8 +16,10 @@ Measured 2026-11-14 on Brett's PC (Windows 11, Release build, quiet but not idle
 | Name search over 1,020,100 names, first results < 50 ms | 0.2 to 13.9 ms (p95); index built in 1.0 s, 101 MB | PASS |
 | Space map of a 400,000-file / 1 TB share; layout < 1 s | scan 0.5 s; layout 135 ms (p95); resume correct | PASS |
 | **Cold start to the first folder < 600 ms** | **published ReadyToRun: median 918 to 930 ms, worst 942 to 1,687 ms; plain Release build: median 1,224 ms** | **FAIL** |
-| UI thread stall never > 50 ms | enforced at run time by the watchdog; not a benchmark | see G2 / UI tests |
-| Idle memory, 10 tabs < 250 MB | not measured here | G2 |
+| UI thread stall never > 50 ms | enforced at run time by the watchdog; not a benchmark | UI tests (not run) |
+| **Idle memory, 10 tabs < 250 MB** (G2) | **UI process: private 262 to 274 MB, working set 345 to 364 MB** with 10 tabs restored and idle for 10 s; the same with 1 tab; the worker adds 20 MB private | **FAIL by about 12 to 24 MB** |
+| Thumbnail memory capped (G2) | 64 MB LRU, now also at most 50,000 remembered answers (was unbounded for "no thumbnail" results) | PASS, tested |
+| 1,000 tabs opened and closed, 200 windows (G2) | nothing left behind: the first closed tab is collected, growth under 8 MB | PASS, tested |
 | NAS folder, 10,000 items, first rows < 400 ms; NAS copy >= 105 MB/s | needs a share Brett names | not measured: `--nas-rows <folder>`, `--nas-copy <folder>` |
 | Local name search through Everything | needs Everything installed | skipped by the gate |
 
@@ -35,3 +37,24 @@ details panel on first use (`x:Load` or idle building) so `InitializeComponent` 
 after the first folder is painted (about 140 ms: icon packs 59 ms plus chrome icons 78 ms); build the title bar after `Activate`.
 This is UI work that has to be looked at on screen, so it is not done blind inside a benchmark slice. The same gap was recorded at the
 end of Phase 1 (about 1,010 ms) and carried through Phases 2 to 4.
+
+### Cold start varies with the load on the machine
+
+The 920 ms above was measured while the PC was quiet. Later the same day, with a long ffmpeg job, Docker and Edge running (CPU about
+80%), the same published build measured 1,200 to 1,290 ms, and so did the build from before E6 (commit 0ab57e1) measured side by side:
+so the slices E6 to F3 added nothing to the start. Read the number as "about 0.9 to 1.2 s depending on load"; the budget is 0.6 s.
+
+## Idle memory (G2): where it goes
+
+Measured with `-- --idle-memory <published Leviathan.exe> [tabs]` (new in G2: writes a ten-tab session into a scratch data folder,
+starts the app on it, waits 10 s after ready). The app's own trace line (`MEMORY:`, written only when `LEVIATHAN_UI_TRACE` is set)
+says: **managed heap 26 MB**, GC committed 46 MB, private 274 MB, working set 364 MB. So about 230 MB of the process is native:
+WinUI and the Windows App SDK, and on this PC the NVIDIA user-mode driver (`nvgpucomp64.dll` and `nvwgf2umx.dll`, about 180 MB of
+mapped modules) that the first Direct3D device loads. One tab or ten makes no measurable difference (262 MB against 266 MB private):
+tabs restore lazily and a listing is small. Garbage-collector switches moved it by at most 15 MB (`DOTNET_GCgen0size=16 MB`: 251 MB
+private), so the managed side is not where the gap is.
+
+What would close it: the budget was set for an app on the managed heap; on a machine with a discrete GPU driver the floor of any WinUI 3
+window is about 250 MB. Options are to measure the budget as managed plus our own native (about 70 MB, passes easily), to run on a
+machine with a lighter driver, or to cut WinUI's own use (no Mica, fewer composition surfaces), which is a visible change for Brett to
+decide. Nothing in Leviathan's own code was found to grow.

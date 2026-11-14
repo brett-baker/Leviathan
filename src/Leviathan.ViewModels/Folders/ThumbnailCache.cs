@@ -37,8 +37,15 @@ public sealed class ThumbnailCache : IThumbnailCache, IDisposable
     /// <summary>Default memory budget.</summary>
     public const long DefaultCapacityBytes = 64L * 1024 * 1024;
 
+    /// <summary>
+    /// Most results remembered, pictures and "no thumbnail" answers together. The byte budget alone never evicts an answer that holds no
+    /// pixels, so a library of 500,000 files without thumbnails would grow the cache for ever (spec §3.1 memory budget).
+    /// </summary>
+    public const int DefaultMaxEntries = 50_000;
+
     private readonly IThumbnailSource _source;
     private readonly long _capacity;
+    private readonly int _maxEntries;
     private readonly SemaphoreSlim _gate;
     private readonly Lock _lock = new();
     private readonly Dictionary<ThumbnailRequest, LinkedListNode<Entry>> _entries = [];
@@ -47,13 +54,15 @@ public sealed class ThumbnailCache : IThumbnailCache, IDisposable
     private readonly HashSet<ThumbnailRequest> _failed = [];
 
     /// <summary>Creates a cache over <paramref name="source"/>.</summary>
-    public ThumbnailCache(IThumbnailSource source, long capacityBytes = DefaultCapacityBytes, int maxConcurrent = 4)
+    public ThumbnailCache(IThumbnailSource source, long capacityBytes = DefaultCapacityBytes, int maxConcurrent = 4, int maxEntries = DefaultMaxEntries)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentOutOfRangeException.ThrowIfLessThan(capacityBytes, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxConcurrent, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxEntries, 1);
         _source = source;
         _capacity = capacityBytes;
+        _maxEntries = maxEntries;
         _gate = new SemaphoreSlim(maxConcurrent, maxConcurrent);
     }
 
@@ -210,6 +219,12 @@ public sealed class ThumbnailCache : IThumbnailCache, IDisposable
             // A thumbnailer that fails for this exact file version is not asked again (spec §3.4).
             lock (_lock)
             {
+                // The failures are bounded too: past the limit they are forgotten and tried again when next asked for.
+                if (_failed.Count >= _maxEntries)
+                {
+                    _failed.Clear();
+                }
+
                 _failed.Add(request);
             }
 
@@ -242,7 +257,7 @@ public sealed class ThumbnailCache : IThumbnailCache, IDisposable
             CachedBytes += image?.SizeBytes ?? 0;
 
             // Evict least-recently-used entries until under budget, but never the one just added.
-            while (CachedBytes > _capacity && _lru.Count > 1)
+            while ((CachedBytes > _capacity || _entries.Count > _maxEntries) && _lru.Count > 1)
             {
                 Remove(_lru.Last!.Value.Request);
             }

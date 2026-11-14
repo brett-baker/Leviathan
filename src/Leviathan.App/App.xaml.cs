@@ -246,6 +246,16 @@ public partial class App : Application
             Recorder.Record(Microsoft.Extensions.Logging.LogLevel.Information, "Startup", $"Cold start: first folder and sidebar ready {coldStart.TotalMilliseconds:0} ms after the process started");
             UiTrace.Mark($"READY: cold start {coldStart.TotalMilliseconds:0} ms; stall watchdog starts when the UI is idle");
             queue.TryEnqueue(DispatcherQueuePriority.Low, BeginWatching);
+            if (UiTrace.Enabled)
+            {
+                // For the memory budget (spec 3.1): how much of the process is the managed heap and how much is native (WinUI, shell, drivers).
+                _ = Task.Delay(TimeSpan.FromSeconds(8)).ContinueWith(_ =>
+                {
+                    var info = GC.GetGCMemoryInfo();
+                    using var self = System.Diagnostics.Process.GetCurrentProcess();
+                    UiTrace.Mark($"MEMORY: managed heap {GC.GetTotalMemory(false) / 1048576.0:0} MB, GC committed {info.TotalCommittedBytes / 1048576.0:0} MB, working set {self.WorkingSet64 / 1048576.0:0} MB, private {self.PrivateMemorySize64 / 1048576.0:0} MB, gen0/1/2 collections {GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}");
+                }, TaskScheduler.Default);
+            }
         }
     }
 

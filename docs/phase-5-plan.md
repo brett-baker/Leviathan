@@ -61,7 +61,7 @@ Every slice follows `CLAUDE.md`.
 ### G. Performance and hardening pass (§3)
 
 - [x] **G1. Budget sweep** (done: every benchmark measured and recorded in docs/phase-5-budgets.md; all pass except cold start, about 920 ms published against 600 ms; NAS figures need a share).
-- [ ] **G2. Memory**: idle with 10 tabs < 250 MB; thumbnail LRU caps; leak tests for long sessions (open/close 1,000 tabs).
+- [x] **G2. Memory** (done: leak tests and caps added; idle memory 262 to 274 MB private against 250, see docs/phase-5-budgets.md): idle with 10 tabs < 250 MB; thumbnail LRU caps; leak tests for long sessions (open/close 1,000 tabs).
 - [ ] **G3. Stress**: 500,000-file library browse and search, 100 GB file operations, long paths everywhere, names with
   every awkward character, dead shares during every operation.
 - [ ] **G4. Accessibility pass**: keyboard-only use of every feature, screen-reader names on controls, contrast in both themes.
