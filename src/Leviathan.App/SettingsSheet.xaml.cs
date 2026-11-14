@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Leviathan.Data;
+using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Settings;
 using Microsoft.UI.Xaml;
@@ -34,17 +35,20 @@ internal sealed partial class SettingsSheet : UserControl
     private readonly SettingsSheetModel _model;
     private bool _ready;
     private bool _loading;
+    private readonly TextBox[] _quickBoxes = new TextBox[QuickTargets.Count];
 
     public SettingsSheet(SettingsSheetModel model)
     {
         _model = model;
         InitializeComponent();
+        BuildQuickRows();
         _ready = true;
         PageList.ItemsSource = SettingsCatalog.Pages;
         Icons.Bind(ExpandButton, static (b, i) => b.Content = i, "layout-gallery");
         Icons.Bind(CloseButton, static (b, i) => b.Content = i, "close");
         _model.PropertyChanged += OnModelChanged;
         App.Host.Settings.Changed += OnSettingsChanged;
+        App.Host.SearchIndex.Changed += OnIndexChanged;
         Sync();
     }
 
@@ -59,6 +63,7 @@ internal sealed partial class SettingsSheet : UserControl
     {
         _model.PropertyChanged -= OnModelChanged;
         App.Host.Settings.Changed -= OnSettingsChanged;
+        App.Host.SearchIndex.Changed -= OnIndexChanged;
     }
 
     /// <summary>Puts the keyboard in the search box.</summary>
@@ -70,7 +75,7 @@ internal sealed partial class SettingsSheet : UserControl
 
 
     /// <summary>How many pages <see cref="WarmPage"/> knows.</summary>
-    public const int WarmPageCount = 8;
+    public const int WarmPageCount = 13;
 
     /// <summary>
     /// Lays out one page once, while the sheet is invisible, so opening settings and visiting a page are not stalls (spec §3.2). The
@@ -83,7 +88,7 @@ internal sealed partial class SettingsSheet : UserControl
             return;
         }
 
-        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage, TagsPage];
+        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage, TagsPage, NetworkPage, OperationsPage, DeletePage, MediaPage, SearchPage];
         var page = pages[index];
         var before = page.Visibility;
         try
@@ -127,6 +132,11 @@ internal sealed partial class SettingsSheet : UserControl
             AdvancedPage.Visibility = Show("advanced");
             KeyboardPage.Visibility = Show("keyboard");
             TagsPage.Visibility = Show("tags");
+            NetworkPage.Visibility = Show("network");
+            OperationsPage.Visibility = Show("operations");
+            DeletePage.Visibility = Show("delete");
+            MediaPage.Visibility = Show("media");
+            SearchPage.Visibility = Show("search");
             var planned = !page.IsAvailable;
             PlannedPage.Visibility = planned ? Visibility.Visible : Visibility.Collapsed;
             if (planned)
@@ -191,10 +201,57 @@ internal sealed partial class SettingsSheet : UserControl
                 AccentBox.Text = settings.Appearance.Accent;
             }
             SettingsPathText.Text = App.Host.SettingsPath;
+            TerminalBox.SelectedIndex = (int)settings.Files.Terminal;
+            GitSwitch.IsOn = settings.Files.GitStatus;
+            var quick = QuickTargets.Normalize(settings.Files.QuickTargets);
+            for (var i = 0; i < _quickBoxes.Length; i++)
+            {
+                if (!_quickBoxes[i].FocusState.HasFlag(FocusState.Keyboard) && _quickBoxes[i].Text != quick[i])
+                {
+                    _quickBoxes[i].Text = quick[i];
+                }
+            }
+
+            var perf = settings.Performance;
+            NetSizesSwitch.IsOn = perf.FolderSizesOnNetwork;
+            NetThumbsSwitch.IsOn = perf.ThumbnailsOnNetwork;
+            RunningBox.Value = perf.MaxRunningJobs;
+            PerDeviceBox.Value = perf.MaxPerDevice;
+            BackgroundBox.Value = perf.MaxBackgroundJobs;
+            VerifyBox.SelectedIndex = (int)perf.Verify;
+            BandwidthBox.Value = perf.BandwidthMBps;
+            ScheduleSwitch.IsOn = perf.ScheduleEnabled;
+            ScheduleLimitBox.Value = perf.ScheduleMBps;
+            if (!ScheduleFromBox.FocusState.HasFlag(FocusState.Keyboard))
+            {
+                ScheduleFromBox.Text = SettingsInput.FormatTimeOfDay(perf.ScheduleFrom);
+            }
+
+            if (!ScheduleToBox.FocusState.HasFlag(FocusState.Keyboard))
+            {
+                ScheduleToBox.Text = SettingsInput.FormatTimeOfDay(perf.ScheduleTo);
+            }
+
+            TriageOffsetBox.Value = settings.Media.TriageStartOffsetPercent;
+            TriageAdvanceSwitch.IsOn = settings.Media.TriageAutoAdvance;
+            TriageDelayBox.Value = settings.Media.TriageAdvanceDelayMs;
+            if (!TriageFolderBox.FocusState.HasFlag(FocusState.Keyboard) && TriageFolderBox.Text != settings.Media.TriageKeepFolder)
+            {
+                TriageFolderBox.Text = settings.Media.TriageKeepFolder;
+            }
+
+            SkimBurstBox.Value = settings.Media.SkimBurstSeconds;
+            SkimIntervalBox.Value = settings.Media.SkimIntervalPercent;
+            HoverScrubSwitch.IsOn = perf.HoverScrub;
         }
         finally
         {
             _loading = false;
+        }
+
+        if (_model.IsOpen && _model.PageId == "search")
+        {
+            FillIndex();
         }
 
         if (_model.IsOpen && _model.PageId == "advanced")
@@ -410,19 +467,267 @@ internal sealed partial class SettingsSheet : UserControl
         var sizes = SizesSwitch.IsOn;
         var ownTrash = OwnTrashSwitch.IsOn;
         var updates = EagerSwitch.IsOn ? UiUpdateMode.Immediate : UiUpdateMode.WhenFinished;
-        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash, UiUpdates = updates } });
+        var git = GitSwitch.IsOn;
+        await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash, UiUpdates = updates, GitStatus = git } });
     }
 
-    private async void OnTriageToggled(object sender, RoutedEventArgs e)
+    private async void OnTriageToggled(object sender, RoutedEventArgs e) => await SaveMediaAsync();
+
+    // ---- General, network, operations, media and preview (spec §17.2)
+
+    private async void OnTerminalChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _loading || TerminalBox.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var kind = (Leviathan.Core.Platform.TerminalKind)TerminalBox.SelectedIndex;
+        await SaveAsync(s => s with { Files = s.Files with { Terminal = kind } });
+    }
+
+    private async void OnNetworkToggled(object sender, RoutedEventArgs e)
     {
         if (!_ready || _loading)
         {
             return;
         }
 
+        var sizes = NetSizesSwitch.IsOn;
+        var thumbs = NetThumbsSwitch.IsOn;
+        await SaveAsync(s => s with { Performance = s.Performance with { FolderSizesOnNetwork = sizes, ThumbnailsOnNetwork = thumbs } });
+    }
+
+    private async void OnOperationsChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => await SaveOperationsAsync();
+
+    private async void OnOperationsSelectionChanged(object sender, SelectionChangedEventArgs e) => await SaveOperationsAsync();
+
+    private async void OnOperationsToggled(object sender, RoutedEventArgs e) => await SaveOperationsAsync();
+
+    private async void OnOperationsCommit(object sender, RoutedEventArgs e) => await SaveOperationsAsync();
+
+    private async void OnOperationsKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await SaveOperationsAsync();
+        }
+    }
+
+    private static int Whole(NumberBox box, int fallback) => double.IsNaN(box.Value) ? fallback : (int)box.Value;
+
+    // One save for the whole page; the numbers are clamped to their limits, a time that is not hh:mm is refused with a note.
+    private async Task SaveOperationsAsync()
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        if (!SettingsInput.TryParseTimeOfDay(ScheduleFromBox.Text, out var from) || !SettingsInput.TryParseTimeOfDay(ScheduleToBox.Text, out var to))
+        {
+            OperationsNote.Text = "Write the hours like 22:00 or 6:30.";
+            return;
+        }
+
+        OperationsNote.Text = "A window that ends earlier than it starts runs past midnight. What to do on a name conflict is asked in the conflict dialog; a standing default is not a setting yet.";
+        var running = Whole(RunningBox, 3);
+        var perDevice = Whole(PerDeviceBox, 1);
+        var background = Whole(BackgroundBox, 2);
+        var verify = VerifyBox.SelectedIndex < 0 ? Leviathan.Contracts.VerifyMode.Default : (Leviathan.Contracts.VerifyMode)VerifyBox.SelectedIndex;
+        var limit = Whole(BandwidthBox, 0);
+        var scheduled = ScheduleSwitch.IsOn;
+        var scheduleLimit = Whole(ScheduleLimitBox, 0);
+        await SaveAsync(s => s with
+        {
+            Performance = (s.Performance with
+            {
+                MaxRunningJobs = running,
+                MaxPerDevice = perDevice,
+                MaxBackgroundJobs = background,
+                Verify = verify,
+                BandwidthMBps = limit,
+                ScheduleEnabled = scheduled,
+                ScheduleFrom = from,
+                ScheduleTo = to,
+                ScheduleMBps = scheduleLimit,
+            }).Clamped(),
+        });
+    }
+
+    private async void OnMediaChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => await SaveMediaAsync();
+
+    private async void OnMediaToggled(object sender, RoutedEventArgs e) => await SaveMediaAsync();
+
+    private async void OnMediaCommit(object sender, RoutedEventArgs e) => await SaveMediaAsync();
+
+    private async void OnMediaKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await SaveMediaAsync();
+        }
+    }
+
+    private async Task SaveMediaAsync()
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var folder = TriageFolderBox.Text.Trim();
+        if (folder.Length > 0 && !Leviathan.Core.Paths.LocationPath.TryParse(folder, out _))
+        {
+            TriageFolderBox.Description = $"'{folder}' is not a folder address.";
+            return;
+        }
+
+        TriageFolderBox.Description = null;
         var when = TriageAtEndSwitch.IsOn ? TriageMoveMode.AtEnd : TriageMoveMode.OnKeep;
         var ask = TriageAskSwitch.IsOn;
-        await SaveAsync(s => s with { Media = s.Media with { TriageMoveWhen = when, TriageAskBeforeMove = ask } });
+        var offset = Whole(TriageOffsetBox, 10);
+        var advance = TriageAdvanceSwitch.IsOn;
+        var delay = Whole(TriageDelayBox, 0);
+        var burst = Whole(SkimBurstBox, 3);
+        var interval = Whole(SkimIntervalBox, 5);
+        var hover = HoverScrubSwitch.IsOn;
+        await SaveAsync(s => s with
+        {
+            Media = (s.Media with
+            {
+                TriageMoveWhen = when,
+                TriageAskBeforeMove = ask,
+                TriageStartOffsetPercent = offset,
+                TriageAutoAdvance = advance,
+                TriageAdvanceDelayMs = delay,
+                TriageKeepFolder = folder,
+                SkimBurstSeconds = burst,
+                SkimIntervalPercent = interval,
+            }).Clamped(),
+            Performance = s.Performance with { HoverScrub = hover },
+        });
+    }
+
+    // The nine quick targets (spec §15.6): one box per slot, saved when the box is left; an address that is not a folder keeps the old value.
+    private void BuildQuickRows()
+    {
+        for (var i = 0; i < _quickBoxes.Length; i++)
+        {
+            var box = new TextBox { Header = $"Slot {i + 1}", PlaceholderText = "not set", Width = 420, HorizontalAlignment = HorizontalAlignment.Left };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, $"Quick target {i + 1}");
+            box.LostFocus += OnQuickLostFocus;
+            box.KeyDown += (_, e) =>
+            {
+                if (e.Key == VirtualKey.Enter)
+                {
+                    e.Handled = true;
+                    OnQuickLostFocus(box, e);
+                }
+            };
+            _quickBoxes[i] = box;
+            QuickTargetRows.Children.Add(box);
+        }
+    }
+
+    private async void OnQuickLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var saved = QuickTargets.Normalize(App.Host.Settings.Current.Files.QuickTargets);
+        var slots = new string[QuickTargets.Count];
+        for (var i = 0; i < slots.Length; i++)
+        {
+            var text = _quickBoxes[i].Text.Trim();
+            slots[i] = text.Length == 0 || Leviathan.Core.Paths.LocationPath.TryParse(text, out _) ? text : saved[i];
+            _quickBoxes[i].Description = text.Length > 0 && slots[i] != text ? $"'{text}' is not a folder address." : null;
+        }
+
+        await SaveAsync(s => s with { Files = s.Files with { QuickTargets = QuickTargets.Normalize(slots) } });
+    }
+
+    // ---- Search and index (spec §13)
+
+    private void OnIndexChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_model.IsOpen && _model.PageId == "search")
+        {
+            FillIndex();
+        }
+    });
+
+    private void FillIndex()
+    {
+        var index = App.Host.SearchIndex;
+        IndexRows.Children.Clear();
+        var now = DateTimeOffset.UtcNow;
+        foreach (var status in index.Status())
+        {
+            var root = status.Root;
+            var row = new Grid { ColumnSpacing = 8 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var text = new StackPanel();
+            text.Children.Add(new TextBlock { Text = root.ToWin32Path(), TextTrimming = TextTrimming.CharacterEllipsis });
+            text.Children.Add(new TextBlock { Text = SettingsInput.IndexStatus(status, now), Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"], Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"], TextWrapping = TextWrapping.Wrap });
+            var listNow = new Button { Content = "List now" };
+            listNow.Click += (_, _) => _ = Task.Run(() => index.CrawlNowAsync(root, CancellationToken.None));
+            var remove = new Button { Content = "Remove" };
+            remove.Click += (_, _) => _ = Task.Run(() => index.Remove(root));
+            Grid.SetColumn(listNow, 1);
+            Grid.SetColumn(remove, 2);
+            row.Children.Add(text);
+            row.Children.Add(listNow);
+            row.Children.Add(remove);
+            IndexRows.Children.Add(row);
+        }
+
+        if (IndexRows.Children.Count == 0)
+        {
+            IndexRows.Children.Add(new TextBlock { Text = "No folder is indexed yet. Add the ones you search most, such as a share.", Opacity = 0.65, TextWrapping = TextWrapping.Wrap });
+        }
+
+        IndexPauseButton.Content = index.IsPaused ? "Resume" : "Pause";
+        IndexNote.Text = index.IsPaused ? "Indexing is paused; searches use what is already listed." : string.Empty;
+    }
+
+    private void OnIndexAddKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            OnIndexAddClick(sender, e);
+        }
+    }
+
+    private void OnIndexAddClick(object sender, RoutedEventArgs e)
+    {
+        var text = IndexAddBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (!Leviathan.Core.Paths.LocationPath.TryParse(text, out var root))
+        {
+            IndexNote.Text = $"'{text}' is not a folder address. Use something like D:\\Photos or \\\\nas\\media.";
+            return;
+        }
+
+        IndexAddBox.Text = string.Empty;
+        _ = Task.Run(() => App.Host.SearchIndex.Add(root));
+    }
+
+    private void OnIndexPauseClick(object sender, RoutedEventArgs e)
+    {
+        App.Host.SearchIndex.SetPaused(!App.Host.SearchIndex.IsPaused);
+        FillIndex();
     }
 
     // Saved when the box is left; lines that are not drive letter paths are kept as typed but never counted.

@@ -31,6 +31,16 @@ public sealed class SettingsCatalogTests
     }
 
     [Fact]
+    public void EveryPage_IsBuilt_AndHasSettingsTheSearchCanFind()
+    {
+        Assert.All(SettingsCatalog.Pages, p => Assert.True(p.IsAvailable, p.Title + " is still a placeholder"));
+        foreach (var page in SettingsCatalog.Pages.Where(p => p.Id != "keyboard"))
+        {
+            Assert.Contains(SettingsCatalog.Entries, e => e.PageId == page.Id);
+        }
+    }
+
+    [Fact]
     public void EveryEntry_BelongsToARealPage()
     {
         Assert.All(SettingsCatalog.Entries, e => Assert.Contains(SettingsCatalog.Pages, p => p.Id == e.PageId));
@@ -50,7 +60,9 @@ public sealed class SettingsCatalogTests
     [InlineData("font awesome", "appearance", "Icon set")]
     [InlineData("startup", "general", "What to open at startup")]
     [InlineData("bandwidth", "operations", "Bandwidth limits and schedule")]
-    [InlineData("ffmpeg", "media", "Where ffmpeg is")]
+    [InlineData("skim", "media", "Skim playback bursts")]
+    [InlineData("git", "files", "Git status in repositories")]
+    [InlineData("terminal", "general", "Terminal that Open terminal here uses")]
     public void Search_FindsASetting_ByTitleOrKeyword_IgnoringCase(string text, string page, string title)
     {
         Assert.Contains(SettingsCatalog.Search(text), e => e.PageId == page && e.Title == title);

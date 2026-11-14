@@ -101,6 +101,15 @@
                            AutomationProperties.Name="Where a new tab opens" />
                   <TextBlock x:Name="NewTabNote" Text="A folder such as C:\Projects or \\nas\media. Empty means your user folder." Style="{StaticResource SettingNote}" />
                 </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Open terminal here uses" Style="{StaticResource SettingTitle}" />
+                  <ComboBox x:Name="TerminalBox" Width="280" SelectionChanged="OnTerminalChanged" AutomationProperties.Name="Terminal">
+                    <ComboBoxItem Content="Windows Terminal (PowerShell when it is not installed)" />
+                    <ComboBoxItem Content="Windows PowerShell" />
+                    <ComboBoxItem Content="Command Prompt" />
+                    <ComboBoxItem Content="WSL (the default distribution)" />
+                  </ComboBox>
+                </StackPanel>
               </StackPanel>
 
               <!-- Appearance -->
@@ -142,8 +151,6 @@
                 <StackPanel Spacing="4">
                   <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
                   <ToggleSwitch x:Name="EagerSwitch" Header="Show deletes, moves and copies at once" OnContent="Rows go and arrive when you ask; a moved or copied file is dimmed until it is there" OffContent="Rows change as the job reports and when it ends" Toggled="OnFilesToggled" />
-                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="Triage: move kept files when it ends" OnContent="Kept files go to the other pane (or the keep folder) together when you close triage" OffContent="Each file moves as soon as you keep it (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
-                  <ToggleSwitch x:Name="TriageAskSwitch" Header="Triage: ask before moving kept files" Toggled="OnTriageToggled" />
                   <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
                 </StackPanel>
                 <StackPanel Spacing="4">
@@ -151,6 +158,54 @@
                            MinHeight="72" MaxHeight="140" PlaceholderText="Y:\media" LostFocus="OnRecheckLostFocus" HorizontalAlignment="Left" Width="360" />
                   <TextBlock Text="A folder size on a share can only show how old it is, because a change deep inside is not noticed. These drives (mapped drive letters) are counted again in the background once a day, a few minutes after start-up first." Style="{StaticResource SettingNote}" />
                 </StackPanel>
+                <ToggleSwitch x:Name="GitSwitch" Header="Show Git status in repositories" OnContent="A Git column (add it from the column chooser) and the branch in the status bar; local drives only" OffContent="Git is never asked" Toggled="OnFilesToggled" />
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Quick move and copy targets" Style="{StaticResource SettingTitle}" />
+                  <TextBlock Text="Ctrl+Alt+1 to 9 move the selection to the folder in that slot; add Shift to copy. Leave a slot empty to leave it unset." Style="{StaticResource SettingNote}" />
+                  <StackPanel x:Name="QuickTargetRows" Spacing="4" />
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Tabs and windows -->
+              <StackPanel x:Name="TabsPage" Spacing="14" Visibility="Collapsed">
+                <ToggleSwitch x:Name="LastTabSwitch" Header="Closing the last tab opens your home folder instead of closing the window" Toggled="OnTabsToggled" />
+              </StackPanel>
+
+              <!-- Network -->
+              <StackPanel x:Name="NetworkPage" Spacing="14" Visibility="Collapsed">
+                <TextBlock Text="What Leviathan does over the network" Style="{StaticResource SettingTitle}" />
+                <ToggleSwitch x:Name="NetSizesSwitch" Header="Count the size of folders on network drives" OnContent="Each folder means walking the share" OffContent="Folder sizes on shares stay empty (a slow NAS is spared)" Toggled="OnNetworkToggled" />
+                <ToggleSwitch x:Name="NetThumbsSwitch" Header="Make thumbnails of files on network drives" OnContent="Each thumbnail means reading the file over the network" OffContent="Pictures on shares show icons only" Toggled="OnNetworkToggled" />
+                <TextBlock Style="{StaticResource SettingNote}" Text="A share that stops answering fails fast in its own tab and is tried again with back-off; that is not a setting. The status hub Quick settings tab has the same two switches." />
+              </StackPanel>
+
+              <!-- Operations -->
+              <StackPanel x:Name="OperationsPage" Spacing="14" Visibility="Collapsed">
+                <NumberBox x:Name="RunningBox" Header="Operations at once (copies, moves, deletes)" Minimum="1" Maximum="16" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
+                <NumberBox x:Name="PerDeviceBox" Header="At once on one drive or share" Minimum="1" Maximum="4" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
+                <NumberBox x:Name="BackgroundBox" Header="Background jobs at once (folder sizes, thumbnails)" Minimum="1" Maximum="8" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Check copies against their sources" Style="{StaticResource SettingTitle}" />
+                  <ComboBox x:Name="VerifyBox" Width="360" SelectionChanged="OnOperationsSelectionChanged" AutomationProperties.Name="Verify policy">
+                    <ComboBoxItem Content="Default: every move, and copies to or from a share" />
+                    <ComboBoxItem Content="Full: every file in full, whatever its size" />
+                    <ComboBoxItem Content="Off for copies (moves are still checked)" />
+                  </ComboBox>
+                </StackPanel>
+                <NumberBox x:Name="BandwidthBox" Header="Speed limit (MB per second, 0 = none)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
+                <StackPanel Spacing="6">
+                  <ToggleSwitch x:Name="ScheduleSwitch" Header="Use a different limit at certain hours" Toggled="OnOperationsToggled" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox x:Name="ScheduleFromBox" Header="From (hh:mm)" Width="110" LostFocus="OnOperationsCommit" KeyDown="OnOperationsKeyDown" />
+                    <TextBox x:Name="ScheduleToBox" Header="To (hh:mm)" Width="110" LostFocus="OnOperationsCommit" KeyDown="OnOperationsKeyDown" />
+                    <NumberBox x:Name="ScheduleLimitBox" Header="Limit then (MB/s, 0 = none)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="200" />
+                  </StackPanel>
+                  <TextBlock x:Name="OperationsNote" Style="{StaticResource SettingNote}" Text="A window that ends earlier than it starts runs past midnight. What to do on a name conflict is asked in the conflict dialog; a standing default is not a setting yet." />
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Delete -->
+              <StackPanel x:Name="DeletePage" Spacing="14" Visibility="Collapsed">
                 <StackPanel Spacing="4">
                   <ToggleSwitch x:Name="OwnTrashSwitch" Header="Keep a hidden recycle folder on network shares" Toggled="OnFilesToggled" />
                   <TextBlock Text="Deleted items go to the NAS's own recycle folder (Synology #recycle, QNAP @Recycle) when you can see it, otherwise to a hidden .leviathan-trash so they can be undone. Turn off if your NAS already keeps deletes but hides its bin from you: items then are deleted on the share for the NAS to keep, and Leviathan cannot undo or restore them." Style="{StaticResource SettingNote}" />
@@ -165,9 +220,37 @@
                 </StackPanel>
               </StackPanel>
 
-              <!-- Tabs and windows -->
-              <StackPanel x:Name="TabsPage" Spacing="14" Visibility="Collapsed">
-                <ToggleSwitch x:Name="LastTabSwitch" Header="Closing the last tab opens your home folder instead of closing the window" Toggled="OnTabsToggled" />
+              <!-- Media and preview -->
+              <StackPanel x:Name="MediaPage" Spacing="14" Visibility="Collapsed">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Triage" Style="{StaticResource SettingTitle}" />
+                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="Triage: move kept files when it ends" OnContent="Kept files go to the other pane (or the keep folder) together when you close triage" OffContent="Each file moves as soon as you keep it (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
+                  <ToggleSwitch x:Name="TriageAskSwitch" Header="Triage: ask before moving kept files" Toggled="OnTriageToggled" />
+                  <NumberBox x:Name="TriageOffsetBox" Header="Each video starts this many percent in (0 to 90)" Minimum="0" Maximum="90" SmallChange="5" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
+                  <ToggleSwitch x:Name="TriageAdvanceSwitch" Header="Go to the next file after a decision" Toggled="OnMediaToggled" />
+                  <NumberBox x:Name="TriageDelayBox" Header="Wait this long first (milliseconds, 0 to 1000)" Minimum="0" Maximum="1000" SmallChange="50" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
+                  <TextBox x:Name="TriageFolderBox" Header="Keep also moves the file to this folder (empty = leave it)" Width="420" HorizontalAlignment="Left" LostFocus="OnMediaCommit" KeyDown="OnMediaKeyDown" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Skim playback (S)" Style="{StaticResource SettingTitle}" />
+                  <NumberBox x:Name="SkimBurstBox" Header="Each burst plays (seconds, 1 to 30)" Minimum="1" Maximum="30" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
+                  <NumberBox x:Name="SkimIntervalBox" Header="A burst every (percent of the video, 1 to 50)" Minimum="1" Maximum="50" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
+                </StackPanel>
+                <ToggleSwitch x:Name="HoverScrubSwitch" Header="Slide through a video by moving the mouse over its picture" OnContent="Tiles, Thumbnails and Gallery" OffContent="Pictures stay still" Toggled="OnMediaToggled" />
+                <TextBlock Style="{StaticResource SettingNote}" Text="The video engine, hardware decoding, the ffmpeg location and preview size limits are not settings yet: the app picks them itself." />
+              </StackPanel>
+
+              <!-- Search and index -->
+              <StackPanel x:Name="SearchPage" Spacing="10" Visibility="Collapsed">
+                <TextBlock Text="Folders kept in the search index" Style="{StaticResource SettingTitle}" />
+                <TextBlock Style="{StaticResource SettingNote}" Text="These folders are listed in the background, one at a time and never while a job copies to the same share, so a search by name is instant. A folder you open also refreshes its entries." />
+                <StackPanel x:Name="IndexRows" Spacing="6" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="IndexAddBox" Width="340" PlaceholderText="A folder such as D:\Photos" KeyDown="OnIndexAddKeyDown" AutomationProperties.Name="Folder to index" />
+                  <Button Content="Add" Click="OnIndexAddClick" />
+                  <Button x:Name="IndexPauseButton" Content="Pause" Click="OnIndexPauseClick" />
+                </StackPanel>
+                <TextBlock x:Name="IndexNote" Style="{StaticResource SettingNote}" />
               </StackPanel>
 
               <!-- Tags -->
