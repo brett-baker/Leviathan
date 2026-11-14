@@ -96,6 +96,10 @@ public sealed class WindowCommandsTests
 
         public void OpenChecksums(IReadOnlyList<LocationPath> items, bool verify) => ChecksumWindows.Add((items, verify));
 
+        public List<Leviathan.ViewModels.Palette.PaletteMode> Palettes { get; } = [];
+
+        public void OpenPalette(Leviathan.ViewModels.Palette.PaletteMode mode) => Palettes.Add(mode);
+
         public List<(LocationPath? Left, LocationPath? Right)> SyncWindows { get; } = [];
 
         public void OpenSync(LocationPath? left, LocationPath? right) => SyncWindows.Add((left, right));

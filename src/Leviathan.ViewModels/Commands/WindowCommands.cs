@@ -79,6 +79,11 @@ public interface IShellActions
     {
     }
 
+    /// <summary>Opens the command palette (<see cref="Palette.PaletteMode.Commands"/>) or the go-to palette (<see cref="Palette.PaletteMode.GoTo"/>). Shells without one do nothing.</summary>
+    void OpenPalette(Palette.PaletteMode mode)
+    {
+    }
+
     /// <summary>Opens a saved sync pair: its folders, mode and settings, compared at once so the preview is waiting (spec §15.5).</summary>
     void OpenSyncPair(Guid id)
     {
@@ -480,6 +485,12 @@ public static class CommandIds
 
     /// <summary>Extract an archive to a folder the user picks (Phase 5).</summary>
     public static readonly CommandId ExtractTo = new("archive.extractTo");
+
+    /// <summary>The command palette: every command with its shortcut (Ctrl+Shift+P).</summary>
+    public static readonly CommandId PaletteCommands = new("palette.commands");
+
+    /// <summary>The go-to palette: favorites, recent folders, open tabs and commands (Ctrl+P).</summary>
+    public static readonly CommandId PaletteGoTo = new("palette.goTo");
 
     /// <summary>Compare two folders and bring them into line (Phase 5).</summary>
     public static readonly CommandId SyncFolders = new("folder.sync");
@@ -1036,6 +1047,9 @@ public static partial class WindowCommands
             shell.OpenSync(Usable(here), Usable(other));
         }), _ => Current() is not null);
 
+        Add(CommandIds.PaletteCommands, "Command palette", "Navigation", (_, _) => Run(() => shell.OpenPalette(Palette.PaletteMode.Commands)), shortcut: "Ctrl+Shift+P");
+        Add(CommandIds.PaletteGoTo, "Go to...", "Navigation", (_, _) => Run(() => shell.OpenPalette(Palette.PaletteMode.GoTo)), shortcut: "Ctrl+P");
+
         bool CanArchive(CommandContext c) => archives is not null && Current() is not null;
         Add(CommandIds.ExtractHere, "Extract here", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: false), CanArchive);
         Add(CommandIds.ExtractToFolder, "Extract to folder", "Archives", (c, ct) => RunExtract(c, ct, subfolder: true, pick: false), CanArchive);
@@ -1567,6 +1581,8 @@ public static partial class WindowCommands
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),
+            ("Ctrl+Shift+P", CommandIds.PaletteCommands),
+            ("Ctrl+P", CommandIds.PaletteGoTo),
             ("Ctrl+A", CommandIds.SelectAll),
             ("Ctrl+I", CommandIds.SelectInvert),
             ("Ctrl+Shift+A", CommandIds.SelectNone),

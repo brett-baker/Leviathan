@@ -43,7 +43,7 @@ Every slice follows `CLAUDE.md`.
 
 ### E. Everything else in §15.6 and §6
 
-- [ ] **E1. Command palette** (Ctrl+Shift+P) over every command with shortcuts; Ctrl+P "go to" palette (favorites, recent,
+- [x] **E1. Command palette** (Ctrl+Shift+P) over every command with shortcuts; Ctrl+P "go to" palette (favorites, recent,
   tabs, commands).
 - [ ] **E2. Open terminal here** (Windows Terminal, PowerShell, cmd, WSL).
 - [ ] **E3. Quick move/copy targets**: 9 preset destinations bound to keys everywhere.
