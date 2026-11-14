@@ -103,6 +103,7 @@ public static class CommandIds
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
         .Where(f => f.FieldType == typeof(CommandId))
         .Select(f => (CommandId)f.GetValue(null)!)
+        .Concat(Enumerable.Range(1, QuickTargets.Count).SelectMany(n => new[] { QuickTargets.MoveId(n), QuickTargets.CopyId(n), QuickTargets.SetId(n) }))
         .ToHashSet());
 
     /// <summary>Every id declared here, so a settings file can be checked without a window (the Keyboard page, spec 17.3).</summary>
@@ -601,7 +602,8 @@ public static partial class WindowCommands
         Transfers.IFileClipboard? clipboard = null,
         Sessions.ProfileService? profiles = null,
         Archives.IArchiveService? archives = null,
-        Func<TerminalKind>? terminal = null)
+        Func<TerminalKind>? terminal = null,
+        IQuickTargets? quickTargets = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -1189,6 +1191,57 @@ public static partial class WindowCommands
             }
         }, c => renamer is not null && Current()?.Renaming is not null && c.Target is not null);
 
+        // Quick move and copy targets (spec §15.6): nine slots, the same queued transfer as a drop, in every folder.
+        async Task SendToQuickTarget(CommandContext c, int slot, Transfers.TransferMode mode, CancellationToken ct)
+        {
+            if (Current() is not { } tab)
+            {
+                return;
+            }
+
+            if (QuickTargets.FolderOf(quickTargets?.Slots ?? [], slot) is not { } destination)
+            {
+                shell.ShowMessage($"Quick target {slot} is not set. Open the folder you want and run \"Make this folder quick target {slot}\".");
+                return;
+            }
+
+            var sources = new List<LocationPath>((c.Parameter is FileEntry one ? [one] : tab.Selection.SelectedEntries).Select(e => e.Location));
+            var decision = Transfers.DropRules.Decide(sources, destination, mode == Transfers.TransferMode.Copy ? Transfers.DropModifiers.Ctrl : Transfers.DropModifiers.Shift);
+            if (!decision.Allowed)
+            {
+                shell.ShowMessage(decision.Tooltip);
+                return;
+            }
+
+            var outcome = await (transfers ?? new Transfers.UnavailableTransferService()).StartAsync(new Transfers.TransferRequest(sources, destination, decision.Mode), ct);
+            shell.ShowMessage(outcome.Message);
+        }
+
+        bool HasSelection(CommandContext c) => c.Parameter is FileEntry || Current() is { Selection.Count: > 0 };
+        for (var n = 1; n <= QuickTargets.Count; n++)
+        {
+            var slot = n;
+            Add(QuickTargets.MoveId(slot), $"Move to quick target {slot}", "Files", (c, ct) => SendToQuickTarget(c, slot, Transfers.TransferMode.Move, ct), HasSelection, shortcut: $"Ctrl+Alt+{slot}");
+            Add(QuickTargets.CopyId(slot), $"Copy to quick target {slot}", "Files", (c, ct) => SendToQuickTarget(c, slot, Transfers.TransferMode.Copy, ct), HasSelection, shortcut: $"Ctrl+Alt+Shift+{slot}");
+            Add(QuickTargets.SetId(slot), $"Make this folder quick target {slot}", "Files", async (_, ct) =>
+            {
+                if (quickTargets is null || Current() is not { } tab)
+                {
+                    return;
+                }
+
+                var folder = tab.History.Current;
+                if (!TerminalTargets.IsUsable(folder) && folder.Kind is not (LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps))
+                {
+                    shell.ShowMessage("This location cannot be a quick target.");
+                    return;
+                }
+
+                await quickTargets.SetAsync(slot, folder.Value, ct);
+                shell.ShowMessage($"Quick target {slot} is now {folder.Value}.");
+            }, _ => quickTargets is not null && Current() is not null);
+        }
+
         // Open terminal here (spec §15.7): the selected folder, else the selected file's folder, else the folder shown; the terminal is the one
         // chosen in the settings, and Windows Terminal falls back to PowerShell when it is not installed.
         LocationPath? TerminalFolder(CommandContext c) =>
@@ -1603,6 +1656,12 @@ public static partial class WindowCommands
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),
             ("Ctrl+Alt+T", CommandIds.TerminalHere),
+            ("Ctrl+Alt+1", QuickTargets.MoveId(1)), ("Ctrl+Alt+2", QuickTargets.MoveId(2)), ("Ctrl+Alt+3", QuickTargets.MoveId(3)),
+            ("Ctrl+Alt+4", QuickTargets.MoveId(4)), ("Ctrl+Alt+5", QuickTargets.MoveId(5)), ("Ctrl+Alt+6", QuickTargets.MoveId(6)),
+            ("Ctrl+Alt+7", QuickTargets.MoveId(7)), ("Ctrl+Alt+8", QuickTargets.MoveId(8)), ("Ctrl+Alt+9", QuickTargets.MoveId(9)),
+            ("Ctrl+Alt+Shift+1", QuickTargets.CopyId(1)), ("Ctrl+Alt+Shift+2", QuickTargets.CopyId(2)), ("Ctrl+Alt+Shift+3", QuickTargets.CopyId(3)),
+            ("Ctrl+Alt+Shift+4", QuickTargets.CopyId(4)), ("Ctrl+Alt+Shift+5", QuickTargets.CopyId(5)), ("Ctrl+Alt+Shift+6", QuickTargets.CopyId(6)),
+            ("Ctrl+Alt+Shift+7", QuickTargets.CopyId(7)), ("Ctrl+Alt+Shift+8", QuickTargets.CopyId(8)), ("Ctrl+Alt+Shift+9", QuickTargets.CopyId(9)),
             ("Ctrl+Shift+P", CommandIds.PaletteCommands),
             ("Ctrl+P", CommandIds.PaletteGoTo),
             ("Ctrl+A", CommandIds.SelectAll),

@@ -254,6 +254,13 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     /// <summary>Enter or G: keep the file, then the next one.</summary>
     public Task KeepAsync() => DecideAsync(TriageDecision.Kept);
 
+    /// <summary>M with a quick target chosen: keep the file (green tag) and move it to <paramref name="folder"/> now, then the next one (spec §15.6).</summary>
+    public Task KeepToAsync(string folder)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folder);
+        return DecideAsync(TriageDecision.Kept, folder);
+    }
+
     /// <summary>Delete or X: discard the file (a soft delete), then the next one.</summary>
     public Task DiscardAsync() => DecideAsync(TriageDecision.Discarded);
 
@@ -446,7 +453,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
         _gate.Dispose();
     }
 
-    private async Task DecideAsync(TriageDecision decision)
+    private async Task DecideAsync(TriageDecision decision, string? moveTo = null)
     {
         await _gate.WaitAsync().ConfigureAwait(false);
         var advanceAfter = false;
@@ -490,7 +497,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
                 try
                 {
                     result = decision == TriageDecision.Kept
-                        ? await _actions.KeepAsync(item.File, CancellationToken.None).ConfigureAwait(false)
+                        ? await (moveTo is null ? _actions.KeepAsync(item.File, CancellationToken.None) : _actions.KeepToAsync(item.File, moveTo, CancellationToken.None)).ConfigureAwait(false)
                         : await _actions.DiscardAsync(item.File, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)

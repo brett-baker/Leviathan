@@ -54,14 +54,19 @@ public sealed record TriageKeepOptions(string? KeepFolder, bool MoveOnKeep = tru
 public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<TriageKeepOptions> keepOptions, ITransferService? transfers = null, Func<Tags.TagCatalog>? catalog = null) : ITriageActions
 {
     /// <inheritdoc />
-    public async Task<TriageActionResult> KeepAsync(FileEntry file, CancellationToken cancellationToken)
+    public Task<TriageActionResult> KeepAsync(FileEntry file, CancellationToken cancellationToken) => KeepCoreAsync(file, null, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<TriageActionResult> KeepToAsync(FileEntry file, string folder, CancellationToken cancellationToken) => KeepCoreAsync(file, folder, cancellationToken);
+
+    private async Task<TriageActionResult> KeepCoreAsync(FileEntry file, string? chosenFolder, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(file);
         var path = file.Location.ToWin32Path();
         var before = await tags.GetAsync(path, cancellationToken).ConfigureAwait(false);
         await tags.SetAsync(path, new HashSet<int>(before) { TagIds.Green }, cancellationToken).ConfigureAwait(false);
 
-        var options = keepOptions();
+        var options = chosenFolder is null ? keepOptions() : new TriageKeepOptions(chosenFolder);
         var folder = options.KeepFolder;
         if (!options.MoveOnKeep || string.IsNullOrWhiteSpace(folder) || SameFolder(path, folder))
         {

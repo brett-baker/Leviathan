@@ -639,12 +639,65 @@ internal sealed partial class TriageWindow : Window
             var media = App.Host.Settings.Current.Media;
             _ = _session.Keys.ToggleBurstSkimAsync(media.SkimBurst, media.SkimInterval);
         }
+        else if (command == TriageCommands.MoveToPreset)
+        {
+            _ = MoveToPresetAsync();
+        }
         else
         {
-            var what = command == TriageCommands.Rename ? "Renaming here" : "Moving to a preset folder";
-            ErrorText.Text = $"{what} is not in this build yet.";
+            ErrorText.Text = "Renaming here is not in this build yet.";
             ErrorBox.Visibility = Visibility.Visible;
         }
+    }
+
+    // M: choose one of the quick targets (1 to 9 on the keyboard, or click), then keep the file and move it there (spec §15.6).
+    private async Task MoveToPresetAsync()
+    {
+        if (_session is not { Current: not null } session)
+        {
+            return;
+        }
+
+        var slots = App.Host.QuickTargets.Slots;
+        var set = Enumerable.Range(1, Leviathan.ViewModels.Commands.QuickTargets.Count).Where(n => Leviathan.ViewModels.Commands.QuickTargets.FolderOf(slots, n) is not null).ToList();
+        if (set.Count == 0)
+        {
+            ErrorText.Text = "No quick targets are set. In a folder window, run \"Make this folder quick target 1\" from the command palette (Ctrl+Shift+P).";
+            ErrorBox.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var list = new ListView { SelectionMode = ListViewSelectionMode.Single, IsItemClickEnabled = true };
+        foreach (var n in set)
+        {
+            list.Items.Add(new TextBlock { Text = $"{n}   {slots[n - 1]}", Tag = n });
+        }
+
+        var dialog = new ContentDialog { Title = "Move to a quick target", Content = list, CloseButtonText = "Cancel", XamlRoot = Root.XamlRoot };
+        var chosen = 0;
+        list.ItemClick += (_, e) =>
+        {
+            chosen = (int)((TextBlock)e.ClickedItem).Tag;
+            dialog.Hide();
+        };
+        dialog.KeyDown += (_, e) =>
+        {
+            var digit = e.Key - Windows.System.VirtualKey.Number0;
+            if (digit is >= 1 and <= 9 && set.Contains(digit))
+            {
+                chosen = digit;
+                e.Handled = true;
+                dialog.Hide();
+            }
+        };
+        await dialog.ShowAsync();
+        if (chosen > 0)
+        {
+            await session.KeepToAsync(slots[chosen - 1]);
+            Refresh();
+        }
+
+        Root.Focus(FocusState.Programmatic);
     }
 
     // Buttons do what their keys do, through the same dispatcher.

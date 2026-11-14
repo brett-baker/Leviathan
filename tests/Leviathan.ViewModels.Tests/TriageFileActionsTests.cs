@@ -312,6 +312,18 @@ public sealed class TriageFileActionsTests
         Assert.Equal(TriageDecision.None, session.Items[0].Decision);
         Assert.Equal(@"C:\inbox\a.mkv", engine.OpenPath);
     }
+
+    [Fact]
+    public async Task KeepTo_MovesToTheChosenFolder_EvenWithNoKeepFolderSet()
+    {
+        var (actions, files, tags, _) = Make();
+
+        var result = await actions.KeepToAsync(Video(@"C:\inbox\a.mkv"), @"C:\Quick", CancellationToken.None);
+
+        Assert.Equal([TagIds.Green], tags.Tags[@"C:\inbox\a.mkv"]);
+        Assert.Equal([@"move C:\inbox\a.mkv -> C:\Quick\a.mkv"], files.Log);
+        Assert.NotNull(result.Moved);
+    }
 }
 
 public sealed class MediaSettingsTests

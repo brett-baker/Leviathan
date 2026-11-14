@@ -242,6 +242,11 @@ internal sealed class AppHost
     /// <summary>The user's settings (<c>settings.json</c>); loaded by <see cref="PlanStartupAsync"/>.</summary>
     public SettingsStore Settings { get; private init; } = null!;
 
+    private IQuickTargets? _quickTargets;
+
+    /// <summary>The nine quick move and copy targets, kept in the settings (spec §15.6).</summary>
+    public IQuickTargets QuickTargets => _quickTargets ??= new SettingsQuickTargets(Settings);
+
     /// <summary>Keeps Last session current (spec §17.1).</summary>
     public SessionRecorder Recorder { get; private init; } = null!;
 

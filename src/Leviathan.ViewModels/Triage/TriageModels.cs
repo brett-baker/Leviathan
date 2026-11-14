@@ -59,6 +59,12 @@ public interface ITriageActions
     /// <summary>Keeps <paramref name="file"/>.</summary>
     Task<TriageActionResult> KeepAsync(FileEntry file, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Keeps <paramref name="file"/> and moves it to <paramref name="folder"/> at once (a quick target, spec §15.6), whatever the keep folder or the
+    /// move timing is. Without a better answer it is a plain Keep.
+    /// </summary>
+    Task<TriageActionResult> KeepToAsync(FileEntry file, string folder, CancellationToken cancellationToken) => KeepAsync(file, cancellationToken);
+
     /// <summary>Discards <paramref name="file"/> (soft delete). The file is not open in the player when this runs.</summary>
     Task<TriageActionResult> DiscardAsync(FileEntry file, CancellationToken cancellationToken);
 
