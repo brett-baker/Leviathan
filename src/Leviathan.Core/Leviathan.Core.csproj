@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Domain model, paths, location-provider abstractions. No third-party dependencies beyond Microsoft's hashing library, no UI. -->
+  <!-- Domain model, paths, location-provider abstractions. No third-party dependencies beyond Microsoft hashing and the file-system abstraction, no UI. -->
   <PropertyGroup>
     <TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
     <RootNamespace>Leviathan.Core</RootNamespace>
@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.IO.Hashing" />
+    <PackageReference Include="System.IO.Abstractions" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Leviathan.Core.Tests" />
