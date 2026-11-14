@@ -609,6 +609,22 @@ internal sealed partial class StatusHubPanel : UserControl
 
     private async void OnPromptSkipAllClick(object sender, RoutedEventArgs e) => await AnswerAsync(sender, ErrorDecision.SkipAllLikeThis);
 
+    private async void OnPromptAdminClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: Guid id } || EntryOf(id) is not { } entry)
+        {
+            return;
+        }
+
+        var outcome = await App.Host.JobActions.AnswerAsAdministratorAsync(entry, CancellationToken.None);
+        if (outcome is null)
+        {
+            return;
+        }
+
+        await new ContentDialog { XamlRoot = XamlRoot, Title = outcome.Succeeded ? "Done as administrator" : "Not done as administrator", Content = outcome.Message, CloseButtonText = "Close" }.ShowAsync();
+    }
+
     private bool _conflictDialogOpen;
 
     // The one conflict dialog of a job (spec §12.4). Cancel leaves the job waiting, so nothing is overwritten by closing the window.

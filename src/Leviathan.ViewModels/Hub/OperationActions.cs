@@ -74,7 +74,7 @@ public interface IJobControl
 /// "Pause" on a mixed selection pauses the running ones and leaves the finished ones alone. Moving keeps the selected jobs in
 /// their relative order.
 /// </summary>
-public sealed class OperationActions(IJobControl control)
+public sealed class OperationActions(IJobControl control, Elevation.ElevationMemory? memory = null, Elevation.IElevatedRunner? elevated = null)
 {
     /// <summary>True when <paramref name="action"/> fits at least one of <paramref name="selected"/>: the button is enabled.</summary>
     public static bool CanDo(OperationAction action, IEnumerable<OperationEntry> selected) => selected.Any(e => Fits(action, e));
@@ -146,6 +146,22 @@ public sealed class OperationActions(IJobControl control)
 
         await control.AnswerPromptAsync(entry.Id, prompt.Id, decision).ConfigureAwait(false);
         return true;
+    }
+
+    /// <summary>
+    /// "Skip, and do this one as administrator" (spec §15.6): the job skips the refused item and carries on as itself, and that one item is done
+    /// again in the elevated helper after the Windows prompt. Returns null when the entry is not stopped on "access denied", or there is no helper.
+    /// </summary>
+    public async Task<Elevation.ElevatedOutcome?> AnswerAsAdministratorAsync(OperationEntry entry, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (elevated is null || memory?.RequestFor(entry) is not { } request)
+        {
+            return null;
+        }
+
+        await AnswerAsync(entry, ErrorDecision.Skip).ConfigureAwait(false);
+        return await elevated.RunAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Answers the name clashes <paramref name="entry"/> waits on (spec §12.4). Returns false when it waits on none.</summary>

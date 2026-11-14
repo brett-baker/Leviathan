@@ -442,7 +442,16 @@ internal sealed class AppHost
     private WorkerJobControl? _jobControl;
 
     /// <summary>The Operations tab's pause, cancel, remove, move and priority actions on the worker's jobs.</summary>
-    internal OperationActions JobActions => new(_jobControl ??= new WorkerJobControl(() => WorkerLazy.IsValueCreated ? WorkerLazy.Value : null));
+    internal OperationActions JobActions => new(_jobControl ??= new WorkerJobControl(() => WorkerLazy.IsValueCreated ? WorkerLazy.Value : null), Elevation, ElevatedRunner);
+
+    /// <summary>What queued copies, moves and deletes were asked to do, so a refused item can be done again as administrator (spec §15.6).</summary>
+    internal Leviathan.ViewModels.Elevation.ElevationMemory Elevation { get; private init; } = new();
+
+    private Leviathan.ViewModels.Elevation.IElevatedRunner? _elevatedRunner;
+
+    /// <summary>Runs one request in the administrator helper after the Windows prompt (spec §15.6).</summary>
+    internal Leviathan.ViewModels.Elevation.IElevatedRunner ElevatedRunner => _elevatedRunner ??= new ElevatedRunnerAdapter(
+        new Leviathan.Interop.ElevatedHelper(new Leviathan.Interop.ProcessStarter(), Path.Combine(AppContext.BaseDirectory, "Leviathan.Elevated.exe")));
 
     /// <summary>Pauses a background job.</summary>
     public Task PauseJobAsync(Guid id) => WorkerLazy.IsValueCreated ? WorkerLazy.Value.PauseAsync(id) : Task.CompletedTask;
@@ -818,6 +827,8 @@ internal sealed class AppHost
             newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk)) { Remote = new RemoteItemsAdapter(remoteProvider) };
         }
         var transfers = new WorkerTransfers(() => worker.Value);
+        var elevation = new Leviathan.ViewModels.Elevation.ElevationMemory();
+        transfers.Submitted += (_, s) => elevation.Remember(s.Job, s.Kind, [.. s.Sources.Select(p => p.Value)], s.Destination?.Value, permanent: false);
 
         // Saved sync pairs (spec 15.5) are checked once a minute for those due; a check only compares and records what is waiting, except an
         // update pair set to run on its own. The worker starts only when a pair is actually due.
@@ -908,6 +919,7 @@ internal sealed class AppHost
             WorkOffline = workOffline,
             Connector = connector,
             Transfers = transfers,
+            Elevation = elevation,
             Archives = new WorkerArchives(transfers),
             SyncPairs = syncPairs,
             SyncChecker = syncChecker,

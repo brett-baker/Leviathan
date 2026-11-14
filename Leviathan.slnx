@@ -54,6 +54,12 @@
       <Platform Solution="*|x64" Project="x64" />
       <Platform Solution="*|ARM64" Project="ARM64" />
     </Project>
+    <Project Path="src/Leviathan.Elevated/Leviathan.Elevated.csproj">
+      <BuildType Solution="Debug|*" Project="Debug" />
+      <BuildType Solution="Release|*" Project="Release" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+    </Project>
     <Project Path="src/Leviathan.ShellHost/Leviathan.ShellHost.csproj">
       <BuildType Solution="Debug|*" Project="Debug" />
       <BuildType Solution="Release|*" Project="Release" />

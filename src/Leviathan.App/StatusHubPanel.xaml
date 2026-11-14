@@ -33,6 +33,9 @@
               <Button Content="Skip" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptSkipClick" Padding="10,3" MinHeight="0" />
               <Button Content="Retry" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptRetryClick" Padding="10,3" MinHeight="0" />
               <Button Content="Skip all like this" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptSkipAllClick" Padding="10,3" MinHeight="0" />
+              <!-- Access denied (spec 15.6): this one item is done again by the administrator helper after the Windows prompt; the app itself is never elevated. -->
+              <Button Content="Skip, do as administrator" Tag="{x:Bind Entry.Id, Mode=OneWay}" Click="OnPromptAdminClick" Padding="10,3" MinHeight="0"
+                      Visibility="{x:Bind local:HubFormat.ShowBar(Entry.NeedsAdministrator), Mode=OneWay}" />
             </StackPanel>
           </StackPanel>
           <!-- The job found files that already exist (spec 12.4): one dialog for the whole job. -->

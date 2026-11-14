@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The administrator helper (spec §15.6): runs one copy, move or delete elevated, answers over a pipe and exits. Never a service, never left running. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <RootNamespace>Leviathan.Elevated</RootNamespace>
+    <AssemblyName>Leviathan.Elevated</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Leviathan.Core\Leviathan.Core.csproj" />
+    <ProjectReference Include="..\Leviathan.Contracts\Leviathan.Contracts.csproj" />
+    <ProjectReference Include="..\Leviathan.Engine\Leviathan.Engine.csproj" />
+    <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />
+  </ItemGroup>
+</Project>

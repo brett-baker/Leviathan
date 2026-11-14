@@ -48,6 +48,8 @@
     <ProjectReference Include="..\Leviathan.Interop\Leviathan.Interop.csproj" />
     <!-- Builds the worker and copies it next to Leviathan.exe so the UI can start it. -->
     <ProjectReference Include="..\Leviathan.Worker\Leviathan.Worker.csproj" />
+    <!-- The administrator helper (spec §15.6), started only through the Windows prompt for one action. -->
+    <ProjectReference Include="..\Leviathan.Elevated\Leviathan.Elevated.csproj" />
     <!-- Same for the shell host, which runs third-party shell extensions out of process. -->
     <ProjectReference Include="..\Leviathan.ShellHost\Leviathan.ShellHost.csproj" />
     <ProjectReference Include="..\Leviathan.Media\Leviathan.Media.csproj" />

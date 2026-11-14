@@ -30,6 +30,9 @@ public sealed record OperationEntry(
     /// <summary>The job is stopped on a question only the user can answer (spec §12.2).</summary>
     public bool HasPrompt => Prompt is not null;
 
+    /// <summary>The question is "access denied", so doing the refused item as administrator is on offer (spec §15.6).</summary>
+    public bool NeedsAdministrator => Prompt is { Kind: ErrorKind.AccessDenied };
+
     /// <summary>The question's text: what went wrong with which item.</summary>
     public string PromptText => Prompt is { } p ? $"{p.Message}{Environment.NewLine}{p.Item}" : string.Empty;
 
