@@ -145,6 +145,9 @@ internal sealed class AppHost
     /// <summary>Colour tags on the selection in the file view (spec §11.1): keys 1 to 9 and Ctrl+0.</summary>
     public Leviathan.ViewModels.Tags.FileTagging Tagging { get; private init; } = null!;
 
+    /// <summary>Short notes attached to folders, kept in the data folder and edited in the details pane (spec §15.6).</summary>
+    public Leviathan.ViewModels.Notes.FolderNotes Notes { get; } = new(new JsonFolderNotesStorage());
+
     /// <summary>Where colour tags are read and written (the details pane reads the selected file's tags from it).</summary>
     public Leviathan.ViewModels.Triage.ITagStore TagStore { get; private init; } = null!;
 

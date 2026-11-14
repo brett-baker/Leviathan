@@ -14,6 +14,7 @@ public sealed partial class MainWindow
     private CancellationTokenSource? _detailsCts;
     private string _detailsKey = string.Empty;
     private MediaInfoSource? _detailsMedia;
+    private Action? _flushNote;
 
     // Called with the selection each time it changes; rebuilds only when the item itself changed, so a size update does not flicker.
     private void UpdateDetails(IReadOnlyList<FileEntry> chosen)
@@ -25,6 +26,8 @@ public sealed partial class MainWindow
         }
 
         _detailsKey = key;
+        _flushNote?.Invoke(); // a note being typed is kept even when the selection moves before the box loses focus
+        _flushNote = null;
         _detailsCts?.Cancel();
         _detailsCts = new CancellationTokenSource();
         DetailsSections.Children.Clear();
@@ -39,6 +42,11 @@ public sealed partial class MainWindow
         AddSection(FileDetails.General(entry));
         if (entry.Kind != FileEntryKind.File)
         {
+            if (entry.Kind == FileEntryKind.Folder)
+            {
+                DetailsSections.Children.Add(FolderNoteSection(entry));
+            }
+
             return;
         }
 
@@ -61,6 +69,29 @@ public sealed partial class MainWindow
         _ = LoadPropertiesAsync(entry, props, token);
 
         DetailsSections.Children.Add(IntegritySection(entry, token));
+    }
+
+    // The note of a folder (spec §15.6): a small box saved when it loses focus. It lives in Leviathan's data, never in the folder.
+    private StackPanel FolderNoteSection(FileEntry folder)
+    {
+        var path = folder.Location.ToWin32Path();
+        var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(new TextBlock { Text = "Note", Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"], Margin = new Thickness(0, 8, 0, 0) });
+        var box = new TextBox
+        {
+            Text = App.Host.Notes.Get(path),
+            PlaceholderText = "Add a note about this folder…",
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 64,
+            MaxLength = Leviathan.ViewModels.Notes.FolderNotes.MaxLength,
+        };
+        AutomationProperties.SetName(box, "Folder note");
+        box.LostFocus += (_, _) => App.Host.Notes.Set(path, box.Text);
+        _flushNote = () => App.Host.Notes.Set(path, box.Text);
+        panel.Children.Add(box);
+        panel.Children.Add(Muted("Kept by Leviathan, not written into the folder."));
+        return panel;
     }
 
     private TextBlock? _detailsTags;
