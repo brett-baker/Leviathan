@@ -37,6 +37,13 @@ static int Usage()
     return 64;
 }
 
+var coldOnly = Array.IndexOf(args, "--cold-start-gate");
+if (coldOnly >= 0 && coldOnly + 1 < args.Length)
+{
+    // The real app's start on its own (spec 3.1); give the published Leviathan.exe.
+    return ColdStartGate.Run(args[coldOnly + 1]);
+}
+
 if (args.Contains("--spacemap-gate"))
 {
     // The space map of a 1 TB share: scan, stop half way, resume, and the layout (Phase 4 gate).
@@ -154,7 +161,31 @@ internal static class EnumerationGate
         var p95Full = Percentile(full.Skip(5).ToList(), 0.95);
         var pass = p95First <= budget.TotalMilliseconds;
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{items:N0} items · first rows p95 {p95First:0.0} ms (budget {budget.TotalMilliseconds} ms) · full listing p95 {p95Full:0.0} ms · {(pass ? "PASS" : "FAIL")}"));
-        return pass ? 0 : 1;
+        return (pass ? 0 : 1) | (FullListing(100_000, 1500) ? 0 : 1);
+    }
+
+    // Spec 3.1: a local folder of 100,000 items is fully enumerated in under 1.5 s (p95).
+    private static bool FullListing(int items, double budgetMs)
+    {
+        const int runs = 15;
+        var (provider, location) = Fixture.Provider(Fixture.CreateFolder(items));
+        var times = new List<double>();
+        for (var run = 0; run < runs; run++)
+        {
+            var sw = Stopwatch.StartNew();
+            var count = provider.ListAsync(location, ListingOptions.Default, CancellationToken.None).ToBlockingEnumerable().Sum(b => b.Items.Count);
+            times.Add(sw.Elapsed.TotalMilliseconds);
+            if (count != items)
+            {
+                Console.Error.WriteLine($"Expected {items} items, got {count}.");
+                return false;
+            }
+        }
+
+        var p95 = Percentile([.. times.Skip(3)], 0.95);
+        var pass = p95 <= budgetMs;
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{items:N0} items, fully enumerated · p95 {p95:0.0} ms (budget {budgetMs} ms) · {(pass ? "PASS" : "FAIL")}"));
+        return pass;
     }
 
     private static double Percentile(List<double> values, double p)
