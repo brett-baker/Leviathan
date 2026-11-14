@@ -37,6 +37,8 @@ public static class JobRequestValidator
                 return ValidateExtract(request);
             case JobKind.Compress:
                 return ValidateCompress(request);
+            case JobKind.Checksum:
+                return ValidateChecksum(request);
             case JobKind.Delete:
                 return request.Destination is null ? null : "A delete job has no destination.";
             case JobKind.Restore:
@@ -63,6 +65,21 @@ public static class JobRequestValidator
         }
 
         return null;
+    }
+
+    private static string? ValidateChecksum(JobRequest request)
+    {
+        if (request.ChecksumVerify)
+        {
+            return null;
+        }
+
+        if (request.ChecksumKinds is not { Count: > 0 } kinds)
+        {
+            return "A checksum job needs at least one kind of sum.";
+        }
+
+        return kinds.Any(k => !Enum.TryParse<Core.Hashing.ChecksumKind>(k, out _)) ? "A checksum job names a kind of sum that does not exist." : null;
     }
 
     private static string? ValidateExtract(JobRequest request)

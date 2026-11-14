@@ -141,6 +141,7 @@ public static class ContextActions
             new(CommandIds.FavoriteAdd, "Add to favorites", ""),
             new(CommandIds.SpaceMap, "Space map", ""),
             new(CommandIds.Compress, "Compress", ""),
+            new(CommandIds.ShowChecksum, "Checksums", ""),
             new(CommandIds.Properties, "Properties", "", "Alt+Enter"),
         ],
         SelectionClass.Several =>
@@ -149,6 +150,7 @@ public static class ContextActions
             new(CommandIds.Compress, "Compress", ""),
             new(CommandIds.ComputeSize, "Compute total size", ""),
             new(CommandIds.Compare, "Compare", ""),
+            new(CommandIds.ShowChecksum, "Checksums", ""),
             new(CommandIds.MoveToNewFolder, "Move to new folder", ""),
             new(CommandIds.ContactSheet, "Contact sheets of the videos…", ""),
             new(CommandIds.TagSelection, "Tag", ""),
@@ -180,6 +182,7 @@ public static class ContextActions
             new(CommandIds.OpenWith, "Open with…", ""),
             new(CommandIds.Print, "Print", ""),
             new(CommandIds.Preview, "Preview", ""),
+            new(CommandIds.ShowChecksum, "Checksums", ""),
         ],
         SelectionClass.Archive =>
         [
@@ -187,6 +190,7 @@ public static class ContextActions
             new(CommandIds.ExtractToFolder, "Extract to folder", ""),
             new(CommandIds.ArchiveBrowse, "Browse as folder", ""),
             new(CommandIds.TestArchive, "Test archive", ""),
+            new(CommandIds.ShowChecksum, "Checksums", ""),
         ],
         SelectionClass.Executable =>
         [

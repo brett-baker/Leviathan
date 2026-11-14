@@ -69,6 +69,11 @@ public interface IShellActions
     /// <summary>Asks a yes/no question (for example before deleting for good) and returns true when the user confirmed.</summary>
     Task<bool> ConfirmAsync(string title, string message, string confirmText);
 
+    /// <summary>Opens the checksums window for <paramref name="items"/> (files and folders); with <paramref name="verify"/> they are checksum files to check. Shells without one do nothing.</summary>
+    void OpenChecksums(IReadOnlyList<LocationPath> items, bool verify)
+    {
+    }
+
     /// <summary>Asks for a folder (Extract to...); null when the user cancels. Services that cannot ask return null.</summary>
     Task<LocationPath?> PickFolderAsync(string title) => Task.FromResult<LocationPath?>(null);
 
@@ -993,6 +998,20 @@ public static partial class WindowCommands
                 shell.ShowMessage(outcome.Message);
             }
         }
+
+        // Checksums (spec §15.4): of the item the command was run on, else the selection; a lone checksum file (.sha256, .md5, .sfv...) is verified.
+        Add(CommandIds.ShowChecksum, "Checksums...", "Files", (c, _) => Run(() =>
+        {
+            var items = ArchiveTargets(c);
+            if (items.Count == 0 || items.Any(i => i.Kind is not (LocationKind.Drive or LocationKind.Unc)))
+            {
+                shell.ShowMessage("Checksums can be made for files and folders on this PC and on Windows shares.");
+                return;
+            }
+
+            var verify = items.All(i => Core.Hashing.ChecksumKinds.FromExtension(Path.GetExtension(i.Name)) is not null);
+            shell.OpenChecksums(items, verify);
+        }), c => Current() is not null);
 
         bool CanArchive(CommandContext c) => archives is not null && Current() is not null;
         Add(CommandIds.ExtractHere, "Extract here", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: false), CanArchive);

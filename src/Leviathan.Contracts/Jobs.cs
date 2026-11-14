@@ -47,6 +47,13 @@ public enum JobKind
     /// item whose <see cref="ItemOutcome.Result"/> is its group key (<c>size:hash</c>); files with the same key are copies of each other.
     /// </summary>
     FindDuplicates,
+
+    /// <summary>
+    /// Compute checksums (spec §15.4). Folders in <see cref="JobRequest.Sources"/> are read recursively. Each file comes back as an item whose
+    /// <see cref="ItemOutcome.Result"/> lists its sums as <c>kind=hex;kind=hex</c>. With <see cref="JobRequest.ChecksumVerify"/> the sources
+    /// are checksum files and every file they name is checked. Changes nothing.
+    /// </summary>
+    Checksum,
 }
 
 /// <summary>The kind of archive a compress job writes (spec §15.4).</summary>
@@ -368,6 +375,12 @@ public sealed record JobRequest(JobKind Kind, IReadOnlyList<string> Sources, str
 
     /// <summary>Extract into a new folder named after the archive inside <see cref="Destination"/> (extract only).</summary>
     public bool ExtractIntoSubfolder { get; init; }
+
+    /// <summary>Which sums to compute, by name (Md5, Sha1, Sha256, Sha512, XxHash3, Crc32); checksum jobs that compute only.</summary>
+    public IReadOnlyList<string>? ChecksumKinds { get; init; }
+
+    /// <summary>The sources are checksum files (.sha256, .md5, .sfv and the like): check every file they name instead of computing (checksum only).</summary>
+    public bool ChecksumVerify { get; init; }
 }
 
 /// <summary>A point-in-time view of a job, as shown in the Operations panel.</summary>
