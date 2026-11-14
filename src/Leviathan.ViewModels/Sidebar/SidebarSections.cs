@@ -177,7 +177,8 @@ public static class SidebarSections
         bool searching = false,
         IEnumerable<Tags.ColorTag>? tags = null,
         IEnumerable<RemoteConnection>? remote = null,
-        IReadOnlyDictionary<CloudProviderInfo, CloudSyncState>? cloudStates = null)
+        IReadOnlyDictionary<CloudProviderInfo, CloudSyncState>? cloudStates = null,
+        IEnumerable<Sync.SyncPair>? syncPairs = null)
     {
         ArgumentNullException.ThrowIfNull(favorites);
         ArgumentNullException.ThrowIfNull(common);
@@ -187,7 +188,7 @@ public static class SidebarSections
         var saved = (servers ?? []).ToList();
         return
         [
-            new SidebarSection("Favorites", [.. favorites.Select(FavoritePlace)]) { Glyph = "\uE734" },
+            new SidebarSection("Favorites", [.. favorites.Select(FavoritePlace)]) { Glyph = "\uE734", Groups = SyncPairGroup(syncPairs) },
             new SidebarSection("Common folders", [.. common.OrderBy(CommonOrder)]) { Glyph = "\uE8B7" },
             new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags") { Glyph = "\uE8EC", StartCollapsed = true },
             new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uEDA2" },
@@ -202,6 +203,16 @@ public static class SidebarSections
             },
             new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud, SyncText(cloudStates?.GetValueOrDefault(c) ?? CloudSyncState.Unknown)))]) { Glyph = "\uE753" },
         ];
+    }
+
+    /// <summary>The title of the heading for saved sync pairs.</summary>
+    public const string SyncPairsTitle = "Sync pairs";
+
+    /// <summary>The saved sync pairs (spec §15.5: "saved sync pairs ... appear in Favorites"): one row each, saying what the last check found; none when there are none.</summary>
+    public static IReadOnlyList<SidebarGroup> SyncPairGroup(IEnumerable<Sync.SyncPair>? pairs)
+    {
+        var places = (pairs ?? []).Select(p => new SidebarPlace(p.Name, Sync.SyncPairLocations.For(p.Id), SidebarIcon.Favorite, p.LastResult is { Length: > 0 } result ? $"{p.Left}  ⇄  {p.Right}  ·  {result}" : $"{p.Left}  ⇄  {p.Right}") { Glyph = "\uE895", IsLeaf = true }).ToList();
+        return places.Count == 0 ? [] : [new SidebarGroup(SyncPairsTitle, places, string.Empty)];
     }
 
     /// <summary>The title of the heading for devices found on the network.</summary>

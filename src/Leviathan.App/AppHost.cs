@@ -120,6 +120,12 @@ internal sealed class AppHost
     /// <summary>Carries out drops and pastes. Until the copy and move slice (E2) it says so and changes nothing.</summary>
     public WorkerTransfers Transfers { get; private init; } = null!;
 
+    /// <summary>The saved sync pairs (spec 15.5).</summary>
+    public Leviathan.ViewModels.Sync.SyncPairStore SyncPairs { get; private init; } = null!;
+
+    /// <summary>Checks the saved sync pairs on their schedule.</summary>
+    public Leviathan.ViewModels.Sync.SyncPairChecker SyncChecker { get; private init; } = null!;
+
     /// <summary>Extract and compress jobs (spec 15.4).</summary>
     public WorkerArchives Archives { get; private init; } = null!;
 
@@ -807,6 +813,25 @@ internal sealed class AppHost
             newItems = new NewItemService(new ShellNewCatalog(new WindowsRegistryView(), disk, NewMenuOptions.ForThisMachine()), new NewItemCreator(disk)) { Remote = new RemoteItemsAdapter(remoteProvider) };
         }
         var transfers = new WorkerTransfers(() => worker.Value);
+
+        // Saved sync pairs (spec 15.5) are checked once a minute for those due; a check only compares and records what is waiting, except an
+        // update pair set to run on its own. The worker starts only when a pair is actually due.
+        var syncPairs = new Leviathan.ViewModels.Sync.SyncPairStore(disk, Path.Combine(data, "sync-pairs.json"));
+        var syncChecker = new Leviathan.ViewModels.Sync.SyncPairChecker(syncPairs, new WorkerCompare(() => worker.Value), new Leviathan.ViewModels.Sync.SyncRunner(transfers, transfers), TimeProvider.System);
+        var syncTimer = queue.CreateTimer();
+        syncTimer.Interval = TimeSpan.FromMinutes(1);
+        syncTimer.Tick += (_, _) => _ = Task.Run(async () =>
+        {
+            try
+            {
+                await syncChecker.CheckDueAsync(CancellationToken.None);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or InvalidOperationException)
+            {
+                // The next tick tries again; what went wrong is in the pair's last result.
+            }
+        });
+        syncTimer.Start();
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
         var binService = new WorkerBinService(transfers, () => built?.Settings.Current.Files ?? new Leviathan.ViewModels.Settings.FilesSettings());
@@ -879,6 +904,8 @@ internal sealed class AppHost
             Connector = connector,
             Transfers = transfers,
             Archives = new WorkerArchives(transfers),
+            SyncPairs = syncPairs,
+            SyncChecker = syncChecker,
             Pending = pending,
             Undo = undo,
             TriageActionsFor = destination => new TriageFileActions(

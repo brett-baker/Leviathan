@@ -108,6 +108,7 @@ public sealed partial class MainWindow : Window, IShellActions
         Sidebar.ItemsSource = _sidebar.Rows;
         _sidebar.SelectionChanged += OnSidebarSelectionChanged;
         host.Favorites.Changed += OnFavoritesChanged;
+        host.SyncPairs.Changed += OnFavoritesChanged;
         host.Settings.Changed += OnTagSettingsChanged;
         host.SavedServers.Changed += OnSavedServersChanged;
         host.RemoteConnections.Changed += OnSavedServersChanged;
@@ -930,7 +931,7 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         var host = App.Host;
         _sidebarTags = string.Join('|', host.Settings.Current.Tags.Catalog().Tags.Select(t => $"{t.Id}:{t.Name}:{t.Colour}"));
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags, host.RemoteConnections.Items, host.CloudStates), HealthOfServer);
+        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags, host.RemoteConnections.Items, host.CloudStates, host.SyncPairs.Items), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }
@@ -1008,6 +1009,10 @@ public sealed partial class MainWindow : Window, IShellActions
             case SidebarNodeKind.Message when node.IsRetry:
                 await _sidebar.RetryAsync(node, _closing.Token);
                 break;
+            case SidebarNodeKind.Place when node.Location is { } pairLocation && Leviathan.ViewModels.Sync.SyncPairLocations.IdOf(pairLocation) is { } pairId:
+                App.Actions.Record("sidebar.syncPair", pairLocation.Value);
+                OpenSyncPair(pairId);
+                break;
             case SidebarNodeKind.Place or SidebarNodeKind.Folder when node.Location is { } where:
                 App.Actions.Record("sidebar.open", where.Value);
                 Run(CommandIds.NavGo, where.Value);
@@ -1055,6 +1060,12 @@ public sealed partial class MainWindow : Window, IShellActions
         }
 
         e.Handled = true;
+        if (Leviathan.ViewModels.Sync.SyncPairLocations.IdOf(where) is { } pairId)
+        {
+            ShowSyncPairMenu(pairId, (FrameworkElement)e.OriginalSource, e.GetPosition((FrameworkElement)e.OriginalSource));
+            return;
+        }
+
         var menu = new MenuFlyout();
         var open = new MenuFlyoutItem { Text = "Open in new tab" };
         open.Click += (_, _) => Run(CommandIds.TabOpenInNewTab, where.Value, true);

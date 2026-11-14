@@ -33,6 +33,8 @@ internal sealed class SyncWindow : Window
 
     private readonly ICompareScanner _scanner;
     private readonly SyncRunner _runner;
+    private readonly SyncPairStore? _pairs;
+    private SyncPair? _pair;
     private readonly CancellationTokenSource _closing = new();
     private readonly TextBox _left = new() { Header = "Left folder", MinWidth = 380, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBox _right = new() { Header = "Right folder", MinWidth = 380, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -46,6 +48,8 @@ internal sealed class SyncWindow : Window
     private readonly Dictionary<CompareStatus, CheckBox> _filters = [];
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.Extended };
     private readonly TextBlock _preview = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly Button _save = new() { Content = "Save as sync pair…" };
+    private readonly Button _remove = new() { Content = "Remove this pair", Visibility = Visibility.Collapsed };
     private readonly Button _sync = new() { Content = "Sync…", IsEnabled = false, Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
     private readonly Dictionary<string, SyncChoice> _choices = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _running = new();
@@ -57,11 +61,13 @@ internal sealed class SyncWindow : Window
     private bool _stale;
 
     /// <summary>Opens the window; when both folders are given the comparison starts at once.</summary>
-    public SyncWindow(LocationPath? left, LocationPath? right, ICompareScanner scanner, SyncRunner runner)
+    public SyncWindow(LocationPath? left, LocationPath? right, ICompareScanner scanner, SyncRunner runner, SyncPairStore? pairs = null, SyncPair? pair = null)
     {
         _scanner = scanner;
         _runner = runner;
-        Title = "Compare and sync folders";
+        _pairs = pairs;
+        _pair = pair;
+        Title = pair is null ? "Compare and sync folders" : $"Sync pair: {pair.Name}";
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1150, 820));
         _left.Text = left?.Value ?? string.Empty;
         _right.Text = right?.Value ?? string.Empty;
@@ -70,10 +76,14 @@ internal sealed class SyncWindow : Window
             _mode.Items.Add(title);
         }
 
-        _mode.SelectedIndex = 2;
+        _mode.SelectedIndex = pair is null ? 2 : Math.Max(0, Array.FindIndex(Modes, m => m.Mode == pair.Mode));
         _by.Items.Add("Name, size and date");
         _by.Items.Add("Contents (checksum; slower)");
-        _by.SelectedIndex = 0;
+        _by.SelectedIndex = pair?.By == CompareBy.Checksum ? 1 : 0;
+        _tolerance.Value = pair?.ToleranceSeconds ?? 2;
+        _save.Visibility = pairs is null ? Visibility.Collapsed : Visibility.Visible;
+        _save.Content = pair is null ? "Save as sync pair…" : "Save changes to this pair…";
+        _remove.Visibility = pair is null || pairs is null ? Visibility.Collapsed : Visibility.Visible;
 
         _compare.Click += (_, _) => _ = CompareAsync();
         _stop.Click += (_, _) => _running.Cancel();
@@ -83,6 +93,15 @@ internal sealed class SyncWindow : Window
         _left.TextChanged += (_, _) => MarkStale();
         _right.TextChanged += (_, _) => MarkStale();
         _sync.Click += async (_, _) => await ConfirmAndSyncAsync();
+        _save.Click += async (_, _) => await SavePairAsync();
+        _remove.Click += (_, _) =>
+        {
+            if (_pair is not null)
+            {
+                _pairs?.Remove(_pair.Id);
+                Close();
+            }
+        };
         _list.ItemContainerStyle = new Style(typeof(ListViewItem)) { Setters = { new Setter(Control.MinHeightProperty, 0.0), new Setter(Control.PaddingProperty, new Thickness(8, 3, 8, 3)) } };
 
         var folders = new Grid { ColumnSpacing = 12 };
@@ -133,7 +152,11 @@ internal sealed class SyncWindow : Window
         bottom.Children.Add(overrides);
         bottom.Children.Add(new TextBlock { Text = "What a sync would do", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0) });
         bottom.Children.Add(_preview);
-        bottom.Children.Add(_sync);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        actions.Children.Add(_sync);
+        actions.Children.Add(_save);
+        actions.Children.Add(_remove);
+        bottom.Children.Add(actions);
 
         var root = new Grid();
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -284,6 +307,11 @@ internal sealed class SyncWindow : Window
             var note = result.Problems.Count > 0 ? $"\n{result.Problems.Count:N0} things could not be read: {result.Problems[0]}" : string.Empty;
             _status.Text = $"{result.Entries.Count:N0} items · {result.Count(CompareStatus.Identical):N0} identical{note}";
             Replan();
+            if (_pair is not null && _pairs is not null && _plan is not null)
+            {
+                _pairs.RecordCheck(_pair.Id, DateTimeOffset.UtcNow, SyncSchedule.Summarize(_plan));
+                _pair = _pairs.Find(_pair.Id) ?? _pair;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -409,6 +437,72 @@ internal sealed class SyncWindow : Window
     {
         static string One(CompareSide? side) => side is { } s ? $"{DisplayFormat.Size(s.Size)} · {s.Modified.LocalDateTime:yyyy-MM-dd HH:mm}" : "—";
         return entry.IsDirectory ? string.Empty : $"left {One(entry.Left)}   right {One(entry.Right)}";
+    }
+
+    // Saves the folders and the way of comparing as a pair for Favorites; the schedule only checks, except an update pair that may run on its own.
+    private async Task SavePairAsync()
+    {
+        if (_pairs is null)
+        {
+            return;
+        }
+
+        var left = ToOsPath(_left.Text);
+        var right = ToOsPath(_right.Text);
+        if (left is null || right is null)
+        {
+            _status.Text = "Both folders must be folders on this PC or on a Windows share before the pair can be saved.";
+            return;
+        }
+
+        var mode = Modes[Math.Max(0, _mode.SelectedIndex)].Mode;
+        var name = new TextBox { Header = "Name", Text = _pair?.Name ?? $"{Path.GetFileName(left.TrimEnd('\\'))} ⇄ {Path.GetFileName(right.TrimEnd('\\'))}", MinWidth = 340 };
+        var every = new ComboBox { Header = "Check for changes", MinWidth = 340 };
+        foreach (var minutes in SyncSchedule.Intervals)
+        {
+            every.Items.Add(SyncSchedule.Describe(minutes));
+        }
+
+        every.SelectedIndex = Math.Max(0, SyncSchedule.Intervals.ToList().IndexOf(_pair?.CheckEveryMinutes ?? 0));
+        var update = mode is SyncMode.UpdateLeftToRight or SyncMode.UpdateRightToLeft;
+        var auto = new CheckBox { Content = "Sync on its own after a check", IsChecked = update && _pair?.AutoRun == true, IsEnabled = update };
+        var note = new TextBlock
+        {
+            Text = update
+                ? "An update only adds new files and replaces older ones with newer ones, so it can run without you."
+                : "A mirror deletes and a two-way sync can meet conflicts, so these are only checked on a schedule: you see the preview and press Sync.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.7,
+            MaxWidth = 340,
+        };
+        var panel = new StackPanel { Spacing = 12 };
+        panel.Children.Add(name);
+        panel.Children.Add(every);
+        panel.Children.Add(auto);
+        panel.Children.Add(note);
+        var dialog = new ContentDialog { Title = "Sync pair", Content = panel, PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var pair = (_pair ?? new SyncPair()) with
+        {
+            Name = string.IsNullOrWhiteSpace(name.Text) ? "Sync pair" : name.Text.Trim(),
+            Left = left,
+            Right = right,
+            Mode = mode,
+            By = _by.SelectedIndex == 1 ? CompareBy.Checksum : CompareBy.NameSizeDate,
+            ToleranceSeconds = double.IsNaN(_tolerance.Value) ? 2 : (int)_tolerance.Value,
+            CheckEveryMinutes = SyncSchedule.Intervals[Math.Max(0, every.SelectedIndex)],
+            AutoRun = auto.IsChecked == true && update,
+        };
+        _pairs.Save(pair);
+        _pair = pair;
+        Title = $"Sync pair: {pair.Name}";
+        _save.Content = "Save changes to this pair…";
+        _remove.Visibility = Visibility.Visible;
+        _status.Text = $"Saved \"{pair.Name}\"; it is in Favorites.";
     }
 
     private async Task ConfirmAndSyncAsync()

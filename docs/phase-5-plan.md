@@ -39,7 +39,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **D1. Compare engine**: by name + size + date or by checksum; left-only, right-only, newer left/right, identical.
 - [x] **D2. Sync modes**: mirror left→right, mirror right→left, two-way (newer wins, conflicts flagged), update; deletions go to
   soft delete / Recycle Bin; dry-run preview always first.
-- [ ] **D3. Saved sync pairs**: re-run with one click, pinned to Favorites, optional schedule.
+- [x] **D3. Saved sync pairs**: re-run with one click, pinned to Favorites, optional schedule.
 
 ### E. Everything else in §15.6 and §6
 

@@ -79,6 +79,11 @@ public interface IShellActions
     {
     }
 
+    /// <summary>Opens a saved sync pair: its folders, mode and settings, compared at once so the preview is waiting (spec §15.5).</summary>
+    void OpenSyncPair(Guid id)
+    {
+    }
+
     /// <summary>Asks for a folder (Extract to...); null when the user cancels. Services that cannot ask return null.</summary>
     Task<LocationPath?> PickFolderAsync(string title) => Task.FromResult<LocationPath?>(null);
 
