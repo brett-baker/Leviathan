@@ -70,6 +70,9 @@ public static class FileColumns
     /// <summary>Tags. Sorts as equal until the tag index exists (Phase 3).</summary>
     public static FileColumn Tags { get; } = new("tags", "Tags", (_, _) => 0, null);
 
+    /// <summary>Git status of each item in a repository (spec §15.6). Sorts as equal; the view draws the letter.</summary>
+    public static FileColumn Git { get; } = new("git", "Git", (_, _) => 0, null);
+
     /// <summary>
     /// Duration, resolution, frame rate, codecs, bitrate, container, HDR, channels, languages and subtitles (spec §8.2). Their values come
     /// from the media process, a few at a time for the rows on screen, so they sort by what <see cref="MediaInfoTracker"/> has (a file
@@ -78,7 +81,7 @@ public static class FileColumns
     public static IReadOnlyList<FileColumn> Media { get; } = [.. MediaColumns.All.Select(c => new FileColumn(c.Id, c.Title, (_, _) => 0, null, null, c.Kind))];
 
     /// <summary>Every column.</summary>
-    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, OwnSize, Items, TotalFiles, TotalFolders, Modified, Created, Attributes, Tags, .. Media];
+    public static IReadOnlyList<FileColumn> All { get; } = [Name, Extension, Type, Size, OwnSize, Items, TotalFiles, TotalFolders, Modified, Created, Attributes, Tags, Git, .. Media];
 
     /// <summary>Finds a column by id (case-insensitive).</summary>
     public static bool TryGet(string id, out FileColumn column)

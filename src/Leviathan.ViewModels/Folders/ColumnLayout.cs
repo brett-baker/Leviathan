@@ -90,6 +90,7 @@ public sealed class ColumnLayout
         "extension" => 90,
         "attributes" => 90,
         "tags" => 160,
+        "git" => 70,
 
         // The media columns: short values get short columns, the two that hold lists get room for "eng, jpn, fre" and "3 (eng, fre)".
         "duration" or "framerate" or "channels" or "hdr" => 100,

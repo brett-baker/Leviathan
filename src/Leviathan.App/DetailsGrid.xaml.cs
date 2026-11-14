@@ -132,6 +132,7 @@ public sealed partial class DetailsGrid : UserControl
         tab.Sizes.Changed += OnSizesChanged;
         tab.Media.Changed += OnMediaChanged;
         tab.FileTags.Changed += OnTagsChanged;
+        App.Host.Git.Changed += OnGitChanged;
         tab.Media.ProgressChanged += OnMediaProgressChanged;
         tab.Items.PropertyChanged += OnItemsChanged;
         tab.Items.Rows.CollectionChanged += OnRowsChanged;
@@ -183,6 +184,7 @@ public sealed partial class DetailsGrid : UserControl
         _tab.Sizes.Changed -= OnSizesChanged;
         _tab.Media.Changed -= OnMediaChanged;
         _tab.FileTags.Changed -= OnTagsChanged;
+        App.Host.Git.Changed -= OnGitChanged;
         _tab.Media.ProgressChanged -= OnMediaProgressChanged;
         _tab.Items.PropertyChanged -= OnItemsChanged;
         _tab.Items.Rows.CollectionChanged -= OnRowsChanged;
@@ -286,6 +288,15 @@ public sealed partial class DetailsGrid : UserControl
     }
 
     internal Leviathan.ViewModels.Tags.FolderTagTracker? FileTags => _tab?.FileTags;
+
+    // A repository's status was read (spec §15.6): the visible rows redraw their Git cell.
+    private void OnGitChanged(object? sender, string root) => DispatcherQueue.TryEnqueue(() =>
+    {
+        foreach (var row in _realized)
+        {
+            row.RefreshGit();
+        }
+    });
 
     private void OnTagsChanged(object? sender, IReadOnlyList<string> paths)
     {
@@ -446,6 +457,9 @@ public sealed partial class DetailsGrid : UserControl
             UpdateSkeleton();
             if (_tab?.Folder.State == FolderLoadState.Loaded)
             {
+                // In a Git repository the icons are read now, off the UI thread (spec §15.6); the answer arrives through Git.Changed.
+                var folder = _tab.History.Current;
+                _ = Task.Run(() => App.Host.Git.RefreshAsync(folder, force: false, CancellationToken.None));
                 // After Back or Up the folder you came from is selected: bring it into view once the rows are all there.
                 EnsureVisible();
             }

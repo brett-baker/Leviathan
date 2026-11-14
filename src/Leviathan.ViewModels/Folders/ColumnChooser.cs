@@ -44,7 +44,7 @@ public static class ColumnCatalog
             ("totalfolders", "Total folders"), ("sizeondisk", "Size on disk"),
             ("modified", "Date modified"), ("created", "Date created"), ("accessed", "Date accessed"), ("attributes", "Attributes"),
             ("owner", "Owner"), ("path", "Path"), ("linktarget", "Link target"));
-        Group("Leviathan", ("tags", "Tags"), ("deleted", "Soft-deleted date"), ("checksum", "Checksum"), ("duplicates", "Duplicate group"));
+        Group("Leviathan", ("tags", "Tags"), ("git", "Git status"), ("deleted", "Soft-deleted date"), ("checksum", "Checksum"), ("duplicates", "Duplicate group"));
         Group("Media", ("duration", "Duration"), ("resolution", "Resolution"), ("framerate", "Frame rate"), ("videocodec", "Video codec"),
             ("audiocodec", "Audio codec"), ("bitrate", "Bitrate"), ("container", "Container"), ("hdr", "HDR"), ("channels", "Audio channels"),
             ("audiolanguages", "Audio language(s)"), ("subtitles", "Subtitle tracks"));

@@ -188,6 +188,9 @@ public sealed record FilesSettings
     /// <summary>Which terminal "Open terminal here" starts (spec §15.7); Windows Terminal falls back to PowerShell when it is not installed.</summary>
     public Leviathan.Core.Platform.TerminalKind Terminal { get; init; } = Leviathan.Core.Platform.TerminalKind.WindowsTerminal;
 
+    /// <summary>Show Git status for items in a repository (spec §15.6): the Git column and the branch in the status bar. Needs git.exe on the PATH.</summary>
+    public bool GitStatus { get; init; } = true;
+
     /// <summary>The nine quick move and copy targets (spec §15.6), slot 1 first; an empty entry is an unset slot.</summary>
     public IReadOnlyList<string> QuickTargets { get; init; } = [];
 

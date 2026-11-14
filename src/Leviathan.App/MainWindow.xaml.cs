@@ -110,6 +110,7 @@ public sealed partial class MainWindow : Window, IShellActions
         host.Favorites.Changed += OnFavoritesChanged;
         host.SyncPairs.Changed += OnFavoritesChanged;
         host.Settings.Changed += OnTagSettingsChanged;
+        host.Git.Changed += (_, _) => OnUi(UpdateStatus);
         host.SavedServers.Changed += OnSavedServersChanged;
         host.RemoteConnections.Changed += OnSavedServersChanged;
         host.Trust.Ask ??= AskToTrustAsync;
@@ -814,6 +815,10 @@ public sealed partial class MainWindow : Window, IShellActions
 
         var items = _bound.Items;
         StatusText.Text = StatusBarText.Items(items.TotalCount, items.FolderCount, items.HiddenCount);
+        if (App.Host.Git.SummaryFor(_bound.History.Current) is { } git)
+        {
+            StatusText.Text += "  ·  " + git;
+        }
 
         var selection = StatusBarText.Selection(_bound.Selection.Count, _bound.Selection.SelectedBytes);
         SelectionText.Text = selection;

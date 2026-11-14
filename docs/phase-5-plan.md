@@ -48,7 +48,7 @@ Every slice follows `CLAUDE.md`.
 - [x] **E2. Open terminal here** (Windows Terminal, PowerShell, cmd, WSL).
 - [x] **E3. Quick move/copy targets**: 9 preset destinations bound to keys everywhere.
 - [x] **E4. Elevated operations helper**: only the action that needs admin rights runs elevated.
-- [ ] **E5. Git status overlays** (optional; port from Files `Utils/Git`).
+- [x] **E5. Git status overlays** (optional; port from Files `Utils/Git`).
 - [ ] **E6. Folder notes** in the details pane.
 
 ### F. Settings and keyboard (§17)

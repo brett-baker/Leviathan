@@ -260,6 +260,9 @@ internal sealed class AppHost
 
     private WorkerFolderSizes Sizes { get; init; } = null!;
 
+    /// <summary>Git status of the folders on show (spec §15.6).</summary>
+    internal Leviathan.ViewModels.Git.GitStatusService Git { get; private init; } = null!;
+
     private NetworkThumbnailGate ThumbnailGate { get; init; } = null!;
 
     /// <summary>Asks the media process for contact sheets (spec §10.4).</summary>
@@ -953,6 +956,7 @@ internal sealed class AppHost
             Background = background,
             Bin = new BinModel(binService),
             Sizes = sizes,
+            Git = new Leviathan.ViewModels.Git.GitStatusService(new Leviathan.Interop.GitProcessRunner(), disk, () => built!.Settings.Current.Files.GitStatus),
             ThumbnailGate = thumbnailGate,
             SheetClient = sheetClient,
             Scrub = new ScrubStripCache(new ScrubStripClient(() => built!.MediaHost)),

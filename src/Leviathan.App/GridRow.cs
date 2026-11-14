@@ -240,6 +240,35 @@ internal sealed class GridRow : Grid
         }
     }
 
+    /// <summary>Refreshes the Git cell (the repository's status was read, spec §15.6).</summary>
+    public void RefreshGit()
+    {
+        if (Entry is { } entry)
+        {
+            foreach (var cell in _cells.Where(c => c.ColumnId == FileColumns.Git.Id))
+            {
+                RefreshGitCell(cell, entry);
+            }
+        }
+    }
+
+    // The Git cell: one letter coloured by state, the state in words as the tip. Empty outside a repository and for clean items.
+    private static void RefreshGitCell(Cell cell, FileEntry entry)
+    {
+        var state = App.Host.Git.StateOf(entry);
+        cell.Text.Text = Leviathan.Core.Git.GitStates.Letter(state);
+        cell.Text.Foreground = new SolidColorBrush(state switch
+        {
+            Leviathan.Core.Git.GitState.Modified => Color.FromArgb(255, 0xC2, 0x5A, 0x00),
+            Leviathan.Core.Git.GitState.Added => Color.FromArgb(255, 0x2E, 0x8B, 0x3E),
+            Leviathan.Core.Git.GitState.Deleted or Leviathan.Core.Git.GitState.Conflicted => Color.FromArgb(255, 0xC4, 0x2B, 0x1C),
+            Leviathan.Core.Git.GitState.Renamed => Color.FromArgb(255, 0x00, 0x67, 0xC0),
+            Leviathan.Core.Git.GitState.Untracked => Color.FromArgb(255, 0x6B, 0x4F, 0xBB),
+            _ => Colors.Gray,
+        });
+        ToolTipService.SetToolTip(cell.Text, state == Leviathan.Core.Git.GitState.Clean ? null : Leviathan.Core.Git.GitStates.Title(state));
+    }
+
     /// <summary>Refreshes the Tags cell (the tags of this file were read or changed).</summary>
     public void RefreshTags()
     {
@@ -447,6 +476,12 @@ internal sealed class GridRow : Grid
             if (cell.ColumnId == FileColumns.Tags.Id)
             {
                 RefreshTagCell(cell, entry);
+                continue;
+            }
+
+            if (cell.ColumnId == FileColumns.Git.Id)
+            {
+                RefreshGitCell(cell, entry);
                 continue;
             }
 
