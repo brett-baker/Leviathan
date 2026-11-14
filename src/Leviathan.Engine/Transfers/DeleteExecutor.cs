@@ -3,6 +3,7 @@ using System.Text.Json;
 using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
+using Leviathan.Core.Providers;
 using Leviathan.Engine.Execution;
 
 namespace Leviathan.Engine.Transfers;
@@ -55,7 +56,7 @@ public sealed class DeleteExecutor : IJobExecutor
     {
         ArgumentNullException.ThrowIfNull(context);
         var request = context.Job.Request;
-        var sources = request.Sources.Select(LocationPath.Parse).ToList();
+        var sources = request.Sources.Select(LocationPath.ParseExact).ToList();
         var failures = new List<string>();
         for (var i = 0; i < sources.Count; i++)
         {
@@ -66,6 +67,11 @@ public sealed class DeleteExecutor : IJobExecutor
             try
             {
                 outcome = await DeleteOneAsync(source, request.DeleteMode, request.KeepOwnTrash, cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException ex) when (LocationErrors.Wrap(ex, source) is { IsTransient: true } transient)
+            {
+                // The share dropped (spec 3.3): the host waits and runs the job again. Items already gone then count as "already gone", so a repeat is safe.
+                throw transient;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

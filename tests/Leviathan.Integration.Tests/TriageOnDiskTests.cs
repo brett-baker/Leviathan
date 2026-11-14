@@ -93,7 +93,7 @@ public sealed class TriageOnDiskTests : IDisposable
         await session.KeepAsync();
         Assert.True(File.Exists(a));
 
-        var plan = TriageHandOff.Plan(session, new Leviathan.ViewModels.Settings.MediaSettings(), library);
+        var plan = TriageHandOff.Plan(session, new Leviathan.ViewModels.Settings.MediaSettings { TriageMoveWhen = Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd }, library);
         var result = await actions.MoveKeptAsync(plan!.Files, plan.Folder, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.Moved);

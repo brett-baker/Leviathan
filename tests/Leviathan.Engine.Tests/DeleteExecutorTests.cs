@@ -2,6 +2,7 @@ using System.IO.Abstractions.TestingHelpers;
 using Leviathan.Contracts;
 using Leviathan.Core.Paths;
 using Leviathan.Core.Platform;
+using Leviathan.Core.Resilience;
 using Leviathan.Engine.Execution;
 using Leviathan.Engine.Journal;
 using Leviathan.Engine.Scheduling;
@@ -17,6 +18,9 @@ public sealed class DeleteExecutorTests
 
         public bool Refuse { get; set; }
 
+        /// <summary>The network drops on the first call (ERROR_NETNAME_DELETED), as when a mapped share goes away mid-delete.</summary>
+        public bool DropOnce { get; set; }
+
         /// <summary>Leaves the <c>$I</c> / <c>$R</c> pair Windows leaves, with the deletion time of <see cref="FixedTime"/>.</summary>
         public bool WriteRecords { get; set; }
 
@@ -25,6 +29,12 @@ public sealed class DeleteExecutorTests
             if (Refuse)
             {
                 throw new IOException("This drive has no Recycle Bin.");
+            }
+
+            if (DropOnce)
+            {
+                DropOnce = false;
+                throw new IOException("The specified network name is no longer available.", unchecked((int)0x80070040));
             }
 
             Recycled.Add(path.Value);
@@ -158,6 +168,29 @@ public sealed class DeleteExecutorTests
         Assert.Equal(JobState.Failed, job.State);
         Assert.Contains("no Recycle Bin", items[0].Error, StringComparison.Ordinal);
         Assert.True(fs.File.Exists(@"C:\a\1.txt"));
+    }
+
+    [Fact]
+    public async Task AShareThatDropsDuringADelete_PutsTheJobInWaiting_AndItFinishesWhenTheShareIsBack()
+    {
+        var fs = Disk();
+        var bin = new FakeBin(fs) { DropOnce = true };
+        var retry = new BackoffPolicy(TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(20), 0);
+        await using var host = new JobHost(new JobScheduler(), [new DeleteExecutor(fs, bin, new FixedTime())], new InMemoryJobJournal(), retryBackoff: retry);
+        var sawWaiting = false;
+        host.JobChanged += (_, s) => sawWaiting |= s.State == JobState.Waiting;
+        host.Start();
+
+        var job = host.Submit(new JobRequest(JobKind.Delete, [@"C:\a\1.txt"], null), JobLane.Operations, null, "delete");
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!host.Scheduler.Find(job.Id)!.IsFinished && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(sawWaiting, "a dropped share must wait and retry, not fail the item");
+        Assert.Equal(JobState.Completed, host.Scheduler.Find(job.Id)!.State);
+        Assert.Equal([@"C:\a\1.txt"], bin.Recycled);
     }
 
     [Fact]

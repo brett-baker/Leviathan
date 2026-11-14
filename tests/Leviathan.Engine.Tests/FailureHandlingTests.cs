@@ -317,7 +317,7 @@ public sealed class FailureHandlingTests
         fs.AddDirectory(@"\\nas\media");
         fs.AddFile(@"C:\src\What now.\inner.txt", new MockFileData("a"));
 
-        var plan = new TransferPlanner(fs).Plan(Guid.NewGuid(), new JobRequest(JobKind.Copy, [@"C:\src\What now."], @"\\nas\media"), CancellationToken.None);
+        var plan = new TransferPlanner(fs, io: p => p.Value).Plan(Guid.NewGuid(), new JobRequest(JobKind.Copy, [@"C:\src\What now."], @"\\nas\media"), CancellationToken.None);
 
         Assert.Equal(@"\\nas\media\What now", plan.Items[0].Target);
         Assert.Contains(plan.Items[0].Steps, s => s.Op == PlanOp.CopyFile && s.Target == @"\\nas\media\What now\inner.txt");
@@ -331,7 +331,7 @@ public sealed class FailureHandlingTests
         fs.AddDirectory(@"D:\dst");
         fs.AddFile(@"C:\src\trailing.", new MockFileData("a"));
 
-        var plan = new TransferPlanner(fs).Plan(Guid.NewGuid(), new JobRequest(JobKind.Copy, [@"C:\src\trailing."], @"D:\dst"), CancellationToken.None);
+        var plan = new TransferPlanner(fs, io: p => p.Value).Plan(Guid.NewGuid(), new JobRequest(JobKind.Copy, [@"C:\src\trailing."], @"D:\dst"), CancellationToken.None);
 
         Assert.Null(plan.Items[0].Note);
     }
@@ -343,7 +343,7 @@ public sealed class FailureHandlingTests
         fs.AddDrive("C:", new MockDriveData { TotalSize = 1L << 30, AvailableFreeSpace = 1L << 29 });
         fs.AddDirectory(@"\\nas\media");
         fs.AddFile(@"C:\src\aux.txt", new MockFileData("b"));
-        await using var host = new JobHost(new JobScheduler(), [new CopyMoveExecutor(fs)], new InMemoryJobJournal(), reports: new InMemoryJobReportStore());
+        await using var host = new JobHost(new JobScheduler(), [new CopyMoveExecutor(fs, io: p => p.Value)], new InMemoryJobJournal(), reports: new InMemoryJobReportStore());
         host.Start();
 
         var job = host.Submit(new JobRequest(JobKind.Copy, [@"C:\src\aux.txt"], @"\\nas\media"), JobLane.Operations, null, "copy");

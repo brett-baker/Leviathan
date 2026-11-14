@@ -43,21 +43,21 @@ public sealed class MemoryTests
             await OpenAndCloseAsync(strip); // warm-up: JIT, caches and the closed-tab list reach their steady size
         }
 
-        ForceCollection();
-        var before = GC.GetTotalMemory(forceFullCollection: true);
 
-        var first = await OpenAndCloseAsync(strip);
-        for (var i = 1; i < 1000; i++)
+        var closed = new List<WeakReference>();
+        for (var i = 0; i < 1000; i++)
         {
-            await OpenAndCloseAsync(strip);
+            closed.Add(await OpenAndCloseAsync(strip));
         }
 
+        // The last tab can still be held by a batch timer that has not fired yet (80 ms); that passes, a leak does not.
+        await Task.Delay(500);
         ForceCollection();
-        var growth = GC.GetTotalMemory(forceFullCollection: true) - before;
 
-        Assert.False(first.IsAlive, "a closed tab is still reachable: something keeps it (an event, the recent list, the closed-tab list)");
+        // Reachability is the exact test. Total memory is not used: tests run in parallel and allocate at the same time.
+        var alive = closed.Count(w => w.IsAlive);
+        Assert.True(alive == 0, $"{alive} of 1,000 closed tabs are still reachable (index {string.Join(',', closed.Select((w, i) => (w, i)).Where(x => x.w.IsAlive).Select(x => x.i))}): something keeps them (an event, the recent list, the closed-tab list)");
         Assert.Single(strip.Tabs);
-        Assert.True(growth < 8L * 1024 * 1024, $"1,000 opened and closed tabs left {growth / 1024.0:N0} KiB behind");
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -79,19 +79,16 @@ public sealed class MemoryTests
             OpenAndCloseWindow(manager);
         }
 
-        ForceCollection();
-        var before = GC.GetTotalMemory(forceFullCollection: true);
-        var first = OpenAndCloseWindow(manager);
-        for (var i = 1; i < 200; i++)
+        var closed = new List<WeakReference>();
+        for (var i = 0; i < 200; i++)
         {
-            OpenAndCloseWindow(manager);
+            closed.Add(OpenAndCloseWindow(manager));
         }
 
         ForceCollection();
-        var growth = GC.GetTotalMemory(forceFullCollection: true) - before;
 
-        Assert.False(first.IsAlive, "a closed window is still reachable");
-        Assert.True(growth < 8L * 1024 * 1024, $"200 opened and closed windows left {growth / 1024.0:N0} KiB behind");
+        var alive = closed.Count(w => w.IsAlive);
+        Assert.True(alive == 0, $"{alive} of 200 closed windows are still reachable");
     }
 
     private sealed class NoThumbnails : IThumbnailSource

@@ -43,8 +43,9 @@ public sealed class CopyMoveExecutor : IJobExecutor
     /// <paramref name="journal"/> records what is done so an interrupted job continues
     /// (spec §12.1 step 4).
     /// </summary>
-    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null, VerifyPolicy? verifyPolicy = null, IFileVerifier? verifier = null, BandwidthController? bandwidth = null)
+    public CopyMoveExecutor(IFileSystem fileSystem, int bufferSize = 1024 * 1024, ITransferPlanStore? planStore = null, ServerIdentityMap? identities = null, IFileCopier? copier = null, ITransferJournal? journal = null, VerifyPolicy? verifyPolicy = null, IFileVerifier? verifier = null, BandwidthController? bandwidth = null, Func<LocationPath, string>? io = null)
     {
+        _io = io ?? (path => path.ToWin32Path());
         _bandwidth = bandwidth;
         _verifyPolicy = verifyPolicy ?? new VerifyPolicy();
         _verifier = verifier ?? new HashFileVerifier(fileSystem, _verifyPolicy);
@@ -53,7 +54,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
         ArgumentOutOfRangeException.ThrowIfLessThan(bufferSize, 1);
         _fs = fileSystem;
         _bufferSize = bufferSize;
-        _planner = new TransferPlanner(fileSystem, identities);
+        _planner = new TransferPlanner(fileSystem, identities, _io);
         _plans = planStore ?? new InMemoryTransferPlanStore();
         _copier = copier ?? new ChunkedFileCopier(fileSystem, () => BufferPolicy.Fixed(bufferSize));
     }
@@ -66,7 +67,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
     {
         ArgumentNullException.ThrowIfNull(context);
         var request = context.Job.Request;
-        var destination = LocationPath.Parse(request.Destination!);
+        var destination = LocationPath.ParseExact(request.Destination!);
 
         // Plan first (spec §12.1 step 1): every file, its resolved name and its path, before a byte moves. The plan and a journal of
         // what is done are kept until the job ends, so a network drop, a worker restart or a reboot continues the same plan (same
@@ -121,7 +122,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
             {
                 if (item.Note is { } note)
                 {
-                    context.AddNote($"{LocationPath.Parse(item.Source).Name}: {note}");
+                    context.AddNote($"{LocationPath.ParseExact(item.Source).Name}: {note}");
                 }
 
                 // Files of a folder that were skipped for a permanent reason (spec §12.2): the rest of the folder still copies.
@@ -168,7 +169,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
                                         throw;
                                     }
 
-                                    skippedFiles.Add($"{LocationPath.Parse(step.Source).Name}: {ex.Message}");
+                                    skippedFiles.Add($"{LocationPath.ParseExact(step.Source).Name}: {ex.Message}");
                                     stepSkipped = true;
                                     break;
                                 }
@@ -186,7 +187,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
                         ? new ItemOutcome(item.Source, item.Target, ItemStatus.Done)
                         : new ItemOutcome(item.Source, null, ItemStatus.Failed, $"{skippedFiles.Count} file(s) skipped. {string.Join(" ", skippedFiles.Take(3))}");
                 }
-                catch (IOException ex) when (LocationErrors.Wrap(ex, destination.IsNetwork ? destination : LocationPath.Parse(item.Source)) is { IsTransient: true } transient)
+                catch (IOException ex) when (LocationErrors.Wrap(ex, destination.IsNetwork ? destination : LocationPath.ParseExact(item.Source)) is { IsTransient: true } transient)
                 {
                     // The network dropped: leave the plan and journal, let the host wait and run the job again from here (spec §12.2).
                     throw transient;
@@ -207,7 +208,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
             run.Publish(null);
             if (outcome.Status == ItemStatus.Failed)
             {
-                failures.Add($"{LocationPath.Parse(item.Source).Name}: {outcome.Error}");
+                failures.Add($"{LocationPath.ParseExact(item.Source).Name}: {outcome.Error}");
             }
         }
 
@@ -217,7 +218,9 @@ public sealed class CopyMoveExecutor : IJobExecutor
             : new JobOutcome(JobState.Failed, $"{failures.Count} of {plan.Items.Count} item(s) failed. {string.Join(" ", failures.Take(3))}");
     }
 
-    private static string Io(LocationPath path) => path.ToWin32Path();
+    private readonly Func<LocationPath, string> _io;
+
+    private string Io(LocationPath path) => _io(path);
 
     /// <summary>The most clashes sent to the dialog; any beyond it follow its "for all" rule (spec §12.4).</summary>
     public const int MaxListedClashes = 1000;
@@ -249,7 +252,7 @@ public sealed class CopyMoveExecutor : IJobExecutor
     }
 
     private static bool IsTransient(Exception exception, LocationPath destination) =>
-        exception is IOException io && LocationErrors.Wrap(io, destination.IsNetwork ? destination : LocationPath.Parse(@"C:\")).IsTransient;
+        exception is IOException io && LocationErrors.Wrap(io, destination.IsNetwork ? destination : LocationPath.ParseExact(@"C:\")).IsTransient;
 
     /// <summary>Why an item failed, for the prompt and for "skip all like this".</summary>
     public static ErrorKind Classify(Exception exception) => exception switch
@@ -291,8 +294,8 @@ public sealed class CopyMoveExecutor : IJobExecutor
     private static bool Matches(TransferPlan plan, JobRequest request) =>
         plan.Move == (request.Kind == JobKind.Move)
         && plan.Conflict == request.Conflict
-        && string.Equals(plan.Destination, LocationPath.Parse(request.Destination!).Value, StringComparison.Ordinal)
-        && plan.Items.Select(i => i.Source).SequenceEqual(request.Sources.Select(s => LocationPath.Parse(s).Value));
+        && string.Equals(plan.Destination, LocationPath.ParseExact(request.Destination!).Value, StringComparison.Ordinal)
+        && plan.Items.Select(i => i.Source).SequenceEqual(request.Sources.Select(s => LocationPath.ParseExact(s).Value));
 
     private void Forget(Guid jobId)
     {
@@ -333,10 +336,10 @@ public sealed class CopyMoveExecutor : IJobExecutor
         switch (step.Op)
         {
             case PlanOp.RemoveFolder:
-                return !_fs.Directory.Exists(Io(LocationPath.Parse(step.Source)));
+                return !_fs.Directory.Exists(Io(LocationPath.ParseExact(step.Source)));
             case PlanOp.RenameItem or PlanOp.CopyFile when move:
-                var source = Io(LocationPath.Parse(step.Source));
-                var target = Io(LocationPath.Parse(step.Target));
+                var source = Io(LocationPath.ParseExact(step.Source));
+                var target = Io(LocationPath.ParseExact(step.Target));
                 var sourceGone = !_fs.File.Exists(source) && !_fs.Directory.Exists(source);
                 return sourceGone && (_fs.File.Exists(target) || _fs.Directory.Exists(target));
             default:
@@ -359,8 +362,8 @@ public sealed class CopyMoveExecutor : IJobExecutor
 
     private async Task RunStepAsync(Run run, PlanStep step, long confirmed, Action<long> onConfirmed, CancellationToken ct)
     {
-        var source = LocationPath.Parse(step.Source);
-        var target = LocationPath.Parse(step.Target);
+        var source = LocationPath.ParseExact(step.Source);
+        var target = LocationPath.ParseExact(step.Target);
         switch (step.Op)
         {
             case PlanOp.RenameItem:

@@ -256,7 +256,7 @@ public sealed class ChunkedFileCopier : IFileCopier
     }
 
     private static bool IsTransient(IOException exception) =>
-        Core.Providers.LocationErrors.Wrap(exception, Core.Paths.LocationPath.Parse(@"\\server\share")).IsTransient;
+        Core.Providers.LocationErrors.Wrap(exception, Core.Paths.LocationPath.ParseExact(@"\\server\share")).IsTransient;
 
     /// <summary>How many bytes of an earlier part file can be kept: what the journal confirmed, if the part file still holds them.</summary>
     private long ResumePoint(FileCopyRequest request, string part, long length, bool unbuffered)

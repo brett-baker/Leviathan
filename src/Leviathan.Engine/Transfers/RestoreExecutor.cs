@@ -38,8 +38,8 @@ public sealed class RestoreExecutor : IJobExecutor
         for (var i = 0; i < request.Sources.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var source = LocationPath.Parse(request.Sources[i]);
-            var target = LocationPath.Parse(targets[i]);
+            var source = LocationPath.ParseExact(request.Sources[i]);
+            var target = LocationPath.ParseExact(targets[i]);
             context.Report(0, -1, i, request.Sources.Count, source.Name);
             ItemOutcome outcome;
             try

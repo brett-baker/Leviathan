@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Leviathan.Core.Paths;
 
 namespace Leviathan.Engine.Transfers;
 
@@ -15,18 +16,33 @@ internal static class PermanentDelete
             return;
         }
 
-        if (fs.File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint))
+        DeleteFolder(fs, path);
+    }
+
+    // Walked folder by folder, not with one recursive call, so that every name goes through LocationPath.ForIo: a file or folder called "x."
+    // or "con" (they come from shares and other systems) is only reachable through the extended prefix, and a recursive delete would
+    // try them by their plain names and stop with "path not found".
+    private static void DeleteFolder(IFileSystem fs, string folder)
+    {
+        if (fs.File.GetAttributes(folder).HasFlag(FileAttributes.ReparsePoint))
         {
-            fs.Directory.Delete(path, recursive: false);
+            fs.Directory.Delete(folder, recursive: false);
             return;
         }
 
-        foreach (var file in fs.Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        foreach (var file in fs.Directory.EnumerateFiles(folder).ToList())
         {
-            ClearReadOnly(fs, file);
+            var io = LocationPath.ForIo(file);
+            ClearReadOnly(fs, io);
+            fs.File.Delete(io);
         }
 
-        fs.Directory.Delete(path, recursive: true);
+        foreach (var child in fs.Directory.EnumerateDirectories(folder).ToList())
+        {
+            DeleteFolder(fs, LocationPath.ForIo(child));
+        }
+
+        fs.Directory.Delete(folder, recursive: false);
     }
 
     private static void ClearReadOnly(IFileSystem fs, string path)

@@ -53,7 +53,7 @@ public sealed class PurgeExecutor : IJobExecutor
         }
         else
         {
-            targets = [.. request.Sources.Select(LocationPath.Parse)];
+            targets = [.. request.Sources.Select(LocationPath.ParseExact)];
         }
 
         var failures = new List<string>();

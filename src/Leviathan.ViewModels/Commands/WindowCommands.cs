@@ -1406,7 +1406,7 @@ public static partial class WindowCommands
             if (Current() is { } changed)
             {
                 // Items came back or went away in other folders too: whatever the cache holds for them is out of date.
-                foreach (var touched in outcome.Touched.Select(LocationPath.Parse))
+                foreach (var touched in outcome.Touched.Select(LocationPath.ParseExact))
                 {
                     changed.Folder.Cache?.Invalidate(touched, includeDescendants: true);
                     if (touched.Parent is { } parent)
@@ -1419,7 +1419,7 @@ public static partial class WindowCommands
             if (Current() is { } tab)
             {
                 var here = tab.History.Current;
-                var inHere = outcome.Touched.Select(LocationPath.Parse).Where(p => p.Parent == here).ToList();
+                var inHere = outcome.Touched.Select(LocationPath.ParseExact).Where(p => p.Parent == here).ToList();
                 if (inHere.Count > 0)
                 {
                     await tab.ReloadAndSelectAsync(inHere[0], ct);

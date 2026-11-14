@@ -17,12 +17,18 @@ public sealed class TransferPlanner
     private readonly ServerIdentityMap? _identities;
 
     /// <summary>Creates the planner over <paramref name="fileSystem"/>; with <paramref name="identities"/>, names of one server count as one.</summary>
-    public TransferPlanner(IFileSystem fileSystem, ServerIdentityMap? identities = null)
+    /// <param name="fileSystem">The file system.</param>
+    /// <param name="identities">Server names that count as one.</param>
+    /// <param name="io">Turns a location into the path handed to <paramref name="fileSystem"/>; the Win32 path (extended when a name needs it) by default. A test file system that cannot hold extended paths passes the plain value.</param>
+    public TransferPlanner(IFileSystem fileSystem, ServerIdentityMap? identities = null, Func<LocationPath, string>? io = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         _fs = fileSystem;
         _identities = identities;
+        _io = io ?? (path => path.ToWin32Path());
     }
+
+    private readonly Func<LocationPath, string> _io;
 
     /// <summary>Same drive, or the same share under the same server name: a move between them can be a rename.</summary>
     public static bool SameVolume(LocationPath a, LocationPath b) =>
@@ -51,18 +57,18 @@ public sealed class TransferPlanner
     {
         ArgumentNullException.ThrowIfNull(request);
         var move = request.Kind == JobKind.Move;
-        var destination = LocationPath.Parse(request.Destination!);
+        var destination = LocationPath.ParseExact(request.Destination!);
         var items = new List<PlanItem>();
         foreach (var text in request.Sources)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            items.Add(PlanTopLevel(LocationPath.Parse(text), destination, move, request.Conflict, cancellationToken));
+            items.Add(PlanTopLevel(LocationPath.ParseExact(text), destination, move, request.Conflict, cancellationToken));
         }
 
         return new TransferPlan(jobId, move, request.Conflict, destination.Value, items);
     }
 
-    private static string Io(LocationPath path) => path.ToWin32Path();
+    private string Io(LocationPath path) => _io(path);
 
     /// <summary>True for the policies that are settled after planning, once the clashes are known (spec §12.4).</summary>
     public static bool DecidesLater(ConflictPolicy policy) =>
@@ -75,8 +81,8 @@ public sealed class TransferPlanner
         var list = new List<ConflictItem>();
         foreach (var step in plan.Clashes)
         {
-            var source = _fs.FileInfo.New(Io(LocationPath.Parse(step.Source)));
-            var target = _fs.FileInfo.New(Io(LocationPath.Parse(step.Target)));
+            var source = _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Source)));
+            var target = _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Target)));
             list.Add(new ConflictItem(step.Source, step.Target, source.Length, source.LastWriteTimeUtc, target.Length, target.LastWriteTimeUtc));
         }
 
@@ -127,7 +133,7 @@ public sealed class TransferPlanner
                 }
                 else if (rule == ConflictPolicy.KeepBoth)
                 {
-                    var target = LocationPath.Parse(step.Target);
+                    var target = LocationPath.ParseExact(step.Target);
                     var folder = target.Parent ?? throw new InvalidOperationException($"{target.Name} has no folder.");
                     steps.Add(step with { Target = UniqueName(folder, target.Name, isFolder: false).Value, Clash = false });
                 }
@@ -150,16 +156,16 @@ public sealed class TransferPlanner
     }
 
     private bool IsNewer(PlanStep step) =>
-        _fs.FileInfo.New(Io(LocationPath.Parse(step.Source))).LastWriteTimeUtc > _fs.FileInfo.New(Io(LocationPath.Parse(step.Target))).LastWriteTimeUtc;
+        _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Source))).LastWriteTimeUtc > _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Target))).LastWriteTimeUtc;
 
     private bool IsLarger(PlanStep step) =>
-        _fs.FileInfo.New(Io(LocationPath.Parse(step.Source))).Length > _fs.FileInfo.New(Io(LocationPath.Parse(step.Target))).Length;
+        _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Source))).Length > _fs.FileInfo.New(Io(LocationPath.ParseExact(step.Target))).Length;
 
     /// <summary>Different size means different; the same size is compared by SHA-256, so a touched but unchanged file is left alone.</summary>
     private bool IsDifferent(PlanStep step, CancellationToken ct)
     {
-        var source = Io(LocationPath.Parse(step.Source));
-        var target = Io(LocationPath.Parse(step.Target));
+        var source = Io(LocationPath.ParseExact(step.Source));
+        var target = Io(LocationPath.ParseExact(step.Target));
         if (_fs.FileInfo.New(source).Length != _fs.FileInfo.New(target).Length)
         {
             return true;
@@ -244,7 +250,7 @@ public sealed class TransferPlanner
             var name = _fs.Path.GetFileName(entry);
             var child = source.Combine(name);
             var childTarget = target.Combine(TargetName(name, network, renamed));
-            if (_fs.Directory.Exists(entry))
+            if (_fs.Directory.Exists(Io(child)))
             {
                 PlanFolder(child, childTarget, move, conflict, steps, network, renamed, ct);
                 continue;
@@ -268,7 +274,7 @@ public sealed class TransferPlanner
                 }
             }
 
-            steps.Add(new PlanStep(PlanOp.CopyFile, child.Value, childTarget.Value, _fs.FileInfo.New(entry).Length, Choose(child, childTarget, move), clash));
+            steps.Add(new PlanStep(PlanOp.CopyFile, child.Value, childTarget.Value, _fs.FileInfo.New(Io(child)).Length, Choose(child, childTarget, move), clash));
         }
 
         if (move)
@@ -304,7 +310,7 @@ public sealed class TransferPlanner
             }
 
             return _fs.Directory.Exists(Io(source))
-                ? _fs.Directory.EnumerateFiles(Io(source), "*", SearchOption.AllDirectories).Sum(f => _fs.FileInfo.New(f).Length)
+                ? _fs.Directory.EnumerateFiles(Io(source), "*", SearchOption.AllDirectories).Sum(f => _fs.FileInfo.New(LocationPath.ForIo(f)).Length)
                 : 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

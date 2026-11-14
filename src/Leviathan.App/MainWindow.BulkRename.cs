@@ -42,7 +42,7 @@ public sealed partial class MainWindow
                         : result.Problems.Count > 0 ? result.Problems[0] : "No names changed.";
                     if (result.Renamed > 0 && ReferenceEquals(_bound, tab))
                     {
-                        await tab.ReloadAndSelectAsync([.. result.Touched.Select(LocationPath.Parse)], CancellationToken.None);
+                        await tab.ReloadAndSelectAsync([.. result.Touched.Select(LocationPath.ParseExact)], CancellationToken.None);
                     }
                 });
             }).Activate();

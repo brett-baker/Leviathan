@@ -184,6 +184,46 @@ public class LocationPathTests
         Assert.StartsWith(@"\\?\", shortPath.ToWin32Path(forceExtended: true));
     }
 
+    [Theory]
+    [InlineData(@"C:\data\trailing dot.")]
+    [InlineData(@"C:\data\ends with two dots..")]
+    [InlineData(@"C:\data\con")]
+    [InlineData(@"C:\data\AUX.txt")]
+    [InlineData(@"C:\data\nul.log")]
+    [InlineData(@"C:\data\Com1")]
+    [InlineData(@"C:\dots.\inside.txt")]
+    [InlineData(@"\\nas\media\old show.\ep1.mkv")]
+    public void ToWin32Path_AddsTheExtendedPrefix_ForNamesWindowsWouldChange(string path)
+    {
+        var location = LocationPath.Parse(path);
+
+        Assert.StartsWith(@"\\?\", location.ToWin32Path());
+        Assert.EndsWith(path.Split('\\')[^1], location.ToWin32Path());
+    }
+
+    [Theory]
+    [InlineData(@"C:\data\console.txt")]
+    [InlineData(@"C:\data\com10")]
+    [InlineData(@"C:\data\.hidden")]
+    [InlineData(@"C:\data\a.b.c")]
+    [InlineData(@"C:\data\nulls")]
+    [InlineData(@"C:\data\plain name.txt")]
+    public void ToWin32Path_LeavesOrdinaryNamesAlone(string path) => Assert.Equal(path, LocationPath.Parse(path).ToWin32Path());
+
+    [Fact]
+    public void AChildWithATrailingDot_KeepsItsName()
+    {
+        var child = LocationPath.Parse(@"C:\data").Combine("ends with two dots..");
+
+        Assert.Equal("ends with two dots..", child.Name);
+        Assert.Equal(@"\\?\C:\data\ends with two dots..", child.ToWin32Path());
+
+        // Parse trims the whole text, so a trailing space can only come in as a name that was listed.
+        var spaced = LocationPath.Parse(@"C:\data").Combine("trailing space ");
+        Assert.Equal("trailing space ", spaced.Name);
+        Assert.Equal(@"\\?\C:\data\trailing space ", spaced.ToWin32Path());
+    }
+
     [Fact]
     public void ToWin32Path_ForUri_Throws()
     {

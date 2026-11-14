@@ -43,10 +43,12 @@ public sealed class StressTests
     private static FileEntry File(string folder, string name, long size = 1, FileEntryKind kind = FileEntryKind.File) =>
         new(name, LocationPath.Parse(folder).Combine(name), kind, size, Stamp.AddSeconds(size % 100_000), Stamp, FileAttributes.Normal);
 
-    [Fact]
-    public async Task AFolderOfOneHundredThousandFiles_LoadsSortsFiltersAndSelects_InReasonableTime_WithFewUpdates()
+    [Theory]
+    [InlineData(100_000)]
+    [InlineData(500_000)]
+    public async Task ALargeFolder_LoadsSortsFiltersAndSelects_InReasonableTime_WithFewUpdates(int count)
     {
-        var entries = Enumerable.Range(0, 100_000)
+        var entries = Enumerable.Range(0, count)
             .Select(i => File(@"C:\big", $"clip {i:D6}{(i % 3 == 0 ? ".mkv" : i % 3 == 1 ? ".mp4" : ".txt")}", size: (i * 7919L) % 1_000_000, kind: i % 500 == 0 ? FileEntryKind.Folder : FileEntryKind.File))
             .ToList();
         // A serial UI thread like the real dispatcher: the inline test context runs chunks on whichever thread posts them, which a
@@ -59,29 +61,29 @@ public sealed class StressTests
         var clock = Stopwatch.StartNew();
 
         await ui.RunAsync(() => tab.ReloadAsync(CancellationToken.None));
-        var deadline = Stopwatch.GetTimestamp() + (30 * Stopwatch.Frequency);
+        var deadline = Stopwatch.GetTimestamp() + ((count > 100_000 ? 90 : 30) * Stopwatch.Frequency);
         while (tab.Folder.State == FolderLoadState.Loading && Stopwatch.GetTimestamp() < deadline)
         {
             await Task.Delay(10);
         }
 
         Assert.Equal(FolderLoadState.Loaded, tab.Folder.State);
-        Assert.Equal(100_000, tab.Folder.Entries.Count);
-        Assert.Equal(100_000, tab.Items.ShownCount);
+        Assert.Equal(count, tab.Folder.Entries.Count);
+        Assert.Equal(count, tab.Items.ShownCount);
         // Rows reach the list in chunks, not one change per item (spec 3.2): a hundred thousand rows are about fifty chunks, never ten thousand updates.
-        Assert.True(changes < 500, $"{changes} list updates for 100,000 rows");
+        Assert.True(changes < 1000, $"{changes} list updates for {count:N0} rows");
 
         tab.Items.SortBy("size");
         var files = tab.Items.Rows.Where(r => r.Kind == FileEntryKind.File).Take(5000).Select(r => r.Size).ToList();
         Assert.Equal(files.Order().ToList(), files);
         tab.Items.SortBy("name");
         tab.Items.SetFilter("*.mkv");
-        Assert.Equal(Enumerable.Range(0, 100_000).Count(i => i % 3 == 0), tab.Items.ShownCount);
+        Assert.Equal(Enumerable.Range(0, count).Count(i => i % 3 == 0), tab.Items.ShownCount);
         tab.Items.SetFilter(null);
         tab.Selection.SelectAll();
-        Assert.Equal(100_000, tab.Selection.Count);
+        Assert.Equal(count, tab.Selection.Count);
         tab.Selection.Clear();
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"load, sort, filter and select took {clock.Elapsed.TotalSeconds:0.0} s");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(count > 100_000 ? 90 : 30), $"load, sort, filter and select of {count:N0} files took {clock.Elapsed.TotalSeconds:0.0} s");
         tab.Dispose();
     }
 

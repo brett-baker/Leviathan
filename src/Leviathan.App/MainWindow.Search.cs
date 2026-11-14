@@ -125,7 +125,7 @@ public sealed partial class MainWindow
             Reveal,
             async paths =>
             {
-                var outcome = await host.Transfers.DeleteAsync([.. paths.Select(LocationPath.Parse)], permanent: false, CancellationToken.None);
+                var outcome = await host.Transfers.DeleteAsync([.. paths.Select(LocationPath.ParseExact)], permanent: false, CancellationToken.None);
                 ShowMessage(outcome.Message);
                 return outcome.Started;
             },

@@ -110,13 +110,31 @@ public sealed class LocationPath : IEquatable<LocationPath>
     /// <summary>Parses a location without throwing.</summary>
     public static bool TryParse(string? input, [NotNullWhen(true)] out LocationPath? path) => TryParse(input, out path, out _);
 
+    /// <summary>
+    /// Parses a location exactly as written, without trimming spaces from the text or from any name in it. For a path that came from a
+    /// listing, a job plan or a journal (<see cref="Value"/> of an earlier location): a file called <c>"report "</c> or <c>" notes.txt"</c>
+    /// is a real name on a share, and trimming it would point at a different file. Text a person typed goes through <see cref="TryResolve"/>.
+    /// </summary>
+    public static LocationPath ParseExact(string input)
+    {
+        if (TryParseCore(input, exact: true, out var path, out var error))
+        {
+            return path;
+        }
+
+        throw new FormatException(error);
+    }
+
     /// <summary>Parses a location without throwing, returning a human-readable reason on failure.</summary>
-    public static bool TryParse(string? input, [NotNullWhen(true)] out LocationPath? path, out string error)
+    public static bool TryParse(string? input, [NotNullWhen(true)] out LocationPath? path, out string error) =>
+        TryParseCore(input, exact: false, out path, out error);
+
+    private static bool TryParseCore(string? input, bool exact, [NotNullWhen(true)] out LocationPath? path, out string error)
     {
         path = null;
         error = string.Empty;
 
-        var text = Clean(input, expandEnvironment: false);
+        var text = exact ? input ?? string.Empty : Clean(input, expandEnvironment: false);
         if (text.Length == 0)
         {
             error = "The path is empty.";
@@ -132,7 +150,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
                 return false;
             }
 
-            var parts = SplitSegments(name);
+            var parts = SplitSegments(name, exact);
             if (!Normalize(parts, out var shellSegments, out error))
             {
                 return false;
@@ -161,7 +179,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
 
         if (text.StartsWith(@"\\", StringComparison.Ordinal))
         {
-            var parts = SplitSegments(text[2..]);
+            var parts = SplitSegments(text[2..], exact);
             if (parts.Count == 0)
             {
                 error = "A network path needs a server name, e.g. \\\\server\\share.";
@@ -199,7 +217,7 @@ public sealed class LocationPath : IEquatable<LocationPath>
             }
 
             var root = char.ToUpperInvariant(text[0]) + @":\";
-            if (!Normalize(SplitSegments(text[2..]), out var driveSegments, out error))
+            if (!Normalize(SplitSegments(text[2..], exact), out var driveSegments, out error))
             {
                 return false;
             }
@@ -301,7 +319,9 @@ public sealed class LocationPath : IEquatable<LocationPath>
 
     /// <summary>
     /// The path to hand to Win32 file APIs. Adds the extended-length prefix (<c>\\?\</c> or <c>\\?\UNC\</c>) when the path
-    /// reaches <see cref="MaxPath"/> characters, so long paths work everywhere (spec §5.2).
+    /// reaches <see cref="MaxPath"/> characters, so long paths work everywhere (spec §5.2), and when a name in it would be changed by
+    /// Windows' path rules (a trailing dot or space, a device name such as <c>CON</c>): files like that exist on shares and come from
+    /// other systems, and only the prefix lets them be copied, moved and deleted (build plan G3).
     /// </summary>
     public string ToWin32Path(bool forceExtended = false)
     {
@@ -310,12 +330,82 @@ public sealed class LocationPath : IEquatable<LocationPath>
             throw new InvalidOperationException($"{Kind} locations have no Win32 path.");
         }
 
-        if (!forceExtended && Value.Length < MaxPath)
+        if (!forceExtended && Value.Length < MaxPath && !HasNameWindowsWouldChange())
         {
             return Value;
         }
 
         return Kind == LocationKind.Drive ? ExtendedPrefix + Value : ExtendedUncPrefix + Value[2..];
+    }
+
+    private static readonly string[] DeviceNames =
+    [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+
+    // True when Win32's normal path handling would strip or redirect a name: a trailing dot or space, or a device name with or without an extension.
+    private bool HasNameWindowsWouldChange()
+    {
+        foreach (var segment in _segments)
+        {
+            if (NameWindowsWouldChange(segment))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool NameWindowsWouldChange(string segment)
+    {
+        if (segment.Length == 0)
+        {
+            return false;
+        }
+
+        var last = segment[^1];
+        if ((last is '.' or ' ') && segment is not "." and not "..")
+        {
+            return true;
+        }
+
+        var dot = segment.IndexOf('.', StringComparison.Ordinal);
+        var stem = (dot < 0 ? segment.AsSpan() : segment.AsSpan(0, dot)).TrimEnd();
+        if (stem.Length is 3 or 4)
+        {
+            foreach (var device in DeviceNames)
+            {
+                if (stem.Equals(device, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// For a path that came from enumerating a folder with an ordinary path (a string, not a <see cref="LocationPath"/>): the same path
+    /// with the extended prefix when its last name is one Windows would change, otherwise the path unchanged. Lets code that walks a tree
+    /// by strings reach a file called <c>"x."</c> or <c>"con"</c> without turning every path into the extended form.
+    /// </summary>
+    public static string ForIo(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (!OperatingSystem.IsWindows() || path.StartsWith(ExtendedPrefix, StringComparison.Ordinal))
+        {
+            return path;
+        }
+
+        var name = path[(path.LastIndexOfAny(['\\', '/']) + 1)..];
+        if (!NameWindowsWouldChange(name))
+        {
+            return path;
+        }
+
+        return path.StartsWith(@"\\", StringComparison.Ordinal) ? ExtendedUncPrefix + path[2..] : ExtendedPrefix + path;
     }
 
     /// <summary>True when <paramref name="other"/> is this location or lies below it.</summary>
@@ -484,8 +574,8 @@ public sealed class LocationPath : IEquatable<LocationPath>
         return text;
     }
 
-    private static List<string> SplitSegments(string text) =>
-        [.. text.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+    private static List<string> SplitSegments(string text, bool exact = false) =>
+        [.. text.Split(['\\', '/'], exact ? StringSplitOptions.RemoveEmptyEntries : StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
     private static bool Normalize(IEnumerable<string> parts, out string[] segments, out string error)
     {

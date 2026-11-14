@@ -37,6 +37,13 @@ static int Usage()
     return 64;
 }
 
+var bigCopy = Array.IndexOf(args, "--big-copy");
+if (bigCopy >= 0)
+{
+    // A very large file through the copy engine on local disks (build plan G3); the size in GiB, 8 by default.
+    return await BigFileGate.RunAsync(bigCopy + 1 < args.Length && int.TryParse(args[bigCopy + 1], out var gib) ? gib : 8);
+}
+
 var idleMemory = Array.IndexOf(args, "--idle-memory");
 if (idleMemory >= 0 && idleMemory + 1 < args.Length)
 {
