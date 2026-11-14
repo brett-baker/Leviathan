@@ -3,7 +3,8 @@
     x:Class="Leviathan.App.DiagnosticsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Leviathan.App">
+    xmlns:local="using:Leviathan.App"
+    xmlns:diag="using:Leviathan.ViewModels.Diagnostics">
 
   <Window.SystemBackdrop>
     <MicaBackdrop />
@@ -14,14 +15,15 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
+      <RowDefinition Height="*" MinHeight="120" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
     <StackPanel Grid.Row="0" Spacing="2">
       <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Leviathan diagnostics" />
       <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                 Text="Worker connection, job queue, folder sizes and UI stall count." />
+                 Text="Worker connection, job queue, folder sizes, UI stalls, and crashes grouped by signature." />
     </StackPanel>
 
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
@@ -75,8 +77,42 @@
       </ListView.ItemTemplate>
     </ListView>
 
+    <StackPanel Grid.Row="4" Spacing="6">
+      <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Crashes and reports" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="CopyReportButton" Content="Copy for Claude" IsEnabled="False" Click="OnCopyReportClick"
+                ToolTipService.ToolTip="Puts the report of the latest crash of the selected bug on the clipboard" />
+        <Button x:Name="OpenBundleButton" Content="Open folder" IsEnabled="False" Click="OnOpenBundleClick"
+                ToolTipService.ToolTip="The full bundle: report, events, actions, environment" />
+        <Button Content="All crash folders" Click="OnOpenCrashesClick" />
+        <Button Content="Refresh" Click="OnRefreshCrashesClick" />
+      </StackPanel>
+      <ListView x:Name="CrashListView" Height="150" SelectionMode="Single" SelectionChanged="OnCrashSelected"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6">
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="diag:CrashRow">
+            <StackPanel Padding="4,4" Spacing="1">
+              <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+      <TextBlock x:Name="CrashEmptyText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed"
+                 Text="No crashes or reports yet." />
+      <Grid ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="ReportNoteBox" PlaceholderText="Something is wrong but nothing crashed? Say what you saw (optional)" AutomationProperties.Name="Problem description" />
+        <Button Grid.Column="1" Content="Report a problem" Click="OnReportProblemClick"
+                ToolTipService.ToolTip="Writes a bundle now, with the recent log and your last actions, ready to copy for Claude" />
+      </Grid>
+    </StackPanel>
+
     <TextBlock x:Name="FooterText"
-               Grid.Row="4"
+               Grid.Row="5"
                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                Style="{StaticResource CaptionTextBlockStyle}"
                Text="" />
