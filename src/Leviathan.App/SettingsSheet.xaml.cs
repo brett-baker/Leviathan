@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Leviathan.Data;
 using Leviathan.ViewModels.Commands;
+using Leviathan.ViewModels.Triage;
 using Leviathan.ViewModels.Folders;
 using Leviathan.ViewModels.Settings;
 using Microsoft.UI.Xaml;
@@ -35,6 +36,9 @@ internal sealed partial class SettingsSheet : UserControl
     private readonly SettingsSheetModel _model;
     private bool _ready;
     private bool _loading;
+    private bool _keysLoading;
+    private KeyboardRow? _editing;
+    private KeyGesture? _pending;
     private readonly TextBox[] _quickBoxes = new TextBox[QuickTargets.Count];
 
     public SettingsSheet(SettingsSheetModel model)
@@ -54,6 +58,9 @@ internal sealed partial class SettingsSheet : UserControl
 
     /// <summary>Gives the Keyboard page its rows (the window knows the commands).</summary>
     internal Func<IReadOnlyList<Leviathan.ViewModels.Commands.KeyboardRow>> KeyRows { get; set; } = () => [];
+
+    /// <summary>The window handle the file pickers need (export and import of keys).</summary>
+    internal nint WindowHandle { get; set; }
 
     /// <summary>The user asked for the diagnostics window.</summary>
     internal event EventHandler? DiagnosticsRequested;
@@ -848,11 +855,190 @@ internal sealed partial class SettingsSheet : UserControl
                 || r.Keys.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || r.Command.Value.Contains(filter, StringComparison.OrdinalIgnoreCase))
             .ToList();
+        _keysLoading = true;
         KeyList.ItemsSource = rows;
+        if (_editing is { } editing)
+        {
+            var again = rows.FirstOrDefault(r => r.Command == editing.Command);
+            KeyList.SelectedItem = again;
+            _editing = again;
+            if (again is null)
+            {
+                KeyEditor.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                ShowEditor(again);
+            }
+        }
+
+        _keysLoading = false;
         KeyProblemsText.Text = string.Join(Environment.NewLine, App.Host.KeyProblems);
         KeyProblemsText.Visibility = App.Host.KeyProblems.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         KeyNotesText.Text = string.Join(Environment.NewLine, App.Host.KeyNotes);
         KeyNotesText.Visibility = App.Host.KeyNotes.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    // ---- Keyboard editing (spec §17.2)
+
+    private static bool IsTriageKey(CommandId id) => TriageCommands.IsTriage(id.Value);
+
+    private static KeyMap CurrentMap(CommandId id) => IsTriageKey(id) ? App.Host.TriageKeys : App.Host.Keys;
+
+    private static KeyMap DefaultMap(CommandId id) => IsTriageKey(id) ? TriageCommands.DefaultKeyMap() : WindowCommands.DefaultKeyMap();
+
+    private static bool IsKnown(CommandId id) => IsTriageKey(id) ? TriageCommands.IsKnown(id) : CommandIds.All.Contains(id);
+
+    private void OnKeyRowSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _keysLoading || KeyList.SelectedItem is not KeyboardRow row)
+        {
+            return;
+        }
+
+        _editing = row;
+        _pending = null;
+        KeyCaptureBox.Text = string.Empty;
+        KeyApplyButton.IsEnabled = false;
+        ShowEditor(row);
+    }
+
+    private void ShowEditor(KeyboardRow row)
+    {
+        KeyEditor.Visibility = Visibility.Visible;
+        KeyEditorTitle.Text = $"{row.Title}: {SettingsFormat.Keys(row.Keys)}";
+        KeyEditorNote.Text = row.IsCustom ? "Changed from the default." : "The default.";
+        KeyResetButton.IsEnabled = row.IsCustom;
+    }
+
+    // The box is read-only; it only listens. Modifiers alone give no gesture, so nothing is taken until a real key comes.
+    private void OnKeyCapture(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (_editing is not { } row || KeyTranslator.ToGesture(e.Key) is not { } gesture)
+        {
+            return;
+        }
+
+        _pending = gesture;
+        KeyCaptureBox.Text = gesture.ToString();
+        KeyApplyButton.IsEnabled = true;
+        var holder = KeyBindingEditor.HeldBy(CurrentMap(row.Command), row.Command, gesture);
+        KeyEditorNote.Text = holder is { } other
+            ? $"{gesture} runs {KeyRows().FirstOrDefault(r => r.Command == other)?.Title ?? other.Value} now. Using it here takes it from there."
+            : $"{gesture} is free.";
+    }
+
+    private async void OnKeyApplyClick(object sender, RoutedEventArgs e)
+    {
+        if (_editing is not { } row || _pending is not { } gesture)
+        {
+            return;
+        }
+
+        _pending = null;
+        KeyApplyButton.IsEnabled = false;
+        await SaveAsync(s => s with { KeyBindings = KeyBindingEditor.Set(s.KeyBindings, row.Command, gesture, DefaultMap(row.Command)) });
+    }
+
+    private async void OnKeyRemoveClick(object sender, RoutedEventArgs e)
+    {
+        if (_editing is not { } row)
+        {
+            return;
+        }
+
+        await SaveAsync(s => s with { KeyBindings = KeyBindingEditor.Unbind(s.KeyBindings, row.Command, DefaultMap(row.Command)) });
+    }
+
+    private async void OnKeyResetClick(object sender, RoutedEventArgs e)
+    {
+        if (_editing is not { } row)
+        {
+            return;
+        }
+
+        await SaveAsync(s => s with { KeyBindings = KeyBindingEditor.Reset(s.KeyBindings, row.Command) });
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string text, string yes)
+    {
+        var dialog = new ContentDialog { Title = title, Content = text, PrimaryButtonText = yes, CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    private async void OnKeysResetAllClick(object sender, RoutedEventArgs e)
+    {
+        var count = App.Host.Settings.Current.KeyBindings.Count;
+        if (count == 0)
+        {
+            KeyFileNote.Text = "Every command already has its default key.";
+            return;
+        }
+
+        if (await ConfirmAsync("Reset all keys?", $"{count:N0} changed key{(count == 1 ? string.Empty : "s")} go back to the defaults. Export them first if you want to keep them.", "Reset all"))
+        {
+            await SaveAsync(s => s with { KeyBindings = [] });
+            KeyFileNote.Text = "All keys are the defaults again.";
+        }
+    }
+
+    private async void OnKeysExportClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileSavePicker { SuggestedFileName = "leviathan-keys" };
+            picker.FileTypeChoices.Add("Leviathan keys", [".json"]);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);
+            if (await picker.PickSaveFileAsync() is not { } file)
+            {
+                return;
+            }
+
+            var text = KeyBindingEditor.Export(App.Host.Settings.Current.KeyBindings);
+            await Task.Run(() => File.WriteAllText(file.Path, text, new System.Text.UTF8Encoding(false)));
+            KeyFileNote.Text = $"Saved {file.Name} with {App.Host.Settings.Current.KeyBindings.Count:N0} changed key{(App.Host.Settings.Current.KeyBindings.Count == 1 ? string.Empty : "s")}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            KeyFileNote.Text = $"Could not save the key file: {ex.Message}";
+        }
+    }
+
+    private async void OnKeysImportClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.FileTypeFilter.Add(".json");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);
+            if (await picker.PickSingleFileAsync() is not { } file)
+            {
+                return;
+            }
+
+            var text = await Task.Run(() => File.ReadAllText(file.Path));
+            var imported = KeyBindingEditor.Import(text, IsKnown);
+            if (!imported.IsKeyFile)
+            {
+                KeyFileNote.Text = imported.Problems[0];
+                return;
+            }
+
+            var had = App.Host.Settings.Current.KeyBindings.Count;
+            if (had > 0 && !await ConfirmAsync("Import keys?", $"The {imported.Bindings.Count:N0} changed key{(imported.Bindings.Count == 1 ? string.Empty : "s")} in {file.Name} replace your {had:N0}.", "Import"))
+            {
+                return;
+            }
+
+            await SaveAsync(s => s with { KeyBindings = new Dictionary<string, string>(imported.Bindings) });
+            KeyFileNote.Text = $"Imported {imported.Bindings.Count:N0} changed key{(imported.Bindings.Count == 1 ? string.Empty : "s")} from {file.Name}."
+                + (imported.Problems.Count > 0 ? " " + string.Join(" ", imported.Problems) : string.Empty);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            KeyFileNote.Text = $"Could not read the key file: {ex.Message}";
+        }
     }
 
     private void OnKeyFilterChanged(object sender, TextChangedEventArgs e)

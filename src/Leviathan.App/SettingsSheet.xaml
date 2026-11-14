@@ -295,16 +295,34 @@
               <StackPanel x:Name="KeyboardPage" Spacing="10" Visibility="Collapsed">
                 <TextBlock Text="Every command and the keys that run it." Style="{StaticResource SettingTitle}" />
                 <TextBlock Style="{StaticResource SettingNote}"
-                           Text="To change a key, edit the settings file: under &quot;KeyBindings&quot; write the command and its key, for example &quot;edit.delete&quot;: &quot;Ctrl+Backspace&quot;. An empty text removes the keys of that command. Then press &quot;Read the file again&quot;." />
+                           Text="Pick a command, click the box and press the new keys. A key another command uses moves to this one, and the page says which. Only your changes are saved; Reset puts the defaults back." />
                 <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Reset all keys" Click="OnKeysResetAllClick" />
+                  <Button Content="Export keys…" Click="OnKeysExportClick" />
+                  <Button Content="Import keys…" Click="OnKeysImportClick" />
                   <Button Content="Show the settings file" Click="OnShowSettingsFileClick" />
                   <Button Content="Read the file again" Click="OnReloadFileClick" />
                 </StackPanel>
+                <TextBlock x:Name="KeyFileNote" Style="{StaticResource SettingNote}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                 <TextBlock x:Name="KeyProblemsText" Style="{StaticResource SettingNote}" Foreground="{ThemeResource SystemFillColorCautionBrush}" IsTextSelectionEnabled="True" />
                 <TextBlock x:Name="KeyNotesText" Style="{StaticResource SettingNote}" IsTextSelectionEnabled="True" />
+                <Border x:Name="KeyEditor" Visibility="Collapsed" Padding="12" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                  <StackPanel Spacing="6">
+                    <TextBlock x:Name="KeyEditorTitle" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBox x:Name="KeyCaptureBox" Width="240" IsReadOnly="True" PlaceholderText="Click here, then press the keys" PreviewKeyDown="OnKeyCapture"
+                               AutomationProperties.Name="New keys" />
+                      <Button x:Name="KeyApplyButton" Content="Use these keys" IsEnabled="False" Click="OnKeyApplyClick" />
+                      <Button x:Name="KeyRemoveButton" Content="No key" Click="OnKeyRemoveClick" ToolTipService.ToolTip="The command keeps working from its menu and the palette; it just has no key" />
+                      <Button x:Name="KeyResetButton" Content="Reset" Click="OnKeyResetClick" ToolTipService.ToolTip="Back to the default key" />
+                    </StackPanel>
+                    <TextBlock x:Name="KeyEditorNote" Style="{StaticResource SettingNote}" />
+                  </StackPanel>
+                </Border>
                 <TextBox x:Name="KeyFilterBox" PlaceholderText="Filter the list" TextChanged="OnKeyFilterChanged" MaxWidth="360" HorizontalAlignment="Left"
                          AutomationProperties.Name="Filter the shortcuts" />
-                <ListView x:Name="KeyList" SelectionMode="None" ItemTemplate="{StaticResource KeyRowTemplate}" />
+                <ListView x:Name="KeyList" SelectionMode="Single" ItemTemplate="{StaticResource KeyRowTemplate}" SelectionChanged="OnKeyRowSelected" />
               </StackPanel>
 
               <!-- Pages that only say what they will hold -->

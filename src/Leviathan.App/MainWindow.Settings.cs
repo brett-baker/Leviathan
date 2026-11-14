@@ -72,6 +72,7 @@ public sealed partial class MainWindow
         {
             _settingsSheet = new SettingsSheet(_viewModel.SettingsSheet) { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch };
             _settingsSheet.KeyRows = () => [.. Leviathan.ViewModels.Commands.KeyMapBuilder.Rows(_commands.Commands, App.Host.Keys), .. Leviathan.ViewModels.Triage.TriageCommands.Rows(App.Host.TriageKeys)];
+            _settingsSheet.WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
             _settingsSheet.DiagnosticsRequested += (_, _) => Run(CommandIds.AppDiagnostics);
             SettingsLayer.Children.Add(_settingsSheet);
         }
