@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.WindowsRuntime;
 using Leviathan.Core.Model;
 using Leviathan.Core.Platform;
 using Leviathan.Media;
@@ -10,6 +11,7 @@ using LibVLCSharp.Shared;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
@@ -87,13 +89,15 @@ internal sealed partial class TriageWindow : Window
         _fade.IsRepeating = false;
         _fade.Tick += (_, _) => Overlay.Opacity = _overlayPinned ? 1 : 0;
         Overlay.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(400) };
+        // A filmstrip cell: a thumbnail in a rounded frame with a round mark for the decision in its corner. Children: 0 frame, 1 picture, 2 mark.
         Queue.ItemTemplate = (DataTemplate)XamlReader.Load(
             "<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>" +
-            "<Grid ColumnSpacing='8'><Grid.ColumnDefinitions><ColumnDefinition Width='20' /><ColumnDefinition Width='*' /></Grid.ColumnDefinitions>" +
-            "<TextBlock HorizontalAlignment='Center' /><TextBlock Grid.Column='1' TextTrimming='CharacterEllipsis' FontSize='12' /></Grid></DataTemplate>");
+            "<Grid Width='120' Height='68'><Border Background='#2B2B2B' CornerRadius='6' />" +
+            "<Image Stretch='UniformToFill' /><Border Width='18' Height='18' CornerRadius='9' HorizontalAlignment='Right' VerticalAlignment='Top' Margin='4' Visibility='Collapsed'>" +
+            "<TextBlock HorizontalAlignment='Center' VerticalAlignment='Center' FontSize='11' FontWeight='Bold' /></Border></Grid></DataTemplate>");
         Queue.ItemContainerStyle = (Style)XamlReader.Load(
             "<Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='ListViewItem'>" +
-            "<Setter Property='MinHeight' Value='0' /><Setter Property='Padding' Value='8,3,8,3' /></Style>");
+            "<Setter Property='MinHeight' Value='0' /><Setter Property='MinWidth' Value='0' /><Setter Property='Padding' Value='4' /></Style>");
         Queue.ContainerContentChanging += (_, args) =>
         {
             if (args.ItemContainer.ContentTemplateRoot is Grid row && args.Item is TriageItem item)
@@ -449,24 +453,75 @@ internal sealed partial class TriageWindow : Window
 
     private static void RenderRow(Grid row, TriageItem item)
     {
-        ((TextBlock)row.Children[0]).Text = item.Decision switch
+        var picture = (Image)row.Children[1];
+        var mark = (Border)row.Children[2];
+        var glyph = (TextBlock)mark.Child;
+
+        // Kept and discarded files carry a round mark; a discarded one is dimmed. Undecided files are plain.
+        mark.Visibility = item.Decision is TriageDecision.Kept or TriageDecision.Discarded or TriageDecision.Skipped ? Visibility.Visible : Visibility.Collapsed;
+        glyph.Text = item.Decision switch
         {
             TriageDecision.Kept => "✓",
             TriageDecision.Discarded => "✕",
-            TriageDecision.Skipped => "↷",
-            _ => "·",
+            _ => "↷",
         };
-        ((TextBlock)row.Children[0]).Foreground = item.Decision switch
+        (mark.Background, glyph.Foreground) = item.Decision switch
         {
-            TriageDecision.Kept => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 170, 90)),
-            TriageDecision.Discarded => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 210, 80, 80)),
-            _ => new SolidColorBrush(Windows.UI.Color.FromArgb(160, 150, 150, 150)),
+            TriageDecision.Kept => ((Brush)new SolidColorBrush(Windows.UI.Color.FromArgb(255, 76, 209, 138)), (Brush)new SolidColorBrush(Windows.UI.Color.FromArgb(255, 6, 33, 15))),
+            TriageDecision.Discarded => (new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 143, 148)), new SolidColorBrush(Windows.UI.Color.FromArgb(255, 58, 15, 18))),
+            _ => (new SolidColorBrush(Windows.UI.Color.FromArgb(200, 90, 90, 90)), new SolidColorBrush(Windows.UI.Color.FromArgb(255, 235, 235, 235))),
         };
-        var name = (TextBlock)row.Children[1];
-        name.Text = item.File.Name;
-        name.Opacity = item.Decision == TriageDecision.Discarded ? 0.5 : 1;
-        ToolTipService.SetToolTip(name, item.File.Location.Value);
+        row.Opacity = item.Decision == TriageDecision.Discarded ? 0.45 : 1;
+        ToolTipService.SetToolTip(row, item.File.Name);
+        AutomationProperties.SetName(row, item.File.Name);
+
+        // The thumbnail is fetched once per file, whatever the decision; a recycled cell for another file starts over.
+        if (!ReferenceEquals(picture.Tag, item))
+        {
+            picture.Tag = item;
+            picture.Source = null;
+            _ = LoadThumbnailAsync(picture, item);
+        }
     }
+
+    private static async Task LoadThumbnailAsync(Image target, TriageItem item)
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var file = item.File;
+            var image = await App.Host.Thumbnails.GetAsync(new ThumbnailRequest(file.Location, file.Modified, file.Size, 160, ThumbnailMode.Thumbnail), timeout.Token);
+            if (image is null || !ReferenceEquals(target.Tag, item))
+            {
+                return;
+            }
+
+            var bitmap = new Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap(image.Width, image.Height);
+            using (var pixels = bitmap.PixelBuffer.AsStream())
+            {
+                pixels.Write(image.Bgra.Span);
+            }
+
+            target.Source = bitmap;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or OperationCanceledException or System.Runtime.InteropServices.COMException)
+        {
+            // No picture for this file: the grey frame and the tooltip still say which one it is.
+        }
+    }
+
+    // The filmstrip starts collapsed so the picture has the room (spec 10.1); Q or the button at the right shows it.
+    private void SetStrip(bool visible)
+    {
+        Strip.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        StripToggle.IsChecked = visible;
+        if (visible && _session?.Current is { } current)
+        {
+            Queue.ScrollIntoView(current);
+        }
+    }
+
+    private void OnStripToggleClick(object sender, RoutedEventArgs e) => SetStrip(StripToggle.IsChecked == true);
 
     // Only the rows on screen exist, so a decision redraws just those: the list can hold thousands of files.
     private void RefreshQueue()
@@ -502,7 +557,7 @@ internal sealed partial class TriageWindow : Window
         }
 
         var s = engine.Snapshot;
-        PlayButton.Content = s.State == PlaybackState.Playing ? "Pause" : "Play";
+        PlayIcon.Glyph = s.State == PlaybackState.Playing ? "" : "";
         TimeText.Text = $"{MediaColumns.Duration(s.Position)} / {MediaColumns.Duration(s.Duration)}";
         SpeedText.Text = $"{s.Speed:0.##}×";
         if (s.Duration > TimeSpan.Zero)
@@ -532,6 +587,14 @@ internal sealed partial class TriageWindow : Window
         var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
         var shift = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
         var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
+        // Q shows or hides the filmstrip (the summary's own controls keep their keys).
+        if (e.Key == VirtualKey.Q && !ctrl && !shift && !alt && Summary.Visibility != Visibility.Visible)
+        {
+            e.Handled = true;
+            SetStrip(Strip.Visibility != Visibility.Visible);
+            return;
+        }
+
         if (KeyNames.GestureFor((int)e.Key, ctrl, shift, alt) is not { } gesture || dispatcher.Resolve(gesture) is null)
         {
             return;

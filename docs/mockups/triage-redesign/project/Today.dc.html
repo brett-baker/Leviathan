@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Triage today</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #60cdff;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:1280px;height:760px;box-sizing:border-box;display:flex;flex-direction:column;background:#000;color:#fff">
+<div style="height:32px;flex:none;background:#202020;color:#cfcfcf;font-size:12px;display:flex;align-items:center;padding:0 12px">Leviathan: Triage</div>
+<div style="flex:none;background:#2d2d2d;padding:8px 12px 0">
+<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>12 of 240 · 38 kept · 9 discarded</span><span style="font-weight:400;color:#c8c8c8">1.2 GB reclaimed</span></div>
+<div style="font-size:28px;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">IMG_4821 sunrise over the ridge.mp4</div>
+<div style="height:3px;margin:6px -12px 0;background:#444"><div style="width:5%;height:3px;background:#60cdff"></div></div>
+</div>
+<div style="flex:1;display:flex;min-height:0">
+<div style="flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center"><div style="position:relative;width:100%;height:100%;overflow:hidden;background:linear-gradient(160deg,#16263a 0%,#3b5a7a 45%,#d39a63 100%);border-radius:0px">
+<svg aria-hidden="true" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="560" cy="150" r="46" fill="#ffe2b0" opacity=".9"/><path d="M0 330 L150 210 L270 300 L420 170 L600 320 L720 250 L800 310 V450 H0Z" fill="#1b2a3a" opacity=".85"/><path d="M0 390 L200 320 L380 380 L560 330 L800 392 V450 H0Z" fill="#0f1822"/></svg>
+</div>
+<div style="position:absolute;left:16px;top:16px;padding:8px 12px;border-radius:6px;background:rgba(0,0,0,.7)"><div style="font-size:18px;font-weight:600">IMG_4821 sunrise over the ridge.mp4</div><div style="font-size:13px;color:#e0e0e0">1920×1080 · H.264 · 2:15 · 412 MB</div></div></div>
+<div style="width:260px;flex:none;background:#2d2d2d;display:flex;flex-direction:column"><div style="margin:8px 8px 4px;padding:6px 10px;border-radius:4px;background:#3a3a3a;font-size:13px">Order: As opened ▾</div>
+<div style="padding:6px 12px;font-size:13px;color:#d8d8d8;line-height:30px;overflow:hidden">IMG_4818.mp4<br><span style="color:#4cd18a">✓</span> IMG_4819.mp4<br><span style="color:#ff8f94">✕</span> IMG_4820.mp4<br><b style="color:#fff;background:#454545;display:block;margin:0 -12px;padding:0 12px">IMG_4821 sunrise…</b>IMG_4822.mp4<br>IMG_4823.mp4<br>IMG_4824.mp4<br>IMG_4825.mp4</div></div>
+</div>
+<div style="flex:none;background:#2d2d2d;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:14px">
+<button style="padding:6px 12px;border-radius:4px;border:1px solid #555;background:#3a3a3a;color:#fff">◀ Previous</button>
+<button style="padding:6px 12px;border-radius:4px;border:0;background:#60cdff;color:#000;font-weight:600">✓ Keep</button>
+<button style="padding:6px 12px;border-radius:4px;border:1px solid #555;background:#3a3a3a;color:#fff">✕ Discard</button>
+<button style="padding:6px 12px;border-radius:4px;border:1px solid #555;background:#3a3a3a;color:#fff">Skip ▶</button>
+<button style="padding:6px 12px;border-radius:4px;border:1px solid #555;background:#3a3a3a;color:#fff">↶ Undo</button>
+<button style="padding:6px 12px;border-radius:4px;border:1px solid #555;background:#3a3a3a;color:#fff;min-width:64px">Pause</button>
+<span style="min-width:110px;color:#d8d8d8">0:42 / 2:15</span>
+<div style="flex:1;height:4px;background:#555;border-radius:2px;position:relative"><div style="width:31%;height:4px;background:#60cdff;border-radius:2px"></div></div>
+<span style="min-width:40px;text-align:right;color:#d8d8d8">1×</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

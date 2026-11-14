@@ -5,105 +5,158 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vlc="using:LibVLCSharp.Platforms.Windows">
 
-  <!-- Triage mode (spec 10.1): the file full size, a slim list of the queue beside it, the progress across the top and the decision
-       buttons under it. The keys of spec 10.2 are handled on the whole window (PreviewKeyDown, so Tab and the arrows never move focus). -->
-  <Grid x:Name="Root" Background="Black" PreviewKeyDown="OnKeyDown" IsTabStop="True">
+  <!-- Triage mode (spec 10.1): the file full size on black with a thin seek line along its bottom edge, the progress as one thin line across
+       the top, Keep and Discard as the two big buttons under it, everything else as small icon buttons, and the queue as a filmstrip of
+       thumbnails that starts collapsed (Q or the button at the right opens it). One dark surface, no grey panels. The keys of spec 10.2 are
+       handled on the whole window (PreviewKeyDown, so Tab and the arrows never move focus). -->
+  <Grid x:Name="Root" Background="#1C1C1C" PreviewKeyDown="OnKeyDown" IsTabStop="True" RequestedTheme="Dark">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <Grid Grid.Row="0" Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="12,6,12,0">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-      </Grid.RowDefinitions>
+    <!-- Where we are, in one quiet line: the position and the decisions so far on the left, the space reclaimed on the right. -->
+    <Grid Grid.Row="0" Padding="12,6" ColumnSpacing="12">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontWeight="SemiBold" Text="Starting…" />
-      <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" Opacity="0.75" />
-      <!-- The file being decided about, large and always there: the overlay on the video fades after a moment. -->
-      <TextBlock x:Name="NameText" Grid.Row="1" Grid.ColumnSpan="2" FontSize="28" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"
-                 IsTextSelectionEnabled="False" />
-      <ProgressBar x:Name="Bar" Grid.Row="2" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Height="3" Margin="-12,6,-12,0" />
+      <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" Text="Starting…" />
+      <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" />
     </Grid>
+    <ProgressBar x:Name="Bar" Grid.Row="1" Minimum="0" Maximum="1" Height="3" />
 
-    <Grid Grid.Row="1">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="260" />
-      </Grid.ColumnDefinitions>
+    <Grid Grid.Row="2" x:Name="Stage" Background="Black">
+      <vlc:VideoView x:Name="Video" Initialized="OnVideoInitialized" />
+      <Border x:Name="Overlay" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="6"
+              Background="#B0000000" IsHitTestVisible="False" MaxWidth="900">
+        <StackPanel Spacing="2">
+          <TextBlock x:Name="OverlayTitle" Foreground="White" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="OverlayDetail" Foreground="#E0FFFFFF" FontSize="13" TextWrapping="Wrap" />
+          <TextBlock x:Name="OverlayState" Foreground="#FFFFD060" FontSize="13" />
+        </StackPanel>
+      </Border>
+      <TextBlock x:Name="Message" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620" Foreground="White" />
+      <Border x:Name="ErrorBox" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,64" Padding="12,6" CornerRadius="6"
+              Background="#DC962020" MaxWidth="900" IsHitTestVisible="False">
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="White" />
+      </Border>
 
-      <Grid x:Name="Stage" Background="Black">
-        <vlc:VideoView x:Name="Video" Initialized="OnVideoInitialized" />
-        <Border x:Name="Overlay" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="6"
-                Background="#B0000000" IsHitTestVisible="False" MaxWidth="900">
-          <StackPanel Spacing="2">
-            <TextBlock x:Name="OverlayTitle" Foreground="White" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="OverlayDetail" Foreground="#E0FFFFFF" FontSize="13" TextWrapping="Wrap" />
-            <TextBlock x:Name="OverlayState" Foreground="#FFFFD060" FontSize="13" />
-          </StackPanel>
-        </Border>
-        <TextBlock x:Name="Message" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620" Foreground="White" />
-        <Border x:Name="ErrorBox" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,16" Padding="12,6" CornerRadius="6"
-                Background="#DC962020" MaxWidth="900" IsHitTestVisible="False">
-          <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="White" />
-        </Border>
-
-        <!-- The summary when the queue ends: what was done, and the discarded files to look over and restore (spec 10.1). -->
-        <Grid x:Name="Summary" Visibility="Collapsed" Background="#F0101010" Padding="32" RequestedTheme="Dark">
-          <StackPanel MaxWidth="640" VerticalAlignment="Center" Spacing="10">
-            <TextBlock Text="Queue finished" Foreground="White" FontSize="26" FontWeight="SemiBold" />
-            <TextBlock x:Name="SummaryText" Foreground="White" FontSize="15" TextWrapping="Wrap" />
-            <TextBlock Text="Discarded files (select to restore)" Foreground="#C0FFFFFF" Margin="0,12,0,0" />
-            <ListView x:Name="DiscardedList" SelectionMode="Extended" MaxHeight="260" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button x:Name="RestoreButton" Content="Restore selected" Click="OnRestoreClick" />
-              <Button Content="Back to the queue" Click="OnBackToQueueClick" />
-              <Button Content="Close" Click="OnCloseClick" Style="{StaticResource AccentButtonStyle}" />
-            </StackPanel>
-          </StackPanel>
-        </Grid>
+      <!-- The seek line sits on the picture's bottom edge, well away from the decision buttons below, so a click along it can never land on one. -->
+      <Grid VerticalAlignment="Bottom" Padding="20,22,20,8" ColumnSpacing="12">
+        <Grid.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#00000000" Offset="0" />
+            <GradientStop Color="#C0000000" Offset="1" />
+          </LinearGradientBrush>
+        </Grid.Background>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Name="TimeText" VerticalAlignment="Center" FontSize="12" Foreground="#E0E0E0" Text="0:00 / 0:00" MinWidth="100" />
+        <Slider x:Name="Seek" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
       </Grid>
 
-      <Grid Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <!-- The order of the list: name, age or size. A menu, because the window handles the arrow keys itself. -->
-        <Button x:Name="OrderButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="8,8,8,4" IsTabStop="False" Content="Order: As opened ▾"
-                ToolTipService.ToolTip="Put the list in order: name, age or size" />
-        <ListView x:Name="Queue" Grid.Row="1" SelectionMode="Single" IsTabStop="False" Background="Transparent"
-                  SelectionChanged="OnQueueSelectionChanged" />
+      <!-- The summary when the queue ends: what was done, and the discarded files to look over and restore (spec 10.1). -->
+      <Grid x:Name="Summary" Visibility="Collapsed" Background="#F0101010" Padding="32" RequestedTheme="Dark">
+        <StackPanel MaxWidth="640" VerticalAlignment="Center" Spacing="10">
+          <TextBlock Text="Queue finished" Foreground="White" FontSize="26" FontWeight="SemiBold" />
+          <TextBlock x:Name="SummaryText" Foreground="White" FontSize="15" TextWrapping="Wrap" />
+          <TextBlock Text="Discarded files (select to restore)" Foreground="#C0FFFFFF" Margin="0,12,0,0" />
+          <ListView x:Name="DiscardedList" SelectionMode="Extended" MaxHeight="260" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="RestoreButton" Content="Restore selected" Click="OnRestoreClick" />
+            <Button Content="Back to the queue" Click="OnBackToQueueClick" />
+            <Button Content="Close" Click="OnCloseClick" Style="{StaticResource AccentButtonStyle}" />
+          </StackPanel>
+        </StackPanel>
       </Grid>
     </Grid>
 
-    <Grid Grid.Row="2" Padding="12,8" ColumnSpacing="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+    <!-- The queue as a filmstrip: thumbnails with a tick or a cross for each decision. Collapsed until asked for (Q or the button). -->
+    <Grid x:Name="Strip" Grid.Row="3" Visibility="Collapsed" Padding="16,10" ColumnSpacing="12" BorderBrush="#2B2B2B" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <!-- The order of the list: name, age or size. A menu, because the window handles the arrow keys itself. -->
+      <Button x:Name="OrderButton" VerticalAlignment="Top" IsTabStop="False" Content="Order: As opened ▾"
+              ToolTipService.ToolTip="Put the list in order: name, age or size" />
+      <ListView x:Name="Queue" Grid.Column="1" SelectionMode="Single" IsTabStop="False" Background="Transparent" Height="84"
+                ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollMode="Enabled"
+                ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled"
+                SelectionChanged="OnQueueSelectionChanged">
+        <ListView.ItemsPanel>
+          <ItemsPanelTemplate>
+            <ItemsStackPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ListView.ItemsPanel>
+      </ListView>
+    </Grid>
+
+    <!-- The decisions. Keep and Discard are the only big controls, centred and well apart; the rest are small icon buttons at the right. -->
+    <Grid Grid.Row="4" Padding="20,26,20,16" ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
-      <Button Click="OnPreviousClick" Content="◀ Previous" IsTabStop="False" ToolTipService.ToolTip="Previous file (Up)" />
-      <Button Grid.Column="1" Click="OnKeepClick" Content="✓ Keep" IsTabStop="False" ToolTipService.ToolTip="Keep (Enter or G)" Style="{StaticResource AccentButtonStyle}" />
-      <Button Grid.Column="2" Click="OnDiscardClick" Content="✕ Discard" IsTabStop="False" ToolTipService.ToolTip="Discard: soft delete (Delete or X)" />
-      <Button Grid.Column="3" Click="OnSkipClick" Content="Skip ▶" IsTabStop="False" ToolTipService.ToolTip="Skip, no decision (Down or Tab)" />
-      <Button Grid.Column="4" Click="OnUndoClick" Content="↶ Undo" IsTabStop="False" ToolTipService.ToolTip="Undo the last decision (Ctrl+Z)" />
-      <Button x:Name="PlayButton" Grid.Column="5" Click="OnPlayClick" Content="Pause" IsTabStop="False" MinWidth="64" ToolTipService.ToolTip="Play or pause (Space)" />
-      <TextBlock x:Name="TimeText" Grid.Column="6" VerticalAlignment="Center" Text="0:00 / 0:00" MinWidth="110" />
-      <Slider x:Name="Seek" Grid.Column="7" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
-      <TextBlock x:Name="SpeedText" Grid.Column="8" VerticalAlignment="Center" Text="1×" MinWidth="40" TextAlignment="Right" />
+
+      <TextBlock x:Name="NameText" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="False" />
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="48">
+        <Button Click="OnDiscardClick" IsTabStop="False" Height="56" MinWidth="200" CornerRadius="8" FontSize="17" FontWeight="SemiBold"
+                Background="#3A1F22" BorderBrush="#7A3B41" Foreground="#FFB3B7"
+                ToolTipService.ToolTip="Discard: soft delete (Delete or X)">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4A262A" />
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#2C1719" />
+            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFC9CB" />
+            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFB3B7" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#9A4A52" />
+          </Button.Resources>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Glyph="&#xE711;" FontSize="18" />
+            <TextBlock Text="Discard" VerticalAlignment="Center" />
+            <Border Background="#47000000" CornerRadius="4" Padding="7,2"><TextBlock Text="Del" FontSize="12" /></Border>
+          </StackPanel>
+        </Button>
+        <Button Click="OnKeepClick" IsTabStop="False" Height="56" MinWidth="200" CornerRadius="8" FontSize="17" FontWeight="SemiBold"
+                Background="#4CD18A" BorderBrush="#4CD18A" Foreground="#06210F"
+                ToolTipService.ToolTip="Keep (Enter or G)">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#6FE0A3" />
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3AB878" />
+            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#06210F" />
+            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#06210F" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#6FE0A3" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#3AB878" />
+          </Button.Resources>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Glyph="&#xE73E;" FontSize="18" />
+            <TextBlock Text="Keep" VerticalAlignment="Center" />
+            <Border Background="#33000000" CornerRadius="4" Padding="7,2"><TextBlock Text="Enter" FontSize="12" /></Border>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="2">
+        <Button Click="OnPreviousClick" IsTabStop="False" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0"
+                AutomationProperties.Name="Previous" ToolTipService.ToolTip="Previous file (Up)"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
+        <Button Click="OnSkipClick" IsTabStop="False" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0"
+                AutomationProperties.Name="Skip" ToolTipService.ToolTip="Skip, no decision (Down or Tab)"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
+        <Button Click="OnUndoClick" IsTabStop="False" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0"
+                AutomationProperties.Name="Undo" ToolTipService.ToolTip="Undo the last decision (Ctrl+Z)"><FontIcon Glyph="&#xE7A7;" FontSize="16" /></Button>
+        <Button x:Name="PlayButton" Click="OnPlayClick" IsTabStop="False" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0"
+                AutomationProperties.Name="Play or pause" ToolTipService.ToolTip="Play or pause (Space)"><FontIcon x:Name="PlayIcon" Glyph="&#xE769;" FontSize="16" /></Button>
+        <TextBlock x:Name="SpeedText" VerticalAlignment="Center" Text="1×" MinWidth="36" TextAlignment="Center" FontSize="13" Foreground="#D8D8D8" />
+        <ToggleButton x:Name="StripToggle" Click="OnStripToggleClick" IsTabStop="False" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0"
+                      AutomationProperties.Name="Show or hide the queue" ToolTipService.ToolTip="Show or hide the queue (Q)"><FontIcon Glyph="&#xE8FD;" FontSize="16" /></ToggleButton>
+      </StackPanel>
     </Grid>
   </Grid>
 </Window>

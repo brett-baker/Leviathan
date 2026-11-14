@@ -1,0 +1,20 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-14T12:00:00Z" },
+  "title": "Triage screen redesign mockup",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Today.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 760, "title": "Today" },
+    "Main.dc.html": { "x": 1360, "y": 0, "w": 1280, "h": 760, "title": "Proposed: queue hidden (default)" },
+    "Queue.dc.html": { "x": 2720, "y": 0, "w": 1280, "h": 760, "title": "Proposed: queue open (one key)" }
+  },
+  "order": ["Main.dc.html", "Today.dc.html", "Queue.dc.html"],
+  "notes": {
+    "head": { "x": 0, "y": -300, "kind": "title1", "text": "Triage: Keep and Discard first", "maxW": 4000 },
+    "n1": { "x": 0, "y": 820, "w": 420, "size": "m", "fill": "gray", "text": "Today: the decision buttons share one row with six others, the scrubber is far to the right, the name is drawn twice, and three separate grey panels frame the video." },
+    "n2": { "x": 1360, "y": 820, "w": 420, "size": "m", "fill": "green", "text": "Proposed: Keep and Discard are two big buttons, centred under the video, with their keys. Everything else is small icons on the right. The scrubber sits on the bottom edge of the picture, with a 28 px empty band between it and the buttons, and 48 px between Discard and Keep, so clicking along the slider never lands on a decision. Progress is a thin line across the top." },
+    "n3": { "x": 2720, "y": 820, "w": 420, "size": "m", "fill": "blue", "text": "Queue as a filmstrip of thumbnails (kept ticked, discarded dimmed) instead of a text list; the same strip the main window's Gallery layout could use. One key or the button at the right opens it." }
+  },
+  "designSystems": []
+}
