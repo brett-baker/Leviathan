@@ -86,7 +86,7 @@ public sealed partial class MainWindow
             MinHeight = 64,
             MaxLength = Leviathan.ViewModels.Notes.FolderNotes.MaxLength,
         };
-        AutomationProperties.SetName(box, "Folder note");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, "Folder note");
         box.LostFocus += (_, _) => App.Host.Notes.Set(path, box.Text);
         _flushNote = () => App.Host.Notes.Set(path, box.Text);
         panel.Children.Add(box);
