@@ -137,14 +137,22 @@ public sealed class WindowCommandsTests
 
         public Task<LaunchResult> ChooseAppAsync(LocationPath path, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<LaunchResult> OpenTerminalAsync(LocationPath folder, TerminalKind kind, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public List<(LocationPath Folder, TerminalKind Kind)> Terminals { get; } = [];
+
+        public HashSet<TerminalKind> FailingTerminals { get; } = [];
+
+        public Task<LaunchResult> OpenTerminalAsync(LocationPath folder, TerminalKind kind, CancellationToken cancellationToken)
+        {
+            Terminals.Add((folder, kind));
+            return Task.FromResult(FailingTerminals.Contains(kind) ? new LaunchResult(false, "wt.exe was not found.") : LaunchResult.Ok);
+        }
 
         public Task<LaunchResult> ShowPropertiesAsync(LocationPath path, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     internal sealed class Harness
     {
-        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null, Folders.RenameService? renamer = null, Transfers.ITransferService? transfers = null, Drives.DriveCardPreferences? driveCards = null, Transfers.IDeleteService? deleter = null, Undo.UndoService? undo = null, Transfers.IFileClipboard? clipboard = null, Sessions.ProfileService? profiles = null, Archives.IArchiveService? archives = null)
+        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null, Folders.RenameService? renamer = null, Transfers.ITransferService? transfers = null, Drives.DriveCardPreferences? driveCards = null, Transfers.IDeleteService? deleter = null, Undo.UndoService? undo = null, Transfers.IFileClipboard? clipboard = null, Sessions.ProfileService? profiles = null, Archives.IArchiveService? archives = null, Func<Leviathan.Core.Platform.TerminalKind>? terminal = null)
         {
             var services = TabTestSupport.Services() with { Options = viewOptions };
             Windows = new WindowManager(services);
@@ -157,7 +165,7 @@ public sealed class WindowCommandsTests
             fs.AddDirectory(@"C:\a\b");
             fs.AddDirectory(@"C:\v");
             fs.AddFile(@"C:\a\1.txt", new MockFileData("x"));
-            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions, renamer, transfers, driveCards, deleter, undo, clipboard, profiles, archives);
+            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions, renamer, transfers, driveCards, deleter, undo, clipboard, profiles, archives, terminal);
             Ready = Window.Tabs.Selected!.ReloadAsync(CancellationToken.None);
         }
 

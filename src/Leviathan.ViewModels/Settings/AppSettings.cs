@@ -185,6 +185,9 @@ public enum UiUpdateMode
 
 public sealed record FilesSettings
 {
+    /// <summary>Which terminal "Open terminal here" starts (spec §15.7); Windows Terminal falls back to PowerShell when it is not installed.</summary>
+    public Leviathan.Core.Platform.TerminalKind Terminal { get; init; } = Leviathan.Core.Platform.TerminalKind.WindowsTerminal;
+
     /// <summary>Show hidden items.</summary>
     public bool ShowHidden { get; init; }
 

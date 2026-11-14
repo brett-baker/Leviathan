@@ -141,6 +141,7 @@ public static class ContextActions
             new(CommandIds.OpenInSplitPane, "Open in split pane", ""),
             new(CommandIds.FavoriteAdd, "Add to favorites", ""),
             new(CommandIds.SpaceMap, "Space map", ""),
+            new(CommandIds.TerminalHere, "Open terminal here", ""),
             new(CommandIds.Compress, "Compress", ""),
             new(CommandIds.ShowChecksum, "Checksums", ""),
             new(CommandIds.Properties, "Properties", "", "Alt+Enter"),

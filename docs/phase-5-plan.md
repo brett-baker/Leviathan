@@ -45,7 +45,7 @@ Every slice follows `CLAUDE.md`.
 
 - [x] **E1. Command palette** (Ctrl+Shift+P) over every command with shortcuts; Ctrl+P "go to" palette (favorites, recent,
   tabs, commands).
-- [ ] **E2. Open terminal here** (Windows Terminal, PowerShell, cmd, WSL).
+- [x] **E2. Open terminal here** (Windows Terminal, PowerShell, cmd, WSL).
 - [ ] **E3. Quick move/copy targets**: 9 preset destinations bound to keys everywhere.
 - [ ] **E4. Elevated operations helper**: only the action that needs admin rights runs elevated.
 - [ ] **E5. Git status overlays** (optional; port from Files `Utils/Git`).

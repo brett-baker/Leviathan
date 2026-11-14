@@ -600,7 +600,8 @@ public static partial class WindowCommands
         Undo.UndoService? undo = null,
         Transfers.IFileClipboard? clipboard = null,
         Sessions.ProfileService? profiles = null,
-        Archives.IArchiveService? archives = null)
+        Archives.IArchiveService? archives = null,
+        Func<TerminalKind>? terminal = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -1188,14 +1189,34 @@ public static partial class WindowCommands
             }
         }, c => renamer is not null && Current()?.Renaming is not null && c.Target is not null);
 
-        Add(CommandIds.TerminalHere, "Open terminal here", "Files", async (_, ct) =>
+        // Open terminal here (spec §15.7): the selected folder, else the selected file's folder, else the folder shown; the terminal is the one
+        // chosen in the settings, and Windows Terminal falls back to PowerShell when it is not installed.
+        LocationPath? TerminalFolder(CommandContext c) =>
+            Current() is { } tab ? TerminalTargets.FolderFor(c.Parameter is FileEntry one ? [one] : [.. tab.Selection.SelectedEntries], tab.History.Current) : null;
+        Add(CommandIds.TerminalHere, "Open terminal here", "Files", async (c, ct) =>
         {
-            var launched = await launcher.OpenTerminalAsync(Current()!.History.Current, TerminalKind.WindowsTerminal, ct);
+            if (TerminalFolder(c) is not { } folder)
+            {
+                return;
+            }
+
+            var wanted = terminal?.Invoke() ?? TerminalKind.WindowsTerminal;
+            var launched = await launcher.OpenTerminalAsync(folder, wanted, ct);
+            if (!launched.Started && !launched.Cancelled && TerminalTargets.FallbackFor(wanted) is { } fallback)
+            {
+                launched = await launcher.OpenTerminalAsync(folder, fallback, ct);
+                if (launched.Started)
+                {
+                    shell.ShowMessage($"{TerminalTargets.Title(wanted)} could not be started, so {TerminalTargets.Title(fallback)} was opened instead.");
+                    return;
+                }
+            }
+
             if (!launched.Started && !launched.Cancelled)
             {
                 shell.ShowMessage(launched.Error ?? "The terminal could not be started.");
             }
-        }, _ => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive);
+        }, c => TerminalFolder(c) is not null, shortcut: "Ctrl+Alt+T");
 
         // Commands on the selected item; the bar passes the entry as the parameter (spec §6.2).
         async Task Launch(Task<LaunchResult> task, FileEntry entry)
@@ -1581,6 +1602,7 @@ public static partial class WindowCommands
             ("Ctrl+Shift+PageUp", CommandIds.TabMoveLeft),
             ("Ctrl+Shift+PageDown", CommandIds.TabMoveRight),
             ("Ctrl+D", CommandIds.FavoriteToggle),
+            ("Ctrl+Alt+T", CommandIds.TerminalHere),
             ("Ctrl+Shift+P", CommandIds.PaletteCommands),
             ("Ctrl+P", CommandIds.PaletteGoTo),
             ("Ctrl+A", CommandIds.SelectAll),
