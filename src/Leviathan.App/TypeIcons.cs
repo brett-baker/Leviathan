@@ -64,6 +64,36 @@ internal static class TypeIcons
         return asking;
     }
 
+    // When the shell has no icon yet (it was busy or not ready at start-up, or a share was slow), ask again after a growing pause instead
+    // of leaving the generic page icon until the row is next recycled. The last pause is longer than the window above, so it is a real retry.
+    private static readonly TimeSpan[] Pauses = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(22)];
+
+    /// <summary>
+    /// Like <see cref="GetAsync"/>, but when the shell gives no icon it asks again a few times (about 1, 3, 8 and 22 seconds later) for as long
+    /// as <paramref name="stillShown"/> says the row still wants it. Null only when the type really has no icon of its own.
+    /// </summary>
+    public static async Task<ImageSource?> GetPatientlyAsync(FileEntry entry, int size, Func<bool> stillShown)
+    {
+        var icon = await GetAsync(entry, size);
+        foreach (var pause in Pauses)
+        {
+            if (icon is not null || !stillShown())
+            {
+                break;
+            }
+
+            await Task.Delay(pause);
+            if (!stillShown())
+            {
+                break;
+            }
+
+            icon = await GetAsync(entry, size);
+        }
+
+        return icon;
+    }
+
     private static string KeyOf(FileEntry entry, int size)
     {
         var extension = entry.Extension;

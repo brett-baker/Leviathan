@@ -210,7 +210,7 @@ internal sealed class FlowCell : Grid
     {
         if (!TypeIcons.TryGet(entry, pixels, out var icon))
         {
-            icon = await TypeIcons.GetAsync(entry, pixels);
+            icon = await TypeIcons.GetPatientlyAsync(entry, pixels, () => ReferenceEquals(Entry, entry) && _image.Visibility != Visibility.Visible);
         }
 
         // The cell may have been recycled for another item, or a thumbnail may already be showing.

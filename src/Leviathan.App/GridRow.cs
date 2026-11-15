@@ -517,7 +517,7 @@ internal sealed class GridRow : Grid
     {
         if (!TypeIcons.TryGet(entry, TypeIcons.RowSize, out var icon))
         {
-            icon = await TypeIcons.GetAsync(entry, TypeIcons.RowSize);
+            icon = await TypeIcons.GetPatientlyAsync(entry, TypeIcons.RowSize, () => ReferenceEquals(Entry, entry));
         }
 
         // The row may have been recycled for another item meanwhile.

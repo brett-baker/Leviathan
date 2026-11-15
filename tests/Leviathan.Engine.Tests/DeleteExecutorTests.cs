@@ -131,7 +131,9 @@ public sealed class DeleteExecutorTests
         var (job, items) = await RunAsync(fs, bin, @"C:\a\1.txt", @"C:\a\tree");
 
         Assert.Equal(JobState.Completed, job.State);
-        Assert.Equal([@"C:\a\1.txt", @"C:\a\tree"], bin.Recycled);
+        // Items run side by side, so the order they reach the bin is not fixed; the results keep the order of the request.
+        Assert.Equal([@"C:\a\1.txt", @"C:\a\tree"], bin.Recycled.Order(StringComparer.Ordinal));
+        Assert.Equal([@"C:\a\1.txt", @"C:\a\tree"], items.Select(i => i.Source));
         Assert.All(items, i => Assert.Equal(ItemStatus.Done, i.Status));
     }
 
@@ -390,5 +392,100 @@ public sealed class DeleteExecutorTests
         Assert.Contains("1 of 3", job.Error, StringComparison.Ordinal);
         Assert.Equal([ItemStatus.Failed, ItemStatus.Skipped, ItemStatus.Done], items.Select(i => i.Status));
         Assert.Equal([@"C:\a\1.txt"], bin.Recycled);
+    }
+
+    private static MockFileSystem ShareWithFiles(int count)
+    {
+        var fs = new MockFileSystem();
+        for (var i = 0; i < count; i++)
+        {
+            fs.AddFile($@"\\nas\media\library\file-{i:D5}.mkv", new MockFileData("v"));
+        }
+
+        return fs;
+    }
+
+    private static async Task<(JobSnapshot Job, IReadOnlyList<ItemOutcome> Items)> RunWithAsync(DeleteExecutor executor, params string[] sources)
+    {
+        await using var host = new JobHost(new JobScheduler(), [executor], new InMemoryJobJournal());
+        host.Start();
+        var job = host.Submit(new JobRequest(JobKind.Delete, sources, null), JobLane.Operations, null, "test");
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (!host.Scheduler.Find(job.Id)!.IsFinished)
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException();
+            }
+
+            await Task.Delay(5);
+        }
+
+        return (host.Snapshot(host.Scheduler.Find(job.Id)!), host.GetResult(job.Id)!.Items);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(8)]
+    public async Task ThousandsOfShareFiles_GoToOneTrashBatch_WithOneLinePerFile_AndResultsInRequestOrder(int parallel)
+    {
+        const int count = 2_000;
+        var fs = ShareWithFiles(count);
+        var sources = Enumerable.Range(0, count).Select(i => $@"\\nas\media\library\file-{i:D5}.mkv").ToArray();
+
+        var (job, items) = await RunWithAsync(new DeleteExecutor(fs, new FakeBin(fs), new FixedTime(), maxParallel: parallel), sources);
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(sources, items.Select(i => i.Source));
+        Assert.All(items, i => Assert.Equal(ItemStatus.Done, i.Status));
+        Assert.Empty(fs.Directory.GetFiles(@"\\nas\media\library"));
+        var trash = @"\\nas\media\.leviathan-trash";
+        Assert.Single(fs.Directory.GetDirectories(trash)); // one batch folder for the job, not one per file
+        var lines = fs.File.ReadAllLines(trash + @"\manifest.jsonl");
+        Assert.Equal(count, lines.Length);
+        Assert.Equal(count, lines.Distinct().Count());
+        Assert.Equal(count, items.Select(i => i.Result).Distinct().Count()); // every file has its own place in the trash
+        Assert.All(items, i => Assert.True(fs.File.Exists(i.Result!)));
+    }
+
+    [Fact]
+    public async Task ManyFilesOnAMappedDrive_AskTheDriveOnce()
+    {
+        const int count = 300;
+        var fs = new MockFileSystem();
+        for (var i = 0; i < count; i++)
+        {
+            fs.AddFile($@"Y:\show\f{i:D4}.mkv", new MockFileData("v"));
+        }
+
+        fs.AddDirectory(@"\\nas\media\show");
+        var volumes = new Leviathan.Testing.FakeVolumeInfo().With(@"Y:\", "media", DriveKind.Network, 100, 50, network: @"\\nas\media");
+        var sources = Enumerable.Range(0, count).Select(i => $@"Y:\show\f{i:D4}.mkv").ToArray();
+
+        var (job, items) = await RunWithAsync(new DeleteExecutor(fs, new FakeBin(fs), new FixedTime(), volumes: volumes), sources);
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(count, items.Count);
+        Assert.Equal(1, volumes.DriveCalls);
+    }
+
+    [Fact]
+    public async Task AFolderAndItsOwnFile_DeletedTogether_NeverTurnTheJobRed()
+    {
+        var fs = new MockFileSystem();
+        for (var i = 0; i < 50; i++)
+        {
+            fs.AddFile($@"\\nas\media\tree\sub\file-{i}.txt", new MockFileData("x"));
+        }
+
+        var sources = new List<string> { @"\\nas\media\tree" };
+        sources.AddRange(Enumerable.Range(0, 50).Select(i => $@"\\nas\media\tree\sub\file-{i}.txt"));
+
+        var (job, items) = await RunWithAsync(new DeleteExecutor(fs, new FakeBin(fs), new FixedTime()), [.. sources]);
+
+        // Whichever item gets there first wins; the other one finds it gone, which is the goal reached, not a failure.
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.DoesNotContain(items, i => i.Status == ItemStatus.Failed);
+        Assert.False(fs.Directory.Exists(@"\\nas\media\tree"));
     }
 }

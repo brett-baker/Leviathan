@@ -24,8 +24,13 @@ public sealed class FakeVolumeInfo : IVolumeInfo
 {
     private readonly List<DriveDetails> _drives = [];
 
+    private int _driveCalls;
+
     /// <summary>Number of times the drives were listed.</summary>
     public int Calls { get; private set; }
+
+    /// <summary>Number of times one drive was asked about (safe to read while jobs run).</summary>
+    public int DriveCalls => Volatile.Read(ref _driveCalls);
 
     /// <summary>Adds a drive.</summary>
     public FakeVolumeInfo With(string root, string label, DriveKind kind, long total, long free, StorageMedium medium = StorageMedium.Ssd, string? network = null, bool responsive = true)
@@ -45,6 +50,7 @@ public sealed class FakeVolumeInfo : IVolumeInfo
     /// <inheritdoc />
     public Task<DriveDetails?> GetDriveAsync(LocationPath location, CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref _driveCalls);
         cancellationToken.ThrowIfCancellationRequested();
         var letter = location.Kind == LocationKind.Drive && location.Root.Length > 0 ? char.ToUpperInvariant(location.Root[0]) : '\0';
         return Task.FromResult(_drives.FirstOrDefault(d => char.ToUpperInvariant(d.Root.Root[0]) == letter));
