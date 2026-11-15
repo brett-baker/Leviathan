@@ -68,7 +68,7 @@ Every slice follows `CLAUDE.md`.
 
 ### H. Finish
 
-- [ ] **H1. Gate and wrap-up**: `docs/phase-5.md`, README, tag `phase-5`, push, stop for review.
+- [x] **H1. Gate and wrap-up** (done: `docs/phase-5.md`, README, tag `phase-5`; the month of use is Brett's and is listed there): `docs/phase-5.md`, README, tag `phase-5`, push, stop for review.
 
 ## Gate (from the build plan)
 

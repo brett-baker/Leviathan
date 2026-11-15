@@ -6,7 +6,7 @@ The full specification lives in the **Leviathan File Manager — Software Specif
 
 ## Status
 
-**Phase 4 — Search, space map and more locations** is built and waiting for review ([docs/phase-4.md](docs/phase-4.md): what is in it, how it was verified, the procedure for the real-share space map that needs a person at the machine, and the open items: Everything never run for real, FTPS and NFS not run against servers, SFTP and FTP browse but do not copy yet, the new windows and dialogs not yet looked at, no MFT indexer). Phase 3 is in [docs/phase-3.md](docs/phase-3.md). Phase 2 is in [docs/phase-2.md](docs/phase-2.md), Phase 1 in [docs/phase-1.md](docs/phase-1.md) and Phase 0 in [docs/phase-0.md](docs/phase-0.md).
+**Phase 5 — Power features and polish** is built and waiting for review ([docs/phase-5.md](docs/phase-5.md): what is in it, the measured budgets, and the open items). Two budgets are missed and explained: cold start (about 0.9 to 1.2 s against 0.6 s) and idle memory (262 to 274 MB against 250 MB); the NAS figures need a share you name; the gate, a month of daily use, is yours to run, with a table in the document for the issues you find. Many of this phase's windows and pages have never been looked at on screen. Phase 4 is in [docs/phase-4.md](docs/phase-4.md). Phase 3 is in [docs/phase-3.md](docs/phase-3.md). Phase 2 is in [docs/phase-2.md](docs/phase-2.md), Phase 1 in [docs/phase-1.md](docs/phase-1.md) and Phase 0 in [docs/phase-0.md](docs/phase-0.md).
 
 | Phase | Scope | Gate |
 | --- | --- | --- |
@@ -14,8 +14,8 @@ The full specification lives in the **Leviathan File Manager — Software Specif
 | 1 Core browser | Window, tabs, address bar, tree, file views, clipboard, Recycle Bin | One week replacing Explorer for local work |
 | 2 NAS resiliency + operations | Share health, journaled copy/move, queue UI, soft delete, split pane | 50 GB NAS copy survives 3 cable pulls and a killed UI |
 | 3 Media + triage | ffprobe, previews, LibVLC, triage mode, tags | 100 NAS videos at < 10 s each |
-| **4 Search, space map, protocols** | Search syntax and box, Everything + own index, space map, SFTP/FTP/FTPS/NFS | Local search < 50 ms; a 1 TB share mapped and resumable |
-| 5 Power features | Duplicates, bulk rename, archives, compare/sync, palette | Feature-complete after a month of use |
+| 4 Search, space map, protocols | Search syntax and box, Everything + own index, space map, SFTP/FTP/FTPS/NFS | Local search < 50 ms; a 1 TB share mapped and resumable |
+| **5 Power features** | Duplicates, bulk rename, archives, compare/sync, palette | Feature-complete after a month of use |
 
 ## Getting started (Visual Studio)
 
