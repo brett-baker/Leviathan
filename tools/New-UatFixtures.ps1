@@ -328,6 +328,98 @@ New-Item -ItemType Directory -Path (Split-Path $huge -Parent) -Force | Out-Null
 $stream = [IO.File]::Create($huge); $stream.SetLength(3GB); $stream.Dispose()
 fsutil sparse setflag $huge | Out-Null
 
+# 16. Bulk rename: photos with dates, names with mixed case and spaces, a pair that a "remove digits" step would turn into the same name.
+$ren = Join-Path $uat '16-rename'
+foreach ($i in 1..6) {
+    $p = Join-Path $ren ('IMG_{0:D4}.jpg' -f $i)
+    New-BinaryFile $p 4KB
+    (Get-Item -LiteralPath $p).LastWriteTime = (Get-Date '2025-06-01').AddDays($i * 3)
+}
+foreach ($name in 'Summer Trip 2025 - photo A.jpg', 'Summer Trip 2025 - photo B.jpg', 'Mixed Case Name.Md', 'notes.TXT', 'draft 1.txt', 'draft 2.txt',
+                  'take-1.txt', 'take-2.txt', '  padded name  .txt') {
+    New-TextFile ('\\?\' + (Join-Path $ren $name)) "content of $name"
+}
+New-Item -ItemType Directory -Path (Join-Path $ren 'a folder to rename') -Force | Out-Null
+
+# 17. Archives and checksums: a folder to compress, ready-made zip / tar / tar.gz (and 7z when 7z.exe exists), files with checksum files
+#     (one right, one with a wrong hash and a missing file).
+$arc = Join-Path $uat '17-archives'
+$arcSource = Join-Path $arc 'to-compress'
+New-TextFile (Join-Path $arcSource 'readme.txt') 'archive me'
+New-BinaryFile (Join-Path $arcSource 'data\blob.bin') 300KB
+New-TextFile (Join-Path $arcSource 'data\nested\deep.txt') 'deep'
+New-TextFile (Join-Path $arcSource 'ünïcödé.txt') 'unicode name'
+Compress-Archive -Path (Join-Path $arcSource '*') -DestinationPath (Join-Path $arc 'ready.zip') -Force
+$tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+if ($tar) {
+    & $tar.Source -cf (Join-Path $arc 'ready.tar') -C $arcSource .
+    & $tar.Source -czf (Join-Path $arc 'ready.tar.gz') -C $arcSource .
+}
+$sevenZip = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($sevenZip) { & $sevenZip a -bso0 (Join-Path $arc 'ready.7z') (Join-Path $arcSource '*') | Out-Null }
+New-Item -ItemType Directory -Path (Join-Path $arc 'extract-here') -Force | Out-Null
+$sums = Join-Path $arc 'sums'
+New-BinaryFile (Join-Path $sums 'one.bin') 100KB
+New-BinaryFile (Join-Path $sums 'two.bin') 200KB
+New-TextFile (Join-Path $sums 'three.txt') 'third file'
+$h1 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $sums 'one.bin')).Hash.ToLower()
+$h2 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $sums 'two.bin')).Hash.ToLower()
+$h3 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $sums 'three.txt')).Hash.ToLower()
+[IO.File]::WriteAllText((Join-Path $sums 'good.sha256'), "$h1 *one.bin`n$h2 *two.bin`n$h3 *three.txt`n")
+# Wrong hash for two.bin, and a line for a file that is not there.
+[IO.File]::WriteAllText((Join-Path $sums 'bad.sha256'), "$h1 *one.bin`n$('0' * 64) *two.bin`n$h3 *three.txt`n$h1 *missing.bin`n")
+
+# 18. Compare and sync: two folders with every kind of difference.
+$syncL = Join-Path $uat '18-sync\left'
+$syncR = Join-Path $uat '18-sync\right'
+New-TextFile (Join-Path $syncL 'same.txt') 'same on both sides'
+New-TextFile (Join-Path $syncR 'same.txt') 'same on both sides'
+New-TextFile (Join-Path $syncL 'only-left.txt') 'only on the left'
+New-TextFile (Join-Path $syncR 'only-right.txt') 'only on the right'
+New-TextFile (Join-Path $syncL 'newer-left.txt') 'left is newer and longer'
+New-TextFile (Join-Path $syncR 'newer-left.txt') 'old'
+New-TextFile (Join-Path $syncL 'newer-right.txt') 'old'
+New-TextFile (Join-Path $syncR 'newer-right.txt') 'right is newer and longer'
+New-TextFile (Join-Path $syncL 'sub\inner-left.txt') 'inside a sub-folder, left only'
+New-TextFile (Join-Path $syncL 'sub\both.txt') 'both'
+New-TextFile (Join-Path $syncR 'sub\both.txt') 'both'
+New-TextFile (Join-Path $syncR 'only-right-folder\x.txt') 'a folder only on the right'
+# Same size and same time, different bytes: only a checksum compare sees it.
+New-TextFile (Join-Path $syncL 'looks-same.txt') 'AAAA'
+New-TextFile (Join-Path $syncR 'looks-same.txt') 'BBBB'
+$stamp = Get-Date '2025-03-01 12:00:00'
+(Get-Item -LiteralPath (Join-Path $syncL 'looks-same.txt')).LastWriteTime = $stamp
+(Get-Item -LiteralPath (Join-Path $syncR 'looks-same.txt')).LastWriteTime = $stamp
+(Get-Item -LiteralPath (Join-Path $syncL 'newer-left.txt')).LastWriteTime = (Get-Date).AddDays(-1)
+(Get-Item -LiteralPath (Join-Path $syncR 'newer-left.txt')).LastWriteTime = (Get-Date).AddDays(-20)
+(Get-Item -LiteralPath (Join-Path $syncL 'newer-right.txt')).LastWriteTime = (Get-Date).AddDays(-20)
+(Get-Item -LiteralPath (Join-Path $syncR 'newer-right.txt')).LastWriteTime = (Get-Date).AddDays(-1)
+New-Item -ItemType Directory -Path (Join-Path $uat '18-sync\saved-pair-target') -Force | Out-Null
+
+# 19. A Git repository with one of each state: modified, added (staged), deleted, renamed, untracked and ignored (needs git on the PATH).
+$gitRoot = Join-Path $uat '19-git'
+New-TextFile (Join-Path $gitRoot 'modified.txt') 'v1'
+New-TextFile (Join-Path $gitRoot 'deleted.txt') 'to be deleted'
+New-TextFile (Join-Path $gitRoot 'old-name.txt') 'to be renamed'
+New-TextFile (Join-Path $gitRoot 'clean.txt') 'unchanged'
+New-TextFile (Join-Path $gitRoot '.gitignore') "ignored.log`n"
+$git = Get-Command git.exe -ErrorAction SilentlyContinue
+if ($git) {
+    Push-Location $gitRoot
+    try {
+        & git init -q -b main
+        & git config user.email 'uat@example.invalid'; & git config user.name 'UAT'
+        & git add -A; & git commit -q -m 'first'
+        New-TextFile (Join-Path $gitRoot 'modified.txt') 'v2 changed'
+        Remove-Item -LiteralPath (Join-Path $gitRoot 'deleted.txt')
+        & git mv old-name.txt new-name.txt
+        New-TextFile (Join-Path $gitRoot 'staged-new.txt') 'staged'
+        & git add staged-new.txt
+        New-TextFile (Join-Path $gitRoot 'untracked.txt') 'not tracked'
+        New-TextFile (Join-Path $gitRoot 'ignored.log') 'ignored'
+    } finally { Pop-Location }
+} else { Write-Warning 'git not found: 19-git is not a repository.' }
+
 $count = (Get-ChildItem -LiteralPath ('\\?\' + $uat) -Recurse -Force -File | Measure-Object).Count
 Write-Host "Fixtures ready: $uat ($count files)"
 
