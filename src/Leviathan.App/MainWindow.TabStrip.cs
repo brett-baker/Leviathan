@@ -322,9 +322,13 @@ public sealed partial class MainWindow
     // The place the dragged tab would take among the other tabs, as last seen with the pointer over the strip.
     private int? _dragIndex;
 
+    // The drop was already carried out where it landed (Drop or DroppedOutside), so the drag-completed handler must not do it again.
+    private bool _dropHandled;
+
     private void OnTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
     {
         _tabDragging = true;
+        _dropHandled = false;
         _nearDropX = null;
         _dragIndex = null;
         UiTrace.Mark($"tab drag starting: {(args.Tab.Tag as TabViewModel)?.Title}");
@@ -349,11 +353,30 @@ public sealed partial class MainWindow
         App.DraggedTab = null;
         App.DraggedGroup = null;
         _tabDragging = false;
+        if (_dropHandled)
+        {
+            return;
+        }
 
         // Wherever the strip left the tab, a tab let go over its own strip goes where the pointer is.
         _nearDropX ??= NativeCursor.TryGetPosition(out var x, out var y) ? NearStripX(x, y) : null;
         UiTrace.Mark($"tab drag completed; cursor {(_nearDropX is { } nx ? $"near the strip at {nx:0}" : "away from the strip")}");
         AfterDrag(FinishTabDrag);
+    }
+
+    /// <summary>Puts a tab of this strip at <paramref name="index"/> (its place among the other tabs) once the drag has let go of it.</summary>
+    private void MoveDroppedTab(TabViewModel tab, int index)
+    {
+        _dropHandled = true;
+        _tabDragging = false;
+        _dragIndex = null;
+        _nearDropX = null;
+        _draggedItem = null;
+        AfterDrag(() =>
+        {
+            Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
+            SyncTabs();
+        });
     }
 
     /// <summary>The drag is over: put the tab where it was let go, then make the strip show what the model says.</summary>
@@ -450,8 +473,18 @@ public sealed partial class MainWindow
         // strip is still a reorder: the tab goes where the pointer is. Only a drop clearly away from the strip (or outside the window) tears it off.
         if (hasCursor && NearStripX(x, y) is { } stripX)
         {
-            // Settled when the drag completes (FinishTabDrag), once the strip has stopped moving things around.
-            _nearDropX = stripX;
+            // A reorder: the tab goes where the pointer last was over the strip (or, failing that, where the coordinates say).
+            if (args.Tab.Tag is TabViewModel dropped && _viewModel.Tabs.Tabs.Contains(dropped))
+            {
+                var index = _dragIndex ?? IndexAmongOthers(stripX, dropped);
+                UiTrace.Mark($"tab dropped just outside its strip: new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(dropped)}");
+                MoveDroppedTab(dropped, index);
+            }
+            else
+            {
+                _nearDropX = stripX;
+            }
+
             return;
         }
 
@@ -518,8 +551,9 @@ public sealed partial class MainWindow
         {
             // One of this strip's own tabs let go on it: a reorder, placed from the pointer when the drag completes (FinishTabDrag).
             e.AcceptedOperation = DataPackageOperation.Move;
-            _nearDropX = e.GetPosition(TabsView).X;
-            _dragIndex = IndexUnderPointer(e, tab);
+            var index = IndexUnderPointer(e, tab);
+            UiTrace.Mark($"tab dropped on its own strip: new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
+            MoveDroppedTab(tab, index);
         }
         else if (App.DraggedTab is { } foreign)
         {
