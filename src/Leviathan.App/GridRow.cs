@@ -257,15 +257,9 @@ internal sealed class GridRow : Grid
     {
         var state = App.Host.Git.StateOf(entry);
         cell.Text.Text = Leviathan.Core.Git.GitStates.Letter(state);
-        cell.Text.Foreground = new SolidColorBrush(state switch
-        {
-            Leviathan.Core.Git.GitState.Modified => Color.FromArgb(255, 0xC2, 0x5A, 0x00),
-            Leviathan.Core.Git.GitState.Added => Color.FromArgb(255, 0x2E, 0x8B, 0x3E),
-            Leviathan.Core.Git.GitState.Deleted or Leviathan.Core.Git.GitState.Conflicted => Color.FromArgb(255, 0xC4, 0x2B, 0x1C),
-            Leviathan.Core.Git.GitState.Renamed => Color.FromArgb(255, 0x00, 0x67, 0xC0),
-            Leviathan.Core.Git.GitState.Untracked => Color.FromArgb(255, 0x6B, 0x4F, 0xBB),
-            _ => Colors.Gray,
-        });
+        // Chosen for the theme the row is on so the letter reads at 4.5 to 1 or better in both (StatusColors; accessibility, build plan G4).
+        var rgb = Leviathan.ViewModels.Settings.StatusColors.Git(state, cell.Text.ActualTheme == ElementTheme.Dark);
+        cell.Text.Foreground = new SolidColorBrush(Color.FromArgb(255, rgb.R, rgb.G, rgb.B));
         ToolTipService.SetToolTip(cell.Text, state == Leviathan.Core.Git.GitState.Clean ? null : Leviathan.Core.Git.GitStates.Title(state));
     }
 

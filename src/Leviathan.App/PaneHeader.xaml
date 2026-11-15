@@ -17,7 +17,7 @@
         <TextBlock x:Name="PathText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" />
         <TextBlock x:Name="TitleText" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="TypeText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-        <ProgressBar x:Name="UsageBar" Maximum="100" Height="6" Margin="0,6,0,2" />
+        <ProgressBar AutomationProperties.Name="Space used on this drive" x:Name="UsageBar" Maximum="100" Height="6" Margin="0,6,0,2" />
         <TextBlock x:Name="UsageText" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="CountedText" Style="{StaticResource CaptionTextBlockStyle}" Visibility="Collapsed" TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

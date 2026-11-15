@@ -27,7 +27,7 @@
       <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" Text="Starting…" />
       <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" />
     </Grid>
-    <ProgressBar x:Name="Bar" Grid.Row="1" Minimum="0" Maximum="1" Height="3" />
+    <ProgressBar AutomationProperties.Name="Triage progress" x:Name="Bar" Grid.Row="1" Minimum="0" Maximum="1" Height="3" />
 
     <Grid Grid.Row="2" x:Name="Stage" Background="Black">
       <vlc:VideoView x:Name="Video" Initialized="OnVideoInitialized" />
@@ -58,7 +58,7 @@
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="TimeText" VerticalAlignment="Center" FontSize="12" Foreground="#E0E0E0" Text="0:00 / 0:00" MinWidth="100" />
-        <Slider x:Name="Seek" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
+        <Slider AutomationProperties.Name="Seek" x:Name="Seek" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
       </Grid>
 
       <!-- The summary when the queue ends: what was done, and the discarded files to look over and restore (spec 10.1). -->
@@ -67,7 +67,7 @@
           <TextBlock Text="Queue finished" Foreground="White" FontSize="26" FontWeight="SemiBold" />
           <TextBlock x:Name="SummaryText" Foreground="White" FontSize="15" TextWrapping="Wrap" />
           <TextBlock Text="Discarded files (select to restore)" Foreground="#C0FFFFFF" Margin="0,12,0,0" />
-          <ListView x:Name="DiscardedList" SelectionMode="Extended" MaxHeight="260" />
+          <ListView AutomationProperties.Name="Discarded files" x:Name="DiscardedList" SelectionMode="Extended" MaxHeight="260" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="RestoreButton" Content="Restore selected" Click="OnRestoreClick" />
             <Button Content="Back to the queue" Click="OnBackToQueueClick" />
@@ -86,7 +86,7 @@
       <!-- The order of the list: name, age or size. A menu, because the window handles the arrow keys itself. -->
       <Button x:Name="OrderButton" VerticalAlignment="Top" IsTabStop="False" Content="Order: As opened ▾"
               ToolTipService.ToolTip="Put the list in order: name, age or size" />
-      <ListView x:Name="Queue" Grid.Column="1" SelectionMode="Single" IsTabStop="False" Background="Transparent" Height="84"
+      <ListView AutomationProperties.Name="Files still to review" x:Name="Queue" Grid.Column="1" SelectionMode="Single" IsTabStop="False" Background="Transparent" Height="84"
                 ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollMode="Enabled"
                 ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled"
                 SelectionChanged="OnQueueSelectionChanged">

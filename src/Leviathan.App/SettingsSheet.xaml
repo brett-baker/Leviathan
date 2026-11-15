@@ -73,10 +73,10 @@
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <ListView x:Name="PageList" Padding="8,0" SelectionMode="Single" ItemTemplate="{StaticResource PageTemplate}" SelectionChanged="OnPageSelected" />
+        <ListView AutomationProperties.Name="Settings pages" x:Name="PageList" Padding="8,0" SelectionMode="Single" ItemTemplate="{StaticResource PageTemplate}" SelectionChanged="OnPageSelected" />
 
         <Grid Grid.Column="1">
-          <ListView x:Name="ResultList" Visibility="Collapsed" Padding="8,0" IsItemClickEnabled="True" SelectionMode="None" ItemClick="OnResultClick"
+          <ListView AutomationProperties.Name="Search results" x:Name="ResultList" Visibility="Collapsed" Padding="8,0" IsItemClickEnabled="True" SelectionMode="None" ItemClick="OnResultClick"
                     ItemTemplate="{StaticResource ResultTemplate}" />
           <TextBlock x:Name="NoResults" Text="No setting matches that." Margin="16,8,0,0" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
@@ -322,7 +322,7 @@
                 </Border>
                 <TextBox x:Name="KeyFilterBox" PlaceholderText="Filter the list" TextChanged="OnKeyFilterChanged" MaxWidth="360" HorizontalAlignment="Left"
                          AutomationProperties.Name="Filter the shortcuts" />
-                <ListView x:Name="KeyList" SelectionMode="Single" ItemTemplate="{StaticResource KeyRowTemplate}" SelectionChanged="OnKeyRowSelected" />
+                <ListView AutomationProperties.Name="Key bindings" x:Name="KeyList" SelectionMode="Single" ItemTemplate="{StaticResource KeyRowTemplate}" SelectionChanged="OnKeyRowSelected" />
               </StackPanel>
 
               <!-- Pages that only say what they will hold -->

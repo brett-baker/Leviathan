@@ -272,7 +272,7 @@
                 <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                            Visibility="{x:Bind local:SidebarFormat.HasDetail(Kind, Detail)}" />
-                <ProgressBar Maximum="100" Height="3" Value="{x:Bind local:SidebarFormat.Percent(UsedFraction)}"
+                <ProgressBar AutomationProperties.Name="Space used on this drive" Maximum="100" Height="3" Value="{x:Bind local:SidebarFormat.Percent(UsedFraction)}"
                              Foreground="{x:Bind local:SidebarFormat.BarBrush(IsLowOnSpace)}"
                              Visibility="{x:Bind local:SidebarFormat.HasBar(UsedFraction)}" />
               </StackPanel>
@@ -481,7 +481,7 @@
       <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed"
                   Tapped="OnFreeSpaceTapped" ToolTipService.ToolTip="Space map of this folder (Ctrl+Shift+O)">
         <TextBlock x:Name="FreeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <ProgressBar x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
+        <ProgressBar AutomationProperties.Name="Free space on this drive" x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
       </StackPanel>
       <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->

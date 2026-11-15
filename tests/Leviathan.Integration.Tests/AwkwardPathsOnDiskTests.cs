@@ -51,7 +51,7 @@ public sealed class AwkwardPathsOnDiskTests : IDisposable
         return folder;
     }
 
-    private async Task<ScheduledJob> RunAsync(JobRequest request, params IJobExecutor[] executors)
+    private static async Task<ScheduledJob> RunAsync(JobRequest request, params IJobExecutor[] executors)
     {
         await using var host = new JobHost(new JobScheduler(), executors, new InMemoryJobJournal());
         host.Start();

@@ -70,7 +70,7 @@
               <TextBlock Text="{x:Bind Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" />
             </StackPanel>
-            <ProgressBar Grid.Column="2" VerticalAlignment="Center" IsIndeterminate="{x:Bind IsIndeterminate, Mode=OneWay}" Value="{x:Bind Percent, Mode=OneWay}" Maximum="100" />
+            <ProgressBar AutomationProperties.Name="Job progress" Grid.Column="2" VerticalAlignment="Center" IsIndeterminate="{x:Bind IsIndeterminate, Mode=OneWay}" Value="{x:Bind Percent, Mode=OneWay}" Maximum="100" />
             <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind State, Mode=OneWay}" />
           </Grid>
         </DataTemplate>
@@ -87,7 +87,7 @@
         <Button Content="All crash folders" Click="OnOpenCrashesClick" />
         <Button Content="Refresh" Click="OnRefreshCrashesClick" />
       </StackPanel>
-      <ListView x:Name="CrashListView" Height="150" SelectionMode="Single" SelectionChanged="OnCrashSelected"
+      <ListView AutomationProperties.Name="Recorded problems" x:Name="CrashListView" Height="150" SelectionMode="Single" SelectionChanged="OnCrashSelected"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6">
         <ListView.ItemTemplate>
           <DataTemplate x:DataType="diag:CrashRow">

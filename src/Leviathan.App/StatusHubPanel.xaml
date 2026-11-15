@@ -19,7 +19,7 @@
         <Border Width="4" CornerRadius="2" Background="{x:Bind local:HubFormat.Color(Entry.ColorIndex), Mode=OneWay}" />
         <StackPanel Grid.Column="1" Spacing="3">
           <TextBlock Text="{x:Bind Entry.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
-          <ProgressBar Value="{x:Bind local:HubFormat.Value(Entry.Percent), Mode=OneWay}" Maximum="100"
+          <ProgressBar AutomationProperties.Name="Progress" Value="{x:Bind local:HubFormat.Value(Entry.Percent), Mode=OneWay}" Maximum="100"
                        IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Entry.Percent, Entry.State), Mode=OneWay}"
                        ShowError="{x:Bind Entry.IsFailed, Mode=OneWay}"
                        Visibility="{x:Bind local:HubFormat.ShowBar(Entry.IsActive), Mode=OneWay}" />
@@ -262,7 +262,7 @@
               <Button x:Name="OpRemoveButton" Content="Remove" Tag="Remove" Click="OnSelectionActionClick" ToolTipService.ToolTip="Take off the list" />
             </StackPanel>
           </ScrollViewer>
-          <ListView x:Name="OperationList" Grid.Row="2" SelectionMode="Extended" ItemTemplateSelector="{StaticResource OperationSelector}"
+          <ListView AutomationProperties.Name="Operations" x:Name="OperationList" Grid.Row="2" SelectionMode="Extended" ItemTemplateSelector="{StaticResource OperationSelector}"
                     SelectionChanged="OnOperationSelectionChanged" RightTapped="OnOperationRightTapped" />
           <TextBlock x:Name="NothingText" Grid.Row="2" Text="Nothing is running. Copies, moves and deletes appear here."
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
@@ -306,7 +306,7 @@
               </Button.Flyout>
             </Button>
           </Grid>
-          <ListView x:Name="ActivityList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnActivityItemClick"
+          <ListView AutomationProperties.Name="Recent activity" x:Name="ActivityList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnActivityItemClick"
                     ItemTemplate="{StaticResource ActivityTemplate}" />
           <TextBlock x:Name="ActivityEmpty" Grid.Row="1" Text="Nothing here yet. What you do is listed here, newest first." Margin="4,12,0,0"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
@@ -342,7 +342,7 @@
             <TextBox x:Name="BinSearch" Grid.Column="2" PlaceholderText="Search the bin" TextChanged="OnBinSearchChanged" AutomationProperties.Name="Search the bin" />
           </Grid>
           <TextBlock x:Name="BinMessage" Grid.Row="2" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" Visibility="Collapsed" />
-          <ListView x:Name="BinList" Grid.Row="3" SelectionMode="Extended" ItemTemplate="{StaticResource BinTemplate}"
+          <ListView AutomationProperties.Name="Soft-deleted items" x:Name="BinList" Grid.Row="3" SelectionMode="Extended" ItemTemplate="{StaticResource BinTemplate}"
                     SelectionChanged="OnBinSelectionChanged" />
         </Grid>
         <ScrollViewer x:Name="BackgroundPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
@@ -359,7 +359,7 @@
                 <Button x:Name="ResumeAllButton" Grid.Column="2" Content="Resume all" Click="OnResumeAllClick" />
               </Grid>
               <TextBlock x:Name="FolderSizeText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <ListView x:Name="TaskList" SelectionMode="None" ItemTemplate="{StaticResource TaskTemplate}" MaxHeight="260" />
+              <ListView AutomationProperties.Name="Background tasks" x:Name="TaskList" SelectionMode="None" ItemTemplate="{StaticResource TaskTemplate}" MaxHeight="260" />
               <TextBlock x:Name="TasksEmpty" Text="No background work right now." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,0,0,0" />
             </StackPanel>
             <StackPanel Spacing="4">
@@ -466,9 +466,9 @@
               <ColumnDefinition Width="2*" />
             </Grid.ColumnDefinitions>
             <Grid x:Name="SpaceMapHost" MinHeight="80" SizeChanged="OnSpaceMapSizeChanged">
-              <Image x:Name="SpaceMapImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" PointerPressed="OnSpaceMapPressed" />
+              <Image AutomationProperties.Name="Space map. Each block is a file or folder sized by its use of space" x:Name="SpaceMapImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" PointerPressed="OnSpaceMapPressed" />
             </Grid>
-            <ListView x:Name="SpaceItems" Grid.Column="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnSpaceItemClick" />
+            <ListView AutomationProperties.Name="Largest items" x:Name="SpaceItems" Grid.Column="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnSpaceItemClick" />
           </Grid>
         </Grid>
       </Grid>

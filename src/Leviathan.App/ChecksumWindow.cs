@@ -2,6 +2,7 @@ using System.Text;
 using Leviathan.Core.Hashing;
 using Leviathan.Core.Paths;
 using Leviathan.ViewModels.Checksums;
+using Leviathan.ViewModels.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -197,6 +198,11 @@ internal sealed class ChecksumWindow : Window
 
     private ChecksumKind? ShownKind() => ChecksumKinds.All.Cast<ChecksumKind?>().FirstOrDefault(k => ChecksumKinds.Title(k!.Value) == _shown.SelectedItem as string);
 
+    // The window follows the system theme, so the colour of an error is chosen for the theme it is shown on (accessibility, build plan G4).
+    private bool IsDark => (Content as FrameworkElement)?.ActualTheme == ElementTheme.Dark;
+
+    private static SolidColorBrush Brush(Leviathan.ViewModels.Settings.Rgb c) => new(Windows.UI.Color.FromArgb(255, c.R, c.G, c.B));
+
     private void ShowRows()
     {
         if (_updating)
@@ -228,11 +234,11 @@ internal sealed class ChecksumWindow : Window
             };
             if (row.State is ChecksumState.Mismatch or ChecksumState.Failed)
             {
-                text.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 143, 148));
+                text.Foreground = Brush(StatusColors.Failed(IsDark));
             }
             else if (row.State == ChecksumState.Missing)
             {
-                text.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 208, 96));
+                text.Foreground = Brush(StatusColors.Warning(IsDark));
             }
 
             ToolTipService.SetToolTip(text, row.Path);

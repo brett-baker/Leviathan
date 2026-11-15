@@ -18,7 +18,7 @@
     <TextBlock x:Name="TitleText" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis" />
 
     <Grid Grid.Row="1">
-      <Image x:Name="SheetImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+      <Image AutomationProperties.Name="Contact sheet" x:Name="SheetImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
              PointerMoved="OnImagePointerMoved" PointerExited="OnImagePointerExited" PointerPressed="OnImagePointerPressed" Visibility="Collapsed" />
       <ProgressRing x:Name="Busy" IsActive="True" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" />
       <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560"
@@ -31,7 +31,7 @@
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <ComboBox x:Name="GridBox" SelectedIndex="1" SelectionChanged="OnGridChanged" ToolTipService.ToolTip="Frames in the sheet">
+      <ComboBox AutomationProperties.Name="Frames in the sheet" x:Name="GridBox" SelectedIndex="1" SelectionChanged="OnGridChanged" ToolTipService.ToolTip="Frames in the sheet">
         <ComboBoxItem Content="3 × 3" Tag="3" />
         <ComboBoxItem Content="4 × 4" Tag="4" />
         <ComboBoxItem Content="5 × 5" Tag="5" />
