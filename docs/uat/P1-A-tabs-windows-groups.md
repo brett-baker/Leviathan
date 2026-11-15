@@ -44,10 +44,10 @@
 | # | Do | Expect |
 |---|----|--------|
 | 15 | Right-click a tab: **Add tab to new group** and name it `NAS inbox`. | A coloured chip `NAS inbox` appears in front of the tab and a coloured bar sits under it. |
-| 16 | Right-click another tab: **Add tab to group**, choose `NAS inbox`. | The tab joins and sits next to the first. A group's tabs are always side by side. |
+| 16 | Right-click another tab: **Add tab to group** (a submenu), choose `NAS inbox`. | The tab joins and sits next to the first. A group's tabs are always side by side. |
 | 17 | Click the chip. | The group folds: the chip shows the name and the tab count (`NAS inbox · 2`) and its tabs are hidden. Click again to unfold. |
 | 18 | With the group folded, press **Ctrl+Tab** repeatedly. | Hidden tabs are skipped. |
-| 19 | Right-click the chip: **Rename group**, **Change group colour**, **Ungroup**, **Close group**. | Each does what it says. **Close group** closes all its tabs; Reopen closed tab restores the tab and its group. |
+| 19 | Right-click the chip: **Collapse group / Expand group**, **Rename group…**, **Group colour** (a submenu with the current one ticked), **New tab in group**, **Ungroup**, **Close group**, **Move group to new window**. | Each does what it says. **Close group** closes all its tabs; Reopen closed tab restores the tab and its group. |
 | 20 | Try to put a **pinned** tab into a group. | It is refused (pinned tabs are never grouped). |
 | 21 | Open 20 tabs, put them in one group, fold and unfold it five times. | No visible freeze while folding. Then open **Settings > Advanced > Diagnostics**: "UI stalls over 50 ms since start" does not rise because of these actions (it may already show the startup stalls). |
 
@@ -58,8 +58,8 @@
 | 22 | Press **Ctrl+N**. | A second window opens (it takes a moment; a stall of about 110 to 130 ms is known). |
 | 23 | Drag a tab out of the strip and drop it on the desktop. | A new window opens at the drop point with that tab, the same size, kept on screen. |
 | 24 | Drag a tab from one window onto the other window's strip. | It merges there; the empty source window closes. |
-| 25 | Right-click a group chip: **Move group to a new window**. | The whole group moves with its colour and name. |
-| 26 | Right-click a tab: **Move tab to a new window**. | The tab opens in its own window. |
+| 25 | Right-click a group chip: **Move group to new window**. | The whole group moves with its colour and name. |
+| 26 | Press **Ctrl+Shift+P**, type `move tab to a new window` and run it. | The tab opens in its own window. (The tab's right-click menu has no entry for this; tearing off by dragging is the other way.) |
 
 ### Sessions and profiles
 
