@@ -20,7 +20,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | Select the six `IMG_*.jpg` files and press **Shift+F2** (or run **Bulk rename…** from the palette or the right-click menu). | A window **Rename 6 items** opens. The steps area is empty with the hint "Add a step to start. The preview shows each new name before anything is renamed." The table below lists the six names unchanged. |
+| 1 | Select the six `IMG_*.jpg` files and press **Shift+F2** (or the **Bulk rename** button in the command bar, which appears when several items are selected, or the palette). | A window **Rename 6 items** opens. The steps area is empty with the hint "Add a step to start. The preview shows each new name before anything is renamed." The table below lists the six names unchanged. |
 | 2 | Press **Add step**. | A menu: **Find and replace, Insert text, Remove characters, Change case, Trim, Add a number, Name from a pattern, Names from a list**. |
 | 3 | Add **Find and replace**; Find `IMG_`, Replace with `Holiday `. | The preview updates as you type (a short pause after each key) and shows `Holiday 0001.jpg` and so on. Nothing on disk changes. |
 | 4 | Tick **Match case**, then change Find to `img_`. | With Match case on, nothing matches and the names stay; turn it off and they match again. |

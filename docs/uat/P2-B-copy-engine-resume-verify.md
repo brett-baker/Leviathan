@@ -38,7 +38,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 9 | **Settings > Operations > Check copies against their sources**: set to *Always* (full). Copy `07-bulk-copy`. | Each file is hashed (xxHash3) and compared; a verification failure would show as an error row. A mismatch is simulated by test only; here you confirm there is no error and speed stays acceptable. |
+| 9 | In the status hub (**Ctrl+Shift+O**) open **Quick settings** and find **Check copies against the original**: choose *Every file in full* (the others are *Moves and network copies (recommended)* and *Moves only*). Copy `07-bulk-copy`. | Each file is hashed (xxHash3) and compared; a verification failure would show as an error row. A mismatch is simulated by test only; here you confirm there is no error and speed stays acceptable. |
 | 10 | Move a folder to **another drive** (cross-volume) if you have one. | The source is deleted **only after** the copy is verified. While it runs both exist. |
 | 11 | Move a folder within the same drive. | It happens at once (a rename), with no copying of data. |
 
@@ -46,7 +46,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 12 | Copy a file into a folder that is **read-only for you** (deny write permission via Explorer's Security tab on a folder you made in `08-targets`). | The job pauses with a **prompt** on the row: Skip / Retry / Skip all like this. Choose **Retry** after fixing the permission; it continues. |
+| 12 | Copy a file into a folder that is **read-only for you** (deny write permission via Explorer's Security tab on a folder you made in `08-targets`). | The job pauses with a **prompt** on the row: Retry, Skip, **Skip all like this**, and **Skip, do as administrator** (which tries that one item elevated, with a UAC prompt). Choose **Retry** after fixing the permission; it continues. |
 | 13 | Fill a small target (a tiny VHD or a nearly full USB stick, if you have one). | The job fails early with a "not enough free space" message **before** copying. |
 | 14 | Copy `02-odd-names` (spaces, Unicode, emoji, a trailing dot, a trailing space, `CON.txt`, a 200-character name) into `target-a` and then into the share `\\localhost\LeviathanUat\08-targets\target-b`. | Everything copies on a local disk with the exact names. On the share, a name the share refuses is changed safely (and the report says so); nothing is dropped. |
 | 15 | Copy `03-long-paths` (a path over 260 characters) and delete the copy afterwards with Shift+Del. | It copies and deletes. The list shows long paths without error. |

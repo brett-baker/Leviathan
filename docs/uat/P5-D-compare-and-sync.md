@@ -16,7 +16,7 @@
    $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
-3. Open `D:\Playbooks\uat\18-sync` (split the tab with `left` and `right` if you like), then run **Compare and sync folders…** from the palette (**Ctrl+Shift+P**) or the right-click menu. The window opens as **Compare and sync folders** (with the folders pre-filled from a split tab, otherwise type them).
+3. Open `D:\Playbooks\uat\18-sync` (split the tab with `left` and `right` if you like), then run **Compare and sync folders…** from the palette (**Ctrl+Shift+P**) or from the **Compare and sync** button of the command bar (it shows when nothing is selected). The window opens as **Compare and sync folders** (with the folders pre-filled from a split tab, otherwise type them).
 
 ## Steps
 

@@ -12,7 +12,7 @@
    $env:LEVIATHAN_DATA_DIR = "D:\Playbooks\data"
    & .\src\Leviathan.App\bin\x64\Debug\net10.0-windows10.0.26100.0\Leviathan.exe
    ```
-3. To get jobs that last long enough to look at, set **Settings > Operations > Bandwidth limits** to about 20 MB/s (or copy the 6 GiB file in `04-attributes`).
+3. To get jobs that last long enough to look at, set **Settings > Operations > Speed limit (MB per second, 0 = none)** (or the same box in the status hub's **Quick settings**: *Limit for all copies and moves*) to about 20 MB/s (or copy the 6 GiB file in `04-attributes`).
 
 ## Steps
 
@@ -35,8 +35,8 @@
 | 8 | Select a queued row: **Run now**, then change its **priority** and use **Move up / down**. | The queue order changes; Run now starts it at once. |
 | 9 | Select several rows (Ctrl+click) and press **Pause**, **Cancel**. | The action applies to all selected. |
 | 10 | Right-click a row. | The context menu holds pause, resume, cancel, remove, move, priority, run now, retry failed, report, open source, open destination. |
-| 11 | Use the toolbar: **Pause all / Resume all**, **Limits**, **Bandwidth**, **Clear completed**. | Each works. Lowering the job limit makes extra jobs queue; raising it starts them. |
-| 12 | Set a **bandwidth limit** of 5 MB/s on the destination, then copy a big file. | The speed settles near the limit; changing it applies to the next chunk without restarting. A schedule window (for example night hours) applies only in its hours. |
+| 11 | Use the toolbar: **Pause all / Resume all** and **Clear completed**. In **Quick settings** change **Operations at once** / **At once on one drive or share**. | Each works. Lowering the limit makes extra jobs queue; raising it starts them. |
+| 12 | Set the speed limit to 5 MB/s (Quick settings, *Limit for all copies and moves*), then copy a big file. | The speed settles near the limit; changing it applies to the next chunk without restarting. Tick **Use a different limit at certain hours**, set **From / To (hh:mm)** and **Limit then (MB/s)**: that limit applies only in those hours. |
 | 13 | Make a job fail (copy into a folder you cannot write to). | The strip shows a **red tip** until you look at it; the row shows the error and a **Retry failed** action. |
 | 14 | Open a finished job's **report**. | The per-item list with Show destination and Show source folder. Reports are kept for 7 days. |
 | 15 | Put two copies to the **same NAS or drive** and one **background** job (folder sizes) on it. | The background job yields to the copy on the same device (check **Background** tab). Jobs to different devices run side by side up to the limit. |

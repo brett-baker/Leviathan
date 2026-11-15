@@ -22,7 +22,7 @@
 |---|----|--------|
 | 1 | Select `notes.txt` and `todo.md` in the left pane and press **F5**. | They are **copied** into the right pane's folder through the normal queue; the right list updates when the job finishes. The originals stay. |
 | 2 | Select `report.docx` in the left pane and press **F6**. | It is **moved** to the right pane's folder. |
-| 3 | Press **F5** or **F6** in a single (unsplit) tab. | Nothing happens (these keys work only while split). |
+| 3 | Press **F6** in a single (unsplit) tab. | Nothing happens (F6 works only while split). **F5** in an unsplit tab is **Reload**, as usual; only while split does it copy to the other pane. |
 | 4 | Press **F5** with nothing selected. | Nothing happens; no empty job is created. |
 | 5 | Press **Ctrl+Shift+S**. | The two panes **swap** folders; selections and layouts travel with the pane. |
 | 6 | Focus one pane and press **Alt+=**. | The other pane shows the **same folder** as the focused one. |

@@ -65,12 +65,12 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 26 | Open `D:\Playbooks\uat\19-git`. Turn on **Settings > Files and folders > Git status in repositories**. | A **Git** column (and/or branch information) appears in Details. |
+| 26 | Open `D:\Playbooks\uat\19-git`. Turn on **Settings > Files and folders > Show Git status in repositories** (it works on local drives only). Then add the column: right-click a column header > **More columns…** (or View > **Choose columns**) and tick **Git**. | A **Git** column appears in Details and the **branch** shows in the status bar. |
 | 27 | Read each file's letter. | `modified.txt` **Modified** (M); `staged-new.txt` **Added** (A); `deleted.txt` **Deleted** (D); `new-name.txt` **Renamed** (R); `untracked.txt` **Not tracked** (U or ?); `ignored.log` **Ignored**; `clean.txt` and `.gitignore` **Unchanged** (blank). The tooltip names the state. |
 | 28 | Switch the theme between light and dark. | The letters stay readable in both (they use theme-specific colours, 4.5:1 or better). The meaning is also in the letter and the tooltip, not the colour alone. |
 | 29 | Edit `clean.txt` in a text editor and save. | Within a moment (the folder watcher) it becomes **Modified**. Commit it from a terminal; it returns to blank. |
-| 30 | Turn the setting **off**. | The column and the git work stop; opening a big non-repository folder is not slowed down. |
-| 31 | Open `01-basic` (not a repository). | No Git column content, and no delay. |
+| 30 | Turn the setting **off** (it reads "Git is never asked"). | The column is empty and git is never run; opening a big non-repository folder is not slowed down. |
+| 31 | Open `01-basic` (not a repository), then a network folder. | No Git letters and no delay; network locations are never asked. |
 
 ### Folder notes (details pane)
 

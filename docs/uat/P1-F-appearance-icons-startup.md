@@ -20,7 +20,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | **Appearance > Theme**: System, Light, Dark. | The window changes. Note any setting the page says needs a restart (theme was fixed at start in Phase 1); restart and check it holds. |
+| 1 | **Appearance > Theme**: System, Light, Dark. | The window changes. The page says the theme takes effect **the next time the app starts**, so restart and check it holds. Note any other setting that needs a restart. |
 | 2 | **Density**: Compact, then Comfortable. | Row height and spacing change in the file list and sidebar. |
 | 3 | **Accent colour**: pick a colour. | New windows use it (selection, focus frame, drop highlight). Open a new window with **Ctrl+N** to see it. |
 | 4 | **Window backdrop (Mica)**: off, then on. | The window background turns solid, then transparent to the wallpaper. |

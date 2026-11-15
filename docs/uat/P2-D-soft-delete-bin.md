@@ -26,7 +26,7 @@
 | 3 | Press **Ctrl+Z**. | The file returns to its original path. The manifest line is pruned. |
 | 4 | Delete a **folder** with sub-folders on the share and undo. | The whole folder returns. |
 | 5 | Press **Shift+Del** on a share file. | A confirmation; confirming deletes it permanently (no trash copy). |
-| 6 | In **Settings > Delete**, turn off the hidden recycle folder on shares, then delete a file. | A permanent delete happens (nothing to undo), and the result says so, unless the NAS keeps its own bin. Turn it back on. |
+| 6 | In **Settings > Delete**, turn off **Keep a hidden recycle folder on network shares**, then delete a file. | A permanent delete happens (nothing to undo), and the result says so, unless the NAS keeps its own bin. Turn it back on. |
 | 7 | Try to delete a share's **root** (the share itself). | Refused: "A drive or share cannot be deleted." |
 
 ### Plain Delete by location type
@@ -47,7 +47,7 @@
 | 14 | Select two items and choose **Restore**. | They return to their original folders. The rows leave the list. |
 | 15 | Select one and choose **Delete permanently**. | A confirmation, then it is removed from the trash. |
 | 16 | Choose **Delete old now** (purge by policy). | The Worker reports a purge job with how many items and bytes it removed. Items younger than the retention stay. |
-| 17 | **Settings > Delete**: set retention to 1 day and the size cap to 1 GiB. Then check the setting persists after restart. | The values are kept (defaults: 30 days, 100 GiB). |
+| 17 | **Settings > Delete**: set **Keep deleted items for (days)** to 1 and **Largest the bin may grow (GiB)** to 1. Then check the setting persists after restart. | The values are kept (defaults: 30 days, 100 GiB). |
 | 18 | Leave the app running for 2 minutes after start. | A policy purge runs by itself (and then daily) as a **background** job with a report in the Activity tab. |
 | 19 | Delete the same name twice (two files called `notes.txt` from different folders) and restore both. | Neither overwrites the other: a restore never replaces a file that exists; it makes a numbered name or refuses. |
 

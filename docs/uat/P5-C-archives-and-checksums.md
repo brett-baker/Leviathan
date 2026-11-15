@@ -55,7 +55,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 21 | In `17-archives\sums` select `one.bin`, `two.bin`, `three.txt` and run **Checksums…** (palette or right-click). | A window opens with check boxes for the kinds (MD5, SHA-1, SHA-256, SHA-512, xxHash3, CRC32). Untick all and press **Compute**: "Tick at least one kind of sum." |
+| 21 | In `17-archives\sums` select `one.bin`, `two.bin`, `three.txt` and run **Checksums…** (the **Checksums** button in the command bar's selection zone, or the palette). | A window opens with check boxes for the kinds (MD5, SHA-1, SHA-256, SHA-512, xxHash3, CRC32). Untick all and press **Compute**: "Tick at least one kind of sum." |
 | 22 | Tick **SHA-256** and press **Compute**. | One row per file with its hash. Progress shows; **Stop** halts and says "Stopped." |
 | 23 | Compare with PowerShell: `Get-FileHash -Algorithm SHA256 one.bin`. | The same value. Tick several kinds and use the **Show** list to switch which one is displayed. |
 | 24 | Paste a correct SHA-256 into **Compare with a sum** (copy from `good.sha256`); then change one character. | The row that matches is marked OK; after the change nothing matches and it says so. |

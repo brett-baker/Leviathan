@@ -33,7 +33,7 @@
 | 6 | **Files and folders:** show hidden files, system files, folder sizes, show deletes at once, Git status, quick targets, recheck drive sizes daily. | Hidden files toggle at once; the Git column appears in a repository (P5-E). |
 | 7 | **Tabs and windows:** closing the last tab (close the window, or go home). | Closing the last tab does what you chose. |
 | 8 | **Network:** folder sizes and thumbnails on network drives. | With thumbnails on for network drives, a picture folder on the share shows thumbnails (slower); off shows icons only. |
-| 9 | **Operations:** jobs at once, jobs per drive or share, background jobs at once, verify copies, **bandwidth limits and schedule**. | Setting the bandwidth to 5 MB/s slows a running copy within a moment (P2-C). Setting the number of jobs at once to 1 queues a second job. |
+| 9 | **Operations:** *Operations at once*, *At once on one drive or share*, *Background jobs at once*, *Speed limit (MB per second, 0 = none)* and *Use a different limit at certain hours* (From, To, Limit then). Copy verification is in the status hub's Quick settings (*Check copies against the original*). | Setting the bandwidth to 5 MB/s slows a running copy within a moment (P2-C). Setting the number of jobs at once to 1 queues a second job. |
 | 10 | **Delete:** how long deleted items are kept, size limit, hidden recycle folder on shares. | Persisted; used by the Soft-delete bin (P2-D). |
 | 11 | **Media and preview:** triage options, skim playback, hover scrub. | Turn **Scrub videos by hovering** off: hovering a video thumbnail no longer scrubs. |
 | 12 | **Tags:** tag names, colours, order and keys 1 to 9, tinting rows. | See `F-colour-tags`. |

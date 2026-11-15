@@ -27,7 +27,7 @@
 | 6 | Click a breadcrumb segment such as `uat`. | That folder opens. **Middle-click** or **Ctrl+click** a segment opens it in a new tab. |
 | 7 | Click the **chevron** after a segment. | A list of that folder's subfolders (siblings of the next segment) opens; typing filters it; choosing one navigates. |
 | 8 | Narrow the window until the path no longer fits. | The first segments collapse into a **"…"** menu; the last ones stay. |
-| 9 | Right-click the bar. | Copy path, Copy as UNC, Copy as quoted path, Copy as file:// URI. Paste each into a text file to check. |
+| 9 | Right-click the bar. | Copy path, Copy as UNC path, Copy path in quotes, Copy as file:// URI. Paste each into a text file to check. |
 | 10 | Open `D:\Playbooks\uat\03-long-paths`, drill to the bottom (over 260 characters). | Every level opens; the bar shows the whole path (trimmed in the middle). |
 
 ### History
@@ -36,7 +36,7 @@
 |---|----|--------|
 | 11 | Visit three folders, press **Alt+Left** twice, then **Alt+Right**. | Back, back, forward. The forward list is dropped when you navigate somewhere new. |
 | 12 | Press **Alt+Up**. | The parent folder opens. |
-| 13 | Press **F5** (reload). | The folder lists again; a changed file appears. |
+| 13 | Press **F5** or **Ctrl+R** (reload). | The folder lists again; a changed file appears. (In a split tab F5 copies to the other pane instead; use Ctrl+R there.) |
 | 14 | Use the mouse **back/forward side buttons** if you have them. | Same as Alt+Left / Alt+Right. |
 
 ### Favourites
