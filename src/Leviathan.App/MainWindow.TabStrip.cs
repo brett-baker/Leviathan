@@ -345,6 +345,10 @@ public sealed partial class MainWindow
         App.DraggedTab = null;
         App.DraggedGroup = null;
         _tabDragging = false;
+
+        // Wherever the strip left the tab, a tab let go over its own strip goes where the pointer is.
+        _nearDropX = NativeCursor.TryGetPosition(out var x, out var y) ? NearStripX(x, y) : null;
+        UiTrace.Mark($"tab drag completed; cursor {(_nearDropX is { } nx ? $"near the strip at {nx:0}" : "away from the strip")}");
         AfterDrag(FinishTabDrag);
     }
 
@@ -452,7 +456,10 @@ public sealed partial class MainWindow
 
     private void OnTabStripDragOver(object sender, DragEventArgs e)
     {
-        if (App.DraggedTab is not null || App.DraggedGroup is not null)
+        // A tab or group of this very strip is the strip's own business (it reorders itself); answering "accepted" for it would tell the strip
+        // that the app took the drop, and the reorder is lost. Only what comes from another window is accepted here.
+        var own = (App.DraggedTab is { } tab && _viewModel.Tabs.Tabs.Contains(tab)) || (App.DraggedGroup is { } group && _viewModel.Tabs.Groups.Contains(group));
+        if (!own && (App.DraggedTab is not null || App.DraggedGroup is not null))
         {
             e.AcceptedOperation = DataPackageOperation.Move;
             e.DragUIOverride.Caption = App.DraggedGroup is not null ? "Move group here" : "Move tab here";
