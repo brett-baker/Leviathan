@@ -22,6 +22,8 @@ internal sealed class TabItemUi
     private readonly ContentControl _lock = new() { Content = Icons.Of("lock", 12), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ProgressRing _busy = new() { Width = 12, Height = 12, IsActive = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ContentControl _offline = new() { Content = Icons.Of("warning", 14, OfflineColor), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Grid _header;
+    private string _tip = string.Empty;
     private readonly Border _accent = new() { Height = 2, CornerRadius = new CornerRadius(1), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 2, 0, 0) };
     private readonly Border _groupBar = new() { Height = 3, CornerRadius = new CornerRadius(1.5), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 1, 0, 0) };
 
@@ -34,7 +36,8 @@ internal sealed class TabItemUi
         content.Children.Add(_title);
         content.Children.Add(_busy);
         content.Children.Add(_offline);
-        var header = new Grid();
+        var header = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+        _header = header;
         header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         header.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -44,6 +47,10 @@ internal sealed class TabItemUi
         Grid.SetRow(_groupBar, 2);
         header.Children.Add(_groupBar);
         Item = new TabViewItem { Tag = tab, Header = header, IconSource = Icons.SourceOf("folder") };
+
+        // The TabView puts its own tooltip on a tab when the tab's template is applied, which replaces one set before that. Set it again once
+        // the tab is loaded, and keep one on the header as well, which the TabView leaves alone.
+        Item.Loaded += (_, _) => ApplyTip();
         Refresh();
     }
 
@@ -84,7 +91,8 @@ internal sealed class TabItemUi
         _title.Text = tab.Title;
         _title.Visibility = tab.IsPinned && !ShowPinnedNames ? Visibility.Collapsed : Visibility.Visible;
         _pin.Visibility = tab.IsPinned ? Visibility.Visible : Visibility.Collapsed;
-        ToolTipService.SetToolTip(Item, tab.IsPinned ? $"{tab.Title} (pinned){Environment.NewLine}{tab.History.Current.Value}" : tab.History.Current.Value);
+        _tip = TipOf(tab);
+        ApplyTip();
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Item, tab.IsPinned ? $"{tab.Title}, pinned" : tab.Title);
         Item.IsClosable = !tab.IsPinned;
         _lock.Visibility = tab.IsLocked ? Visibility.Visible : Visibility.Collapsed;
@@ -100,6 +108,31 @@ internal sealed class TabItemUi
         {
             _accent.Visibility = Visibility.Collapsed;
         }
+    }
+
+    // What a tab says when the pointer rests on it: its name (a pinned tab may show only an icon) with the marks it carries, then the full path.
+    private static string TipOf(TabViewModel tab)
+    {
+        var marks = new List<string>(2);
+        if (tab.IsPinned)
+        {
+            marks.Add("pinned");
+        }
+
+        if (tab.IsLocked)
+        {
+            marks.Add("locked");
+        }
+
+        var name = marks.Count == 0 ? tab.Title : $"{tab.Title} ({string.Join(", ", marks)})";
+        var path = tab.History.Current.Value;
+        return string.Equals(name, path, StringComparison.Ordinal) ? path : $"{name}{Environment.NewLine}{path}";
+    }
+
+    private void ApplyTip()
+    {
+        ToolTipService.SetToolTip(Item, _tip);
+        ToolTipService.SetToolTip(_header, _tip);
     }
 
     public static bool TryParseColor(string? hex, out Color color)
@@ -279,8 +312,17 @@ public sealed partial class MainWindow
 
     // XAML event handlers must be instance methods even when they use no instance data.
 #pragma warning disable CA1822
+    // A drag reorders the strip's own items as the pointer moves. The strip is brought in line with the model once, when the drag is over:
+    // looking at it half way (after the item left its place and before it landed) put the tab back where it started.
+    private bool _tabDragging;
+
+    // Where along the strip a tab was let go when it was close enough to the strip to count as a reorder (see OnTabDroppedOutside).
+    private double? _nearDropX;
+
     private void OnTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
     {
+        _tabDragging = true;
+        _nearDropX = null;
         UiTrace.Mark($"tab drag starting: {(args.Tab.Tag as TabViewModel)?.Title}");
         _draggedItem = args.Tab.Tag;
         if (args.Tab.Tag is TabViewModel tab)
@@ -302,6 +344,65 @@ public sealed partial class MainWindow
         UiTrace.Mark($"tab drag completed: {args.DropResult}");
         App.DraggedTab = null;
         App.DraggedGroup = null;
+        _tabDragging = false;
+        AfterDrag(FinishTabDrag);
+    }
+
+    /// <summary>The drag is over: put the tab where it was let go, then make the strip show what the model says.</summary>
+    private void FinishTabDrag()
+    {
+        var nearX = _nearDropX;
+        _nearDropX = null;
+        if (nearX is { } x && _draggedItem is TabViewModel tab && _viewModel.Tabs.Tabs.Contains(tab))
+        {
+            // Let go near the strip, so the strip may have put the item back: the pointer decides.
+            _draggedItem = null;
+            var index = IndexAmongOthers(x, tab);
+            UiTrace.Mark($"tab drag finished near the strip: x {x:0}, new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
+            Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
+            SyncTabs();
+            return;
+        }
+
+        UiTrace.Mark("tab drag finished: the strip's own order decides");
+        ReconcileStripOrder();
+    }
+
+    /// <summary>
+    /// The place a tab let go at <paramref name="x"/> takes among the other tabs: how many of them stand to its left, counting each one by
+    /// the middle of its own width. The dragged tab itself is left out, wherever the strip drew it.
+    /// </summary>
+    private int IndexAmongOthers(double x, TabViewModel dragged)
+    {
+        var items = TabsView.TabItems.OfType<TabViewItem>().ToList();
+        if (items.Count == 0)
+        {
+            return 0;
+        }
+
+        var position = items.Min(i => i.TransformToVisual(TabsView).TransformPoint(new Point(0, 0)).X);
+        var index = 0;
+        foreach (var item in items)
+        {
+            if (ReferenceEquals(item.Tag, dragged) || item.Visibility != Visibility.Visible)
+            {
+                continue;
+            }
+
+            if (item.Tag is TabViewModel)
+            {
+                if (x < position + (item.ActualWidth / 2))
+                {
+                    return index;
+                }
+
+                index++;
+            }
+
+            position += item.ActualWidth;
+        }
+
+        return index;
     }
 #pragma warning restore CA1822
 
@@ -315,17 +416,8 @@ public sealed partial class MainWindow
         // strip is still a reorder: the tab goes where the pointer is. Only a drop clearly away from the strip (or outside the window) tears it off.
         if (hasCursor && NearStripX(x, y) is { } stripX)
         {
-            if (args.Tab.Tag is TabViewModel moved)
-            {
-                var index = IndexAt(stripX);
-                AfterDrag(() => Run(CommandIds.TabDrop, moved.History.Current.Value, new TabDrop(moved, index)));
-            }
-            else if (args.Tab.Tag is TabGroup movedGroup)
-            {
-                var index = IndexAt(stripX);
-                AfterDrag(() => Run(CommandIds.TabGroupDrop, null, new TabGroupDrop(movedGroup, index)));
-            }
-
+            // Settled when the drag completes (FinishTabDrag), once the strip has stopped moving things around.
+            _nearDropX = stripX;
             return;
         }
 
@@ -377,11 +469,16 @@ public sealed partial class MainWindow
             var at = IndexAt(e.GetPosition(TabsView).X);
             AfterDrag(() => Run(CommandIds.TabGroupDrop, null, new TabGroupDrop(group, at)));
         }
-        else if (App.DraggedTab is { } tab)
+        else if (App.DraggedTab is { } tab && _viewModel.Tabs.Tabs.Contains(tab))
+        {
+            // One of this strip's own tabs let go on it: that is a reorder, which the strip and FinishTabDrag settle.
+            e.AcceptedOperation = DataPackageOperation.Move;
+        }
+        else if (App.DraggedTab is { } foreign)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
             var index = IndexAt(e.GetPosition(TabsView).X);
-            AfterDrag(() => Run(CommandIds.TabDrop, tab.History.Current.Value, new TabDrop(tab, index)));
+            AfterDrag(() => Run(CommandIds.TabDrop, foreign.History.Current.Value, new TabDrop(foreign, index)));
         }
     }
 
@@ -414,7 +511,7 @@ public sealed partial class MainWindow
     /// <summary>The strip reordered itself while the user dragged within it: tell the view model, which settles the order (pinned tabs stay left).</summary>
     private void OnTabItemsChanged(TabView sender, Windows.Foundation.Collections.IVectorChangedEventArgs args)
     {
-        if (_syncingTabs)
+        if (_syncingTabs || _tabDragging)
         {
             return;
         }
