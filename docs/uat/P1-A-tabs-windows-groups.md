@@ -34,7 +34,7 @@
 | 8 | Middle-click a tab. | The tab closes. |
 | 9 | Right-click a tab: **Pin tab**. | The tab shrinks to an icon at the left of the strip. **Ctrl+W** on it does nothing (the command is greyed). |
 | 10 | Right-click another tab: **Lock tab**. Try to navigate it to another folder. | A lock mark shows. Navigating opens the folder in a new tab instead of changing the locked one. |
-| 11 | Right-click a tab: **Rename tab** (type `Work`), then **Colour tab** (pick one). | The title becomes `Work` and the tab gets the colour. |
+| 11 | Right-click a tab: **Rename tab…** (type `Work`), then **Tab colour** (a submenu: None and the colours; pick one). | The title becomes `Work` and the tab gets the colour. |
 | 12 | Right-click a tab: **Close other tabs**, then open three more and use **Close tabs to the right** on the first. | Only the intended tabs close. Pinned tabs survive "Close other tabs". |
 | 13 | Drag a tab left and right in the strip. | It reorders. **Ctrl+Shift+PageUp / PageDown** moves the selected tab the same way. |
 | 14 | Open the **all tabs** list at the right end of the strip and type part of a tab title. | The list filters; choosing a row selects that tab. |
