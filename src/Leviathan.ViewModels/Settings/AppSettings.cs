@@ -317,6 +317,9 @@ public sealed record TabSettings
 
     /// <summary>Ctrl+Tab cycles in most-recently-used order.</summary>
     public bool CtrlTabUsesMruOrder { get; init; }
+
+    /// <summary>Pinned tabs show their names beside the pin. Off, a pinned tab is its icon and pin, with the name in the tooltip.</summary>
+    public bool PinnedTabsShowNames { get; init; }
 }
 
 /// <summary>

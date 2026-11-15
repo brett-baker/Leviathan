@@ -112,6 +112,12 @@ public static class CommandIds
     /// <summary>New tab (Ctrl+T). Target: a location; default Home.</summary>
     public static readonly CommandId TabNew = new("tab.new");
 
+    /// <summary>New tab right after the tab (tab menu). Parameter: the tab; default the selected one.</summary>
+    public static readonly CommandId TabNewRight = new("tab.newRight");
+
+    /// <summary>New tab right before the tab (tab menu). Parameter: the tab; default the selected one.</summary>
+    public static readonly CommandId TabNewLeft = new("tab.newLeft");
+
     /// <summary>Close the selected tab (Ctrl+W).</summary>
     public static readonly CommandId TabClose = new("tab.close");
 
@@ -668,6 +674,18 @@ public static partial class WindowCommands
             await tab.ReloadAsync(ct);
         }, shortcut: "Ctrl+T", icon: "Add");
 
+        Add(CommandIds.TabNewRight, "New tab to the right", "Tabs", async (c, ct) =>
+        {
+            var tab = strip.NewTab(home(), placement: NewTabPlacement.Right, relativeTo: TabOf(c));
+            await tab.ReloadAsync(ct);
+        }, c => TabOf(c) is not null);
+
+        Add(CommandIds.TabNewLeft, "New tab to the left", "Tabs", async (c, ct) =>
+        {
+            var tab = strip.NewTab(home(), placement: NewTabPlacement.Left, relativeTo: TabOf(c));
+            await tab.ReloadAsync(ct);
+        }, c => TabOf(c) is not null);
+
         Add(CommandIds.TabClose, "Close tab", "Tabs", (c, _) =>
         {
             if (TabOf(c) is { } tab)
@@ -714,14 +732,15 @@ public static partial class WindowCommands
             }
         }), c => TabOf(c) is not null);
 
+        // Only a locked tab can be named: an unlocked tab always shows its folder, and unlocking takes the name away again.
         Add(CommandIds.TabRename, "Rename tab", "Tabs", (c, _) => Run(() =>
         {
-            if (TabOf(c) is { } tab)
+            if (TabOf(c) is { IsLocked: true } tab)
             {
                 var label = c.Target?.Trim();
                 tab.CustomTitle = string.IsNullOrEmpty(label) ? null : label.Length > MaxTabLabel ? label[..MaxTabLabel] : label;
             }
-        }), c => TabOf(c) is not null);
+        }), c => TabOf(c) is { IsLocked: true });
 
         Add(CommandIds.TabColor, "Colour tab", "Tabs", (c, _) => Run(() =>
         {
@@ -861,7 +880,8 @@ public static partial class WindowCommands
                 return;
             }
 
-            var tab = strip.NewTab(location, select: c.Parameter is true);
+            // A folder opened from the tab you are in sits next to it, like a link opened in a browser.
+            var tab = strip.NewTab(location, select: c.Parameter is true, placement: NewTabPlacement.Right);
             await tab.ReloadAsync(ct);
         }, c => !string.IsNullOrWhiteSpace(c.Target));
 

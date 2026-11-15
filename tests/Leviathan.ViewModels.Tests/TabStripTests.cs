@@ -12,18 +12,50 @@ public sealed class TabStripTests
     private static string[] Titles(TabStripViewModel strip) => [.. strip.Tabs.Select(t => t.Title)];
 
     [Fact]
-    public void NewTab_OpensAtHomeByDefault_NextToTheSelectedTab_AndSelectsIt()
+    public void NewTab_OpensAtHomeByDefault_AtTheEndOfTheStrip_AndSelectsIt()
     {
         var strip = Strip();
         var first = strip.NewTab(P(@"C:\a"));
-        var last = strip.NewTab(P(@"C:\v"));
+        var second = strip.NewTab(P(@"C:\v"));
         strip.Select(first);
 
-        var middle = strip.NewTab();
+        var added = strip.NewTab();
 
-        Assert.Equal(["a", "Home", "v"], Titles(strip));
-        Assert.Same(middle, strip.Selected);
-        Assert.Same(last, strip.Tabs[2]);
+        Assert.Equal(["a", "v", "Home"], Titles(strip));
+        Assert.Same(added, strip.Selected);
+        Assert.Same(second, strip.Tabs[1]);
+    }
+
+    [Fact]
+    public void NewTab_ToTheRightOrLeftOfATab_GoesNextToThatTab_NotTheSelectedOne()
+    {
+        var strip = Strip();
+        var a = strip.NewTab(P(@"C:\a"));
+        var v = strip.NewTab(P(@"C:\v"));
+        strip.NewTab(P(@"C:\b"));
+        strip.Select(v);
+
+        var right = strip.NewTab(P(@"C:\a\b"), placement: NewTabPlacement.Right, relativeTo: a);
+        var left = strip.NewTab(P(@"C:\a"), placement: NewTabPlacement.Left, relativeTo: a);
+
+        Assert.Equal(["a", "a", "b", "v", "b"], Titles(strip));
+        Assert.Same(left, strip.Tabs[0]);
+        Assert.Same(a, strip.Tabs[1]);
+        Assert.Same(right, strip.Tabs[2]);
+    }
+
+    [Fact]
+    public void NewTab_NeverLandsAmongPinnedTabs_WhateverTheWish()
+    {
+        var strip = Strip();
+        var pinned = strip.NewTab(P(@"C:\a"));
+        strip.NewTab(P(@"C:\v"));
+        strip.SetPinned(pinned, true);
+
+        var left = strip.NewTab(P(@"C:\b"), placement: NewTabPlacement.Left, relativeTo: pinned);
+
+        Assert.Same(pinned, strip.Tabs[0]);
+        Assert.Same(left, strip.Tabs[1]);
     }
 
     [Fact]

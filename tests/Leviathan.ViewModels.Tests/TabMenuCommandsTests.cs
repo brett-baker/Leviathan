@@ -92,6 +92,7 @@ public sealed class TabMenuCommandsTests
     public async Task Rename_SetsAndClearsTheLabel_AndLimitsItsLength()
     {
         var h = await ThreeTabs();
+        await h.Run(CommandIds.TabToggleLock); // only a locked tab can be named
 
         await h.Run(CommandIds.TabRename, "NAS inbox");
         Assert.Equal("NAS inbox", h.Tab.Title);
@@ -101,6 +102,32 @@ public sealed class TabMenuCommandsTests
 
         await h.Run(CommandIds.TabRename, "   ");
         Assert.Equal("b", h.Tab.Title);
+    }
+
+    [Fact]
+    public async Task Rename_IsRefusedOnATabThatIsNotLocked_SoANameNeverHidesTheFolder()
+    {
+        var h = await ThreeTabs();
+
+        await h.Run(CommandIds.TabRename, "NAS inbox");
+
+        Assert.Equal("b", h.Tab.Title);
+        Assert.True(h.Commands.TryGet(CommandIds.TabRename, out var rename));
+        Assert.False(rename.CanExecute(new CommandContext()));
+    }
+
+    [Fact]
+    public async Task UnlockingATab_TakesItsNameAway_AndTheFolderShowsAgain()
+    {
+        var h = await ThreeTabs();
+        await h.Run(CommandIds.TabToggleLock);
+        await h.Run(CommandIds.TabRename, "NAS inbox");
+        Assert.Equal("NAS inbox", h.Tab.Title);
+
+        await h.Run(CommandIds.TabToggleLock);
+
+        Assert.Equal("b", h.Tab.Title);
+        Assert.Null(h.Tab.CustomTitle);
     }
 
     [Theory]

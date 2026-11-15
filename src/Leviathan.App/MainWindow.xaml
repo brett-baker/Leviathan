@@ -45,6 +45,11 @@
                   Style="{StaticResource DefaultButtonStyle}" Background="Transparent" BorderThickness="0">
             <FontIcon Glyph="&#xE70D;" FontSize="12" />
           </Button>
+          <ToggleButton x:Name="PinnedNamesButton" Width="32" Height="28" Padding="0" Margin="0,0,2,0" Visibility="Collapsed"
+                        Click="OnPinnedNamesClick" ToolTipService.ToolTip="Show the names of pinned tabs" AutomationProperties.Name="Show the names of pinned tabs"
+                        Background="Transparent" BorderThickness="0">
+            <FontIcon Glyph="&#xE718;" FontSize="12" />
+          </ToggleButton>
           <Grid x:Name="DragRegion" MinWidth="140" />
         </StackPanel>
       </TabView.TabStripFooter>

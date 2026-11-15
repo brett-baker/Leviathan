@@ -18,6 +18,7 @@ namespace Leviathan.App;
 internal sealed class TabItemUi
 {
     private readonly TextBlock _title = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 180, VerticalAlignment = VerticalAlignment.Center };
+    private readonly ContentControl _pin = new() { Content = Icons.Of("pin", 12), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ContentControl _lock = new() { Content = Icons.Of("lock", 12), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ProgressRing _busy = new() { Width = 12, Height = 12, IsActive = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
     private readonly ContentControl _offline = new() { Content = Icons.Of("warning", 14, OfflineColor), IsTabStop = false, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
@@ -28,6 +29,7 @@ internal sealed class TabItemUi
     {
         Tab = tab;
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        content.Children.Add(_pin);
         content.Children.Add(_lock);
         content.Children.Add(_title);
         content.Children.Add(_busy);
@@ -51,10 +53,14 @@ internal sealed class TabItemUi
     /// <summary>Draws the tab's icons again after the icon pack or the theme changed.</summary>
     public void RefreshIcons()
     {
+        _pin.Content = Icons.Of("pin", 12);
         _lock.Content = Icons.Of("lock", 12);
         _offline.Content = Icons.Of("warning", 14, OfflineColor);
         Item.IconSource = Icons.SourceOf("folder");
     }
+
+    /// <summary>Pinned tabs show their names (setting); off, only the icon and the pin show and the name is in the tooltip.</summary>
+    public static bool ShowPinnedNames { get; set; }
 
     public TabViewModel Tab { get; }
 
@@ -76,8 +82,10 @@ internal sealed class TabItemUi
         }
 
         _title.Text = tab.Title;
-        _title.Visibility = tab.IsPinned ? Visibility.Collapsed : Visibility.Visible;
-        ToolTipService.SetToolTip(Item, tab.History.Current.Value);
+        _title.Visibility = tab.IsPinned && !ShowPinnedNames ? Visibility.Collapsed : Visibility.Visible;
+        _pin.Visibility = tab.IsPinned ? Visibility.Visible : Visibility.Collapsed;
+        ToolTipService.SetToolTip(Item, tab.IsPinned ? $"{tab.Title} (pinned){Environment.NewLine}{tab.History.Current.Value}" : tab.History.Current.Value);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Item, tab.IsPinned ? $"{tab.Title}, pinned" : tab.Title);
         Item.IsClosable = !tab.IsPinned;
         _lock.Visibility = tab.IsLocked ? Visibility.Visible : Visibility.Collapsed;
         _busy.IsActive = tab.IsBusy;
@@ -118,6 +126,51 @@ public sealed partial class MainWindow
 
     private readonly Dictionary<TabViewModel, TabItemUi> _tabUi = [];
 
+    // Pinned tabs: the button at the end of the strip shows or hides their names (setting), and is there only while a tab is pinned.
+    private async void OnPinnedNamesClick(object sender, RoutedEventArgs e)
+    {
+        var show = PinnedNamesButton.IsChecked == true;
+        try
+        {
+            await App.Host.Settings.UpdateAsync(s => s with { Tabs = s.Tabs with { PinnedTabsShowNames = show } }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The change still applies for this run; the file could not be written.
+            TabItemUi.ShowPinnedNames = show;
+            RefreshAllTabs();
+        }
+    }
+
+    private void OnTabSettingsChanged(object? sender, Leviathan.ViewModels.Settings.AppSettings settings) => OnUi(() =>
+    {
+        if (TabItemUi.ShowPinnedNames != settings.Tabs.PinnedTabsShowNames)
+        {
+            TabItemUi.ShowPinnedNames = settings.Tabs.PinnedTabsShowNames;
+            RefreshAllTabs();
+        }
+    });
+
+    private void RefreshAllTabs()
+    {
+        foreach (var (tab, ui) in _tabUi)
+        {
+            ui.Refresh(_viewModel.Tabs.GroupOf(tab));
+        }
+
+        UpdatePinnedNamesButton();
+    }
+
+    private void UpdatePinnedNamesButton()
+    {
+        var any = _viewModel.Tabs.Tabs.Any(t => t.IsPinned);
+        PinnedNamesButton.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        PinnedNamesButton.IsChecked = TabItemUi.ShowPinnedNames;
+        var text = TabItemUi.ShowPinnedNames ? "Show only the icons of pinned tabs" : "Show the names of pinned tabs";
+        ToolTipService.SetToolTip(PinnedNamesButton, text);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PinnedNamesButton, text);
+    }
+
     private void OnTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is TabViewModel tab && _tabUi.TryGetValue(tab, out var ui))
@@ -125,6 +178,10 @@ public sealed partial class MainWindow
             OnUi(() =>
             {
                 ui.Refresh(_viewModel.Tabs.GroupOf(tab));
+                if (e.PropertyName == nameof(TabViewModel.IsPinned))
+                {
+                    UpdatePinnedNamesButton();
+                }
 
                 // Joining or leaving a group changes where the chip stands; the group's own properties go through SyncTabs.
                 if (e.PropertyName == nameof(TabViewModel.GroupId))
@@ -178,6 +235,7 @@ public sealed partial class MainWindow
 
         Add(FindDescendant(TabsView, "AddButton"));
         Add(AllTabsButton);
+        Add(PinnedNamesButton);
 
         // The whole strip is the place to grab the window, not just the small footer element (the tabs punch holes through it).
         var strip = new List<RectInt32>();
@@ -252,6 +310,25 @@ public sealed partial class MainWindow
     {
         var hasCursor = NativeCursor.TryGetPosition(out var x, out var y);
         UiTrace.Mark($"tab dropped outside; cursor {(hasCursor ? $"{x},{y}" : "unknown")}; tab {(args.Tab.Tag as TabViewModel)?.Title}");
+
+        // Reordering a tab means dragging it along a strip that is only about 40 px tall, so a hand that drifts a little lands "outside". Near the
+        // strip is still a reorder: the tab goes where the pointer is. Only a drop clearly away from the strip (or outside the window) tears it off.
+        if (hasCursor && NearStripX(x, y) is { } stripX)
+        {
+            if (args.Tab.Tag is TabViewModel moved)
+            {
+                var index = IndexAt(stripX);
+                AfterDrag(() => Run(CommandIds.TabDrop, moved.History.Current.Value, new TabDrop(moved, index)));
+            }
+            else if (args.Tab.Tag is TabGroup movedGroup)
+            {
+                var index = IndexAt(stripX);
+                AfterDrag(() => Run(CommandIds.TabGroupDrop, null, new TabGroupDrop(movedGroup, index)));
+            }
+
+            return;
+        }
+
         if (args.Tab.Tag is TabViewModel tab && hasCursor)
         {
             // Put the new window's tab under the cursor rather than its corner.
@@ -261,6 +338,24 @@ public sealed partial class MainWindow
         {
             AfterDrag(() => Run(CommandIds.TabGroupTearOff, null, new TabGroupTearOff(group, x - 60, y - 24)));
         }
+    }
+
+    /// <summary>How far below the tab row, in device-independent pixels, a dragged tab may be let go and still count as a reorder.</summary>
+    private const double ReorderSlack = 90;
+
+    /// <summary>
+    /// When the screen point is inside this window's width and within <see cref="ReorderSlack"/> of the tab row, the x position along the strip
+    /// (in the strip's own pixels); otherwise null (the tab was dragged away on purpose).
+    /// </summary>
+    private double? NearStripX(int screenX, int screenY)
+    {
+        var scale = TabsView.XamlRoot?.RasterizationScale ?? 1.0;
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        var x = (screenX - position.X) / scale;
+        var y = (screenY - position.Y) / scale;
+        var inside = x >= 0 && x <= size.Width / scale && y >= -ReorderSlack / 2 && y <= TabsView.ActualHeight + ReorderSlack;
+        return inside ? x : null;
     }
 
     private void OnTabStripDragOver(object sender, DragEventArgs e)
@@ -352,9 +447,20 @@ public sealed partial class MainWindow
                 return item;
             }
 
+            menu.Items.Add(Item("New tab to the right", CommandIds.TabNewRight));
+            menu.Items.Add(Item("New tab to the left", CommandIds.TabNewLeft));
+            menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(Item(tab.IsPinned ? "Unpin tab" : "Pin tab", CommandIds.TabTogglePin));
             menu.Items.Add(Item(tab.IsLocked ? "Unlock tab" : "Lock tab", CommandIds.TabToggleLock));
-            menu.Items.Add(Item("Rename tab…", CommandIds.TabRename, custom: () => _ = RenameTabAsync(tab)));
+
+            // A name belongs to a locked tab: an unlocked tab always shows its folder, and unlocking takes the name away.
+            var rename = Item("Name this tab…", CommandIds.TabRename, custom: () => _ = RenameTabAsync(tab));
+            if (!tab.IsLocked)
+            {
+                ToolTipService.SetToolTip(rename, "Lock the tab first. An unlocked tab always shows the name of its folder.");
+            }
+
+            menu.Items.Add(rename);
 
             var colour = new MenuFlyoutSubItem { Text = "Tab colour" };
             colour.Items.Add(ColourItem("None", string.Empty, null));
@@ -394,7 +500,7 @@ public sealed partial class MainWindow
         var box = new TextBox { Text = tab.CustomTitle ?? string.Empty, PlaceholderText = tab.History.Current.Name, MaxLength = 60, MinWidth = 280 };
         var dialog = new ContentDialog
         {
-            Title = "Rename tab",
+            Title = "Name this tab",
             Content = box,
             PrimaryButtonText = "Rename",
             CloseButtonText = "Cancel",

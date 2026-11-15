@@ -50,11 +50,22 @@ public sealed partial class TabStripViewModel : ObservableObject
     /// <summary>Raised when the last tab was closed and the window should close.</summary>
     public event EventHandler? LastTabClosed;
 
-    /// <summary>Opens a tab at <paramref name="location"/> (the Home location by default) next to the selected tab.</summary>
-    public TabViewModel NewTab(LocationPath? location = null, bool select = true)
+    /// <summary>
+    /// Opens a tab at <paramref name="location"/> (the Home location by default). A new tab goes at the <b>end</b> of the strip, as the + button
+    /// and Ctrl+T promise; a folder opened from another tab and the tab menu's "to the right / left" place it next to
+    /// <paramref name="relativeTo"/> (the selected tab when null).
+    /// </summary>
+    public TabViewModel NewTab(LocationPath? location = null, bool select = true, NewTabPlacement placement = NewTabPlacement.End, TabViewModel? relativeTo = null)
     {
         var tab = new TabViewModel(_services, location ?? _services.Home());
-        Insert(tab, AfterSelectedIndex());
+        var anchor = relativeTo ?? Selected;
+        var at = placement switch
+        {
+            NewTabPlacement.Right when anchor is not null && Tabs.IndexOf(anchor) >= 0 => Tabs.IndexOf(anchor) + 1,
+            NewTabPlacement.Left when anchor is not null && Tabs.IndexOf(anchor) >= 0 => Tabs.IndexOf(anchor),
+            _ => Tabs.Count,
+        };
+        Insert(tab, at);
         if (select)
         {
             Select(tab);
@@ -340,8 +351,6 @@ public sealed partial class TabStripViewModel : ObservableObject
         return count;
     }
 
-    private int AfterSelectedIndex() => Selected is null ? Tabs.Count : Tabs.IndexOf(Selected) + 1;
-
     private void Insert(TabViewModel tab, int index)
     {
         // Unpinned tabs never land among pinned ones.
@@ -396,4 +405,17 @@ public sealed partial class TabStripViewModel : ObservableObject
 
         OnPropertyChanged(nameof(CanReopen));
     }
+}
+
+/// <summary>Where <see cref="TabStripViewModel.NewTab"/> puts the new tab.</summary>
+public enum NewTabPlacement
+{
+    /// <summary>After the last tab.</summary>
+    End,
+
+    /// <summary>Right after the anchor tab.</summary>
+    Right,
+
+    /// <summary>Right before the anchor tab.</summary>
+    Left,
 }

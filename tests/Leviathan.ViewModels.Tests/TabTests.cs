@@ -130,19 +130,32 @@ public sealed class TabTests
     }
 
     [Fact]
+    public void Restore_DropsANameSavedOnATabThatIsNotLocked()
+    {
+        var tab = new TabViewModel(TabTestSupport.Services(TabTestSupport.Tree()), P(@"C:\a"));
+        var state = tab.CaptureState() with { CustomTitle = "Old name", IsLocked = false };
+
+        var restored = TabViewModel.Restore(state, TabTestSupport.Services(TabTestSupport.Tree()));
+
+        Assert.Equal("a", restored.Title);
+        Assert.Null(restored.CustomTitle);
+    }
+
+    [Fact]
     public async Task CaptureState_ThenRestore_KeepsHistoryViewOptionsAndSelection_WithoutListing()
     {
         var provider = TabTestSupport.Tree();
         var tab = new TabViewModel(TabTestSupport.Services(provider), P(@"C:\a"))
         {
-            CustomTitle = "Inbox",
             Accent = "#FF8800",
-            IsLocked = true,
         };
-        tab.IsLocked = false;
         await tab.NavigateAsync(P(@"C:\v"), CancellationToken.None);
         tab.SortBy("name");
         tab.Selection.Click(tab.Items.Rows[1]);
+
+        // A name lives on a locked tab (an unlocked tab shows its folder), so lock it before naming it.
+        tab.IsLocked = true;
+        tab.CustomTitle = "Inbox";
         var state = tab.CaptureState();
         var listCallsBefore = provider.ListCalls.Values.Sum();
 

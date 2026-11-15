@@ -110,6 +110,8 @@ public sealed partial class MainWindow : Window, IShellActions
         host.Favorites.Changed += OnFavoritesChanged;
         host.SyncPairs.Changed += OnFavoritesChanged;
         host.Settings.Changed += OnTagSettingsChanged;
+        host.Settings.Changed += OnTabSettingsChanged;
+        TabItemUi.ShowPinnedNames = host.Settings.Current.Tabs.PinnedTabsShowNames;
         host.Git.Changed += (_, _) => OnUi(UpdateStatus);
         host.SavedServers.Changed += OnSavedServersChanged;
         host.RemoteConnections.Changed += OnSavedServersChanged;
@@ -497,6 +499,8 @@ public sealed partial class MainWindow : Window, IShellActions
         {
             _syncingTabs = false;
         }
+
+        UpdatePinnedNamesButton();
 
         SyncSelectedTab();
     }
@@ -1181,6 +1185,7 @@ public sealed partial class MainWindow : Window, IShellActions
         App.Host.Transfers.ItemsDeleted -= OnItemsDeleted;
         App.Host.SearchHooks.Reported -= OnSearchReported;
         App.Host.Settings.Changed -= OnTagSettingsChanged;
+        App.Host.Settings.Changed -= OnTabSettingsChanged;
         App.Host.Icons.Changed -= OnIconsChanged;
         App.Host.Operations.Changed -= OnOperationsChanged;
         App.Host.AppearanceChanged -= OnAppearanceChanged;

@@ -97,6 +97,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isLocked;
 
+    // A tab's name belongs to the lock: unlocking gives the tab back the name of its folder.
+    partial void OnIsLockedChanged(bool value)
+    {
+        if (!value)
+        {
+            CustomTitle = null;
+        }
+    }
+
     /// <summary>The group this tab belongs to (spec §4.1), or null. Set by <see cref="TabStripViewModel"/>, which keeps the tabs of a group together.</summary>
     [ObservableProperty]
     private Guid? _groupId;
@@ -709,7 +718,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(state);
         var tab = new TabViewModel(services, NavigationHistory.FromSnapshot(state.History), state.View)
         {
-            CustomTitle = state.CustomTitle,
+            // A name only lives on a locked tab: an unlocked tab always shows its folder, so a name saved on one (an older session) is dropped.
+            CustomTitle = state.IsLocked ? state.CustomTitle : null,
             Accent = state.Accent,
             IsPinned = state.IsPinned,
             IsLocked = state.IsLocked,

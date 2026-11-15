@@ -24,7 +24,7 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | Press **Ctrl+T**. | A new tab opens at your home folder and is selected. Opening it feels instant. |
+| 1 | Press **Ctrl+T** (or click the **+** button). | A new tab opens at your home folder **at the end of the strip** (after the last tab, whichever tab was selected) and is selected. Opening it feels instant. |
 | 2 | In it, go to `D:\Playbooks\uat\01-basic`. Press **Ctrl+T** again and go to `02-odd-names`. | Each tab shows its folder name as its title. |
 | 3 | Press **Ctrl+Tab**, then **Ctrl+Shift+Tab**. | The selection cycles forward, then back. |
 | 4 | Press **Ctrl+1**, **Ctrl+2** (digits). | The first, then the second tab is selected. |
@@ -32,12 +32,13 @@
 | 6 | Right-click a tab, choose **Duplicate tab** (or **Ctrl+Shift+K**). | A copy opens next to it with the same folder, selection and history. |
 | 7 | Middle-click a folder (such as `Documents` in `01-basic`). | It opens in a **background** tab; the current tab stays selected. |
 | 8 | Middle-click a tab. | The tab closes. |
-| 9 | Right-click a tab: **Pin tab**. | The tab shrinks to an icon at the left of the strip. **Ctrl+W** on it does nothing (the command is greyed). |
-| 10 | Right-click another tab: **Lock tab**. Try to navigate it to another folder. | A lock mark shows. Navigating opens the folder in a new tab instead of changing the locked one. |
-| 11 | Right-click a tab: **Rename tab…** (type `Work`), then **Tab colour** (a submenu: None and the colours; pick one). | The title becomes `Work` and the tab gets the colour. |
+| 9 | Pin two or three tabs (right-click > **Pin tab**). | Each pinned tab moves to the left as its icon plus a **pin mark**; hovering shows its name and path. **Ctrl+W** on it does nothing. A pin-shaped button appears at the right end of the strip: click it and the pinned tabs show their **names** beside the pin; click again for icons only. The choice is remembered after a restart. |
+| 10 | Right-click another tab: **Lock tab**. Try to navigate it to a different folder (type a path in the address bar). | A lock mark shows. The folder opens in a **new** tab and the locked tab stays where it was. |
+| 11 | On the locked tab choose **Name this tab…** and type `Work`. Then try the same on a tab that is **not** locked, then **Unlock tab** on the named one. Finally open the **Tab colour** submenu and pick a colour. | A locked tab takes the name `Work`. On an unlocked tab the item is **greyed out**, with a tooltip saying to lock it first. Unlocking the named tab gives it back the name of its folder. The colour bar shows. |
 | 12 | Right-click a tab: **Close other tabs**, then open three more and use **Close tabs to the right** on the first. | Only the intended tabs close. Pinned tabs survive "Close other tabs". |
-| 13 | Drag a tab left and right in the strip. | It reorders. **Ctrl+Shift+PageUp / PageDown** moves the selected tab the same way. |
+| 13 | Drag a tab left and right in the strip, letting your hand drift a little **below** the strip, and let go. Then drag a tab well away (down about 100 px or out of the window) and let go. Also press **Ctrl+Shift+PageUp / PageDown**. | A drop near the strip is a **reorder**: the tab goes where the pointer is, and it never turns into a new window by accident. Only a clear drag away (about 90 px below the row, or outside the window) tears the tab off into its own window. The keys move the selected tab the same way. |
 | 14 | Open the **all tabs** list at the right end of the strip and type part of a tab title. | The list filters; choosing a row selects that tab. |
+| 14b | Right-click a tab (not the last one): **New tab to the right**, then **New tab to the left** on another. | The new tab opens right after (or right before) the tab you clicked, not the selected one. A pinned tab's "left" puts the new tab just after the pinned ones, never among them. Ctrl+T and **+** still add at the end. |
 
 ### Groups
 
@@ -88,7 +89,15 @@
 
 ## Result
 
-Pass / fail / notes, and anything to tweak.
+Walk of 2026-11-15 (Brett), steps 1 to 14:
+
+- Steps 1 to 8: pass.
+- Steps 9 to 14: found four things, all changed afterwards (steps 1, 9, 10, 11, 13 and 14b above describe the new behaviour; **re-walk them**):
+  - Pinned tabs were icon-only, so three of them could not be told apart. They now show a pin mark and, with the button at the end of the strip, their names.
+  - Naming a tab hid its folder. A name is now possible only on a locked tab, and unlocking drops it.
+  - **+** put the new tab next to the selected tab. It now goes at the end; the tab menu has New tab to the right and to the left.
+  - Reordering by drag kept tearing the tab off. A drop near the strip is now a reorder.
+- Steps 15 onward: not walked yet.
 
 ## Clean up
 
