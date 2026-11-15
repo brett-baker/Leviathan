@@ -347,7 +347,7 @@ public sealed partial class MainWindow
         _tabDragging = false;
 
         // Wherever the strip left the tab, a tab let go over its own strip goes where the pointer is.
-        _nearDropX = NativeCursor.TryGetPosition(out var x, out var y) ? NearStripX(x, y) : null;
+        _nearDropX ??= NativeCursor.TryGetPosition(out var x, out var y) ? NearStripX(x, y) : null;
         UiTrace.Mark($"tab drag completed; cursor {(_nearDropX is { } nx ? $"near the strip at {nx:0}" : "away from the strip")}");
         AfterDrag(FinishTabDrag);
     }
@@ -456,10 +456,9 @@ public sealed partial class MainWindow
 
     private void OnTabStripDragOver(object sender, DragEventArgs e)
     {
-        // A tab or group of this very strip is the strip's own business (it reorders itself); answering "accepted" for it would tell the strip
-        // that the app took the drop, and the reorder is lost. Only what comes from another window is accepted here.
-        var own = (App.DraggedTab is { } tab && _viewModel.Tabs.Tabs.Contains(tab)) || (App.DraggedGroup is { } group && _viewModel.Tabs.Groups.Contains(group));
-        if (!own && (App.DraggedTab is not null || App.DraggedGroup is not null))
+        // The strip does not reorder itself (CanReorderTabs is off, because its own reordering and the model fought over the order and the tab went
+        // back where it started). Every drag over the strip is accepted here, and the drop is placed from the pointer.
+        if (App.DraggedTab is not null || App.DraggedGroup is not null)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
             e.DragUIOverride.Caption = App.DraggedGroup is not null ? "Move group here" : "Move tab here";
@@ -478,8 +477,9 @@ public sealed partial class MainWindow
         }
         else if (App.DraggedTab is { } tab && _viewModel.Tabs.Tabs.Contains(tab))
         {
-            // One of this strip's own tabs let go on it: that is a reorder, which the strip and FinishTabDrag settle.
+            // One of this strip's own tabs let go on it: a reorder, placed from the pointer when the drag completes (FinishTabDrag).
             e.AcceptedOperation = DataPackageOperation.Move;
+            _nearDropX = e.GetPosition(TabsView).X;
         }
         else if (App.DraggedTab is { } foreign)
         {

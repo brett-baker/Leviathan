@@ -25,7 +25,7 @@
     <TabView x:Name="TabsView"
              Grid.Row="0"
              IsAddTabButtonVisible="True"
-             CanReorderTabs="True"
+             CanReorderTabs="False"
              CanDragTabs="True"
              AllowDropTabs="True"
              TabWidthMode="SizeToContent"
