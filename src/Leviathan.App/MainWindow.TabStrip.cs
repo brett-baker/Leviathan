@@ -319,10 +319,14 @@ public sealed partial class MainWindow
     // Where along the strip a tab was let go when it was close enough to the strip to count as a reorder (see OnTabDroppedOutside).
     private double? _nearDropX;
 
+    // The place the dragged tab would take among the other tabs, as last seen with the pointer over the strip.
+    private int? _dragIndex;
+
     private void OnTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
     {
         _tabDragging = true;
         _nearDropX = null;
+        _dragIndex = null;
         UiTrace.Mark($"tab drag starting: {(args.Tab.Tag as TabViewModel)?.Title}");
         _draggedItem = args.Tab.Tag;
         if (args.Tab.Tag is TabViewModel tab)
@@ -361,8 +365,9 @@ public sealed partial class MainWindow
         {
             // Let go near the strip, so the strip may have put the item back: the pointer decides.
             _draggedItem = null;
-            var index = IndexAmongOthers(x, tab);
-            UiTrace.Mark($"tab drag finished near the strip: x {x:0}, new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
+            var index = _dragIndex ?? IndexAmongOthers(x, tab);
+            UiTrace.Mark($"tab drag finished near the strip: x {x:0}, pointer index {_dragIndex?.ToString() ?? "none"}, new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
+            _dragIndex = null;
             Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
             SyncTabs();
             return;
@@ -370,6 +375,31 @@ public sealed partial class MainWindow
 
         UiTrace.Mark("tab drag finished: the strip's own order decides");
         ReconcileStripOrder();
+    }
+
+    /// <summary>
+    /// The place the dragged tab would take among the other tabs for the pointer in <paramref name="e"/>: the number of other tabs whose middle is
+    /// left of the pointer. Each tab is asked where the pointer is relative to <i>itself</i>, so nothing depends on where the strip starts.
+    /// </summary>
+    private int IndexUnderPointer(DragEventArgs e, TabViewModel dragged)
+    {
+        var index = 0;
+        foreach (var item in TabsView.TabItems.OfType<TabViewItem>())
+        {
+            if (item.Tag is not TabViewModel || ReferenceEquals(item.Tag, dragged) || item.Visibility != Visibility.Visible)
+            {
+                continue;
+            }
+
+            if (e.GetPosition(item).X < item.ActualWidth / 2)
+            {
+                return index;
+            }
+
+            index++;
+        }
+
+        return index;
     }
 
     /// <summary>
@@ -425,6 +455,10 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Dragged clearly away: not a reorder, whatever the pointer did over the strip before.
+        _nearDropX = null;
+        _dragIndex = null;
+
         if (args.Tab.Tag is TabViewModel tab && hasCursor)
         {
             // Put the new window's tab under the cursor rather than its corner.
@@ -458,6 +492,11 @@ public sealed partial class MainWindow
     {
         // The strip does not reorder itself (CanReorderTabs is off, because its own reordering and the model fought over the order and the tab went
         // back where it started). Every drag over the strip is accepted here, and the drop is placed from the pointer.
+        if (App.DraggedTab is { } own && _viewModel.Tabs.Tabs.Contains(own))
+        {
+            _dragIndex = IndexUnderPointer(e, own);
+        }
+
         if (App.DraggedTab is not null || App.DraggedGroup is not null)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
@@ -480,6 +519,7 @@ public sealed partial class MainWindow
             // One of this strip's own tabs let go on it: a reorder, placed from the pointer when the drag completes (FinishTabDrag).
             e.AcceptedOperation = DataPackageOperation.Move;
             _nearDropX = e.GetPosition(TabsView).X;
+            _dragIndex = IndexUnderPointer(e, tab);
         }
         else if (App.DraggedTab is { } foreign)
         {
