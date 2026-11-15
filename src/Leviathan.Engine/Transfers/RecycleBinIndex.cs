@@ -25,43 +25,52 @@ public static class RecycleBinIndex
     /// </summary>
     public static LocationPath? FindRecycled(IFileSystem fileSystem, LocationPath original, DateTimeOffset notBefore)
     {
-        ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(original);
-        if (original.Kind != LocationKind.Drive)
-        {
-            return null;
-        }
+        return FindRecycledMany(fileSystem, [original], notBefore).TryGetValue(original.Value, out var found) ? found : null;
+    }
 
-        var bin = fileSystem.Path.Combine(original.Root, FolderName);
-        string? best = null;
-        var bestTime = DateTimeOffset.MinValue;
-        try
+    /// <summary>
+    /// <see cref="FindRecycled"/> for many items with one reading of each bin, which matters when tens of thousands of files were just
+    /// recycled: reading every <c>$I</c> record once per file would read the bin tens of thousands of times. The result is keyed by the
+    /// original path (case does not matter); an item with no recycled copy is not in it.
+    /// </summary>
+    public static IReadOnlyDictionary<string, LocationPath> FindRecycledMany(IFileSystem fileSystem, IEnumerable<LocationPath> originals, DateTimeOffset notBefore)
+    {
+        ArgumentNullException.ThrowIfNull(fileSystem);
+        ArgumentNullException.ThrowIfNull(originals);
+        var wanted = originals.Where(o => o.Kind == LocationKind.Drive).ToList();
+        var names = wanted.Select(o => o.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var best = new Dictionary<string, (string Data, DateTimeOffset Deleted)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in wanted.Select(o => o.Root).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            foreach (var user in fileSystem.Directory.EnumerateDirectories(bin))
+            var bin = fileSystem.Path.Combine(root, FolderName);
+            try
             {
-                foreach (var info in Infos(fileSystem, user))
+                foreach (var user in fileSystem.Directory.EnumerateDirectories(bin))
                 {
-                    if (TryRead(fileSystem, info, out var path, out var deleted)
-                        && deleted >= notBefore
-                        && deleted >= bestTime
-                        && string.Equals(path, original.Value, StringComparison.OrdinalIgnoreCase))
+                    foreach (var info in Infos(fileSystem, user))
                     {
-                        var data = fileSystem.Path.Combine(user, DataPrefix + fileSystem.Path.GetFileName(info)[InfoPrefix.Length..]);
-                        if (fileSystem.File.Exists(data) || fileSystem.Directory.Exists(data))
+                        if (TryRead(fileSystem, info, out var path, out var deleted)
+                            && deleted >= notBefore
+                            && names.Contains(path)
+                            && (!best.TryGetValue(path, out var current) || deleted >= current.Deleted))
                         {
-                            best = data;
-                            bestTime = deleted;
+                            var data = fileSystem.Path.Combine(user, DataPrefix + fileSystem.Path.GetFileName(info)[InfoPrefix.Length..]);
+                            if (fileSystem.File.Exists(data) || fileSystem.Directory.Exists(data))
+                            {
+                                best[path] = (data, deleted);
+                            }
                         }
                     }
                 }
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // No bin folder, or other users' folders we may not read: nothing to find, so the delete just cannot be undone.
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // No bin folder, or other users' folders we may not read: nothing to find, so the delete just cannot be undone.
+            }
         }
 
-        return best is null ? null : LocationPath.Parse(best);
+        return best.ToDictionary(e => e.Key, e => LocationPath.Parse(e.Value.Data), StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

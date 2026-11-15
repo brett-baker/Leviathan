@@ -35,6 +35,9 @@ public sealed class DeleteExecutor : IJobExecutor
     // A crash loses at most this many manifest lines; the items stay in their trash batch folder and nothing is deleted for good.
     private const int ManifestBatch = 50;
 
+    // Items sent to the Windows Recycle Bin in one shell operation; small enough that progress and Cancel stay lively.
+    private const int BinBatch = 200;
+
     private readonly IFileSystem _fs;
     private readonly IRecycleBin _bin;
     private readonly TimeProvider _time;
@@ -75,6 +78,7 @@ public sealed class DeleteExecutor : IJobExecutor
         var sources = request.Sources.Select(LocationPath.ParseExact).ToList();
         var outcomes = new ItemOutcome?[sources.Count];
         var run = new Run();
+        var started = _time.GetUtcNow() - TimeSpan.FromSeconds(5);
         var done = 0;
         var gate = new object();
         LocationException? dropped = null;
@@ -89,7 +93,12 @@ public sealed class DeleteExecutor : IJobExecutor
                 ItemOutcome outcome;
                 try
                 {
-                    outcome = await DeleteOneAsync(run, source, request.DeleteMode, request.KeepOwnTrash, token).ConfigureAwait(false);
+                    if (await DeleteOneAsync(run, i, source, request.DeleteMode, request.KeepOwnTrash, token).ConfigureAwait(false) is not { } finished)
+                    {
+                        return; // left for the Recycle Bin batch below
+                    }
+
+                    outcome = finished;
                 }
                 catch (IOException ex) when (LocationErrors.Wrap(ex, source) is { IsTransient: true } transient)
                 {
@@ -116,6 +125,11 @@ public sealed class DeleteExecutor : IJobExecutor
                 outcomes[i] = outcome;
                 context.Report(0, -1, Interlocked.Increment(ref done), sources.Count, source.Name);
             }).ConfigureAwait(false);
+
+            if (dropped is null)
+            {
+                dropped = await RecycleDeferredAsync(run, sources, outcomes, started, context, done, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (dropped is not null && !cancellationToken.IsCancellationRequested)
         {
@@ -158,7 +172,64 @@ public sealed class DeleteExecutor : IJobExecutor
 
     private static string Io(LocationPath path) => path.ToWin32Path();
 
-    private async Task<ItemOutcome> DeleteOneAsync(Run run, LocationPath source, DeleteMode mode, bool keepOwnTrash, CancellationToken ct)
+    // Local files go to the Windows Recycle Bin in batches (one shell operation for many files), then each one's place in the bin is read
+    // from one pass over the bin's records. Returns a dropped-network error when a batch hit one, so the host can wait and repeat.
+    private async Task<LocationException?> RecycleDeferredAsync(Run run, List<LocationPath> sources, ItemOutcome?[] outcomes, DateTimeOffset started, JobContext context, int doneSoFar, CancellationToken ct)
+    {
+        var pending = run.TakeDeferred();
+        if (pending.Count == 0)
+        {
+            return null;
+        }
+
+        LocationException? dropped = null;
+        var recycled = new List<int>();
+        var done = doneSoFar;
+        try
+        {
+            foreach (var chunk in pending.Chunk(BinBatch))
+            {
+                ct.ThrowIfCancellationRequested();
+                var errors = await _bin.RecycleManyAsync([.. chunk.Select(i => sources[i])], ct).ConfigureAwait(false);
+                for (var k = 0; k < chunk.Length; k++)
+                {
+                    var index = chunk[k];
+                    if (errors[k] is null)
+                    {
+                        recycled.Add(index);
+                    }
+                    else if (errors[k] is IOException io && LocationErrors.Wrap(io, sources[index]) is { IsTransient: true } transient)
+                    {
+                        dropped ??= transient;
+                    }
+                    else
+                    {
+                        outcomes[index] = new ItemOutcome(sources[index].Value, null, ItemStatus.Failed, errors[k]!.Message);
+                    }
+                }
+
+                done += chunk.Length;
+                context.Report(0, -1, done, sources.Count, sources[chunk[^1]].Name);
+                if (dropped is not null)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            // Whatever stopped the loop, what did go is written down with its place in the bin so it can be undone.
+            var places = RecycleBinIndex.FindRecycledMany(_fs, recycled.Select(i => sources[i]), started);
+            foreach (var index in recycled)
+            {
+                outcomes[index] = new ItemOutcome(sources[index].Value, places.TryGetValue(sources[index].Value, out var place) ? place.Value : null, ItemStatus.Done);
+            }
+        }
+
+        return dropped;
+    }
+
+    private async Task<ItemOutcome?> DeleteOneAsync(Run run, int index, LocationPath source, DeleteMode mode, bool keepOwnTrash, CancellationToken ct)
     {
         // One call tells whether it is a folder, a file or not there: each call is a round trip on a share.
         FileAttributes attributes;
@@ -225,20 +296,10 @@ public sealed class DeleteExecutor : IJobExecutor
             return new ItemOutcome(source.Value, trashed.Value, ItemStatus.Done);
         }
 
-        // Windows gives no way to ask where the item went, so look it up; without it the delete just cannot be undone (spec §12.5).
-        // The shell call is an STA call: one at a time.
-        await run.BinGate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var started = _time.GetUtcNow() - TimeSpan.FromSeconds(5);
-            await _bin.RecycleAsync(source, ct).ConfigureAwait(false);
-            var recycled = RecycleBinIndex.FindRecycled(_fs, source, started);
-            return new ItemOutcome(source.Value, recycled?.Value, ItemStatus.Done);
-        }
-        finally
-        {
-            run.BinGate.Release();
-        }
+        // Windows gives no way to ask where the item went, so it is looked up afterwards, for the whole batch at once; without it the
+        // delete just cannot be undone (spec §12.5). The shell call is an STA call, so the items are collected and sent in batches.
+        run.Defer(index);
+        return null;
     }
 
     // Y:\show\ep1.mkv on a drive mapped to \\nas\media becomes \\nas\media\show\ep1.mkv, where the share's recycle folder lives.
@@ -338,8 +399,27 @@ public sealed class DeleteExecutor : IJobExecutor
         private readonly Dictionary<string, (LocationPath Root, List<string> Lines)> _manifest = new(StringComparer.OrdinalIgnoreCase);
         private readonly object _manifestLock = new();
 
-        /// <summary>Serializes the Windows Recycle Bin calls (an STA shell call).</summary>
-        public SemaphoreSlim BinGate { get; } = new(1, 1);
+        private readonly List<int> _deferred = [];
+
+        /// <summary>Remembers an item that goes to the Windows Recycle Bin with the others, in a batch.</summary>
+        public void Defer(int index)
+        {
+            lock (_deferred)
+            {
+                _deferred.Add(index);
+            }
+        }
+
+        /// <summary>The deferred items in the order of the request.</summary>
+        public List<int> TakeDeferred()
+        {
+            lock (_deferred)
+            {
+                var all = _deferred.Order().ToList();
+                _deferred.Clear();
+                return all;
+            }
+        }
 
         public Task<DriveDetails?> DriveAsync(LocationPath source, IVolumeInfo volumes, CancellationToken ct) =>
             _drives.GetOrAdd(source.Root, _ => new Lazy<Task<DriveDetails?>>(() => volumes.GetDriveAsync(source, ct))).Value;

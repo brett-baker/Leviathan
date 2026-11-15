@@ -394,6 +394,93 @@ public sealed class DeleteExecutorTests
         Assert.Equal([@"C:\a\1.txt"], bin.Recycled);
     }
 
+    /// <summary>A Recycle Bin that takes a whole list at once, like the real one, and leaves a record per item as Windows does.</summary>
+    private sealed class BatchBin(MockFileSystem fs) : IRecycleBin
+    {
+        private int _next;
+
+        public List<int> BatchSizes { get; } = [];
+
+        public HashSet<string> Refused { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task RecycleAsync(LocationPath path, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The executor must use the batch call for local items.");
+
+        public Task<IReadOnlyList<Exception?>> RecycleManyAsync(IReadOnlyList<LocationPath> paths, CancellationToken cancellationToken)
+        {
+            BatchSizes.Add(paths.Count);
+            var results = new Exception?[paths.Count];
+            for (var i = 0; i < paths.Count; i++)
+            {
+                if (Refused.Contains(paths[i].Value))
+                {
+                    results[i] = new IOException("Windows could not move it to the Recycle Bin.");
+                    continue;
+                }
+
+                var id = $"{++_next:D6}";
+                var original = paths[i].Value;
+                var record = new List<byte>();
+                record.AddRange(BitConverter.GetBytes(2L));
+                record.AddRange(BitConverter.GetBytes(1L));
+                record.AddRange(BitConverter.GetBytes(new DateTimeOffset(2026, 11, 3, 10, 30, 0, TimeSpan.Zero).ToFileTime()));
+                record.AddRange(BitConverter.GetBytes(original.Length + 1));
+                record.AddRange(System.Text.Encoding.Unicode.GetBytes(original + "\0"));
+                fs.AddFile($@"C:\$Recycle.Bin\S-1-5-21-1\$I{id}.txt", new MockFileData([.. record]));
+                fs.AddFile($@"C:\$Recycle.Bin\S-1-5-21-1\$R{id}.txt", new MockFileData("x"));
+                fs.File.Delete(original);
+            }
+
+            return Task.FromResult<IReadOnlyList<Exception?>>(results);
+        }
+    }
+
+    [Fact]
+    public async Task ManyLocalFiles_GoToTheBinInBatches_EachWithItsOwnPlaceInIt()
+    {
+        const int count = 450;
+        var fs = new MockFileSystem();
+        for (var i = 0; i < count; i++)
+        {
+            fs.AddFile($@"C:\lib\f{i:D4}.txt", new MockFileData("v"));
+        }
+
+        var bin = new BatchBin(fs);
+        var sources = Enumerable.Range(0, count).Select(i => $@"C:\lib\f{i:D4}.txt").ToArray();
+
+        var (job, items) = await RunWithAsync(new DeleteExecutor(fs, bin, new FixedTime()), sources);
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal([200, 200, 50], bin.BatchSizes); // a few shell operations, not 450
+        Assert.Equal(sources, items.Select(i => i.Source));
+        Assert.All(items, i => Assert.Equal(ItemStatus.Done, i.Status));
+        Assert.Equal(count, items.Select(i => i.Result).Distinct().Count()); // each knows where it went, so undo works
+        Assert.All(items, i => Assert.Matches(@"^C:\\\$Recycle\.Bin\\S-1-5-21-1\\\$R\d{6}\.txt$", i.Result));
+    }
+
+    [Fact]
+    public async Task WhenWindowsRefusesSomeFilesOfABatch_ThoseFail_AndTheRestAreDone()
+    {
+        var fs = new MockFileSystem();
+        for (var i = 0; i < 10; i++)
+        {
+            fs.AddFile($@"C:\lib\f{i}.txt", new MockFileData("v"));
+        }
+
+        var bin = new BatchBin(fs);
+        bin.Refused.Add(@"C:\lib\f3.txt");
+        bin.Refused.Add(@"C:\lib\f8.txt");
+        var sources = Enumerable.Range(0, 10).Select(i => $@"C:\lib\f{i}.txt").ToArray();
+
+        var (job, items) = await RunWithAsync(new DeleteExecutor(fs, bin, new FixedTime()), sources);
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains("2 of 10", job.Error, StringComparison.Ordinal);
+        Assert.Equal([3, 8], items.Select((item, index) => (item, index)).Where(x => x.item.Status == ItemStatus.Failed).Select(x => x.index));
+        Assert.True(fs.File.Exists(@"C:\lib\f3.txt"));
+        Assert.False(fs.File.Exists(@"C:\lib\f4.txt"));
+    }
+
     private static MockFileSystem ShareWithFiles(int count)
     {
         var fs = new MockFileSystem();
