@@ -407,6 +407,12 @@ public sealed partial class MainWindow
             AddGroupEntries(menu, tab);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(Item("Duplicate tab", CommandIds.TabDuplicate));
+            menu.Items.Add(Item("Move tab to new window", CommandIds.TabTearOff, parameter: new TabTearOff(tab, 0, 0), custom: () =>
+            {
+                // Next to this window, a little down and to the right, so the new window is easy to tell from this one.
+                var at = AppWindow.Position;
+                Run(CommandIds.TabTearOff, tab.History.Current.Value, new TabTearOff(tab, at.X + 80, at.Y + 80));
+            }));
             menu.Items.Add(Item("Close tab", CommandIds.TabClose));
             menu.Items.Add(Item("Close other tabs", CommandIds.TabCloseOthers));
             menu.Items.Add(Item("Close tabs to the right", CommandIds.TabCloseRight));

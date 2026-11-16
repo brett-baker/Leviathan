@@ -58,10 +58,10 @@
 | # | Do | Expect |
 |---|----|--------|
 | 22 | Press **Ctrl+N**. | A second window opens (it takes a moment; a stall of about 110 to 130 ms is known). |
-| 23 | Drag a tab out of the strip and drop it on the desktop. | A new window opens at the drop point with that tab, the same size, kept on screen. |
+| 23 | Right-click a tab: **Move tab to new window**. | A new window opens a little down and to the right of this one, with that tab. (Dragging a tab out of the strip to tear it off is not used: dragging only reorders.) |
 | 24 | Drag a tab from one window onto the other window's strip. | It merges there; the empty source window closes. |
 | 25 | Right-click a group chip: **Move group to new window**. | The whole group moves with its colour and name. |
-| 26 | Press **Ctrl+Shift+P**, type `move tab to a new window` and run it. | The tab opens in its own window. (The tab's right-click menu has no entry for this; tearing off by dragging is the other way.) |
+| 26 | Press **Ctrl+Shift+P**, type `move tab to a new window` and run it. | The tab opens in its own window (the tab's right-click menu has **Move tab to new window** too). |
 
 ### Sessions and profiles
 
