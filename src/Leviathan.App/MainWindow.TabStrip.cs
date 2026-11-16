@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Tabs;
@@ -331,7 +331,7 @@ public sealed partial class MainWindow
         _dropHandled = false;
         _nearDropX = null;
         _dragIndex = null;
-        UiTrace.Mark($"tab drag starting: {(args.Tab.Tag as TabViewModel)?.Title}");
+        TabDragTrace.Log($"STARTING {(args.Tab.Tag as TabViewModel)?.Title ?? (args.Tab.Tag as TabGroup)?.Name}; model order {ModelOrder()}; strip order {StripOrder()}");
         _draggedItem = args.Tab.Tag;
         if (args.Tab.Tag is TabViewModel tab)
         {
@@ -349,7 +349,7 @@ public sealed partial class MainWindow
 
     private void OnTabDragCompleted(TabView sender, TabViewTabDragCompletedEventArgs args)
     {
-        UiTrace.Mark($"tab drag completed: {args.DropResult}");
+        TabDragTrace.Log($"COMPLETED result {args.DropResult}; dropHandled {_dropHandled}; model order {ModelOrder()}");
         App.DraggedTab = null;
         App.DraggedGroup = null;
         _tabDragging = false;
@@ -364,9 +364,14 @@ public sealed partial class MainWindow
         AfterDrag(FinishTabDrag);
     }
 
+    private string ModelOrder() => string.Join(" | ", _viewModel.Tabs.Tabs.Select(t => (t.IsPinned ? "*" : "") + t.Title));
+
+    private string StripOrder() => string.Join(" | ", TabsView.TabItems.OfType<TabViewItem>().Select(i => i.Tag is TabViewModel t ? t.Title : "[" + (i.Tag as TabGroup)?.Name + "]"));
+
     /// <summary>Puts a tab of this strip at <paramref name="index"/> (its place among the other tabs) once the drag has let go of it.</summary>
     private void MoveDroppedTab(TabViewModel tab, int index)
     {
+        TabDragTrace.Log($"MOVE {tab.Title} to index {index} (was {_viewModel.Tabs.Tabs.IndexOf(tab)}); model order before {ModelOrder()}");
         _dropHandled = true;
         _tabDragging = false;
         _dragIndex = null;
@@ -376,6 +381,7 @@ public sealed partial class MainWindow
         {
             Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
             SyncTabs();
+            TabDragTrace.Log($"MOVE done; model order {ModelOrder()}; strip order {StripOrder()}");
         });
     }
 
@@ -467,7 +473,7 @@ public sealed partial class MainWindow
     private void OnTabDroppedOutside(TabView sender, TabViewTabDroppedOutsideEventArgs args)
     {
         var hasCursor = NativeCursor.TryGetPosition(out var x, out var y);
-        UiTrace.Mark($"tab dropped outside; cursor {(hasCursor ? $"{x},{y}" : "unknown")}; tab {(args.Tab.Tag as TabViewModel)?.Title}");
+        TabDragTrace.Log($"DROPPED OUTSIDE; cursor {(hasCursor ? $"{x},{y}" : "unknown")}; tab {(args.Tab.Tag as TabViewModel)?.Title}");
 
         // Reordering a tab means dragging it along a strip that is only about 40 px tall, so a hand that drifts a little lands "outside". Near the
         // strip is still a reorder: the tab goes where the pointer is. Only a drop clearly away from the strip (or outside the window) tears it off.
@@ -527,7 +533,12 @@ public sealed partial class MainWindow
         // back where it started). Every drag over the strip is accepted here, and the drop is placed from the pointer.
         if (App.DraggedTab is { } own && _viewModel.Tabs.Tabs.Contains(own))
         {
+            var before = _dragIndex;
             _dragIndex = IndexUnderPointer(e, own);
+            if (before != _dragIndex)
+            {
+                TabDragTrace.Log($"OVER strip; pointer index now {_dragIndex}");
+            }
         }
 
         if (App.DraggedTab is not null || App.DraggedGroup is not null)
@@ -540,7 +551,7 @@ public sealed partial class MainWindow
     /// <summary>A tab from another window (or this one) dropped on the strip: it joins at the pointer.</summary>
     private void OnTabStripDrop(object sender, DragEventArgs e)
     {
-        UiTrace.Mark($"tab strip drop; dragged tab: {App.DraggedTab?.Title}");
+        TabDragTrace.Log($"STRIP DROP; dragged tab {App.DraggedTab?.Title}; own {(App.DraggedTab is { } d && _viewModel.Tabs.Tabs.Contains(d))}");
         if (App.DraggedGroup is { } group)
         {
             e.AcceptedOperation = DataPackageOperation.Move;
