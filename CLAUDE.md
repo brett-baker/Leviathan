@@ -166,6 +166,14 @@ Wrap every third-party dependency and every Win32/COM surface behind a small Lev
 - **MVVM** with CommunityToolkit.Mvvm in the UI; view models have no WinUI dependencies so they can be unit-tested.
 - **Settings** are JSON, written atomically (temp file → flush → rename), applied without restart (§17).
 
+## Simplify review
+
+Generated code drifts toward long handlers, flag-driven state and copied decisions. `docs/simplify-review.md` is the process
+for finding and fixing that one feature at a time: measure, write a report with the expected gain, stop and show Brett, then
+simplify in small commits with the whole suite green. Use it when a feature has been fixed twice, a file passes ~600 lines or a
+method ~60, or before a phase builds on a feature. Never mix a simplification with a behaviour change. The ranked candidate
+list is at the end of that file.
+
 ## Decisions
 
 When the spec is silent or ambiguous, decide the way that best serves robustness and Brett's NAS workflow, write the decision
