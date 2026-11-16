@@ -102,6 +102,39 @@ reduction. Items 5 and 7 are where behaviour could change, so they come last and
 - **Splitting into more types than the registrars.** No command base classes or a command-per-class scheme: it would add 124 files
   for no gain over named functions.
 
-## Not done yet
+## Result (items 1 to 4, 2026-11-16)
 
-Everything above is a proposal. The "After" columns are empty until the work is approved and done.
+Commits: `7085452` is the process; the work is `f942906` (item 2), `f476891` (item 3), `05af543` (item 4), and the snapshot test
+(item 1) just before them. Each commit built with zero warnings in `src/` and passed every non-UI test (ViewModels 2,165). The
+snapshot of the registry (ids, titles, categories, icons, shortcuts, enabled with no context and with a folder target, and the
+default key map) was generated before any change and did not change.
+
+What got simpler:
+
+- `WindowCommands.Create` is 48 lines and only builds a scope and calls thirteen area registrars. Nobody has to scroll through
+  tabs to find archives.
+- The 76 `Run(() => ...)` wrappers, 31 `Current() is not null` guards and 42 `Current()!` calls are gone from the command bodies. A
+  command that needs a pane or a tab says so by the helper it uses (`AddOnCurrent`, `AddOnTab`), and the helper hands it the tab.
+  The same helpers made the `can` expressions shorter (`(tab, _) => tab.History.CanGoBack`).
+- Typed parameters (`AddWith<TabMove>`) replace 13 casts, each of which paired a check in `can` with a cast in `run`.
+- The "judge with the drop rules, then queue the transfer" tail was copied in four commands; it is `TransferAsync` now (drops,
+  quick targets, the other-pane keys). Paste keeps its own because it creates a folder between the two steps.
+- The five layout commands are a table.
+
+What did not get simpler, or got worse:
+
+- **Total lines went up** (logic 1,176 before, 1,482 after): thirteen file headers, usings, doc comments, the scope, the base class
+  and its helpers. The gain is per file and per method, not in total.
+- **The area `Register` methods are still long** (164, 140 and 123 lines in `EditCommands`, `TabCommands` and `FileCommands`). They are
+  flat lists of registrations plus the local helper functions those registrations share, which is the readable shape for this, but
+  the helpers (`PasteAsync`, `DeleteSelection`, `RenameCommit`'s body) should become named methods of the class. That is item 5.
+- **Branch density did not fall**: the same decisions are spread over more files. The density measure is not the right one here;
+  the right ones are the method length of `Create` and how many places a rule lives in.
+- Some `using` lines are probably now unused (the build does not flag them).
+- The registry snapshot runs with no optional services, so commands that exist only for a service (archives, clipboard, favorites)
+  are pinned by id and title but not by their enabled state. The existing tests for those cover it.
+- The app was not started: the change is in view-model code behind an unchanged `WindowCommands.Create` signature, but nothing was
+  clicked by hand.
+
+Still open from the report: item 5 (pure functions for the drive-or-share predicates, archive targets, colour, `RenameCommit`),
+item 6 (a services record for the 20 parameters) and item 7 (`Requires(service)`).
