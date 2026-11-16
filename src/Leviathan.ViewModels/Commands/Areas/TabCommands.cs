@@ -67,27 +67,13 @@ internal sealed partial class TabCommands(CommandScope scope) : CommandArea(scop
             await tab.ReloadAsync(ct);
         }, shortcut: "Ctrl+T", icon: "Add");
 
-        Add(CommandIds.TabNewRight, "New tab to the right", "Tabs", async (c, ct) =>
-        {
-            var tab = strip.NewTab(home(), placement: NewTabPlacement.Right, relativeTo: TabOf(c));
-            await tab.ReloadAsync(ct);
-        }, c => TabOf(c) is not null);
+        AddOnTab(CommandIds.TabNewRight, "New tab to the right", "Tabs", async (tab, _, ct) =>
+            await strip.NewTab(home(), placement: NewTabPlacement.Right, relativeTo: tab).ReloadAsync(ct));
 
-        Add(CommandIds.TabNewLeft, "New tab to the left", "Tabs", async (c, ct) =>
-        {
-            var tab = strip.NewTab(home(), placement: NewTabPlacement.Left, relativeTo: TabOf(c));
-            await tab.ReloadAsync(ct);
-        }, c => TabOf(c) is not null);
+        AddOnTab(CommandIds.TabNewLeft, "New tab to the left", "Tabs", async (tab, _, ct) =>
+            await strip.NewTab(home(), placement: NewTabPlacement.Left, relativeTo: tab).ReloadAsync(ct));
 
-        Add(CommandIds.TabClose, "Close tab", "Tabs", (c, _) =>
-        {
-            if (TabOf(c) is { } tab)
-            {
-                strip.Close(tab);
-            }
-
-            return Task.CompletedTask;
-        }, c => TabOf(c) is { IsPinned: false }, shortcut: "Ctrl+W");
+        AddOnTab(CommandIds.TabClose, "Close tab", "Tabs", (tab, _) => strip.Close(tab), (tab, _) => !tab.IsPinned, shortcut: "Ctrl+W");
 
         Add(CommandIds.TabReopen, "Reopen closed tab", "Tabs", async (_, ct) =>
         {
@@ -97,51 +83,24 @@ internal sealed partial class TabCommands(CommandScope scope) : CommandArea(scop
             }
         }, _ => strip.CanReopen, shortcut: "Ctrl+Shift+T");
 
-        Add(CommandIds.TabDuplicate, "Duplicate tab", "Tabs", async (c, ct) =>
-        {
-            if (TabOf(c) is { } tab)
-            {
-                await strip.Duplicate(tab).ReloadAsync(ct);
-            }
-        }, c => TabOf(c) is not null, shortcut: "Ctrl+Shift+K");
+        AddOnTab(CommandIds.TabDuplicate, "Duplicate tab", "Tabs", async (tab, _, ct) => await strip.Duplicate(tab).ReloadAsync(ct), shortcut: "Ctrl+Shift+K");
 
-        Add(CommandIds.TabNext, "Next tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: true)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Tab");
-        Add(CommandIds.TabPrevious, "Previous tab", "Tabs", (_, _) => Run(() => strip.Cycle(forward: false)), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Shift+Tab");
-        Add(CommandIds.TabSelect, "Go to tab", "Tabs", (c, _) => Run(() => strip.SelectByNumber(c.Parameter is int n ? n : 0)), c => c.Parameter is int);
+        AddAction(CommandIds.TabNext, "Next tab", "Tabs", () => strip.Cycle(forward: true), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Tab");
+        AddAction(CommandIds.TabPrevious, "Previous tab", "Tabs", () => strip.Cycle(forward: false), _ => strip.Tabs.Count > 1, shortcut: "Ctrl+Shift+Tab");
+        AddAction(CommandIds.TabSelect, "Go to tab", "Tabs", c => strip.SelectByNumber(c.Parameter is int n ? n : 0), c => c.Parameter is int);
 
-        Add(CommandIds.TabTogglePin, "Pin tab", "Tabs", (c, _) => Run(() =>
-        {
-            if (TabOf(c) is { } tab)
-            {
-                strip.SetPinned(tab, !tab.IsPinned);
-            }
-        }), c => TabOf(c) is not null);
-
-        Add(CommandIds.TabToggleLock, "Lock tab", "Tabs", (c, _) => Run(() =>
-        {
-            if (TabOf(c) is { } tab)
-            {
-                tab.IsLocked = !tab.IsLocked;
-            }
-        }), c => TabOf(c) is not null);
+        AddOnTab(CommandIds.TabTogglePin, "Pin tab", "Tabs", (tab, _) => strip.SetPinned(tab, !tab.IsPinned));
+        AddOnTab(CommandIds.TabToggleLock, "Lock tab", "Tabs", (tab, _) => tab.IsLocked = !tab.IsLocked);
 
         // Only a locked tab can be named: an unlocked tab always shows its folder, and unlocking takes the name away again.
-        Add(CommandIds.TabRename, "Rename tab", "Tabs", (c, _) => Run(() =>
+        AddOnTab(CommandIds.TabRename, "Rename tab", "Tabs", (tab, c) =>
         {
-            if (TabOf(c) is { IsLocked: true } tab)
-            {
-                var label = c.Target?.Trim();
-                tab.CustomTitle = string.IsNullOrEmpty(label) ? null : label.Length > MaxTabLabel ? label[..MaxTabLabel] : label;
-            }
-        }), c => TabOf(c) is { IsLocked: true });
+            var label = c.Target?.Trim();
+            tab.CustomTitle = string.IsNullOrEmpty(label) ? null : label.Length > MaxTabLabel ? label[..MaxTabLabel] : label;
+        }, (tab, _) => tab.IsLocked);
 
-        Add(CommandIds.TabColor, "Colour tab", "Tabs", (c, _) => Run(() =>
+        AddOnTab(CommandIds.TabColor, "Colour tab", "Tabs", (tab, c) =>
         {
-            if (TabOf(c) is not { } tab)
-            {
-                return;
-            }
-
             var value = c.Target?.Trim();
             if (string.IsNullOrEmpty(value))
             {
@@ -155,37 +114,20 @@ internal sealed partial class TabCommands(CommandScope scope) : CommandArea(scop
             {
                 shell.ShowMessage($"'{value}' is not a colour. Use the form #RRGGBB.");
             }
-        }), c => TabOf(c) is not null);
+        });
 
-        Add(CommandIds.TabCloseOthers, "Close other tabs", "Tabs", (c, _) => Run(() =>
+        AddOnTab(CommandIds.TabCloseOthers, "Close other tabs", "Tabs", (tab, _) => strip.CloseOthers(tab), (tab, _) => strip.Tabs.Any(t => t != tab && !t.IsPinned));
+        AddOnTab(CommandIds.TabCloseRight, "Close tabs to the right", "Tabs", (tab, _) => strip.CloseToRight(tab),
+            (tab, _) => strip.Tabs.Skip(strip.Tabs.IndexOf(tab) + 1).Any(t => !t.IsPinned));
+
+        AddOnTab(CommandIds.TabMoveLeft, "Move tab left", "Tabs", (tab, _) => strip.Nudge(tab, -1), shortcut: "Ctrl+Shift+PageUp");
+        AddOnTab(CommandIds.TabMoveRight, "Move tab right", "Tabs", (tab, _) => strip.Nudge(tab, 1), shortcut: "Ctrl+Shift+PageDown");
+        AddWith<TabMove>(CommandIds.TabMove, "Move tab", "Tabs", move => strip.Move(move.Tab, move.Index));
+
+        AddWith<TabTearOff>(CommandIds.TabTearOff, "Move tab to a new window", "Tabs", drag => windows.TearOff(window, drag.Tab, drag.ScreenX, drag.ScreenY));
+
+        AddWith<TabDrop>(CommandIds.TabDrop, "Drop tab here", "Tabs", drop =>
         {
-            if (TabOf(c) is { } tab)
-            {
-                strip.CloseOthers(tab);
-            }
-        }), c => TabOf(c) is { } tab && strip.Tabs.Any(t => t != tab && !t.IsPinned));
-
-        Add(CommandIds.TabCloseRight, "Close tabs to the right", "Tabs", (c, _) => Run(() =>
-        {
-            if (TabOf(c) is { } tab)
-            {
-                strip.CloseToRight(tab);
-            }
-        }), c => TabOf(c) is { } tab && strip.Tabs.Skip(strip.Tabs.IndexOf(tab) + 1).Any(t => !t.IsPinned));
-
-        Add(CommandIds.TabMoveLeft, "Move tab left", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, -1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageUp");
-        Add(CommandIds.TabMoveRight, "Move tab right", "Tabs", (c, _) => Run(() => strip.Nudge(TabOf(c)!, 1)), c => TabOf(c) is not null, shortcut: "Ctrl+Shift+PageDown");
-        Add(CommandIds.TabMove, "Move tab", "Tabs", (c, _) => Run(() => strip.Move(((TabMove)c.Parameter!).Tab, ((TabMove)c.Parameter!).Index)), c => c.Parameter is TabMove);
-
-        Add(CommandIds.TabTearOff, "Move tab to a new window", "Tabs", (c, _) => Run(() =>
-        {
-            var drag = (TabTearOff)c.Parameter!;
-            windows.TearOff(window, drag.Tab, drag.ScreenX, drag.ScreenY);
-        }), c => c.Parameter is TabTearOff);
-
-        Add(CommandIds.TabDrop, "Drop tab here", "Tabs", (c, _) => Run(() =>
-        {
-            var drop = (TabDrop)c.Parameter!;
             var from = windows.FindWindowOf(drop.Tab);
             if (from is null)
             {
@@ -200,8 +142,7 @@ internal sealed partial class TabCommands(CommandScope scope) : CommandArea(scop
             {
                 windows.Merge(from, drop.Tab, window, drop.Index);
             }
-        }), c => c.Parameter is TabDrop);
-
+        });
         Add(CommandIds.TabOpenInNewTab, "Open in new tab", "Tabs", async (c, ct) =>
         {
             if (!LocationPath.TryParse(c.Target, out var location))

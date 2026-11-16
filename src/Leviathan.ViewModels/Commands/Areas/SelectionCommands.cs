@@ -14,13 +14,13 @@ internal sealed class SelectionCommands(CommandScope scope) : CommandArea(scope)
         var shell = Scope.Shell;
 
         // Selection (spec §6.2, nothing selected).
-        Add(CommandIds.SelectAll, "Select all", "Selection", (_, _) => Run(() => Current()!.Selection.SelectAll()), _ => Current() is not null, shortcut: "Ctrl+A");
-        Add(CommandIds.SelectNone, "Select none", "Selection", (_, _) => Run(() => Current()!.Selection.Clear()), _ => Current() is not null, shortcut: "Ctrl+Shift+A");
-        Add(CommandIds.SelectInvert, "Invert selection", "Selection", (_, _) => Run(() => Current()!.Selection.Invert()), _ => Current() is not null, shortcut: "Ctrl+I");
-        Add(CommandIds.SelectByPattern, "Select by pattern", "Selection", (c, _) => Run(() =>
+        AddOnCurrent(CommandIds.SelectAll, "Select all", "Selection", (tab, _) => tab.Selection.SelectAll(), shortcut: "Ctrl+A");
+        AddOnCurrent(CommandIds.SelectNone, "Select none", "Selection", (tab, _) => tab.Selection.Clear(), shortcut: "Ctrl+Shift+A");
+        AddOnCurrent(CommandIds.SelectInvert, "Invert selection", "Selection", (tab, _) => tab.Selection.Invert(), shortcut: "Ctrl+I");
+        AddOnCurrent(CommandIds.SelectByPattern, "Select by pattern", "Selection", (tab, c) =>
         {
-            var matched = Current()!.Selection.SelectByPattern(c.Target!);
+            var matched = tab.Selection.SelectByPattern(c.Target!);
             shell.ShowMessage(matched == 1 ? "1 item matches" : $"{matched} items match");
-        }), c => Current() is not null && !string.IsNullOrWhiteSpace(c.Target));
+        }, (_, c) => !string.IsNullOrWhiteSpace(c.Target));
     }
 }

@@ -84,7 +84,7 @@ internal sealed class ArchiveCommands(CommandScope scope) : CommandArea(scope)
         }
 
         // Checksums (spec §15.4): of the item the command was run on, else the selection; a lone checksum file (.sha256, .md5, .sfv...) is verified.
-        Add(CommandIds.ShowChecksum, "Checksums...", "Files", (c, _) => Run(() =>
+        AddAction(CommandIds.ShowChecksum, "Checksums...", "Files", c =>
         {
             var items = ArchiveTargets(c);
             if (items.Count == 0 || items.Any(i => i.Kind is not (LocationKind.Drive or LocationKind.Unc)))
@@ -95,9 +95,9 @@ internal sealed class ArchiveCommands(CommandScope scope) : CommandArea(scope)
 
             var verify = items.All(i => Core.Hashing.ChecksumKinds.FromExtension(Path.GetExtension(i.Name)) is not null);
             shell.OpenChecksums(items, verify);
-        }), c => Current() is not null);
+        }, NeedsTab);
 
-        bool CanArchive(CommandContext c) => archives is not null && Current() is not null;
+        bool CanArchive(CommandContext c) => archives is not null && NeedsTab(c);
         Add(CommandIds.ExtractHere, "Extract here", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: false), CanArchive);
         Add(CommandIds.ExtractToFolder, "Extract to folder", "Archives", (c, ct) => RunExtract(c, ct, subfolder: true, pick: false), CanArchive);
         Add(CommandIds.ExtractTo, "Extract to...", "Archives", (c, ct) => RunExtract(c, ct, subfolder: false, pick: true), CanArchive);

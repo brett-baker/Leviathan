@@ -4,6 +4,7 @@
 
 using Leviathan.Core.Paths;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Windows;
 
 namespace Leviathan.ViewModels.Commands.Areas;
@@ -21,9 +22,8 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
         var undo = Scope.UndoService;
 
         // New menu (spec §6.1). Creating is file I/O, so it runs on the thread pool inside NewItemService.
-        async Task CreateNew(string templateId, CancellationToken ct)
+        async Task CreateNew(TabViewModel tab, string templateId, CancellationToken ct)
         {
-            var tab = Current()!;
             try
             {
                 var created = await newItems!.CreateAsync(templateId, tab.History.Current, ct);
@@ -42,33 +42,32 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
-        bool CanCreateHere() => newItems is not null && Current() is { } tab && (tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc || newItems.Remote?.Handles(tab.History.Current) == true);
+        bool CanCreateIn(TabViewModel tab) => newItems is not null && (tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc || newItems.Remote?.Handles(tab.History.Current) == true);
 
-        Add(CommandIds.NewFolder, "New folder", "New", (_, ct) => CreateNew(NewMenu.NewItemService.FolderTemplate.Id, ct), _ => CanCreateHere(), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
-        Add(CommandIds.NewItem, "New item", "New", (c, ct) => CreateNew(c.Target!, ct), c => CanCreateHere() && !string.IsNullOrEmpty(c.Target));
+        AddOnCurrent(CommandIds.NewFolder, "New folder", "New", (tab, _, ct) => CreateNew(tab, NewMenu.NewItemService.FolderTemplate.Id, ct), (tab, _) => CanCreateIn(tab), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
+        AddOnCurrent(CommandIds.NewItem, "New item", "New", (tab, c, ct) => CreateNew(tab, c.Target!, ct), (tab, c) => CanCreateIn(tab) && !string.IsNullOrEmpty(c.Target));
 
         // Inline rename (spec §8.4): F2 shows the box, the box's Enter / Tab / click-away runs RenameCommit.
-        bool CanBulkRenameHere() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.SelectedEntries.Count > 0;
+        bool CanBulkRename(TabViewModel tab) => tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.SelectedEntries.Count > 0;
 
-        bool CanRenameHere() => renamer is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.RenameTarget() is not null;
+        bool CanRename(TabViewModel tab) => renamer is not null && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.RenameTarget() is not null;
 
         // F2 renames the one selected item in place; with several selected it opens the bulk-rename dialog (spec §15.3).
-        Add(CommandIds.EditRename, "Rename", "Edit", (_, _) => Run(() =>
+        AddOnCurrent(CommandIds.EditRename, "Rename", "Edit", (tab, _) =>
         {
-            if (Current()!.RenameTarget() is { } one)
+            if (tab.RenameTarget() is { } one)
             {
-                Current()!.BeginRename(one);
+                tab.BeginRename(one);
             }
             else
             {
                 shell.BulkRename();
             }
-        }), _ => CanRenameHere() || (CanBulkRenameHere() && Current()!.Selection.SelectedEntries.Count > 1), shortcut: "F2", icon: "Rename");
-        Add(CommandIds.BulkRename, "Bulk rename…", "Edit", (_, _) => Run(shell.BulkRename), _ => CanBulkRenameHere(), shortcut: "Shift+F2");
+        }, (tab, _) => CanRename(tab) || (CanBulkRename(tab) && tab.Selection.SelectedEntries.Count > 1), shortcut: "F2", icon: "Rename");
+        AddOnCurrent(CommandIds.BulkRename, "Bulk rename…", "Edit", (_, _) => shell.BulkRename(), (tab, _) => CanBulkRename(tab), shortcut: "Shift+F2");
 
-        Add(CommandIds.RenameCommit, "Finish renaming", "Edit", async (c, ct) =>
+        AddOnCurrent(CommandIds.RenameCommit, "Finish renaming", "Edit", async (tab, c, ct) =>
         {
-            var tab = Current()!;
             var location = tab.Renaming!;
             var text = c.Target?.Trim() ?? string.Empty;
             var goNext = c.Parameter is true;
@@ -118,14 +117,13 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
                     tab.BeginRename(rows[at + 1]);
                 }
             }
-        }, c => renamer is not null && Current()?.Renaming is not null && c.Target is not null);
+        }, (tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
 
         // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
-        bool CanDeleteHere() => deleter is not null && Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.Selection.Count > 0;
+        bool CanDeleteIn(TabViewModel tab) => deleter is not null && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.Selection.Count > 0;
 
-        async Task DeleteSelection(bool permanent, CancellationToken ct)
+        async Task DeleteSelection(TabViewModel tab, bool permanent, CancellationToken ct)
         {
-            var tab = Current()!;
             var items = tab.Selection.SelectedEntries.Select(e => e.Location).ToList();
             var what = items.Count == 1 ? items[0].Name : $"these {items.Count} items";
 
@@ -145,8 +143,8 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             shell.ShowMessage((await deleter!.DeleteAsync(items, permanent, ct)).Message);
         }
 
-        Add(CommandIds.EditDelete, "Delete", "Edit", (_, ct) => DeleteSelection(false, ct), _ => CanDeleteHere(), shortcut: "Del", icon: "Delete");
-        Add(CommandIds.EditDeletePermanent, "Delete permanently", "Edit", (_, ct) => DeleteSelection(true, ct), _ => CanDeleteHere(), shortcut: "Shift+Del");
+        AddOnCurrent(CommandIds.EditDelete, "Delete", "Edit", (tab, _, ct) => DeleteSelection(tab, false, ct), (tab, _) => CanDeleteIn(tab), shortcut: "Del", icon: "Delete");
+        AddOnCurrent(CommandIds.EditDeletePermanent, "Delete permanently", "Edit", (tab, _, ct) => DeleteSelection(tab, true, ct), (tab, _) => CanDeleteIn(tab), shortcut: "Shift+Del");
 
         // Undo and redo (spec §12.5): one history for the whole app. The view shows the result: the restored item is selected.
         async Task ShowUndoOutcome(Undo.UndoOutcome outcome, CancellationToken ct)

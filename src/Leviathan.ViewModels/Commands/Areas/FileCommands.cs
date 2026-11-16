@@ -18,7 +18,6 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
     {
         var launcher = Scope.Launcher;
         var shell = Scope.Shell;
-        var transfers = Scope.TransferService;
         var terminal = Scope.Terminal;
         var quickTargets = Scope.QuickTargetStore;
 
@@ -59,15 +58,7 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
             }
 
             var sources = new List<LocationPath>((c.Parameter is FileEntry one ? [one] : tab.Selection.SelectedEntries).Select(e => e.Location));
-            var decision = Transfers.DropRules.Decide(sources, destination, mode == Transfers.TransferMode.Copy ? Transfers.DropModifiers.Ctrl : Transfers.DropModifiers.Shift);
-            if (!decision.Allowed)
-            {
-                shell.ShowMessage(decision.Tooltip);
-                return;
-            }
-
-            var outcome = await (transfers ?? new Transfers.UnavailableTransferService()).StartAsync(new Transfers.TransferRequest(sources, destination, decision.Mode), ct);
-            shell.ShowMessage(outcome.Message);
+            await TransferAsync(sources, destination, ModifiersFor(mode), ct);
         }
 
         bool HasSelection(CommandContext c) => c.Parameter is FileEntry || Current() is { Selection.Count: > 0 };
@@ -76,13 +67,8 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
             var slot = n;
             Add(QuickTargets.MoveId(slot), $"Move to quick target {slot}", "Files", (c, ct) => SendToQuickTarget(c, slot, Transfers.TransferMode.Move, ct), HasSelection, shortcut: $"Ctrl+Alt+{slot}");
             Add(QuickTargets.CopyId(slot), $"Copy to quick target {slot}", "Files", (c, ct) => SendToQuickTarget(c, slot, Transfers.TransferMode.Copy, ct), HasSelection, shortcut: $"Ctrl+Alt+Shift+{slot}");
-            Add(QuickTargets.SetId(slot), $"Make this folder quick target {slot}", "Files", async (_, ct) =>
+            AddOnCurrent(QuickTargets.SetId(slot), $"Make this folder quick target {slot}", "Files", async (tab, _, ct) =>
             {
-                if (quickTargets is null || Current() is not { } tab)
-                {
-                    return;
-                }
-
                 var folder = tab.History.Current;
                 if (!TerminalTargets.IsUsable(folder) && folder.Kind is not (LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps))
                 {
@@ -90,9 +76,9 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
                     return;
                 }
 
-                await quickTargets.SetAsync(slot, folder.Value, ct);
+                await quickTargets!.SetAsync(slot, folder.Value, ct);
                 shell.ShowMessage($"Quick target {slot} is now {folder.Value}.");
-            }, _ => quickTargets is not null && Current() is not null);
+            }, (_, _) => quickTargets is not null);
         }
 
         // Open terminal here (spec §15.7): the selected folder, else the selected file's folder, else the folder shown; the terminal is the one
@@ -134,8 +120,8 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
-        Add(CommandIds.RunAsAdministrator, "Run as administrator", "Files", (c, ct) => Launch(launcher.RunAsAdministratorAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
-        Add(CommandIds.OpenWith, "Open with…", "Files", (c, ct) => Launch(launcher.ChooseAppAsync(((FileEntry)c.Parameter!).Location, ct), (FileEntry)c.Parameter!), c => c.Parameter is FileEntry { Kind: FileEntryKind.File });
+        AddWith<FileEntry>(CommandIds.RunAsAdministrator, "Run as administrator", "Files", (entry, ct) => Launch(launcher.RunAsAdministratorAsync(entry.Location, ct), entry), entry => entry.Kind == FileEntryKind.File);
+        AddWith<FileEntry>(CommandIds.OpenWith, "Open with…", "Files", (entry, ct) => Launch(launcher.ChooseAppAsync(entry.Location, ct), entry), entry => entry.Kind == FileEntryKind.File);
 
         // From a menu or button the item comes with the call; from the keyboard it is the one selected item.
         Add(CommandIds.Properties, "Properties", "Files", (c, ct) =>
@@ -148,17 +134,7 @@ internal sealed class FileCommands(CommandScope scope) : CommandArea(scope)
         Add(CommandIds.DropItems, "Drop items here", "Files", async (c, ct) =>
         {
             var drop = (ItemDrop)c.Parameter!;
-            var destination = LocationPath.Parse(c.Target!);
-            var decision = Transfers.DropRules.Decide(drop.Sources, destination, drop.Modifiers);
-            if (!decision.Allowed)
-            {
-                shell.ShowMessage(decision.Tooltip);
-                return;
-            }
-
-            var outcome = await (transfers ?? new Transfers.UnavailableTransferService())
-                .StartAsync(new Transfers.TransferRequest(drop.Sources, destination, decision.Mode), ct);
-            shell.ShowMessage(outcome.Message);
+            await TransferAsync(drop.Sources, LocationPath.Parse(c.Target!), drop.Modifiers, ct);
         }, c => c.Parameter is ItemDrop { Sources.Count: > 0 } && LocationPath.TryParse(c.Target, out _));
     }
 }

@@ -15,19 +15,14 @@ internal sealed class NavigationCommands(CommandScope scope) : CommandArea(scope
         var resolver = Scope.Resolver;
         var shell = Scope.Shell;
 
-        Add(CommandIds.NavBack, "Back", "Navigation", (c, ct) => Current()!.GoBackAsync(ct, Steps(c)), _ => Current()?.History.CanGoBack == true, "Back", "Alt+Left");
-        Add(CommandIds.NavForward, "Forward", "Navigation", (c, ct) => Current()!.GoForwardAsync(ct, Steps(c)), _ => Current()?.History.CanGoForward == true, "Forward", "Alt+Right");
-        Add(CommandIds.NavUp, "Up", "Navigation", (_, ct) => Current()!.GoUpAsync(ct), _ => Current()?.History.CanGoUp == true, "Up", "Alt+Up");
+        AddOnCurrent(CommandIds.NavBack, "Back", "Navigation", (tab, c, ct) => tab.GoBackAsync(ct, Steps(c)), (tab, _) => tab.History.CanGoBack, "Back", "Alt+Left");
+        AddOnCurrent(CommandIds.NavForward, "Forward", "Navigation", (tab, c, ct) => tab.GoForwardAsync(ct, Steps(c)), (tab, _) => tab.History.CanGoForward, "Forward", "Alt+Right");
+        AddOnCurrent(CommandIds.NavUp, "Up", "Navigation", (tab, _, ct) => tab.GoUpAsync(ct), (tab, _) => tab.History.CanGoUp, "Up", "Alt+Up");
         // F5 means "look again": the cached rows are not shown first. A tab that was never listed (restored, or just opened) is not a refresh.
-        Add(CommandIds.NavReload, "Reload", "Navigation", (_, ct) => Current()!.ReloadAsync(ct, forceFresh: Current()!.Folder.State is not Folders.FolderLoadState.Idle), _ => Current() is not null, "Refresh", "F5");
+        AddOnCurrent(CommandIds.NavReload, "Reload", "Navigation", (tab, _, ct) => tab.ReloadAsync(ct, forceFresh: tab.Folder.State is not Folders.FolderLoadState.Idle), icon: "Refresh", shortcut: "F5");
 
-        Add(CommandIds.NavGo, "Go to address", "Navigation", async (c, ct) =>
+        AddOnCurrent(CommandIds.NavGo, "Go to address", "Navigation", async (tab, c, ct) =>
         {
-            if (Current() is not { } tab)
-            {
-                return;
-            }
-
             var result = await resolver.ResolveAsync(c.Target, tab.History.Current, ct);
             switch (result.Outcome)
             {
@@ -43,11 +38,11 @@ internal sealed class NavigationCommands(CommandScope scope) : CommandArea(scope
                     shell.ShowMessage(result.Message ?? "That location could not be opened.");
                     break;
             }
-        }, _ => Current() is not null);
+        });
 
-        Add(CommandIds.PaletteCommands, "Command palette", "Navigation", (_, _) => Run(() => shell.OpenPalette(Palette.PaletteMode.Commands)), shortcut: "Ctrl+Shift+P");
-        Add(CommandIds.PaletteGoTo, "Go to...", "Navigation", (_, _) => Run(() => shell.OpenPalette(Palette.PaletteMode.GoTo)), shortcut: "Ctrl+P");
+        AddAction(CommandIds.PaletteCommands, "Command palette", "Navigation", () => shell.OpenPalette(Palette.PaletteMode.Commands), shortcut: "Ctrl+Shift+P");
+        AddAction(CommandIds.PaletteGoTo, "Go to...", "Navigation", () => shell.OpenPalette(Palette.PaletteMode.GoTo), shortcut: "Ctrl+P");
 
-        Add(CommandIds.AddressFocus, "Focus address bar", "Navigation", (_, _) => Run(shell.FocusAddressBar), shortcut: "Ctrl+L");
+        AddAction(CommandIds.AddressFocus, "Focus address bar", "Navigation", shell.FocusAddressBar, shortcut: "Ctrl+L");
     }
 }

@@ -4,6 +4,7 @@
 
 using Leviathan.Core.Paths;
 using Leviathan.ViewModels.Navigation;
+using Leviathan.ViewModels.Tabs;
 using Leviathan.ViewModels.Windows;
 
 namespace Leviathan.ViewModels.Commands.Areas;
@@ -21,22 +22,20 @@ internal sealed class ClipboardCommands(CommandScope scope) : CommandArea(scope)
 
         // Clipboard (spec §6.1): cut and copy put the selection on the Windows clipboard, paste hands it to the transfer service,
         // so a paste is the same journaled copy or move a drop is. Pasting a cut moves; pasting a copy copies, even in the same volume.
-        bool InFolder() => Current() is { } tab && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps;
-        bool CanTakeSelection() => clipboard is not null && InFolder() && Current()!.Selection.Count > 0;
-        bool CanPasteHere() => clipboard is { HasFiles: true } && InFolder();
+        static bool InFolder(TabViewModel tab) => tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps;
+        bool CanTakeSelection(TabViewModel tab) => clipboard is not null && InFolder(tab) && tab.Selection.Count > 0;
+        bool CanPasteHere(TabViewModel tab) => clipboard is { HasFiles: true } && InFolder(tab);
 
-        Task PutOnClipboard(Transfers.ClipboardOperation operation)
+        void PutOnClipboard(TabViewModel tab, Transfers.ClipboardOperation operation)
         {
-            var items = Current()!.Selection.SelectedEntries.Select(e => e.Location).ToList();
+            var items = tab.Selection.SelectedEntries.Select(e => e.Location).ToList();
             clipboard!.Set(items, operation);
             var what = items.Count == 1 ? items[0].Name : $"{items.Count} items";
             shell.ShowMessage(operation == Transfers.ClipboardOperation.Cut ? $"Cut {what}. Paste to move." : $"Copied {what}.");
-            return Task.CompletedTask;
         }
 
-        async Task PasteAsync(bool intoNewFolder, CancellationToken ct)
+        async Task PasteAsync(TabViewModel tab, bool intoNewFolder, CancellationToken ct)
         {
-            var tab = Current()!;
             var here = tab.History.Current;
             var contents = await clipboard!.GetAsync(ct);
             if (contents is not { Items.Count: > 0 })
@@ -80,9 +79,9 @@ internal sealed class ClipboardCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
-        Add(CommandIds.EditCut, "Cut", "Edit", (_, _) => PutOnClipboard(Transfers.ClipboardOperation.Cut), _ => CanTakeSelection(), shortcut: "Ctrl+X", icon: "Cut");
-        Add(CommandIds.EditCopy, "Copy", "Edit", (_, _) => PutOnClipboard(Transfers.ClipboardOperation.Copy), _ => CanTakeSelection(), shortcut: "Ctrl+C", icon: "Copy");
-        Add(CommandIds.EditPaste, "Paste", "Edit", (_, ct) => PasteAsync(false, ct), _ => CanPasteHere(), shortcut: "Ctrl+V", icon: "Paste");
-        Add(CommandIds.EditPasteIntoNewFolder, "Paste into new folder", "Edit", (_, ct) => PasteAsync(true, ct), _ => CanPasteHere() && newItems is not null);
+        AddOnCurrent(CommandIds.EditCut, "Cut", "Edit", (tab, _) => PutOnClipboard(tab, Transfers.ClipboardOperation.Cut), (tab, _) => CanTakeSelection(tab), shortcut: "Ctrl+X", icon: "Cut");
+        AddOnCurrent(CommandIds.EditCopy, "Copy", "Edit", (tab, _) => PutOnClipboard(tab, Transfers.ClipboardOperation.Copy), (tab, _) => CanTakeSelection(tab), shortcut: "Ctrl+C", icon: "Copy");
+        AddOnCurrent(CommandIds.EditPaste, "Paste", "Edit", (tab, _, ct) => PasteAsync(tab, false, ct), (tab, _) => CanPasteHere(tab), shortcut: "Ctrl+V", icon: "Paste");
+        AddOnCurrent(CommandIds.EditPasteIntoNewFolder, "Paste into new folder", "Edit", (tab, _, ct) => PasteAsync(tab, true, ct), (tab, _) => CanPasteHere(tab) && newItems is not null);
     }
 }

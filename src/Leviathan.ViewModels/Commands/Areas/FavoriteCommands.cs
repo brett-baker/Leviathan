@@ -17,7 +17,7 @@ internal sealed class FavoriteCommands(CommandScope scope) : CommandArea(scope)
         var shell = Scope.Shell;
         var favorites = Scope.Favorites;
 
-        Add(CommandIds.FavoriteAdd, "Add to favorites", "Favorites", (c, _) => Run(() =>
+        AddAction(CommandIds.FavoriteAdd, "Add to favorites", "Favorites", c =>
         {
             var location = LocationPath.Parse(c.Target!);
             if (favorites!.Contains(location))
@@ -29,19 +29,19 @@ internal sealed class FavoriteCommands(CommandScope scope) : CommandArea(scope)
                 favorites.Toggle(location);
                 shell.ShowMessage("Added to Favorites");
             }
-        }), c => favorites is not null && LocationPath.TryParse(c.Target, out _));
+        }, c => favorites is not null && LocationPath.TryParse(c.Target, out _));
 
-        Add(CommandIds.FavoriteRename, "Rename favorite", "Favorites", (c, _) => Run(() => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string)),
+        AddAction(CommandIds.FavoriteRename, "Rename favorite", "Favorites", c => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string),
             c => favorites is not null && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
-        Add(CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", (c, _) => Run(() =>
+        AddAction(CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", c =>
         {
             var change = (Sidebar.FavoriteStyleChange)c.Parameter!;
             favorites!.SetStyle(LocationPath.Parse(c.Target!), change.Icon, change.Color);
-        }), c => favorites is not null && c.Parameter is Sidebar.FavoriteStyleChange && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
-        Add(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (_, _) => Run(() =>
+        }, c => favorites is not null && c.Parameter is Sidebar.FavoriteStyleChange && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
+        AddOnCurrent(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (tab, _) =>
         {
-            var pinned = favorites!.Toggle(Current()!.History.Current);
+            var pinned = favorites!.Toggle(tab.History.Current);
             shell.ShowMessage(pinned ? "Added to Favorites" : "Removed from Favorites");
-        }), _ => favorites is not null && Current() is not null, shortcut: "Ctrl+D");
+        }, (_, _) => favorites is not null, shortcut: "Ctrl+D");
     }
 }
