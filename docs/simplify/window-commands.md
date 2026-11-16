@@ -26,21 +26,21 @@ Everything lives in one file, [WindowCommands.cs](../../src/Leviathan.ViewModels
 
 | Measure | Before | Target | After |
 | --- | --- | --- | --- |
-| Files / total lines | 1 / 1,754 | 10–12 / about the same | |
-| Largest file (lines) | 1,754 | under 350 | |
-| Longest method (lines) | 1,059 (`Create`) | under 60 | |
-| Longest single registration | 54 (`RenameCommit`) | under 30 | |
-| Branch density (per 100 lines) | 16.7 (293 branches in the file, about 270 inside `Create`) | under 12 in each file | |
-| Cyclomatic complexity of `Create` | about 270 | under 10 (it only calls the area registrars) | |
-| Parameters of `Create` | 20 (12 optional services) | 7 plus one services record | |
-| Mutable fields / flags | 0 / 0 | 0 / 0 | |
-| Registrations | 124 in 14 categories (Tabs 34, View 30, Edit 11, Files 10, Navigation 9, Tools 7, ...) | same, same ids, titles, shortcuts | |
-| Repeats: `Run(() => ...)` wrappers | 76 | 0 | |
-| Repeats: `Current() is not null` / `Current()!` | 31 / 42 | 0 / 0 | |
-| Repeats: `(Type)c.Parameter!` casts | 15 | 0 | |
-| Repeats: "location is a drive or share" test | 7 (3 slightly different) | 1 named function | |
-| Decisions a unit test can reach without the registry | few (the logic sits in lambdas) | the rules for rename, create, archive, colour and group parsing | |
-| Tests covering the feature | `WindowCommandsTests` (30 tests, 602 lines) plus at least 10 other test files that run commands | same, plus a registry snapshot | |
+| Files / total lines | 1 / 1,754 | 10–12 / about the same | 19 / 2,060 (logic 1,482 in 16 files; constants, interface and records 578 in 3) |
+| Largest file (lines) | 1,754 | under 350 | 446 (`CommandIds.cs`, constants); largest logic file 180 (`EditCommands.cs`) |
+| Longest method (lines) | 1,059 (`Create`) | under 60 | `Create` 48; longest area `Register` 164 (`EditCommands`), 140 (`TabCommands`), 123 (`FileCommands`) |
+| Longest single registration | 54 (`RenameCommit`) | under 30 | 54 (unchanged; item 5 would address it) |
+| Branch density (per 100 lines) | 16.7 (293 branches in the file, about 270 inside `Create`) | under 12 in each file | 3.8 to 25 per area file, 293 branches in total: the same decisions spread over more files (the count over-reads `?` in nullable types in `CommandArea`) |
+| Cyclomatic complexity of `Create` | about 270 | under 10 (it only calls the area registrars) | about 8 (the seven argument checks; the rest is a straight list of calls) |
+| Parameters of `Create` | 20 (12 optional services) | 7 plus one services record | 20 (item 6 not done) |
+| Mutable fields / flags | 0 / 0 | 0 / 0 | 0 / 0 |
+| Registrations | 124 in 14 categories (Tabs 34, View 30, Edit 11, Files 10, Navigation 9, Tools 7, ...) | same, same ids, titles, shortcuts | same: 151 commands in the snapshot, same ids, titles, shortcuts |
+| Repeats: `Run(() => ...)` wrappers | 76 | 0 | 0 (one private `Run` in `CommandArea`) |
+| Repeats: `Current() is not null` / `Current()!` | 31 / 42 | 0 / 0 | 0 / 1 (`Properties`), outside the helpers |
+| Repeats: `(Type)c.Parameter!` casts | 15 | 0 | 2 (`FavoriteStyle`, `DropItems`: they also use the target) |
+| Repeats: "location is a drive or share" test | 7 (3 slightly different) | 1 named function | 7 (item 5 not done) |
+| Decisions a unit test can reach without the registry | few (the logic sits in lambdas) | the rules for rename, create, archive, colour and group parsing | unchanged (item 5 not done) |
+| Tests covering the feature | `WindowCommandsTests` (30 tests, 602 lines) plus at least 10 other test files that run commands | same, plus a registry snapshot | same, plus `WindowCommandsSnapshotTests` (151 commands and 76 key bindings) |
 
 ## Smells found
 
