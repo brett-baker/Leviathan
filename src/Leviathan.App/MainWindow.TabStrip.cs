@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Leviathan.ViewModels.Commands;
 using Leviathan.ViewModels.Tabs;
@@ -68,6 +68,13 @@ internal sealed class TabItemUi
 
     /// <summary>Pinned tabs show their names (setting); off, only the icon and the pin show and the name is in the tooltip.</summary>
     public static bool ShowPinnedNames { get; set; }
+
+    /// <summary>Marks the tab while it is dragged: tinted when letting go would tear it off into its own window.</summary>
+    public void SetTearing(bool tearing)
+    {
+        _header.Background = new SolidColorBrush(tearing ? Color.FromArgb(150, 226, 87, 76) : Colors.Transparent);
+        Item.Opacity = tearing ? 0.75 : 1;
+    }
 
     public TabViewModel Tab { get; }
 
@@ -308,213 +315,11 @@ public sealed partial class MainWindow
         return null;
     }
 
-    // Drag and drop (spec 4.1: reorder, tear off, merge) -------------------------------------------------------------
-
-    // XAML event handlers must be instance methods even when they use no instance data.
-#pragma warning disable CA1822
-    // A drag reorders the strip's own items as the pointer moves. The strip is brought in line with the model once, when the drag is over:
-    // looking at it half way (after the item left its place and before it landed) put the tab back where it started.
-    private bool _tabDragging;
-
-    // Where along the strip a tab was let go when it was close enough to the strip to count as a reorder (see OnTabDroppedOutside).
-    private double? _nearDropX;
-
-    // The place the dragged tab would take among the other tabs, as last seen with the pointer over the strip.
-    private int? _dragIndex;
-
-    // The drop was already carried out where it landed (Drop or DroppedOutside), so the drag-completed handler must not do it again.
-    private bool _dropHandled;
-
-    private void OnTabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
-    {
-        _tabDragging = true;
-        _dropHandled = false;
-        _nearDropX = null;
-        _dragIndex = null;
-        TabDragTrace.Log($"STARTING {(args.Tab.Tag as TabViewModel)?.Title ?? (args.Tab.Tag as TabGroup)?.Name}; model order {ModelOrder()}; strip order {StripOrder()}");
-        _draggedItem = args.Tab.Tag;
-        if (args.Tab.Tag is TabViewModel tab)
-        {
-            App.DraggedTab = tab;
-            args.Data.RequestedOperation = DataPackageOperation.Move;
-            args.Data.SetText(tab.History.Current.Value);
-        }
-        else if (args.Tab.Tag is TabGroup group)
-        {
-            App.DraggedGroup = group;
-            args.Data.RequestedOperation = DataPackageOperation.Move;
-            args.Data.SetText(group.Name);
-        }
-    }
-
-    private void OnTabDragCompleted(TabView sender, TabViewTabDragCompletedEventArgs args)
-    {
-        TabDragTrace.Log($"COMPLETED result {args.DropResult}; dropHandled {_dropHandled}; model order {ModelOrder()}");
-        App.DraggedTab = null;
-        App.DraggedGroup = null;
-        _tabDragging = false;
-        if (_dropHandled)
-        {
-            return;
-        }
-
-        // Wherever the strip left the tab, a tab let go over its own strip goes where the pointer is.
-        _nearDropX ??= NativeCursor.TryGetPosition(out var x, out var y) ? NearStripX(x, y) : null;
-        UiTrace.Mark($"tab drag completed; cursor {(_nearDropX is { } nx ? $"near the strip at {nx:0}" : "away from the strip")}");
-        AfterDrag(FinishTabDrag);
-    }
-
-    private string ModelOrder() => string.Join(" | ", _viewModel.Tabs.Tabs.Select(t => (t.IsPinned ? "*" : "") + t.Title));
-
-    private string StripOrder() => string.Join(" | ", TabsView.TabItems.OfType<TabViewItem>().Select(i => i.Tag is TabViewModel t ? t.Title : "[" + (i.Tag as TabGroup)?.Name + "]"));
-
-    /// <summary>Puts a tab of this strip at <paramref name="index"/> (its place among the other tabs) once the drag has let go of it.</summary>
-    private void MoveDroppedTab(TabViewModel tab, int index)
-    {
-        TabDragTrace.Log($"MOVE {tab.Title} to index {index} (was {_viewModel.Tabs.Tabs.IndexOf(tab)}); model order before {ModelOrder()}");
-        _dropHandled = true;
-        _tabDragging = false;
-        _dragIndex = null;
-        _nearDropX = null;
-        _draggedItem = null;
-        AfterDrag(() =>
-        {
-            Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
-            SyncTabs();
-            TabDragTrace.Log($"MOVE done; model order {ModelOrder()}; strip order {StripOrder()}");
-        });
-    }
-
-    /// <summary>The drag is over: put the tab where it was let go, then make the strip show what the model says.</summary>
-    private void FinishTabDrag()
-    {
-        var nearX = _nearDropX;
-        _nearDropX = null;
-        if (nearX is { } x && _draggedItem is TabViewModel tab && _viewModel.Tabs.Tabs.Contains(tab))
-        {
-            // Let go near the strip, so the strip may have put the item back: the pointer decides.
-            _draggedItem = null;
-            var index = _dragIndex ?? IndexAmongOthers(x, tab);
-            UiTrace.Mark($"tab drag finished near the strip: x {x:0}, pointer index {_dragIndex?.ToString() ?? "none"}, new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
-            _dragIndex = null;
-            Run(CommandIds.TabMove, tab.History.Current.Value, new TabMove(tab, index));
-            SyncTabs();
-            return;
-        }
-
-        UiTrace.Mark("tab drag finished: the strip's own order decides");
-        ReconcileStripOrder();
-    }
+    // Dragging tabs and chips lives in MainWindow.TabDrag.cs.
 
     /// <summary>
-    /// The place the dragged tab would take among the other tabs for the pointer in <paramref name="e"/>: the number of other tabs whose middle is
-    /// left of the pointer. Each tab is asked where the pointer is relative to <i>itself</i>, so nothing depends on where the strip starts.
-    /// </summary>
-    private int IndexUnderPointer(DragEventArgs e, TabViewModel dragged)
-    {
-        var index = 0;
-        foreach (var item in TabsView.TabItems.OfType<TabViewItem>())
-        {
-            if (item.Tag is not TabViewModel || ReferenceEquals(item.Tag, dragged) || item.Visibility != Visibility.Visible)
-            {
-                continue;
-            }
-
-            if (e.GetPosition(item).X < item.ActualWidth / 2)
-            {
-                return index;
-            }
-
-            index++;
-        }
-
-        return index;
-    }
-
-    /// <summary>
-    /// The place a tab let go at <paramref name="x"/> takes among the other tabs: how many of them stand to its left, counting each one by
-    /// the middle of its own width. The dragged tab itself is left out, wherever the strip drew it.
-    /// </summary>
-    private int IndexAmongOthers(double x, TabViewModel dragged)
-    {
-        var items = TabsView.TabItems.OfType<TabViewItem>().ToList();
-        if (items.Count == 0)
-        {
-            return 0;
-        }
-
-        var position = items.Min(i => i.TransformToVisual(TabsView).TransformPoint(new Point(0, 0)).X);
-        var index = 0;
-        foreach (var item in items)
-        {
-            if (ReferenceEquals(item.Tag, dragged) || item.Visibility != Visibility.Visible)
-            {
-                continue;
-            }
-
-            if (item.Tag is TabViewModel)
-            {
-                if (x < position + (item.ActualWidth / 2))
-                {
-                    return index;
-                }
-
-                index++;
-            }
-
-            position += item.ActualWidth;
-        }
-
-        return index;
-    }
-#pragma warning restore CA1822
-
-    /// <summary>Dropped outside every strip: the tab becomes its own window at the cursor.</summary>
-    private void OnTabDroppedOutside(TabView sender, TabViewTabDroppedOutsideEventArgs args)
-    {
-        var hasCursor = NativeCursor.TryGetPosition(out var x, out var y);
-        TabDragTrace.Log($"DROPPED OUTSIDE; cursor {(hasCursor ? $"{x},{y}" : "unknown")}; tab {(args.Tab.Tag as TabViewModel)?.Title}");
-
-        // Reordering a tab means dragging it along a strip that is only about 40 px tall, so a hand that drifts a little lands "outside". Near the
-        // strip is still a reorder: the tab goes where the pointer is. Only a drop clearly away from the strip (or outside the window) tears it off.
-        if (hasCursor && NearStripX(x, y) is { } stripX)
-        {
-            // A reorder: the tab goes where the pointer last was over the strip (or, failing that, where the coordinates say).
-            if (args.Tab.Tag is TabViewModel dropped && _viewModel.Tabs.Tabs.Contains(dropped))
-            {
-                var index = _dragIndex ?? IndexAmongOthers(stripX, dropped);
-                UiTrace.Mark($"tab dropped just outside its strip: new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(dropped)}");
-                MoveDroppedTab(dropped, index);
-            }
-            else
-            {
-                _nearDropX = stripX;
-            }
-
-            return;
-        }
-
-        // Dragged clearly away: not a reorder, whatever the pointer did over the strip before.
-        _nearDropX = null;
-        _dragIndex = null;
-
-        if (args.Tab.Tag is TabViewModel tab && hasCursor)
-        {
-            // Put the new window's tab under the cursor rather than its corner.
-            AfterDrag(() => Run(CommandIds.TabTearOff, tab.History.Current.Value, new TabTearOff(tab, x - 60, y - 24)));
-        }
-        else if (args.Tab.Tag is TabGroup group && hasCursor)
-        {
-            AfterDrag(() => Run(CommandIds.TabGroupTearOff, null, new TabGroupTearOff(group, x - 60, y - 24)));
-        }
-    }
-
-    /// <summary>How far below the tab row, in device-independent pixels, a dragged tab may be let go and still count as a reorder.</summary>
-    private const double ReorderSlack = 90;
-
-    /// <summary>
-    /// When the screen point is inside this window's width and within <see cref="ReorderSlack"/> of the tab row, the x position along the strip
-    /// (in the strip's own pixels); otherwise null (the tab was dragged away on purpose).
+    /// When the screen point is over this window's tab row (inside its width and within <see cref="TabDragPlanner.DefaultSlack"/> of the row), the x
+    /// position along the strip in the strip's own pixels; otherwise null.
     /// </summary>
     private double? NearStripX(int screenX, int screenY)
     {
@@ -523,64 +328,16 @@ public sealed partial class MainWindow
         var size = AppWindow.Size;
         var x = (screenX - position.X) / scale;
         var y = (screenY - position.Y) / scale;
-        var inside = x >= 0 && x <= size.Width / scale && y >= -ReorderSlack / 2 && y <= TabsView.ActualHeight + ReorderSlack;
+        var inside = x >= 0 && x <= size.Width / scale && y >= -TabDragPlanner.DefaultSlack / 2 && y <= TabsView.ActualHeight + TabDragPlanner.DefaultSlack;
         return inside ? x : null;
     }
 
-    private void OnTabStripDragOver(object sender, DragEventArgs e)
-    {
-        // The strip does not reorder itself (CanReorderTabs is off, because its own reordering and the model fought over the order and the tab went
-        // back where it started). Every drag over the strip is accepted here, and the drop is placed from the pointer.
-        if (App.DraggedTab is { } own && _viewModel.Tabs.Tabs.Contains(own))
-        {
-            var before = _dragIndex;
-            _dragIndex = IndexUnderPointer(e, own);
-            if (before != _dragIndex)
-            {
-                TabDragTrace.Log($"OVER strip; pointer index now {_dragIndex}");
-            }
-        }
-
-        if (App.DraggedTab is not null || App.DraggedGroup is not null)
-        {
-            e.AcceptedOperation = DataPackageOperation.Move;
-            e.DragUIOverride.Caption = App.DraggedGroup is not null ? "Move group here" : "Move tab here";
-        }
-    }
-
-    /// <summary>A tab from another window (or this one) dropped on the strip: it joins at the pointer.</summary>
-    private void OnTabStripDrop(object sender, DragEventArgs e)
-    {
-        TabDragTrace.Log($"STRIP DROP; dragged tab {App.DraggedTab?.Title}; own {(App.DraggedTab is { } d && _viewModel.Tabs.Tabs.Contains(d))}");
-        if (App.DraggedGroup is { } group)
-        {
-            e.AcceptedOperation = DataPackageOperation.Move;
-            var at = IndexAt(e.GetPosition(TabsView).X);
-            AfterDrag(() => Run(CommandIds.TabGroupDrop, null, new TabGroupDrop(group, at)));
-        }
-        else if (App.DraggedTab is { } tab && _viewModel.Tabs.Tabs.Contains(tab))
-        {
-            // One of this strip's own tabs let go on it: a reorder, placed from the pointer when the drag completes (FinishTabDrag).
-            e.AcceptedOperation = DataPackageOperation.Move;
-            var index = IndexUnderPointer(e, tab);
-            UiTrace.Mark($"tab dropped on its own strip: new index {index}, was {_viewModel.Tabs.Tabs.IndexOf(tab)}");
-            MoveDroppedTab(tab, index);
-        }
-        else if (App.DraggedTab is { } foreign)
-        {
-            e.AcceptedOperation = DataPackageOperation.Move;
-            var index = IndexAt(e.GetPosition(TabsView).X);
-            AfterDrag(() => Run(CommandIds.TabDrop, foreign.History.Current.Value, new TabDrop(foreign, index)));
-        }
-    }
-
-    /// <summary>Runs a change to the tab strip once the drag has completely finished; changing the tabs inside the drop callback would pull the dragged tab out from under WinUI.</summary>
+    /// <summary>Runs a change to the tab strip once the drag has completely finished.</summary>
     private void AfterDrag(Action change) => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => change());
 
     private int IndexAt(double x)
     {
         // The index among the tabs; chips are not tabs.
-        var tabs = 0;
         foreach (var entry in TabsView.TabItems.OfType<TabViewItem>())
         {
             if (entry.Tag is not TabViewModel || entry.Visibility != Visibility.Visible)
@@ -593,22 +350,9 @@ public sealed partial class MainWindow
             {
                 return TabsView.TabItems.OfType<TabViewItem>().Where(i => i.Tag is TabViewModel).ToList().IndexOf(entry);
             }
-
-            tabs++;
         }
 
         return _viewModel.Tabs.Tabs.Count;
-    }
-
-    /// <summary>The strip reordered itself while the user dragged within it: tell the view model, which settles the order (pinned tabs stay left).</summary>
-    private void OnTabItemsChanged(TabView sender, Windows.Foundation.Collections.IVectorChangedEventArgs args)
-    {
-        if (_syncingTabs || _tabDragging)
-        {
-            return;
-        }
-
-        DispatcherQueue.TryEnqueue(ReconcileStripOrder);
     }
 
     // Context menu -----------------------------------------------------------------------------------------------------

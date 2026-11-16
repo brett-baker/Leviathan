@@ -56,9 +56,6 @@ public sealed partial class MainWindow
 {
     private readonly Dictionary<TabGroup, TabGroupUi> _groupUi = [];
 
-    /// <summary>What the user last started dragging in this strip (a tab or a chip's group); read once when the strip has reordered.</summary>
-    private object? _draggedItem;
-
     private void OnGroupsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => OnUi(SyncTabs);
 
     private void OnGroupPropertyChanged(object? sender, PropertyChangedEventArgs e) => OnUi(SyncTabs);
@@ -87,6 +84,7 @@ public sealed partial class MainWindow
 
         ui = new TabGroupUi(group);
         ui.Item.ContextFlyout = BuildGroupMenu(group);
+        AttachTabDrag(ui.Item);
         group.PropertyChanged += OnGroupPropertyChanged;
         _groupUi[group] = ui;
         return ui;
@@ -225,27 +223,14 @@ public sealed partial class MainWindow
         }
     }
 
-    // Drag and drop: after the strip reordered itself, work out what the user meant ---------------------------------------
+    // Drag and drop ---------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The strip reordered its own items while the user dragged within it. A chip that moved moves its group; a tab that moved
-    /// into the middle of a group joins it, a tab dragged out of its group leaves it, anything else is a plain reorder (spec §4.1).
+    /// Carries out what a drag meant (see <see cref="StripReorder.Decide"/>): a chip that moved moves its group; a tab dropped into the middle of
+    /// a group joins it, a tab dragged out of its group leaves it, anything else is a plain reorder (spec §4.1).
     /// </summary>
-    private void ReconcileStripOrder()
+    private void ApplyStripChange(StripChange change)
     {
-        var shown = TabsView.TabItems.OfType<TabViewItem>()
-            .Select(i => i.Tag switch { TabViewModel tab => (StripEntry?)new TabEntry(tab), TabGroup group => new ChipEntry(group), _ => null })
-            .OfType<StripEntry>()
-            .ToList();
-
-        var dragged = _draggedItem switch
-        {
-            TabViewModel tab => (StripEntry)new TabEntry(tab),
-            TabGroup group => new ChipEntry(group),
-            _ => null,
-        };
-        _draggedItem = null;
-        var change = StripReorder.Decide(_viewModel.Tabs, shown, dragged);
         switch (change.Kind)
         {
             case StripChangeKind.MoveGroup:

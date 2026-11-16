@@ -26,18 +26,12 @@
              Grid.Row="0"
              IsAddTabButtonVisible="True"
              CanReorderTabs="False"
-             CanDragTabs="True"
-             AllowDropTabs="True"
+             CanDragTabs="False"
+             AllowDropTabs="False"
              TabWidthMode="SizeToContent"
              AddTabButtonClick="OnAddTabClick"
              TabCloseRequested="OnTabCloseRequested"
-             SelectionChanged="OnTabSelectionChanged"
-             TabDragStarting="OnTabDragStarting"
-             TabDragCompleted="OnTabDragCompleted"
-             TabDroppedOutside="OnTabDroppedOutside"
-             TabStripDragOver="OnTabStripDragOver"
-             TabStripDrop="OnTabStripDrop"
-             TabItemsChanged="OnTabItemsChanged">
+             SelectionChanged="OnTabSelectionChanged">
       <TabView.TabStripFooter>
         <StackPanel Orientation="Horizontal">
           <Button x:Name="AllTabsButton" Width="32" Height="28" Padding="0" Margin="2,0"

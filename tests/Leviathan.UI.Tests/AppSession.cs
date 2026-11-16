@@ -71,8 +71,9 @@ internal sealed class AppSession : IAsyncDisposable
 
     /// <summary>Starts the app and waits for its window and for the first folder.</summary>
     /// <param name="settingsJson">Text for <c>settings.json</c>, or null for the defaults. <c>General.NewTabLocation</c> decides the folder the first tab opens in.</param>
+    /// <param name="sessionJson">Text for <c>session.json</c>: the windows and tabs the app restores at start (settings must say <c>Startup: LastSession</c>), or null.</param>
     /// <param name="environment">Extra environment variables for the app, such as <c>LEVIATHAN_OPEN_SPACEMAP</c>.</param>
-    public static async Task<AppSession> StartAsync(string? settingsJson = null, IReadOnlyDictionary<string, string>? environment = null)
+    public static async Task<AppSession> StartAsync(string? settingsJson = null, IReadOnlyDictionary<string, string>? environment = null, string? sessionJson = null)
     {
         // These tests take over the mouse and the keyboard of an interactive desktop and need it to themselves: they are run on purpose.
         Assert.SkipUnless(Environment.GetEnvironmentVariable("LEVIATHAN_UI_TESTS") == "1", "The UI tests drive the real app with the real mouse and keyboard. Set LEVIATHAN_UI_TESTS=1 and leave the desktop alone while they run.");
@@ -82,6 +83,11 @@ internal sealed class AppSession : IAsyncDisposable
         if (settingsJson is not null)
         {
             await File.WriteAllTextAsync(Path.Combine(data, "settings.json"), settingsJson);
+        }
+
+        if (sessionJson is not null)
+        {
+            await File.WriteAllTextAsync(Path.Combine(data, "session.json"), sessionJson);
         }
 
         var info = new ProcessStartInfo(ExePath()) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(ExePath())! };

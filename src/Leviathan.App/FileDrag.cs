@@ -26,7 +26,7 @@ internal static class FileDrag
 
     /// <summary>True when a drag of files is over a target: one of ours, or storage items from another application.</summary>
     internal static bool Accepts(DragEventArgs e) =>
-        Current is not null || (App.DraggedTab is null && e.DataView.Contains(StandardDataFormats.StorageItems));
+        Current is not null || e.DataView.Contains(StandardDataFormats.StorageItems);
 
     /// <summary>Fills the data package of a drag that starts on <paramref name="entries"/>.</summary>
     internal static void Begin(DragStartingEventArgs args, IReadOnlyList<FileEntry> entries)

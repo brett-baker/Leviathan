@@ -465,6 +465,7 @@ public sealed partial class MainWindow : Window, IShellActions
                     ui = new TabItemUi(tab);
                     ui.Item.ContextFlyout = BuildTabMenu(tab);
                     MakeTabAFileDropTarget(ui.Item);
+                    AttachTabDrag(ui.Item);
                     tab.PropertyChanged += OnTabPropertyChanged;
                     _tabUi[tab] = ui;
                 }
