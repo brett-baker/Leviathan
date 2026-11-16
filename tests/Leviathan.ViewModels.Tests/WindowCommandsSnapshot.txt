@@ -1,0 +1,230 @@
+# id | title | category | icon | shortcut | enabled with no context | enabled with a folder target
+address.focus | Focus address bar | Navigation |  | Ctrl+L | True | True
+app.diagnostics | Diagnostics | App |  |  | True | True
+archive.compress | Compress | Archives |  |  | False | False
+archive.compressWith | Compress with options... | Archives |  |  | False | False
+archive.extractHere | Extract here | Archives |  |  | False | False
+archive.extractTo | Extract to... | Archives |  |  | False | False
+archive.extractToFolder | Extract to folder | Archives |  |  | False | False
+drive.card | Fold or unfold the drive and folder summary | View |  |  | False | False
+edit.bulkRename | Bulk rename… | Edit |  | Shift+F2 | False | False
+edit.copy | Copy | Edit | Copy | Ctrl+C | False | False
+edit.cut | Cut | Edit | Cut | Ctrl+X | False | False
+edit.delete | Delete | Edit | Delete | Del | False | False
+edit.deletePermanent | Delete permanently | Edit |  | Shift+Del | False | False
+edit.paste | Paste | Edit | Paste | Ctrl+V | False | False
+edit.pasteIntoNewFolder | Paste into new folder | Edit |  |  | False | False
+edit.redo | Redo | Edit | Redo | Ctrl+Y | False | False
+edit.rename | Rename | Edit | Rename | F2 | False | False
+edit.renameCommit | Finish renaming | Edit |  |  | False | False
+edit.undo | Undo | Edit | Undo | Ctrl+Z | False | False
+favorite.add | Add to favorites | Favorites |  |  | False | False
+favorite.rename | Rename favorite | Favorites |  |  | False | False
+favorite.style | Change favorite icon and colour | Favorites |  |  | False | False
+favorite.toggle | Pin or unpin folder | Favorites |  | Ctrl+D | False | False
+filter.focus | Focus filter box | View |  | Ctrl+Shift+F | True | True
+filter.set | Filter this folder | View |  |  | True | True
+folder.sync | Compare and sync folders... | Files |  |  | True | True
+group.by | Group by | View |  |  | True | False
+hub.toggle | Status hub | View |  | Ctrl+Shift+O | True | True
+item.checksum | Checksums... | Files |  |  | True | True
+item.drop | Drop items here | Files |  |  | False | False
+item.open | Open | Files |  | Enter | False | False
+item.openWith | Open with… | Files |  |  | False | False
+item.properties | Properties | Files |  | Alt+Enter | False | False
+item.runAsAdmin | Run as administrator | Files |  |  | False | False
+media.contactSheet | Contact sheet | Media |  |  | False | False
+nav.back | Back | Navigation | Back | Alt+Left | False | False
+nav.forward | Forward | Navigation | Forward | Alt+Right | False | False
+nav.go | Go to address | Navigation |  |  | True | True
+nav.reload | Reload | Navigation | Refresh | F5 | True | True
+nav.up | Up | Navigation | Up | Alt+Up | True | True
+new.folder | New folder | New | NewFolder | Ctrl+Shift+N | False | False
+new.item | New item | New |  |  | False | False
+palette.commands | Command palette | Navigation |  | Ctrl+Shift+P | True | True
+palette.goTo | Go to... | Navigation |  | Ctrl+P | True | True
+pane.copyToOther | Copy to the other pane | Files |  | F5 | False | False
+pane.moveToOther | Move to the other pane | Files |  | F6 | False | False
+pane.openInSplit | Open in split pane | Navigation |  |  | False | True
+pane.preview | Preview pane | View |  | Alt+P | True | True
+pane.previewQuick | Quick preview | View |  | Space | True | True
+pane.previewVideoLarge | Preview video: large | View |  |  | True | True
+pane.previewVideoMedium | Preview video: medium | View |  |  | True | True
+pane.previewVideoSmall | Preview video: small | View |  |  | True | True
+pane.sameFolder | Show this folder in the other pane | View |  | Alt+= | False | False
+pane.sideBySide | Split side by side | View |  | Ctrl+\ | True | True
+pane.sidebar | Sidebar | View |  | Ctrl+B | True | True
+pane.single | One pane | View |  |  | True | True
+pane.swap | Swap the panes | View |  | Ctrl+Shift+S | False | False
+pane.topBottom | Split top and bottom | View |  | Ctrl+Shift+\ | True | True
+profile.delete | Delete profile | Profiles |  |  | False | False
+profile.open | Open profile | Profiles |  |  | False | False
+profile.save | Save current windows as profile | Profiles |  |  | False | False
+quick.copy.1 | Copy to quick target 1 | Files |  | Ctrl+Alt+Shift+1 | False | False
+quick.copy.2 | Copy to quick target 2 | Files |  | Ctrl+Alt+Shift+2 | False | False
+quick.copy.3 | Copy to quick target 3 | Files |  | Ctrl+Alt+Shift+3 | False | False
+quick.copy.4 | Copy to quick target 4 | Files |  | Ctrl+Alt+Shift+4 | False | False
+quick.copy.5 | Copy to quick target 5 | Files |  | Ctrl+Alt+Shift+5 | False | False
+quick.copy.6 | Copy to quick target 6 | Files |  | Ctrl+Alt+Shift+6 | False | False
+quick.copy.7 | Copy to quick target 7 | Files |  | Ctrl+Alt+Shift+7 | False | False
+quick.copy.8 | Copy to quick target 8 | Files |  | Ctrl+Alt+Shift+8 | False | False
+quick.copy.9 | Copy to quick target 9 | Files |  | Ctrl+Alt+Shift+9 | False | False
+quick.move.1 | Move to quick target 1 | Files |  | Ctrl+Alt+1 | False | False
+quick.move.2 | Move to quick target 2 | Files |  | Ctrl+Alt+2 | False | False
+quick.move.3 | Move to quick target 3 | Files |  | Ctrl+Alt+3 | False | False
+quick.move.4 | Move to quick target 4 | Files |  | Ctrl+Alt+4 | False | False
+quick.move.5 | Move to quick target 5 | Files |  | Ctrl+Alt+5 | False | False
+quick.move.6 | Move to quick target 6 | Files |  | Ctrl+Alt+6 | False | False
+quick.move.7 | Move to quick target 7 | Files |  | Ctrl+Alt+7 | False | False
+quick.move.8 | Move to quick target 8 | Files |  | Ctrl+Alt+8 | False | False
+quick.move.9 | Move to quick target 9 | Files |  | Ctrl+Alt+9 | False | False
+quick.set.1 | Make this folder quick target 1 | Files |  |  | False | False
+quick.set.2 | Make this folder quick target 2 | Files |  |  | False | False
+quick.set.3 | Make this folder quick target 3 | Files |  |  | False | False
+quick.set.4 | Make this folder quick target 4 | Files |  |  | False | False
+quick.set.5 | Make this folder quick target 5 | Files |  |  | False | False
+quick.set.6 | Make this folder quick target 6 | Files |  |  | False | False
+quick.set.7 | Make this folder quick target 7 | Files |  |  | False | False
+quick.set.8 | Make this folder quick target 8 | Files |  |  | False | False
+quick.set.9 | Make this folder quick target 9 | Files |  |  | False | False
+search.focus | Search | Tools |  | Ctrl+F | True | True
+search.index | Index this folder for search (or stop) | Tools |  |  | True | True
+search.run | Search this folder and below | Tools |  |  | True | True
+search.save | Save this search to Favorites | Tools |  |  | False | False
+select.all | Select all | Selection |  | Ctrl+A | True | True
+select.invert | Invert selection | Selection |  | Ctrl+I | True | True
+select.none | Select none | Selection |  | Ctrl+Shift+A | True | True
+select.pattern | Select by pattern | Selection |  |  | False | True
+settings.open | Settings | View |  | Ctrl+, | True | True
+sort.by | Sort by | View |  |  | False | False
+sort.direction | Sort direction | View |  |  | False | False
+sort.folders | Folders position | View |  |  | False | False
+spacemap.open | Space map | Tools |  | Ctrl+Shift+M | True | True
+tab.close | Close tab | Tabs |  | Ctrl+W | True | True
+tab.closeOthers | Close other tabs | Tabs |  |  | False | False
+tab.closeRight | Close tabs to the right | Tabs |  |  | False | False
+tab.color | Colour tab | Tabs |  |  | True | True
+tab.drop | Drop tab here | Tabs |  |  | False | False
+tab.duplicate | Duplicate tab | Tabs |  | Ctrl+Shift+K | True | True
+tab.group.add | Add tab to group | Tabs |  |  | False | False
+tab.group.close | Close group | Tabs |  |  | False | False
+tab.group.collapse | Collapse or expand group | Tabs |  |  | False | False
+tab.group.color | Change group colour | Tabs |  |  | False | False
+tab.group.drop | Drop group here | Tabs |  |  | False | False
+tab.group.move | Move group | Tabs |  |  | False | False
+tab.group.new | Add tab to new group | Tabs |  |  | True | True
+tab.group.newTab | New tab in group | Tabs |  |  | False | False
+tab.group.remove | Remove tab from group | Tabs |  |  | False | False
+tab.group.rename | Rename group | Tabs |  |  | False | False
+tab.group.tearoff | Move group to a new window | Tabs |  |  | False | False
+tab.group.toWindow | Move group to new window | Tabs |  |  | False | False
+tab.group.ungroup | Ungroup | Tabs |  |  | False | False
+tab.move | Move tab | Tabs |  |  | False | False
+tab.moveLeft | Move tab left | Tabs |  | Ctrl+Shift+PageUp | True | True
+tab.moveRight | Move tab right | Tabs |  | Ctrl+Shift+PageDown | True | True
+tab.new | New tab | Tabs | Add | Ctrl+T | True | True
+tab.newLeft | New tab to the left | Tabs |  |  | True | True
+tab.newRight | New tab to the right | Tabs |  |  | True | True
+tab.next | Next tab | Tabs |  | Ctrl+Tab | False | False
+tab.openInNewTab | Open in new tab | Tabs |  |  | False | True
+tab.previous | Previous tab | Tabs |  | Ctrl+Shift+Tab | False | False
+tab.rename | Rename tab | Tabs |  |  | False | False
+tab.reopen | Reopen closed tab | Tabs |  | Ctrl+Shift+T | False | False
+tab.select | Go to tab | Tabs |  |  | False | False
+tab.tearoff | Move tab to a new window | Tabs |  |  | False | False
+tab.toggleLock | Lock tab | Tabs |  |  | True | True
+tab.togglePin | Pin tab | Tabs |  |  | True | True
+terminal.here | Open terminal here | Files |  | Ctrl+Alt+T | True | True
+tools.duplicateFiles | Find duplicate files by contents… | Tools |  | Alt+Shift+F | True | True
+tools.duplicates | Find duplicates… | Tools |  | Alt+Shift+D | True | True
+triage.fromHere | Triage mode from here | Media |  | Alt+T | True | True
+triage.inbox | Triage an inbox… | Media |  | Alt+Shift+T | True | True
+view.columns | Choose columns | View |  |  | False | False
+view.details | Details layout | View |  | Ctrl+Shift+6 | True | True
+view.gallery | Gallery layout | View |  | Ctrl+Shift+1 | True | True
+view.hidden | Show hidden items | View |  | Ctrl+H | False | False
+view.layout | Change layout | View |  |  | False | False
+view.list | List layout | View |  | Ctrl+Shift+5 | True | True
+view.thumbnailSize | Set thumbnail size | View |  |  | False | False
+view.thumbnails | Thumbnails layout | View |  | Ctrl+Shift+2 | True | True
+view.tiles | Tiles layout | View |  | Ctrl+Shift+4 | True | True
+view.zoom | Resize thumbnails | View |  |  | False | False
+window.new | New window | Windows | NewWindow | Ctrl+N | True | True
+
+# default key map: gesture | command | scope
+Alt+= | pane.sameFolder | Always
+Alt+D | address.focus | Always
+Alt+Enter | item.properties | Always
+Alt+Left | nav.back | Always
+Alt+P | pane.preview | Always
+Alt+Right | nav.forward | Always
+Alt+Shift+D | tools.duplicates | Always
+Alt+Shift+F | tools.duplicateFiles | Always
+Alt+Shift+T | triage.inbox | Always
+Alt+T | triage.fromHere | Always
+Alt+Up | nav.up | Always
+Ctrl+, | settings.open | Always
+Ctrl+A | select.all | Always
+Ctrl+Alt+1 | quick.move.1 | Always
+Ctrl+Alt+2 | quick.move.2 | Always
+Ctrl+Alt+3 | quick.move.3 | Always
+Ctrl+Alt+4 | quick.move.4 | Always
+Ctrl+Alt+5 | quick.move.5 | Always
+Ctrl+Alt+6 | quick.move.6 | Always
+Ctrl+Alt+7 | quick.move.7 | Always
+Ctrl+Alt+8 | quick.move.8 | Always
+Ctrl+Alt+9 | quick.move.9 | Always
+Ctrl+Alt+Shift+1 | quick.copy.1 | Always
+Ctrl+Alt+Shift+2 | quick.copy.2 | Always
+Ctrl+Alt+Shift+3 | quick.copy.3 | Always
+Ctrl+Alt+Shift+4 | quick.copy.4 | Always
+Ctrl+Alt+Shift+5 | quick.copy.5 | Always
+Ctrl+Alt+Shift+6 | quick.copy.6 | Always
+Ctrl+Alt+Shift+7 | quick.copy.7 | Always
+Ctrl+Alt+Shift+8 | quick.copy.8 | Always
+Ctrl+Alt+Shift+9 | quick.copy.9 | Always
+Ctrl+Alt+T | terminal.here | Always
+Ctrl+B | pane.sidebar | Always
+Ctrl+C | edit.copy | Always
+Ctrl+D | favorite.toggle | Always
+Ctrl+F | search.focus | Always
+Ctrl+H | view.hidden | Always
+Ctrl+I | select.invert | Always
+Ctrl+L | address.focus | Always
+Ctrl+N | window.new | Always
+Ctrl+P | palette.goTo | Always
+Ctrl+R | nav.reload | Always
+Ctrl+Shift+1 | view.gallery | Always
+Ctrl+Shift+2 | view.thumbnails | Always
+Ctrl+Shift+4 | view.tiles | Always
+Ctrl+Shift+5 | view.list | Always
+Ctrl+Shift+6 | view.details | Always
+Ctrl+Shift+A | select.none | Always
+Ctrl+Shift+F | filter.focus | Always
+Ctrl+Shift+K | tab.duplicate | Always
+Ctrl+Shift+M | spacemap.open | Always
+Ctrl+Shift+N | new.folder | Always
+Ctrl+Shift+O | hub.toggle | Always
+Ctrl+Shift+P | palette.commands | Always
+Ctrl+Shift+Pagedown | tab.moveRight | Always
+Ctrl+Shift+Pageup | tab.moveLeft | Always
+Ctrl+Shift+S | pane.swap | Always
+Ctrl+Shift+T | tab.reopen | Always
+Ctrl+Shift+Tab | tab.previous | Always
+Ctrl+Shift+Z | edit.redo | Always
+Ctrl+Shift+\ | pane.topBottom | Always
+Ctrl+T | tab.new | Always
+Ctrl+Tab | tab.next | Always
+Ctrl+V | edit.paste | Always
+Ctrl+W | tab.close | Always
+Ctrl+X | edit.cut | Always
+Ctrl+Y | edit.redo | Always
+Ctrl+Z | edit.undo | Always
+Ctrl+\ | pane.sideBySide | Always
+Delete | edit.delete | Always
+F2 | edit.rename | Always
+F5 | nav.reload | Always
+F5 | pane.copyToOther | SplitOnly
+F6 | pane.moveToOther | SplitOnly
+Shift+Delete | edit.deletePermanent | Always
+Shift+F2 | edit.bulkRename | Always
