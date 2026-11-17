@@ -103,7 +103,7 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             {
                 tab.BeginRename(next);
             }
-        },(tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
+        }, (tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
 
         // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
         bool CanDeleteIn(TabViewModel tab) => deleter is not null && LocationKinds.IsFileOperable(tab.History.Current.Kind) && tab.Selection.Count > 0;

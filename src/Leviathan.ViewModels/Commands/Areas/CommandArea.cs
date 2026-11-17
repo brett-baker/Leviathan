@@ -69,6 +69,19 @@ internal abstract class CommandArea(CommandScope scope)
         AddAction(id, title, category, c => run(Current()!, (TParameter)c.Parameter!), c => Current() is { } tab && c.Parameter is TParameter p && (can?.Invoke(tab, p) ?? true), icon, shortcut);
 
     /// <summary>
+    /// Registers a command that needs an optional service (favorites, profiles...): it is disabled while the service is absent, and
+    /// <paramref name="run"/> is handed the service, so it never has to assume it is there (docs/simplify/window-commands.md, item 7).
+    /// </summary>
+    protected void AddUsing<TService>(TService? service, CommandId id, string title, string category, Action<TService, CommandContext> run, Func<TService, CommandContext, bool>? can = null, string? icon = null, string? shortcut = null)
+        where TService : class =>
+        AddAction(id, title, category, c => run(service!, c), c => service is not null && (can?.Invoke(service, c) ?? true), icon, shortcut);
+
+    /// <summary>The asynchronous form of <c>AddUsing</c>.</summary>
+    protected void AddUsing<TService>(TService? service, CommandId id, string title, string category, Func<TService, CommandContext, CancellationToken, Task> run, Func<TService, CommandContext, bool>? can = null, string? icon = null, string? shortcut = null)
+        where TService : class =>
+        Add(id, title, category, (c, ct) => run(service!, c, ct), c => service is not null && (can?.Invoke(service, c) ?? true), icon, shortcut);
+
+    /// <summary>
     /// Judges a move or copy with the drop rules (a refusal says why in the status bar), then queues it as the same journaled transfer a drop
     /// makes (spec §8.4). Used by drops, the quick targets and the other-pane keys.
     /// </summary>

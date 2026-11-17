@@ -38,18 +38,18 @@ internal sealed class ProfileCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
-        Add(CommandIds.ProfileSave, "Save current windows as profile", "Profiles", (c, ct) => ReportProfile(async () =>
+        AddUsing(profiles, CommandIds.ProfileSave, "Save current windows as profile", "Profiles", (profiles, c, ct) => ReportProfile(async () =>
         {
-            await profiles!.SaveCurrentAsync(c.Target!, ct);
+            await profiles.SaveCurrentAsync(c.Target!, ct);
             return $"Saved the open windows as the profile \"{c.Target!.Trim()}\".";
-        }), c => profiles is not null && !string.IsNullOrWhiteSpace(c.Target));
-        Add(CommandIds.ProfileOpen, "Open profile", "Profiles", (c, _) => ReportProfile(() =>
+        }), (_, c) => !string.IsNullOrWhiteSpace(c.Target));
+        AddUsing(profiles, CommandIds.ProfileOpen, "Open profile", "Profiles", (profiles, c, _) => ReportProfile(() =>
         {
-            var opened = profiles!.Open(c.Target!, replace: c.Parameter is not false);
+            var opened = profiles.Open(c.Target!, replace: c.Parameter is not false);
             return Task.FromResult($"Opened the profile \"{c.Target!.Trim()}\" ({opened} window{(opened == 1 ? string.Empty : "s")}).");
-        }), c => profiles is not null && profiles.Catalog.Find(c.Target) is not null);
-        Add(CommandIds.ProfileDelete, "Delete profile", "Profiles", (c, ct) => ReportProfile(async () =>
-            await profiles!.DeleteAsync(c.Target!, ct) ? $"Deleted the profile \"{c.Target!.Trim()}\"." : "There is no such profile."),
-            c => profiles is not null && profiles.Catalog.Find(c.Target) is not null);
+        }), (profiles, c) => profiles.Catalog.Find(c.Target) is not null);
+        AddUsing(profiles, CommandIds.ProfileDelete, "Delete profile", "Profiles", (profiles, c, ct) => ReportProfile(async () =>
+            await profiles.DeleteAsync(c.Target!, ct) ? $"Deleted the profile \"{c.Target!.Trim()}\"." : "There is no such profile."),
+            (profiles, c) => profiles.Catalog.Find(c.Target) is not null);
     }
 }

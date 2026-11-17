@@ -34,8 +34,8 @@ internal sealed class ViewCommands(CommandScope scope) : CommandArea(scope)
         AddOnCurrentWith<int>(CommandIds.ViewThumbnailSize, "Set thumbnail size", "View", (tab, size) => tab.SetThumbnailSize(size), (tab, _) => tab.Layout == Views.ViewLayout.Thumbnails);
 
         // Fold or unfold the summary above every pane (spec §8.7); one choice for all panes, remembered.
-        AddAction(CommandIds.DriveCardToggle, "Fold or unfold the drive and folder summary", "View",
-            () => driveCards!.SetCollapsed(!driveCards.IsCollapsed), _ => driveCards is not null);
+        AddUsing(driveCards, CommandIds.DriveCardToggle, "Fold or unfold the drive and folder summary", "View",
+            (cards, _) => cards.SetCollapsed(!cards.IsCollapsed));
 
         // Sort, group, filter (spec §6.3).
         AddOnCurrent(CommandIds.SortBy, "Sort by", "View", (tab, c) => tab.SetSort(c.Target!),

@@ -17,10 +17,10 @@ internal sealed class FavoriteCommands(CommandScope scope) : CommandArea(scope)
         var shell = Scope.Shell;
         var favorites = Scope.Favorites;
 
-        AddAction(CommandIds.FavoriteAdd, "Add to favorites", "Favorites", c =>
+        AddUsing(favorites, CommandIds.FavoriteAdd, "Add to favorites", "Favorites", (favorites, c) =>
         {
             var location = LocationPath.Parse(c.Target!);
-            if (favorites!.Contains(location))
+            if (favorites.Contains(location))
             {
                 shell.ShowMessage($"{location.Name} is already in Favorites");
             }
@@ -29,15 +29,15 @@ internal sealed class FavoriteCommands(CommandScope scope) : CommandArea(scope)
                 favorites.Toggle(location);
                 shell.ShowMessage("Added to Favorites");
             }
-        }, c => favorites is not null && LocationPath.TryParse(c.Target, out _));
+        }, (_, c) => LocationPath.TryParse(c.Target, out var _));
 
-        AddAction(CommandIds.FavoriteRename, "Rename favorite", "Favorites", c => favorites!.Rename(LocationPath.Parse(c.Target!), c.Parameter as string),
-            c => favorites is not null && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
-        AddAction(CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", c =>
+        AddUsing(favorites, CommandIds.FavoriteRename, "Rename favorite", "Favorites", (favorites, c) => favorites.Rename(LocationPath.Parse(c.Target!), c.Parameter as string),
+            (favorites, c) => LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
+        AddUsing(favorites, CommandIds.FavoriteStyle, "Change favorite icon and colour", "Favorites", (favorites, c) =>
         {
             var change = (Sidebar.FavoriteStyleChange)c.Parameter!;
-            favorites!.SetStyle(LocationPath.Parse(c.Target!), change.Icon, change.Color);
-        }, c => favorites is not null && c.Parameter is Sidebar.FavoriteStyleChange && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
+            favorites.SetStyle(LocationPath.Parse(c.Target!), change.Icon, change.Color);
+        }, (favorites, c) => c.Parameter is Sidebar.FavoriteStyleChange && LocationPath.TryParse(c.Target, out var l) && favorites.Contains(l));
         AddOnCurrent(CommandIds.FavoriteToggle, "Pin or unpin folder", "Favorites", (tab, _) =>
         {
             var pinned = favorites!.Toggle(tab.History.Current);

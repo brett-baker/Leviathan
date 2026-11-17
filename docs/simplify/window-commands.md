@@ -138,3 +138,19 @@ What did not get simpler, or got worse:
 
 Still open from the report: item 5 (pure functions for the drive-or-share predicates, archive targets, colour, `RenameCommit`),
 item 6 (a services record for the 20 parameters) and item 7 (`Requires(service)`).
+## Result (items 5 to 7, 2026-11-17)
+
+- **Item 5, partly.** `LocationKinds` (drive or share; file-operable, which adds SFTP/FTP/FTPS; server; folder on a drive or inside a
+  share) replaces ten inline copies of the pattern (the report counted seven; the extra three were the space-map, terminal and
+  sync variants). A table over every `LocationKind` pins each rule (`LocationKindsTests`, 14 tests). `RenameFlow.NextRow` replaces the
+  Tab-to-next loop in `RenameCommit` (3 tests). **Not done:** `ArchiveTargets`, the tab colour and label rules, and the rest of
+  `RenameCommit` (it is still about 45 lines with its try/catch). Each is a smaller gain than the ones above; left for a later pass.
+- **Item 6.** `WindowCommands.Create` takes `WindowServices?` (13 optional properties) instead of 13 optional parameters: 20 parameters
+  became 8. The production call, the test harness and two test helpers each list only what they have.
+- **Item 7, partly.** `AddUsing(service, ...)` registers a command that is disabled while its service is absent and hands the service
+  to `run`, so no `!`. Applied to favorites (3), profiles (3) and the drive card toggle. About 30 other `is not null` / `!` uses remain
+  (clipboard, new items, rename, delete, undo, quick targets, view options), mostly in commands that need a service *and* a tab, which
+  need a combined helper to do it cleanly.
+- **Verified:** registry snapshot unchanged (it runs with no optional services, so those commands stay pinned as disabled); every
+  non-UI test project passes (ViewModels 2,182); `src` builds with zero warnings; the App project compiles (its output could not be
+  copied while Leviathan was running). The app was not started and the UI tests were not run.
