@@ -234,7 +234,10 @@ internal sealed class AppHost
     /// <summary>Remembered folder listings, shown at once and checked in the background (spec §3.1).</summary>
     public ListingCache Listings { get; private init; } = null!;
 
-    private WorkerFolderSizes Sizes { get; init; } = null!;
+    internal WorkerFolderSizes Sizes { get; init; } = null!;
+
+    /// <summary>Submits the bin purge policy to the worker (spec 12.5); the purge schedule uses it.</summary>
+    internal WorkerBinService BinService { get; init; } = null!;
 
     /// <summary>Git status of the folders on show (spec §15.6).</summary>
     internal Leviathan.ViewModels.Git.GitStatusService Git { get; private init; } = null!;
@@ -647,17 +650,6 @@ internal sealed class AppHost
         var archiveDisk = new FileSystem();
         var archiveIndex = new Leviathan.Providers.Archive.ArchiveIndex(Leviathan.Providers.Archive.CompositeArchiveReader.Default(), archiveDisk);
         var archiveStager = new Leviathan.Providers.Archive.ArchiveStager(archiveIndex, archiveDisk, Path.Combine(Path.GetTempPath(), "Leviathan", "archive-stage"));
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                archiveStager.Clean(TimeSpan.FromDays(2));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Old scratch files stay until the next start.
-            }
-        });
         var providers = new LocationProviderRegistry([
             new HealthTrackingLocationProvider(
                 new ReconnectingLocationProvider(new Leviathan.Providers.Archive.ArchiveAwareLocationProvider(new LocalLocationProvider(), archiveIndex), connector, MappedDrives.IsMappedDrive), shareHealth, offline: workOffline),
@@ -751,24 +743,6 @@ internal sealed class AppHost
                 _ = Task.Run(() => indexManager.OnFolderListed(key.Location, entries, key.IncludeHidden && key.IncludeSystem));
             }
         };
-        // Connections to SFTP and FTP servers that nobody has used for a couple of minutes are closed.
-        _ = Task.Run(async () =>
-        {
-            using var tick = new PeriodicTimer(TimeSpan.FromMinutes(1));
-            while (await tick.WaitForNextTickAsync())
-            {
-                await remoteProvider.CloseIdleAsync();
-                if (built is not null)
-                {
-                    await built.RefreshCloudStatesAsync();
-                }
-            }
-        });
-        _ = Task.Run(() =>
-        {
-            indexManager.Initialize();
-            return indexManager.RunAsync(CancellationToken.None);
-        });
         background.SearchIndex = () => indexManager.Status();
         background.SearchIndexPaused = () => indexManager.IsPaused;
         background.SetSearchIndexPaused = indexManager.SetPaused;
@@ -802,20 +776,6 @@ internal sealed class AppHost
         // update pair set to run on its own. The worker starts only when a pair is actually due.
         var syncPairs = new Leviathan.ViewModels.Sync.SyncPairStore(disk, Path.Combine(data, "sync-pairs.json"));
         var syncChecker = new Leviathan.ViewModels.Sync.SyncPairChecker(syncPairs, new WorkerCompare(() => worker.Value), new Leviathan.ViewModels.Sync.SyncRunner(transfers, transfers), TimeProvider.System);
-        var syncTimer = queue.CreateTimer();
-        syncTimer.Interval = TimeSpan.FromMinutes(1);
-        syncTimer.Tick += (_, _) => _ = Task.Run(async () =>
-        {
-            try
-            {
-                await syncChecker.CheckDueAsync(CancellationToken.None);
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or IOException or InvalidOperationException)
-            {
-                // The next tick tries again; what went wrong is in the pair's last result.
-            }
-        });
-        syncTimer.Start();
         var undo = new Leviathan.ViewModels.Undo.UndoService(new JsonUndoStorage(), new WorkerUndoActions(() => worker.Value, () => transfers.KeepOwnTrashSource()));
         transfers.DeleteCompleted += (_, moves) => undo.RecordDelete(moves);
         var binService = new WorkerBinService(transfers, () => built?.Settings.Current.Files ?? new Leviathan.ViewModels.Settings.FilesSettings());
@@ -927,6 +887,7 @@ internal sealed class AppHost
             Scrub = new ScrubStripCache(new ScrubStripClient(() => built!.MediaHost)),
             SheetBatch = sheetBatch,
             WorkerLazy = worker,
+            BinService = binService,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             TriageJournal = triageJournal,
             Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json")), journal: triageJournal),
@@ -950,12 +911,6 @@ internal sealed class AppHost
         transfers.Volumes = host.Volumes;
         transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;
 
-        // The automatic purge of the Soft-delete bin: a while after start-up, then daily, by the limits in Settings (spec 12.5).
-        _ = new BinPurgeSchedule().RunAsync(() => host.Settings.Current.Files.BinPolicy(), binService.SubmitPolicyAsync, CancellationToken.None);
-
-        // Network drives the user opted in are counted again once a day (spec 12.7).
-        _ = new Leviathan.ViewModels.Folders.SizeRecheckSchedule().RunAsync(
-            () => Leviathan.ViewModels.Folders.SizeRecheckSchedule.Parse(host.Settings.Current.Files.RecheckSizePaths), sizes.Recount, CancellationToken.None);
         return host;
     }
 }

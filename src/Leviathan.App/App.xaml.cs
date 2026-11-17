@@ -83,6 +83,7 @@ public partial class App : Application
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Host.Activity.Dispose();
         }
 
+        BackgroundSchedules.Start(Host, queue);
         Host.Windows.WindowOpened += (_, window) => queue.TryEnqueue(() => Show(window));
         Host.Windows.WindowClosed += (_, window) => queue.TryEnqueue(() => CloseWindow(window));
         Host.Windows.AllWindowsClosed += (_, _) => queue.TryEnqueue(Shutdown);

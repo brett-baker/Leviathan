@@ -101,3 +101,13 @@ If 4 and 5 are done as well: `Create` under 60, `null!` placeholders 45 to about
 - **Item 3, partly.** The decisions moved out as pure functions with tests: `AppKeyBindings.SignatureOf` / `Build` and `AppearanceKey` (8 tests; ViewModels 2,190 pass). `ApplySettings` and its callers still live in `AppHost`: they set host properties and UI objects, so moving them needs the group split of item 5 first.
 - **Not done:** the numbering of "item 6" in the chat message differed from this table (chat: remove `built`; table: take the background loops out of `Create`). Waiting for Brett to say which he meant.
 - **Verified:** App project compiles with no errors or warnings; all tests above pass. The app was not started, and the UI tests were not run.
+
+### Background loops (the report's item 6, 2026-11-17)
+
+The six schedules (archive scratch sweep, idle-connection close and cloud refresh each minute, search index crawl, sync pair check each
+minute, bin purge, size recount) moved from `AppHost.Create` to `BackgroundSchedules.Start`, which `App.OnLaunched` calls right after
+the host is built. `Create` no longer starts anything; it is about 60 lines shorter (`AppHost.cs` now 917). The `built is not null` guard in the
+minute loop is gone (the host exists by then). Two properties were opened to the new class: `Sizes` and `BinService`.
+Verified: App compiles with no errors or warnings. **Not verified:** the app was not started, so the order of startup (the loops now begin a moment later,
+after `Create` returns) and the minute timers were not watched running. Brett: start the app once and confirm the status hub's Background
+tab still shows the search index and that a saved sync pair is still checked.
