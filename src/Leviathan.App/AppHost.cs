@@ -31,16 +31,6 @@ using Windows.UI.Core;
 
 namespace Leviathan.App;
 
-/// <summary>Runs view-model work on the WinUI dispatcher (spec §3.2: results reach the UI thread in batches).</summary>
-internal sealed class DispatcherQueueUiContext(DispatcherQueue queue) : IUiContext
-{
-    public void Post(Action action) => queue.TryEnqueue(() =>
-    {
-        using var scope = UiTrace.Begin($"UI post {action.Target?.GetType().Name}.{action.Method.Name}", thresholdMs: 5);
-        action();
-    });
-}
-
 /// <summary>
 /// The services every window shares: location providers, the window manager, the launcher and the platform lookups. Built
 /// once at startup; the composition root of the UI process.
@@ -135,7 +125,6 @@ internal sealed class AppHost
     /// <summary>What Ctrl+Z and Ctrl+Y undo and redo, for all windows (spec §12.5); it survives a restart.</summary>
     public Leviathan.ViewModels.Undo.UndoService Undo { get; private init; } = null!;
 
-    /// <summary>What Keep and Discard do in triage mode (spec §10.1): the worker's journaled delete and restore, the tag stream, the keep folder of the settings.</summary>
     /// <summary>
     /// Makes the actions of one triage window. <c>destination</c> says where kept files go right now (the other pane of a split tab), or
     /// returns null to use the keep folder of the settings; it is asked each time, so navigating the other pane during triage counts.
@@ -494,10 +483,10 @@ internal sealed class AppHost
 
     private JsonFileStore<HubLayout> HubStore { get; init; } = null!;
 
-    /// <summary>The saved triage inboxes (spec §10.1).</summary>
     /// <summary>Every triage decision, written as it is made, so a crash loses none and kept files waiting for a move are offered again (spec §10.1, §3.4).</summary>
     public Leviathan.ViewModels.Triage.TriageJournal TriageJournal { get; private init; } = null!;
 
+    /// <summary>The saved triage inboxes (spec §10.1).</summary>
     public InboxCatalog Inboxes { get; private init; } = null!;
 
     /// <summary>Finds the provider for a location, for work outside a tab (an inbox read).</summary>
@@ -998,120 +987,3 @@ internal sealed class AppHost
     }
 }
 
-/// <summary>Turns WinUI key presses into <see cref="KeyGesture"/>s for the key map.</summary>
-internal static class KeyTranslator
-{
-    public static KeyGesture? ToGesture(VirtualKey key)
-    {
-        var name = NameOf(key);
-        if (name is null)
-        {
-            return null;
-        }
-
-        var modifiers = KeyModifiers.None;
-        if (IsDown(VirtualKey.Control))
-        {
-            modifiers |= KeyModifiers.Ctrl;
-        }
-
-        if (IsDown(VirtualKey.Menu))
-        {
-            modifiers |= KeyModifiers.Alt;
-        }
-
-        if (IsDown(VirtualKey.Shift))
-        {
-            modifiers |= KeyModifiers.Shift;
-        }
-
-        return KeyGesture.Create(modifiers, name);
-    }
-
-    /// <summary>The number 1 to 9 for Ctrl+1..9 (tab shortcuts), or 0.</summary>
-    public static int DigitOf(VirtualKey key) => key is >= VirtualKey.Number1 and <= VirtualKey.Number9 ? key - VirtualKey.Number0 : 0;
-
-    public static bool IsDown(VirtualKey key) =>
-        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
-
-    private static string? NameOf(VirtualKey key) => key switch
-    {
-        >= VirtualKey.A and <= VirtualKey.Z => key.ToString(),
-        >= VirtualKey.Number0 and <= VirtualKey.Number9 => ((int)(key - VirtualKey.Number0)).ToString(System.Globalization.CultureInfo.InvariantCulture),
-        >= VirtualKey.F1 and <= VirtualKey.F24 => key.ToString(),
-        VirtualKey.Left or VirtualKey.Right or VirtualKey.Up or VirtualKey.Down => key.ToString(),
-        VirtualKey.Tab or VirtualKey.Enter or VirtualKey.Escape or VirtualKey.Delete or VirtualKey.Space or VirtualKey.Home or VirtualKey.End
-            or VirtualKey.Insert or VirtualKey.PageUp or VirtualKey.PageDown => key.ToString(),
-        VirtualKey.Back => "Backspace",
-        (VirtualKey)186 => ";",
-        (VirtualKey)187 => "=",
-        (VirtualKey)188 => ",",
-        (VirtualKey)189 => "-",
-        (VirtualKey)190 => ".",
-        (VirtualKey)191 => "/",
-        (VirtualKey)192 => "`",
-        (VirtualKey)219 => "[",
-        (VirtualKey)220 => "\\",
-        (VirtualKey)221 => "]",
-        (VirtualKey)222 => "'",
-        _ => null,
-    };
-}
-
-/// <summary>The window-side ends of a search: where its facts come from and who hears its progress. Set once the app's stores exist.</summary>
-internal sealed class SearchHooks
-{
-    /// <summary>Tags, media information and content for search conditions that need them.</summary>
-    public Func<Leviathan.Search.ISearchFacts> Facts { get; set; } = () => Leviathan.Search.NoSearchFacts.Instance;
-
-    /// <summary>Everything's client (the SDK library is optional), created on first use.</summary>
-    public Leviathan.Search.IEverythingClient Everything { get; set; } = new Leviathan.Interop.EverythingSdkClient();
-
-    /// <summary>The name index of the folders crawled (the NAS index and local disks without Everything).</summary>
-    public Leviathan.Search.NameIndex Index { get; } = new();
-
-    /// <summary>Builds the search for one request: Everything for local drives when it runs, the index for crawled folders, a live listing for the rest (spec 13).</summary>
-    public Leviathan.Search.SearchCoordinator Coordinator(Leviathan.Core.Providers.LocationProviderRegistry providers, Leviathan.Search.LiveSearchOptions options) => new(
-        new Leviathan.Search.LiveSearch(providers, options),
-        Everything,
-        new Leviathan.Search.EverythingSearch(Everything, new Leviathan.Search.EverythingSearchOptions { IncludeHidden = options.IncludeHidden, IncludeSystem = options.IncludeSystem, BatchSize = options.BatchSize }),
-        Index,
-        new Leviathan.Search.NameIndexSearch(Index, new Leviathan.Search.NameIndexSearchOptions { IncludeHidden = options.IncludeHidden, IncludeSystem = options.IncludeSystem, BatchSize = options.BatchSize }));
-
-    /// <summary>Raised on a pool thread after each batch of results and at the end of a search.</summary>
-    public Action<Leviathan.Search.SearchReport>? Reported { get; set; }
-}
-
-/// <summary>Opens the SQLite copy of the search index only when it is first used, so starting the app never opens the database for an index nobody asked for.</summary>
-internal sealed class LazyNameIndexStore(Func<Leviathan.Search.INameIndexStore> create) : Leviathan.Search.INameIndexStore
-{
-    private readonly Lazy<Leviathan.Search.INameIndexStore> _store = new(create);
-
-    public void Save(Leviathan.Search.IndexSnapshot snapshot) => _store.Value.Save(snapshot);
-
-    public Leviathan.Search.IndexSnapshot? Load() => _store.Value.Load();
-}
-
-/// <summary>Opens the SQLite copy of the space map scans only when a scan is first saved or loaded.</summary>
-internal sealed class LazySpaceScanStore(Func<Leviathan.SpaceMap.ISpaceScanStore> create) : Leviathan.SpaceMap.ISpaceScanStore
-{
-    private readonly Lazy<Leviathan.SpaceMap.ISpaceScanStore> _store = new(create);
-
-    public void Save(Leviathan.SpaceMap.SpaceScanSnapshot snapshot) => _store.Value.Save(snapshot);
-
-    public Leviathan.SpaceMap.SpaceScanSnapshot? Load(string root) => _store.Value.Load(root);
-
-    public void Delete(string root) => _store.Value.Delete(root);
-}
-
-/// <summary>
-/// The question "do you trust this server?" for an SSH host key or a TLS certificate seen for the first time (spec 7.1). The sessions ask from a pool thread; the
-/// window that registered itself shows the dialog on its own thread and the answer comes back. With no window to ask, the server is not trusted.
-/// </summary>
-internal sealed class TrustPrompt
-{
-    /// <summary>Shows the question and returns the answer; set by a window.</summary>
-    public Func<Leviathan.Providers.Remote.TrustRequest, Task<bool>>? Ask { get; set; }
-
-    public Task<bool> AskAsync(Leviathan.Providers.Remote.TrustRequest request) => Ask is { } ask ? ask(request) : Task.FromResult(false);
-}
