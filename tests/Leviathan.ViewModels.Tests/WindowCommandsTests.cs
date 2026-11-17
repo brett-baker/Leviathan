@@ -165,7 +165,7 @@ public sealed class WindowCommandsTests
             fs.AddDirectory(@"C:\a\b");
             fs.AddDirectory(@"C:\v");
             fs.AddFile(@"C:\a\1.txt", new MockFileData("x"));
-            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), favorites, newItems, viewOptions, renamer, transfers, driveCards, deleter, undo, clipboard, profiles, archives, terminal, quickTargets);
+            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), new WindowServices { Favorites = favorites, NewItems = newItems, ViewOptions = viewOptions, Renamer = renamer, Transfers = transfers, DriveCards = driveCards, Deleter = deleter, Undo = undo, Clipboard = clipboard, Profiles = profiles, Archives = archives, Terminal = terminal, QuickTargets = quickTargets });
             Ready = Window.Tabs.Selected!.ReloadAsync(CancellationToken.None);
         }
 

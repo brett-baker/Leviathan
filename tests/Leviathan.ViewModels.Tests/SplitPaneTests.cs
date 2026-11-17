@@ -328,7 +328,7 @@ public sealed class SplitPaneCommandTests
         var fs = new System.IO.Abstractions.TestingHelpers.MockFileSystem();
         fs.AddDirectory(@"C:\a");
         fs.AddDirectory(@"C:\v");
-        var commands = WindowCommands.Create(new ActionTrail(), window, windows, new AddressResolver(new FileSystemEntryProbe(fs)), new WindowCommandsTests.FakeLauncher(), shell ?? new WindowCommandsTests.FakeShell(), () => P(@"C:\Home"), transfers: transfers);
+        var commands = WindowCommands.Create(new ActionTrail(), window, windows, new AddressResolver(new FileSystemEntryProbe(fs)), new WindowCommandsTests.FakeLauncher(), shell ?? new WindowCommandsTests.FakeShell(), () => P(@"C:\Home"), new WindowServices { Transfers = transfers });
         return (window, commands);
     }
 

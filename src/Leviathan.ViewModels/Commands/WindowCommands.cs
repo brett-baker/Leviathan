@@ -26,19 +26,7 @@ public static class WindowCommands
         IFileLauncher launcher,
         IShellActions shell,
         Func<LocationPath> home,
-        Sidebar.FavoritesList? favorites = null,
-        NewMenu.NewItemService? newItems = null,
-        Views.ViewOptions? viewOptions = null,
-        Folders.RenameService? renamer = null,
-        Transfers.ITransferService? transfers = null,
-        Drives.DriveCardPreferences? driveCards = null,
-        Transfers.IDeleteService? deleter = null,
-        Undo.UndoService? undo = null,
-        Transfers.IFileClipboard? clipboard = null,
-        Sessions.ProfileService? profiles = null,
-        Archives.IArchiveService? archives = null,
-        Func<TerminalKind>? terminal = null,
-        IQuickTargets? quickTargets = null)
+        WindowServices? services = null)
     {
         ArgumentNullException.ThrowIfNull(trail);
         ArgumentNullException.ThrowIfNull(window);
@@ -48,7 +36,7 @@ public static class WindowCommands
         ArgumentNullException.ThrowIfNull(shell);
         ArgumentNullException.ThrowIfNull(home);
 
-        var scope = new CommandScope(new CommandRegistry(trail), window, windows, resolver, launcher, shell, home, favorites, newItems, viewOptions, renamer, transfers, driveCards, deleter, undo, clipboard, profiles, archives, terminal, quickTargets);
+        var scope = new CommandScope(new CommandRegistry(trail), window, windows, resolver, launcher, shell, home, services ?? new WindowServices());
 
         // One area per file, in Areas/. Each registers its own commands; none depends on another's.
         new TabCommands(scope).Register();
