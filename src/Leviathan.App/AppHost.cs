@@ -308,20 +308,19 @@ internal sealed class AppHost
     /// <summary>Raised on the UI thread when the theme, the density, the accent, the backdrop or the icon size changed; each window redraws itself.</summary>
     public event EventHandler? AppearanceChanged;
 
-    private (ThemeMode, Density, bool, string, int)? _appliedLook;
+    private AppearanceKey? _appliedLook;
 
     // The look of the app (spec 17.2 Appearance). The accent and the sizes are app-wide and set here; the theme and the backdrop
     // belong to each window, which listens to AppearanceChanged.
     private void ApplyAppearance(AppearanceSettings look)
     {
-        var key = (look.Theme, look.Density, look.Mica, look.Accent, look.IconSize);
+        var key = AppearanceKey.From(look);
         if (_appliedLook == key)
         {
             return;
         }
 
-        var first = _appliedLook is null;
-        var accentChanged = first || _appliedLook!.Value.Item4 != look.Accent;
+        var accentChanged = key.AccentChangedFrom(_appliedLook);
         _appliedLook = key;
         var metrics = AppearanceMetrics.For(look.Density, look.IconSize);
         GridRow.RowHeight = metrics.DetailsRowHeight;
@@ -338,20 +337,18 @@ internal sealed class AppHost
     // The default keys with the user's changes from the settings file (spec 17.3). Only rebuilt when the file's KeyBindings changed.
     private void ApplyKeyBindings(IReadOnlyDictionary<string, string> bindings)
     {
-        var signature = string.Join('\n', bindings.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}={b.Value}"));
+        var signature = AppKeyBindings.SignatureOf(bindings);
         if (signature == _appliedKeys)
         {
             return;
         }
 
         _appliedKeys = signature;
-        // Triage has its own keys (TriageCommands); its entries share the file but are not the file view's commands.
-        var result = KeyMapBuilder.Build(bindings.Where(b => !TriageCommands.IsTriage(b.Key)).ToDictionary(b => b.Key, b => b.Value), CommandIds.All.Contains);
-        var triage = TriageCommands.BuildKeyMap(bindings);
-        Keys = result.Map;
-        TriageKeys = triage.Map;
-        KeyProblems = [.. result.Problems, .. triage.Problems];
-        KeyNotes = [.. result.Notes, .. triage.Notes];
+        var built = AppKeyBindings.Build(bindings);
+        Keys = built.Keys;
+        TriageKeys = built.TriageKeys;
+        KeyProblems = built.Problems;
+        KeyNotes = built.Notes;
     }
 
     /// <summary>Tells the worker how many jobs may run at once.</summary>

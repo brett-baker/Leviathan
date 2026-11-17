@@ -93,3 +93,11 @@ If 4 and 5 are done as well: `Create` under 60, `null!` placeholders 45 to about
 - No unit test can run `Create`, so items 3 to 6 rely on the UI smoke tests and a hand check. The UI tests have once deleted a real folder
   when run unattended (see memory), so they should only run with Brett present, and Leviathan has to be closed for the build to copy.
 - Items 4 and 5 change what every window file writes (`App.Host.Settings` to `App.Host.Settings...`); they are mechanical but wide.
+
+## Result (items 1 to 3, 2026-11-17)
+
+- **Item 1.** `KeyTranslator`, `SearchHooks`, `LazyStores` (two classes), `TrustPrompt` and `DispatcherQueueUiContext` now have their own files; the two stacked doc comments are fixed. `AppHost.cs` 1,117 → 989 lines.
+- **Item 2.** `HelperProcess` (Engine) holds the one rule for starting a helper (exe if present, else `dotnet name.dll`), used by the shell host, the media process and the worker, plus the Background tab's state wording. 7 tests (Engine tests 387 pass).
+- **Item 3, partly.** The decisions moved out as pure functions with tests: `AppKeyBindings.SignatureOf` / `Build` and `AppearanceKey` (8 tests; ViewModels 2,190 pass). `ApplySettings` and its callers still live in `AppHost`: they set host properties and UI objects, so moving them needs the group split of item 5 first.
+- **Not done:** the numbering of "item 6" in the chat message differed from this table (chat: remove `built`; table: take the background loops out of `Create`). Waiting for Brett to say which he meant.
+- **Verified:** App project compiles with no errors or warnings; all tests above pass. The app was not started, and the UI tests were not run.
