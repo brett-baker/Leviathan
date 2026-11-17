@@ -99,25 +99,11 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             tab.CancelRename();
 
             // Tab goes on to rename the next item (spec §8.4).
-            if (goNext)
+            if (goNext && RenameFlow.NextRow(tab.Items.Rows, r => r.Location, renamed) is { } next)
             {
-                var rows = tab.Items.Rows;
-                var at = -1;
-                for (var i = 0; i < rows.Count; i++)
-                {
-                    if (rows[i].Location == renamed)
-                    {
-                        at = i;
-                        break;
-                    }
-                }
-
-                if (at >= 0 && at + 1 < rows.Count)
-                {
-                    tab.BeginRename(rows[at + 1]);
-                }
+                tab.BeginRename(next);
             }
-        }, (tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
+        },(tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
 
         // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
         bool CanDeleteIn(TabViewModel tab) => deleter is not null && LocationKinds.IsFileOperable(tab.History.Current.Kind) && tab.Selection.Count > 0;
