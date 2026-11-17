@@ -42,15 +42,15 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
-        bool CanCreateIn(TabViewModel tab) => newItems is not null && (tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc || newItems.Remote?.Handles(tab.History.Current) == true);
+        bool CanCreateIn(TabViewModel tab) => newItems is not null && (LocationKinds.IsLocalOrShare(tab.History.Current.Kind) || newItems.Remote?.Handles(tab.History.Current) == true);
 
         AddOnCurrent(CommandIds.NewFolder, "New folder", "New", (tab, _, ct) => CreateNew(tab, NewMenu.NewItemService.FolderTemplate.Id, ct), (tab, _) => CanCreateIn(tab), shortcut: "Ctrl+Shift+N", icon: "NewFolder");
         AddOnCurrent(CommandIds.NewItem, "New item", "New", (tab, c, ct) => CreateNew(tab, c.Target!, ct), (tab, c) => CanCreateIn(tab) && !string.IsNullOrEmpty(c.Target));
 
         // Inline rename (spec §8.4): F2 shows the box, the box's Enter / Tab / click-away runs RenameCommit.
-        bool CanBulkRename(TabViewModel tab) => tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc && tab.Selection.SelectedEntries.Count > 0;
+        bool CanBulkRename(TabViewModel tab) => LocationKinds.IsLocalOrShare(tab.History.Current.Kind) && tab.Selection.SelectedEntries.Count > 0;
 
-        bool CanRename(TabViewModel tab) => renamer is not null && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.RenameTarget() is not null;
+        bool CanRename(TabViewModel tab) => renamer is not null && LocationKinds.IsFileOperable(tab.History.Current.Kind) && tab.RenameTarget() is not null;
 
         // F2 renames the one selected item in place; with several selected it opens the bulk-rename dialog (spec §15.3).
         AddOnCurrent(CommandIds.EditRename, "Rename", "Edit", (tab, _) =>
@@ -120,7 +120,7 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
         }, (tab, c) => renamer is not null && tab.Renaming is not null && c.Target is not null);
 
         // Delete (spec §12.5): Del recycles, Shift+Del deletes for good after a confirmation.
-        bool CanDeleteIn(TabViewModel tab) => deleter is not null && tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps && tab.Selection.Count > 0;
+        bool CanDeleteIn(TabViewModel tab) => deleter is not null && LocationKinds.IsFileOperable(tab.History.Current.Kind) && tab.Selection.Count > 0;
 
         async Task DeleteSelection(TabViewModel tab, bool permanent, CancellationToken ct)
         {
@@ -131,7 +131,7 @@ internal sealed class EditCommands(CommandScope scope) : CommandArea(scope)
             var noBin = !permanent && await deleter!.BehaviorAsync(items, ct) == Core.Platform.DeleteBehavior.PermanentAfterConfirmation;
             if (permanent || noBin)
             {
-                var why = noBin ? (items[0].Kind is LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps ? "A server has no Recycle Bin. " : "This drive has no Recycle Bin. ") : string.Empty;
+                var why = noBin ? (LocationKinds.IsServer(items[0].Kind) ? "A server has no Recycle Bin. " : "This drive has no Recycle Bin. ") : string.Empty;
                 if (!await shell.ConfirmAsync("Delete permanently?", $"{why}{what} will be deleted for good and cannot be restored.", "Delete"))
                 {
                     return;

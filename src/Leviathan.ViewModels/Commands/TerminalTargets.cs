@@ -35,7 +35,7 @@ public static class TerminalTargets
 
     /// <summary>True for a folder on a drive or a share that is not inside an archive.</summary>
     public static bool IsUsable(LocationPath? folder) =>
-        folder is { Kind: LocationKind.Drive or LocationKind.Unc } && (folder.Kind != LocationKind.Unc || folder.Share is not null) && !ArchiveKinds.IsInside(folder);
+        folder is not null && LocationKinds.IsFolderOnDriveOrShare(folder) && !ArchiveKinds.IsInside(folder);
 
     /// <summary>
     /// The terminal to try when <paramref name="wanted"/> could not be started, or null when there is nothing to fall back to. Windows

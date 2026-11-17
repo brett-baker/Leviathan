@@ -87,7 +87,7 @@ internal sealed class ArchiveCommands(CommandScope scope) : CommandArea(scope)
         AddAction(CommandIds.ShowChecksum, "Checksums...", "Files", c =>
         {
             var items = ArchiveTargets(c);
-            if (items.Count == 0 || items.Any(i => i.Kind is not (LocationKind.Drive or LocationKind.Unc)))
+            if (items.Count == 0 || items.Any(i => !LocationKinds.IsLocalOrShare(i.Kind)))
             {
                 shell.ShowMessage("Checksums can be made for files and folders on this PC and on Windows shares.");
                 return;

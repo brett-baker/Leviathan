@@ -26,7 +26,7 @@ internal sealed class ToolCommands(CommandScope scope) : CommandArea(scope)
             var tab = window.Tabs.Selected;
             var here = tab?.Focused.History.Current;
             var other = tab?.Other?.History.Current;
-            static LocationPath? Usable(LocationPath? p) => p is { Kind: LocationKind.Drive or LocationKind.Unc } ? p : null;
+            static LocationPath? Usable(LocationPath? p) => p is { } && LocationKinds.IsLocalOrShare(p.Kind) ? p : null;
             shell.OpenSync(Usable(here), Usable(other));
         }, NeedsTab);
 
@@ -79,7 +79,7 @@ internal sealed class ToolCommands(CommandScope scope) : CommandArea(scope)
                 folder = tab.History.Current;
             }
 
-            if (folder.Kind is LocationKind.Drive or LocationKind.Unc && !(folder.Kind == LocationKind.Unc && folder.Share is null))
+            if (LocationKinds.IsFolderOnDriveOrShare(folder))
             {
                 shell.OpenSpaceMap(folder);
             }
@@ -94,7 +94,7 @@ internal sealed class ToolCommands(CommandScope scope) : CommandArea(scope)
             shell.ShowMessage(shell.ToggleSearchIndex(here)
                 ? "This folder is now kept in the search index. It is listed in the background, a little at a time; see Background in the status hub."
                 : "This folder is no longer kept in the search index.");
-        }, (tab, _) => tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc);
+        }, (tab, _) => LocationKinds.IsLocalOrShare(tab.History.Current.Kind));
         AddOnCurrent(CommandIds.SearchSave, "Save this search to Favorites", "Tools", (tab, _) =>
         {
             var here = tab.History.Current;

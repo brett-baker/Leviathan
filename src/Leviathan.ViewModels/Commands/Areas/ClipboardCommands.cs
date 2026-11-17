@@ -22,7 +22,7 @@ internal sealed class ClipboardCommands(CommandScope scope) : CommandArea(scope)
 
         // Clipboard (spec §6.1): cut and copy put the selection on the Windows clipboard, paste hands it to the transfer service,
         // so a paste is the same journaled copy or move a drop is. Pasting a cut moves; pasting a copy copies, even in the same volume.
-        static bool InFolder(TabViewModel tab) => tab.History.Current.Kind is LocationKind.Drive or LocationKind.Unc or LocationKind.Sftp or LocationKind.Ftp or LocationKind.Ftps;
+        static bool InFolder(TabViewModel tab) => LocationKinds.IsFileOperable(tab.History.Current.Kind);
         bool CanTakeSelection(TabViewModel tab) => clipboard is not null && InFolder(tab) && tab.Selection.Count > 0;
         bool CanPasteHere(TabViewModel tab) => clipboard is { HasFiles: true } && InFolder(tab);
 
