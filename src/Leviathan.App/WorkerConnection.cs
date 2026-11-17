@@ -237,13 +237,7 @@ internal sealed class WorkerConnection : IWorkerCallbacks, IAsyncDisposable
         _closing.Dispose();
     }
 
-    private static ExecutableLauncher WorkerLauncher()
-    {
-        var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.Worker.exe");
-        return File.Exists(exe)
-            ? new ExecutableLauncher(exe)
-            : new ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.Worker.dll")}\"");
-    }
+    private static ExecutableLauncher WorkerLauncher() => HelperProcess.LauncherFor("Leviathan.Worker");
 
     private async Task ConnectWithRetryAsync()
     {

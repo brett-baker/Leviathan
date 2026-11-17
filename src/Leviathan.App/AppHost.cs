@@ -199,7 +199,7 @@ internal sealed class AppHost
         return true;
     }
 
-    private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(ShellHostLauncher()));
+    private readonly Lazy<Leviathan.Engine.Supervision.ShellHostConnection> _shellHost = new(() => new Leviathan.Engine.Supervision.ShellHostConnection(Leviathan.Engine.Supervision.HelperProcess.LauncherFor("Leviathan.ShellHost")));
 
     /// <summary>
     /// The out-of-process home of shell extensions (spec §2.2). Nothing starts until the first call to
@@ -207,29 +207,13 @@ internal sealed class AppHost
     /// </summary>
     public Leviathan.Engine.Supervision.ShellHostConnection ShellHost => _shellHost.Value;
 
-    private static Leviathan.Engine.Supervision.ExecutableLauncher ShellHostLauncher()
-    {
-        var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.exe");
-        return File.Exists(exe)
-            ? new Leviathan.Engine.Supervision.ExecutableLauncher(exe)
-            : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.ShellHost.dll")}\"");
-    }
-
-    private readonly Lazy<Leviathan.Engine.Supervision.MediaHostConnection> _mediaHost = new(() => new Leviathan.Engine.Supervision.MediaHostConnection(MediaHostLauncher()));
+    private readonly Lazy<Leviathan.Engine.Supervision.MediaHostConnection> _mediaHost = new(() => new Leviathan.Engine.Supervision.MediaHostConnection(Leviathan.Engine.Supervision.HelperProcess.LauncherFor("Leviathan.Media")));
 
     /// <summary>
     /// The out-of-process home of ffprobe metadata (spec §2.2, §9.3). Nothing starts until the first call to
     /// <see cref="Leviathan.Engine.Supervision.MediaHostConnection.GetServiceAsync"/>, which a folder that shows media information makes.
     /// </summary>
     public Leviathan.Engine.Supervision.MediaHostConnection MediaHost => _mediaHost.Value;
-
-    private static Leviathan.Engine.Supervision.ExecutableLauncher MediaHostLauncher()
-    {
-        var exe = Path.Combine(AppContext.BaseDirectory, "Leviathan.Media.exe");
-        return File.Exists(exe)
-            ? new Leviathan.Engine.Supervision.ExecutableLauncher(exe)
-            : new Leviathan.Engine.Supervision.ExecutableLauncher("dotnet", $"\"{Path.Combine(AppContext.BaseDirectory, "Leviathan.Media.dll")}\"");
-    }
 
     /// <summary>The user's settings (<c>settings.json</c>); loaded by <see cref="PlanStartupAsync"/>.</summary>
     public SettingsStore Settings { get; private init; } = null!;
@@ -420,19 +404,11 @@ internal sealed class AppHost
     /// <summary>True once media information was needed (reading <see cref="MediaHost"/> would start the process).</summary>
     internal bool IsMediaHostStarted => _mediaHost.IsValueCreated;
 
-    private static ProcessEntry ProcessEntryFor(string name, Leviathan.Engine.Supervision.SupervisedState state, int? pid, int restarts, string? disabledReason, string purpose) => new(
-        name,
-        state switch
-        {
-            Leviathan.Engine.Supervision.SupervisedState.Running => "Running",
-            Leviathan.Engine.Supervision.SupervisedState.Restarting => "Restarting after a crash",
-            Leviathan.Engine.Supervision.SupervisedState.Disabled => "Switched off",
-            _ => "Stopped until it is needed",
-        },
-        pid,
-        restarts,
-        state == Leviathan.Engine.Supervision.SupervisedState.Disabled ? disabledReason ?? purpose : purpose,
-        state == Leviathan.Engine.Supervision.SupervisedState.Disabled);
+    private static ProcessEntry ProcessEntryFor(string name, Leviathan.Engine.Supervision.SupervisedState state, int? pid, int restarts, string? disabledReason, string purpose)
+    {
+        var (label, detail, canReenable) = Leviathan.Engine.Supervision.HelperProcess.Describe(state, disabledReason, purpose);
+        return new ProcessEntry(name, label, pid, restarts, detail, canReenable);
+    }
 
     private WorkerJobControl? _jobControl;
 
