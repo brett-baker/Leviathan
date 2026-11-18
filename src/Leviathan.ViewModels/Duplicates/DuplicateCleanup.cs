@@ -214,7 +214,8 @@ public sealed class DuplicateCleanup(IUndoActions files, ITagStore tags, IHardLi
 
         return async () =>
         {
-            var back = await files.MoveAsync([.. done.Select(d => new ItemMove(d.To, d.From))], CancellationToken.None).ConfigureAwait(false);
+            var undoMoves = done.Select(d => new ItemMove(d.To, d.From)).ToList();
+            var back = await files.MoveAsync(undoMoves, CancellationToken.None, MoveTitles.Undo(undoMoves)).ConfigureAwait(false);
             if (back.Problems.Count > 0)
             {
                 throw new IOException(string.Join(" ", back.Problems));

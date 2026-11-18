@@ -32,7 +32,7 @@ public sealed class UndoServiceTests
 
         public HashSet<string> Refuse { get; } = [];
 
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             Moves.Add(moves);
             return Task.FromResult(Result(moves, m => m.From, m => m));

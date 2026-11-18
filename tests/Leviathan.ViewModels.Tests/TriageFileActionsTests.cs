@@ -47,7 +47,7 @@ public sealed class TriageFileActionsTests
 
         public bool Empty { get; set; }
 
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             Log.Add("move " + string.Join(";", moves.Select(m => $"{m.From} -> {m.To}")));
             return Task.FromResult(Empty ? new StepResult([], Problems) : new StepResult(moves, Problems));

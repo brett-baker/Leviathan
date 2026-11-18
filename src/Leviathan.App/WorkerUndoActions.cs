@@ -12,8 +12,8 @@ internal sealed class WorkerUndoActions(Func<WorkerConnection> worker, Func<bool
     private static readonly TimeSpan Limit = TimeSpan.FromSeconds(60);
 
     /// <inheritdoc />
-    public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken) =>
-        RunAsync(new JobRequest(JobKind.Restore, [.. moves.Select(m => m.From)], null) { Targets = [.. moves.Select(m => m.To)] }, cancellationToken);
+    public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null) =>
+        RunAsync(new JobRequest(JobKind.Restore, [.. moves.Select(m => m.From)], null) { Targets = [.. moves.Select(m => m.To)], Title = title ?? MoveTitles.Move(moves) }, cancellationToken);
 
     /// <inheritdoc />
     public Task<StepResult> DeleteAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken) =>

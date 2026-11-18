@@ -18,7 +18,7 @@ public sealed class DuplicateCleanupTests
 
         public HashSet<string> Fail { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             Log.Add("move " + string.Join(";", moves.Select(m => $"{m.From}>{m.To}")));
             return Task.FromResult(new StepResult([.. moves.Where(m => !Fail.Contains(m.From))], [.. moves.Where(m => Fail.Contains(m.From)).Select(m => $"'{m.From}' failed")]));

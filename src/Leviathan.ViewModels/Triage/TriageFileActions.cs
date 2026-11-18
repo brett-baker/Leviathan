@@ -101,7 +101,8 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         return new TriageActionResult(
             async () =>
             {
-                var back = await files.MoveAsync([new ItemMove(final, path)], CancellationToken.None).ConfigureAwait(false);
+                var undoMove = new ItemMove(final, path);
+                var back = await files.MoveAsync([undoMove], CancellationToken.None, MoveTitles.Undo([undoMove])).ConfigureAwait(false);
                 if (back.Done.Count == 0)
                 {
                     throw new IOException(Problem(back, $"{file.Name} could not be moved back."));
@@ -123,6 +124,24 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         var queued = 0;
         var toMove = kept.Where(f => !SameFolder(f.Location.ToWin32Path(), target)).ToList();
 
+        // With the queue available every kept file goes as one background move job, on the same volume (a rename) or across (copy, verify, delete):
+        // closing triage only waits for the job to be accepted, never for the files to move (spec §10.1, §3.2).
+        if (transfers is not null && toMove.Count > 0)
+        {
+            var outcome = await transfers.StartAsync(new TransferRequest([.. toMove.Select(f => f.Location)], LocationPath.Parse(target), TransferMode.Move), cancellationToken).ConfigureAwait(false);
+            if (outcome.Started)
+            {
+                queued = toMove.Count;
+            }
+            else
+            {
+                problems.Add(outcome.Message);
+            }
+
+            return new TriageMoveResult(moved, queued, problems);
+        }
+
+        // No queue (the app is built without one): same-volume files are renamed by the caller's own mover, others cannot be moved.
         var near = toMove.Where(f => SameVolume(f.Location.ToWin32Path(), target)).ToList();
         if (near.Count > 0)
         {
@@ -134,22 +153,7 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         var far = toMove.Except(near).ToList();
         if (far.Count > 0)
         {
-            if (transfers is null)
-            {
-                problems.Add($"{far.Count} kept file(s) are on another drive than {target}, and moving between drives is not available here.");
-            }
-            else
-            {
-                var outcome = await transfers.StartAsync(new TransferRequest([.. far.Select(f => f.Location)], LocationPath.Parse(target), TransferMode.Move), cancellationToken).ConfigureAwait(false);
-                if (outcome.Started)
-                {
-                    queued = far.Count;
-                }
-                else
-                {
-                    problems.Add(outcome.Message);
-                }
-            }
+            problems.Add($"{far.Count} kept file(s) are on another drive than {target}, and moving between drives is not available here.");
         }
 
         return new TriageMoveResult(moved, queued, problems);
@@ -169,7 +173,8 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         var binned = deleted.Done[0].To;
         return new TriageActionResult(async () =>
         {
-            var back = await files.MoveAsync([new ItemMove(binned, path)], CancellationToken.None).ConfigureAwait(false);
+            var unbin = new ItemMove(binned, path);
+            var back = await files.MoveAsync([unbin], CancellationToken.None, MoveTitles.Restore([unbin])).ConfigureAwait(false);
             if (back.Done.Count == 0)
             {
                 throw new IOException(Problem(back, $"{file.Name} could not be restored."));

@@ -42,7 +42,7 @@ public sealed class TriageOnDiskTests : IDisposable
     /// <summary>Does what the worker's journaled jobs do, with plain moves into a bin folder of the test.</summary>
     private sealed class DiskFiles(string bin) : IUndoActions
     {
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             var done = new List<ItemMove>();
             var problems = new List<string>();

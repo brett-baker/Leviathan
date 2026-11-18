@@ -160,7 +160,7 @@ public sealed class FileTaggingTests
 
     private sealed class NoUndo : Leviathan.ViewModels.Undo.IUndoActions
     {
-        public Task<Leviathan.ViewModels.Undo.StepResult> MoveAsync(IReadOnlyList<Leviathan.ViewModels.Undo.ItemMove> moves, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Leviathan.ViewModels.Undo.StepResult> MoveAsync(IReadOnlyList<Leviathan.ViewModels.Undo.ItemMove> moves, CancellationToken cancellationToken, string? title = null) => throw new NotSupportedException();
 
         public Task<Leviathan.ViewModels.Undo.StepResult> DeleteAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken) => throw new NotSupportedException();
     }

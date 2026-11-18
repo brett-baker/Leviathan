@@ -282,7 +282,7 @@ public sealed class TriageJournalTests
     }
 
     [Fact]
-    public void Handled_IsEveryFileThatLeftItsPlace_AndTheFarOnesWhenAJobWasQueued()
+    public void Handled_IsEveryFileThatLeftItsPlace_AndEveryFileWhenAJobWasQueued()
     {
         var files = new[] { Video(@"Z:\a.mp4"), Video(@"Z:\b.mp4"), Video(@"E:\c.mp4") };
         var plan = new TriageHandOffPlan(files, @"Z:\library", false);
@@ -291,7 +291,7 @@ public sealed class TriageJournalTests
         var withJob = TriageHandOff.Handled(plan, new TriageMoveResult(0, 1, []), _ => true);
 
         Assert.Equal([@"Z:\a.mp4", @"E:\c.mp4"], renamedOnly);
-        Assert.Equal([@"E:\c.mp4"], withJob);
+        Assert.Equal([@"Z:\a.mp4", @"Z:\b.mp4", @"E:\c.mp4"], withJob);
     }
 
     [Fact]

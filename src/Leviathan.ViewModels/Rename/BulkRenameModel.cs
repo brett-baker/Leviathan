@@ -146,7 +146,7 @@ public sealed class BulkRenameModel
             return new BulkRenameResult(0, [], []);
         }
 
-        var result = await files.MoveAsync([.. moves.Select(m => new ItemMove(m.From, m.To))], cancellationToken).ConfigureAwait(false);
+        var result = await files.MoveAsync([.. moves.Select(m => new ItemMove(m.From, m.To))], cancellationToken, MoveTitles.Rename([.. moves.Select(m => new ItemMove(m.From, m.To))])).ConfigureAwait(false);
         if (result.Done.Count > 0)
         {
             record(result.Done);

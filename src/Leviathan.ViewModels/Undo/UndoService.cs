@@ -55,8 +55,8 @@ public sealed record StepResult(IReadOnlyList<ItemMove> Done, IReadOnlyList<stri
 /// </summary>
 public interface IUndoActions
 {
-    /// <summary>Moves each item from <see cref="ItemMove.From"/> to <see cref="ItemMove.To"/> without overwriting anything.</summary>
-    Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken);
+    /// <summary>Moves each item from <see cref="ItemMove.From"/> to <see cref="ItemMove.To"/> without overwriting anything. <paramref name="title"/> names the job in the Operations tab (see <see cref="MoveTitles"/>); null says "Move".</summary>
+    Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null);
 
     /// <summary>Sends the items to the Recycle Bin or a share's recycle folder again; the result says where each went.</summary>
     Task<StepResult> DeleteAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken);
@@ -224,7 +224,7 @@ public sealed class UndoService : IDisposable
                 entry = _undo[^1];
             }
 
-            var result = await _actions.MoveAsync([.. entry.Moves.Select(m => new ItemMove(m.To, m.From))], cancellationToken).ConfigureAwait(false);
+            var result = await _actions.MoveAsync([.. entry.Moves.Select(m => new ItemMove(m.To, m.From))], cancellationToken, MoveTitles.Undo(entry.Moves)).ConfigureAwait(false);
             return Finish(entry, result, undoing: true, verb: "Undone");
         }
         finally
@@ -252,7 +252,7 @@ public sealed class UndoService : IDisposable
 
             var result = entry.Kind == UndoKind.Delete
                 ? await _actions.DeleteAsync([.. entry.Moves.Select(m => m.From)], cancellationToken).ConfigureAwait(false)
-                : await _actions.MoveAsync(entry.Moves, cancellationToken).ConfigureAwait(false);
+                : await _actions.MoveAsync(entry.Moves, cancellationToken, MoveTitles.Redo(entry.Moves)).ConfigureAwait(false);
             return Finish(entry, result, undoing: false, verb: "Redone");
         }
         finally

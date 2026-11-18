@@ -39,9 +39,9 @@ public static class TriageHandOff
     }
 
     /// <summary>
-    /// The kept files whose move no longer needs remembering after <paramref name="result"/>: those no longer at their place (renamed
-    /// away), and, when part of the move was queued as a job, those on another drive than <paramref name="plan"/> (the job carries them).
-    /// What stays is a file the move failed for, which is offered again.
+    /// The kept files whose move no longer needs remembering after <paramref name="result"/>: when the move was queued as a job, all of them (the
+    /// worker journals the job and carries them through a crash); otherwise those no longer at their place (renamed away). What stays is a file
+    /// the move failed for, which is offered again.
     /// </summary>
     /// <param name="plan">The plan that was run.</param>
     /// <param name="result">What running it did.</param>
@@ -52,7 +52,7 @@ public static class TriageHandOff
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(exists);
         return [.. plan.Files
-            .Where(f => !exists(f.Location.ToWin32Path()) || (result.Queued > 0 && !TriageFileActions.SameVolume(f.Location.ToWin32Path(), plan.Folder)))
+            .Where(f => result.Queued > 0 || !exists(f.Location.ToWin32Path()))
             .Select(f => f.Location.Value)];
     }
 }

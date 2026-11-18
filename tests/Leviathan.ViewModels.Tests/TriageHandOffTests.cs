@@ -126,7 +126,7 @@ public sealed class TriageHandOffTests
     {
         public List<string> Log { get; } = [];
 
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             Log.Add(string.Join(";", moves.Select(m => $"{m.From} -> {m.To}")));
             return Task.FromResult(new StepResult(moves, []));
@@ -156,16 +156,31 @@ public sealed class TriageHandOffTests
     }
 
     [Fact]
-    public async Task MoveKept_OnTheSameDrive_RenamesEveryFileInOneCall()
+    public async Task MoveKept_OnTheSameDrive_QueuesOneMoveJob_AndDoesNotWaitForTheFiles()
     {
         var files = new Files();
-        var actions = new TriageFileActions(files, new Tags(), () => new TriageKeepOptions(null), new Transfers());
+        var transfers = new Transfers();
+        var actions = new TriageFileActions(files, new Tags(), () => new TriageKeepOptions(null), transfers);
 
         var result = await actions.MoveKeptAsync([Video(@"C:\inbox\a.mkv"), Video(@"C:\inbox\b.mkv")], @"C:\library", CancellationToken.None);
 
-        Assert.Equal(2, result.Moved);
-        Assert.Equal(0, result.Queued);
-        Assert.Equal([@"C:\inbox\a.mkv -> C:\library\a.mkv;C:\inbox\b.mkv -> C:\library\b.mkv"], files.Log);
+        Assert.Equal(0, result.Moved);
+        Assert.Equal(2, result.Queued);
+        Assert.Empty(files.Log);
+        Assert.Equal(TransferMode.Move, Assert.Single(transfers.Requests).Mode);
+    }
+
+    [Fact]
+    public async Task MoveKept_WithoutAQueue_RenamesSameDriveFiles_AndSaysAboutTheRest()
+    {
+        var files = new Files();
+        var actions = new TriageFileActions(files, new Tags(), () => new TriageKeepOptions(null));
+
+        var result = await actions.MoveKeptAsync([Video(@"D:\inbox\a.mkv"), Video(@"C:\inbox\b.mkv")], @"D:\library", CancellationToken.None);
+
+        Assert.Equal(1, result.Moved);
+        Assert.Equal([@"D:\inbox\a.mkv -> D:\library\a.mkv"], files.Log);
+        Assert.Contains("another drive", result.Describe(@"D:\library"));
     }
 
     [Fact]
@@ -185,16 +200,16 @@ public sealed class TriageHandOffTests
     }
 
     [Fact]
-    public async Task MoveKept_WithFilesOnBothKindsOfDrive_RenamesTheNearOnesAndQueuesTheRest()
+    public async Task MoveKept_WithFilesOnBothKindsOfDrive_QueuesOneJobForAll()
     {
-        var files = new Files();
         var transfers = new Transfers();
-        var actions = new TriageFileActions(files, new Tags(), () => new TriageKeepOptions(null), transfers);
+        var actions = new TriageFileActions(new Files(), new Tags(), () => new TriageKeepOptions(null), transfers);
 
         var result = await actions.MoveKeptAsync([Video(@"D:\inbox\a.mkv"), Video(@"C:\inbox\b.mkv")], @"D:\library", CancellationToken.None);
 
-        Assert.Equal(1, result.Moved);
-        Assert.Equal(1, result.Queued);
+        Assert.Equal(0, result.Moved);
+        Assert.Equal(2, result.Queued);
+        Assert.Equal(2, Assert.Single(transfers.Requests).Sources.Count);
     }
 
     [Fact]

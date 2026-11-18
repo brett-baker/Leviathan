@@ -21,7 +21,7 @@ public sealed class BulkRenameModelTests
     {
         public HashSet<string> Files { get; } = new(files, StringComparer.OrdinalIgnoreCase);
 
-        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken)
+        public Task<StepResult> MoveAsync(IReadOnlyList<ItemMove> moves, CancellationToken cancellationToken, string? title = null)
         {
             var done = new List<ItemMove>();
             var problems = new List<string>();
