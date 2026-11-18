@@ -34,13 +34,11 @@ namespace Leviathan.App;
     Justification = "The cancellation source, timers, session and engine are released when the window closes (Closed), which a Window cannot express as IDisposable.")]
 internal sealed partial class TriageWindow : Window
 {
-    private static readonly TimeSpan OverlayVisible = TimeSpan.FromSeconds(2);
 
     private readonly IReadOnlyList<FileEntry> _queue;
     private readonly int _startIndex;
     private readonly CancellationTokenSource _closing = new();
     private readonly DispatcherQueueTimer _timer;
-    private readonly DispatcherQueueTimer _fade;
     private readonly HashSet<string> _prefetched = new(StringComparer.OrdinalIgnoreCase);
     private LibVlcEngine? _engine;
     private TriageSession? _session;
@@ -48,7 +46,7 @@ internal sealed partial class TriageWindow : Window
     private TriageDispatcher? _dispatcher;
     private bool _updating;
     private bool _syncingQueue;
-    private bool _overlayPinned;
+    private bool _overlayHidden;
     private TimeSpan _shownDuration;
     private MediaInfo? _info;
     private string? _infoFor;
@@ -84,10 +82,6 @@ internal sealed partial class TriageWindow : Window
         _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(250);
         _timer.Tick += (_, _) => Refresh();
-        _fade = DispatcherQueue.GetForCurrentThread().CreateTimer();
-        _fade.Interval = OverlayVisible;
-        _fade.IsRepeating = false;
-        _fade.Tick += (_, _) => Overlay.Opacity = _overlayPinned ? 1 : 0;
         Overlay.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(400) };
         // A filmstrip cell: a thumbnail in a rounded frame with a round mark for the decision in its corner. Children: 0 frame, 1 picture, 2 mark.
         Queue.ItemTemplate = (DataTemplate)XamlReader.Load(
@@ -441,15 +435,8 @@ internal sealed partial class TriageWindow : Window
         }
     }
 
-    private void ShowOverlay()
-    {
-        Overlay.Opacity = 1;
-        _fade.Stop();
-        if (!_overlayPinned)
-        {
-            _fade.Start();
-        }
-    }
+    // The overlay (title, resolution, codec, state) stays on screen for as long as the file is on screen; only the overlay key hides it.
+    private void ShowOverlay() => Overlay.Opacity = _overlayHidden ? 0 : 1;
 
     private static void RenderRow(Grid row, TriageItem item)
     {
@@ -627,7 +614,7 @@ internal sealed partial class TriageWindow : Window
         }
         else if (command == TriageCommands.ToggleOverlay)
         {
-            _overlayPinned = !_overlayPinned;
+            _overlayHidden = !_overlayHidden;
             ShowOverlay();
         }
         else if (command == TriageCommands.ContactSheet && _session?.Current is { IsPlayable: true } item)
@@ -779,7 +766,6 @@ internal sealed partial class TriageWindow : Window
     private async void OnClosed(object sender, WindowEventArgs args)
     {
         _timer.Stop();
-        _fade.Stop();
         _closing.Cancel();
         Exited?.Invoke(this, _session?.Current?.File ?? _last);
         if (_session is { } session)
