@@ -82,7 +82,7 @@ internal sealed partial class SettingsSheet : UserControl
 
 
     /// <summary>How many pages <see cref="WarmPage"/> knows.</summary>
-    public const int WarmPageCount = 13;
+    public const int WarmPageCount = 14;
 
     /// <summary>
     /// Lays out one page once, while the sheet is invisible, so opening settings and visiting a page are not stalls (spec §3.2). The
@@ -95,7 +95,7 @@ internal sealed partial class SettingsSheet : UserControl
             return;
         }
 
-        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage, TagsPage, NetworkPage, OperationsPage, DeletePage, MediaPage, SearchPage];
+        UIElement[] pages = [GeneralPage, AppearancePage, FilesPage, TabsPage, AdvancedPage, KeyboardPage, PlannedPage, TagsPage, NetworkPage, OperationsPage, DeletePage, MediaPage, SearchPage, TriagePage];
         var page = pages[index];
         var before = page.Visibility;
         try
@@ -143,6 +143,7 @@ internal sealed partial class SettingsSheet : UserControl
             OperationsPage.Visibility = Show("operations");
             DeletePage.Visibility = Show("delete");
             MediaPage.Visibility = Show("media");
+            TriagePage.Visibility = Show("triage");
             SearchPage.Visibility = Show("search");
             var planned = !page.IsAvailable;
             PlannedPage.Visibility = planned ? Visibility.Visible : Visibility.Collapsed;

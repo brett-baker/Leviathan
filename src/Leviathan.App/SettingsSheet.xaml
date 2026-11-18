@@ -220,22 +220,30 @@
                 </StackPanel>
               </StackPanel>
 
-              <!-- Media and preview -->
-              <StackPanel x:Name="MediaPage" Spacing="14" Visibility="Collapsed">
+              <!-- Triage -->
+              <StackPanel x:Name="TriagePage" Spacing="14" Visibility="Collapsed">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Triage" Style="{StaticResource SettingTitle}" />
-                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="Triage: move kept files when it ends" OnContent="Kept files go to the other pane (or the keep folder) together when you close triage" OffContent="Each file moves as soon as you keep it (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
-                  <ToggleSwitch x:Name="TriageAskSwitch" Header="Triage: ask before moving kept files" Toggled="OnTriageToggled" />
+                  <TextBlock Text="Kept files" Style="{StaticResource SettingTitle}" />
+                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="When kept files move" OnContent="Together, when I close triage" OffContent="As I keep each one (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
+                  <ToggleSwitch x:Name="TriageAskSwitch" Header="Ask before they move (only when they move at the end)" Toggled="OnTriageToggled" />
+                  <TextBox x:Name="TriageFolderBox" Header="Keep also moves the file to this folder (empty = the other pane of a split tab, else leave it)" Width="420" HorizontalAlignment="Left" LostFocus="OnMediaCommit" KeyDown="OnMediaKeyDown" />
+                  <TextBlock Text="Moves are background jobs: closing the triage window never waits for them. See Operations in the status hub." Style="{StaticResource SettingNote}" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Playing" Style="{StaticResource SettingTitle}" />
                   <NumberBox x:Name="TriageOffsetBox" Header="Each video starts this many percent in (0 to 90)" Minimum="0" Maximum="90" SmallChange="5" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
                   <ToggleSwitch x:Name="TriageAdvanceSwitch" Header="Go to the next file after a decision" Toggled="OnMediaToggled" />
                   <NumberBox x:Name="TriageDelayBox" Header="Wait this long first (milliseconds, 0 to 1000)" Minimum="0" Maximum="1000" SmallChange="50" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
-                  <TextBox x:Name="TriageFolderBox" Header="Keep also moves the file to this folder (empty = leave it)" Width="420" HorizontalAlignment="Left" LostFocus="OnMediaCommit" KeyDown="OnMediaKeyDown" />
                 </StackPanel>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Skim playback (S)" Style="{StaticResource SettingTitle}" />
                   <NumberBox x:Name="SkimBurstBox" Header="Each burst plays (seconds, 1 to 30)" Minimum="1" Maximum="30" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
                   <NumberBox x:Name="SkimIntervalBox" Header="A burst every (percent of the video, 1 to 50)" Minimum="1" Maximum="50" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
                 </StackPanel>
+              </StackPanel>
+
+              <!-- Media and preview -->
+              <StackPanel x:Name="MediaPage" Spacing="14" Visibility="Collapsed">
                 <ToggleSwitch x:Name="HoverScrubSwitch" Header="Slide through a video by moving the mouse over its picture" OnContent="Tiles, Thumbnails and Gallery" OffContent="Pictures stay still" Toggled="OnMediaToggled" />
                 <TextBlock Style="{StaticResource SettingNote}" Text="The video engine, hardware decoding, the ffmpeg location and preview size limits are not settings yet: the app picks them itself." />
               </StackPanel>

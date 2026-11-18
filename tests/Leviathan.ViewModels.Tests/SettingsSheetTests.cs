@@ -10,7 +10,7 @@ public sealed class SettingsCatalogTests
     public void ThePages_AreTheOnesOfTheSpec_InOrder()
     {
         Assert.Equal(
-            ["General", "Appearance", "Files and folders", "Tabs and windows", "Network", "Operations", "Delete", "Media and preview", "Tags", "Search and index", "Keyboard", "Advanced"],
+            ["General", "Appearance", "Files and folders", "Tabs and windows", "Network", "Operations", "Delete", "Media and preview", "Triage", "Tags", "Search and index", "Keyboard", "Advanced"],
             SettingsCatalog.Pages.Select(p => p.Title));
         Assert.Equal(SettingsCatalog.Pages.Count, SettingsCatalog.Pages.Select(p => p.Id).Distinct().Count());
     }
@@ -60,7 +60,7 @@ public sealed class SettingsCatalogTests
     [InlineData("font awesome", "appearance", "Icon set")]
     [InlineData("startup", "general", "What to open at startup")]
     [InlineData("bandwidth", "operations", "Bandwidth limits and schedule")]
-    [InlineData("skim", "media", "Skim playback bursts")]
+    [InlineData("skim", "triage", "Skim playback bursts")]
     [InlineData("git", "files", "Git status in repositories")]
     [InlineData("terminal", "general", "Terminal that Open terminal here uses")]
     public void Search_FindsASetting_ByTitleOrKeyword_IgnoringCase(string text, string page, string title)
