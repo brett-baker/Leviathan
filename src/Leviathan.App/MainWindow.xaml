@@ -110,12 +110,10 @@
             <MenuFlyout x:Name="GroupMenu" Opening="OnGroupMenuOpening" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <TextBox x:Name="FilterBox" Width="170" PlaceholderText="Filter this folder" AutomationProperties.Name="Filter this folder"
-                 ToolTipService.ToolTip="Filters as you type: *.mp4, size:&gt;1GB, tag:red, duration:&lt;2m (Ctrl+Shift+F)"
-                 TextChanged="OnFilterTextChanged" KeyDown="OnFilterKeyDown" />
-      <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" Width="220" PlaceholderText="Search this folder (Ctrl+F)" QueryIcon="Find" AutomationProperties.Name="Search this folder and below"
-                      ToolTipService.ToolTip="Searches this folder and everything below it: holiday, *.mkv, type:video size:&gt;1GB modified:lastweek -tag:green"
-                      QuerySubmitted="OnSearchQuerySubmitted" KeyDown="OnSearchKeyDown" />
+        <!-- One box for both (Ctrl+F or Ctrl+Shift+F): typing filters this folder as you type; Enter, or the magnifier, searches here and below. -->
+      <AutoSuggestBox x:Name="SearchBox" Grid.Column="6" Width="280" PlaceholderText="Filter this folder, Enter searches below" QueryIcon="Find" AutomationProperties.Name="Filter this folder, or search it and everything below"
+                      ToolTipService.ToolTip="Type to filter this folder as you type. Press Enter to search this folder and everything below it. Examples: *.mkv, type:video size:&gt;1GB, tag:red, modified:lastweek, -tag:green (Ctrl+F)"
+                      TextChanged="OnSearchTextChanged" QuerySubmitted="OnSearchQuerySubmitted" KeyDown="OnSearchKeyDown" />
       <!-- Panes (spec 6.3, 15.1): one pane, two side by side, two stacked; and the preview pane. -->
       <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0">
         <ToggleButton x:Name="PaneSingleButton" IsChecked="True" Padding="6,5" ToolTipService.ToolTip="One pane" AutomationProperties.Name="One pane" Click="OnPaneSingleClick">

@@ -30,11 +30,7 @@ public sealed partial class MainWindow
     private bool _syncingFilter;
 
     /// <inheritdoc />
-    public void FocusFilterBox() => OnUi(() =>
-    {
-        FilterBox.Focus(FocusState.Keyboard);
-        FilterBox.SelectAll();
-    });
+    public void FocusFilterBox() => FocusSearchBox();
 
     private void InitializeCommandBar()
     {
@@ -122,7 +118,7 @@ public sealed partial class MainWindow
             : "Files cannot be pasted into this location");
         NewButton.IsEnabled = _commands.CanExecute(CommandIds.NewFolder);
         var hasTab = _bound is not null;
-        ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = FilterBox.IsEnabled = SearchBox.IsEnabled = hasTab;
+        ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = SearchBox.IsEnabled = hasTab;
         RefreshContextZone();
     }
 
@@ -423,65 +419,15 @@ public sealed partial class MainWindow
         menu.Items.Add(item);
     }
 
-    // Filter box -------------------------------------------------------------------------------------------------------
-
-    private void OnFilterTextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_syncingFilter)
-        {
-            return;
-        }
-
-        // Filtering re-sorts the folder on the UI thread, so wait until typing pauses (spec §3.2).
-        _filterTimer ??= CreateFilterTimer();
-        _filterTimer.Stop();
-        _filterTimer.Start();
-    }
+    // Filter half of the search box ------------------------------------------------------------------------------------
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateFilterTimer()
     {
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = FilterDelay;
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => Run(CommandIds.FilterSet, FilterBox.Text);
+        timer.Tick += (_, _) => Run(CommandIds.FilterSet, SearchBox.Text);
         return timer;
-    }
-
-    private void OnFilterKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key == VirtualKey.Escape)
-        {
-            e.Handled = true;
-            FilterBox.Text = string.Empty;
-            _filterTimer?.Stop();
-            Run(CommandIds.FilterSet, string.Empty);
-            FocusFiles();
-        }
-        else if (e.Key == VirtualKey.Enter || e.Key == VirtualKey.Down)
-        {
-            e.Handled = true;
-            FocusFiles();
-        }
-    }
-
-    /// <summary>Shows the bound tab's filter in the box (a tab keeps its own; navigating clears it).</summary>
-    private void SyncFilterBox()
-    {
-        var text = _bound?.FilterText ?? string.Empty;
-        if (FilterBox.Text == text)
-        {
-            return;
-        }
-
-        _syncingFilter = true;
-        try
-        {
-            FilterBox.Text = text;
-        }
-        finally
-        {
-            _syncingFilter = false;
-        }
     }
 
     /// <summary>True while a text box has the keyboard, so Ctrl+A and the clipboard keys edit text instead of selecting rows.</summary>

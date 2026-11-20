@@ -62,7 +62,7 @@ public sealed class SearchAndSpaceMapTests : IAsyncLifetime
     public async Task Search_CtrlF_TypeAWord_Enter_ShowsTheMatchesInTheSameTab()
     {
         _app = await AppSession.StartAsync($$"""{ "General": { "NewTabLocation": "{{Json(_folder)}}" } }""");
-        var box = _app.Get("Search this folder and below");
+        var box = _app.Get("Filter this folder, or search it and everything below");
         var before = _app.TabCount();
         Assert.True(Native.IsForeground(_app.Window), "the app must be the window in front before keys are sent");
 

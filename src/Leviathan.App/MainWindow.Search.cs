@@ -134,8 +134,30 @@ public sealed partial class MainWindow
         new SpaceMapWindow(host.SpaceScanner, folder, actions).Activate();
     });
 
+    // Typing filters the folder shown; the filter waits for a pause in the typing (spec §3.2). Search results are a list of their own: typing there
+    // changes nothing until Enter runs a new search.
+    private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (_syncingFilter || args.Reason != AutoSuggestionBoxTextChangeReason.UserInput || ShowsSearchResults())
+        {
+            return;
+        }
+
+        _filterTimer ??= CreateFilterTimer();
+        _filterTimer.Stop();
+        _filterTimer.Start();
+    }
+
+    // Enter, or a click on the magnifier: search this folder and everything below it. The text typed so far was only a filter, so it is cleared first.
     private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
+        _filterTimer?.Stop();
+        if (string.IsNullOrWhiteSpace(args.QueryText))
+        {
+            FocusFiles();
+            return;
+        }
+
         Run(CommandIds.SearchRun, args.QueryText);
         FocusFiles();
     }
@@ -145,22 +167,51 @@ public sealed partial class MainWindow
         if (e.Key == VirtualKey.Escape)
         {
             e.Handled = true;
-            SyncSearchBox();
+            _filterTimer?.Stop();
+            if (ShowsSearchResults())
+            {
+                SyncSearchBox();
+            }
+            else
+            {
+                SearchBox.Text = string.Empty;
+                Run(CommandIds.FilterSet, string.Empty);
+            }
+
+            FocusFiles();
+        }
+        else if (e.Key == VirtualKey.Down && !ShowsSearchResults())
+        {
+            e.Handled = true;
             FocusFiles();
         }
     }
 
-    /// <summary>Shows the query of the bound tab when it shows search results, and an empty box otherwise.</summary>
+    private bool ShowsSearchResults() => _bound is { } tab && SearchLocations.TryRead(tab.History.Current) is not null;
+
+    /// <summary>
+    /// Shows what the bound tab holds in the one box: the query while it lists search results, else its filter (a tab keeps its own; navigating clears it).
+    /// </summary>
     private void SyncSearchBox()
     {
-        var text = _bound is { } tab && SearchLocations.TryRead(tab.History.Current) is { } request ? request.QueryText : string.Empty;
+        var text = _bound is { } tab && SearchLocations.TryRead(tab.History.Current) is { } request ? request.QueryText : _bound?.FilterText ?? string.Empty;
         if (SearchBox.Text == text)
         {
             return;
         }
 
-        SearchBox.Text = text;
+        _syncingFilter = true;
+        try
+        {
+            SearchBox.Text = text;
+        }
+        finally
+        {
+            _syncingFilter = false;
+        }
     }
+
+    private void SyncFilterBox() => SyncSearchBox();
 
     // Raised on a pool thread after every batch of results.
     private void OnSearchReported(SearchReport report) => OnUi(() =>
