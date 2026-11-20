@@ -21,6 +21,8 @@ public sealed partial class MainWindow
             root.Loaded += (s, _) => icons.SetDark(((FrameworkElement)s).ActualTheme == ElementTheme.Dark);
         }
 
+        PaneNav1.BindIcons();
+        PaneNav2.BindIcons();
         Icons.Bind(BackButton, static (b, i) => b.Content = i, "back");
         Icons.Bind(ForwardButton, static (b, i) => b.Content = i, "forward");
         Icons.Bind(UpButton, static (b, i) => b.Content = i, "up");
@@ -53,6 +55,8 @@ public sealed partial class MainWindow
         Sidebar.ItemsSource = null;
         Sidebar.ItemsSource = _sidebar.Rows;
         Address.RefreshIcons();
+        PaneNav1.AddressBox.RefreshIcons();
+        PaneNav2.AddressBox.RefreshIcons();
         FileList.RefreshIcons();
         FlowList.RefreshIcons();
         FileList2.RefreshIcons();

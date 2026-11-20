@@ -166,7 +166,7 @@
     <local:ActivityStrip x:Name="Strip" Grid.Row="2" />
 
     <!-- Row 3: navigation row (spec 4, 5): back, forward, up, reload and the address bar. -->
-    <Grid Grid.Row="3" Padding="8,0,8,6" ColumnSpacing="4">
+    <Grid x:Name="NavRow" Grid.Row="3" Padding="8,0,8,6" ColumnSpacing="4">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
@@ -299,10 +299,13 @@
         <Grid x:Name="Pane1">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <local:PaneHeader x:Name="Header1" />
-        <Grid x:Name="Pane1Body" Grid.Row="1">
+        <!-- Only while the tab is split: the one window-level bar above serves a single pane. -->
+        <local:PaneNavBar x:Name="PaneNav1" Visibility="Collapsed" />
+        <local:PaneHeader x:Name="Header1" Grid.Row="1" />
+        <Grid x:Name="Pane1Body" Grid.Row="2">
         <local:DetailsGrid x:Name="FileList" />
         <local:FlowView x:Name="FlowList" Visibility="Collapsed" />
 
@@ -316,7 +319,7 @@
           <Button x:Name="SignInButton" Content="Sign in…" HorizontalAlignment="Center" Click="OnSignInClick" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
         </Grid>
-        <Border x:Name="Pane1Frame" Grid.RowSpan="2" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+        <Border x:Name="Pane1Frame" Grid.RowSpan="3" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
 
         <Border x:Name="PaneGap" Visibility="Collapsed" />
@@ -324,10 +327,12 @@
         <Grid x:Name="Pane2" Visibility="Collapsed">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
-          <local:PaneHeader x:Name="Header2" />
-          <Grid x:Name="Pane2Body" Grid.Row="1">
+          <local:PaneNavBar x:Name="PaneNav2" />
+          <local:PaneHeader x:Name="Header2" Grid.Row="1" />
+          <Grid x:Name="Pane2Body" Grid.Row="2">
           <local:DetailsGrid x:Name="FileList2" />
           <local:FlowView x:Name="FlowList2" Visibility="Collapsed" />
           <StackPanel x:Name="StatePanel2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" Margin="0,40,0,0" Visibility="Collapsed">
@@ -337,7 +342,7 @@
             <Button x:Name="Retry2Button" Content="Try again" HorizontalAlignment="Center" Click="OnRetry2Click" Visibility="Collapsed" />
           </StackPanel>
           </Grid>
-          <Border x:Name="Pane2Frame" Grid.RowSpan="2" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+          <Border x:Name="Pane2Frame" Grid.RowSpan="3" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
         </Grid>
       </Grid>

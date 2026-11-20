@@ -14,15 +14,23 @@ public sealed partial class MainWindow
 {
     private void UpdateFavoriteStar()
     {
-        if (_bound is not { } tab)
+        var strip = _viewModel.Tabs.Selected;
+        SetStar(Address, _bound);
+        SetStar(PaneNav1.AddressBox, strip);
+        SetStar(PaneNav2.AddressBox, strip?.Secondary);
+    }
+
+    private static void SetStar(AddressBar bar, Leviathan.ViewModels.Tabs.TabViewModel? tab)
+    {
+        if (tab is null)
         {
-            Address.SetFavorite(false);
+            bar.SetFavorite(false);
             return;
         }
 
         var here = tab.History.Current;
         var favorite = App.Host.Favorites.Items.FirstOrDefault(f => f.Location == here);
-        Address.SetFavorite(favorite is not null, FavoriteStyles.GlyphOf(favorite?.Icon), favorite?.Color);
+        bar.SetFavorite(favorite is not null, FavoriteStyles.GlyphOf(favorite?.Icon), favorite?.Color);
     }
 
     private void OnAddressFavoriteMenu(object? sender, RightTappedRoutedEventArgs e)
@@ -79,6 +87,7 @@ public sealed partial class MainWindow
             menu.Items.Add(remove);
         }
 
-        menu.ShowAt(Address, e.GetPosition(Address));
+        var bar = sender as FrameworkElement ?? Address;
+        menu.ShowAt(bar, e.GetPosition(bar));
     }
 }

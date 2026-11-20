@@ -404,7 +404,19 @@ public sealed partial class MainWindow
 
     private void AlignStrip()
     {
-        if (Address.ActualWidth <= 0 || Root.ActualWidth <= 0)
+        if (Root.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        // While the tab is split there is no window-level address bar to line up with: the strip spans the window.
+        if (NavRow.Visibility == Visibility.Collapsed)
+        {
+            Strip.Margin = new Thickness(8, 2, 8, 2);
+            return;
+        }
+
+        if (Address.ActualWidth <= 0)
         {
             return;
         }

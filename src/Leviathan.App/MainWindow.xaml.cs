@@ -92,6 +92,8 @@ public sealed partial class MainWindow : Window, IShellActions
         Closed += OnClosed;
         OpenSpaceMapFromEnvironment();
         Address.Attach(host.AddressBar);
+        PaneNav1.AddressBox.Attach(host.AddressBar);
+        PaneNav2.AddressBox.Attach(host.AddressBar);
         using (UiTrace.Begin("ctor: chrome icons"))
         {
             BindChromeIcons();
@@ -146,6 +148,22 @@ public sealed partial class MainWindow : Window, IShellActions
         Address.NavigationRequested += OnAddressNavigation;
         Address.DropRequested += OnItemsDropped;
         Address.EditEnded += OnAddressEditEnded;
+        foreach (var bar in new[] { PaneNav1, PaneNav2 })
+        {
+            // A touched pane has the focus before any of these run (InitPanes), so the window's handlers act on this pane.
+            bar.BackClick += OnBackClick;
+            bar.ForwardClick += OnForwardClick;
+            bar.UpClick += OnUpClick;
+            bar.ReloadClick += OnReloadClick;
+            var box = bar.AddressBox;
+            box.FavoriteToggleRequested += (_, _) => Run(CommandIds.FavoriteToggle);
+            box.FavoriteMenuRequested += OnAddressFavoriteMenu;
+            box.Submitted += OnAddressSubmitted;
+            box.NavigationRequested += OnAddressNavigation;
+            box.DropRequested += OnItemsDropped;
+            box.EditEnded += OnAddressEditEnded;
+        }
+
         host.CloudFoldersChanged += OnCloudFoldersChanged;
         TabsView.Loaded += (_, _) => UpdateTitleBarRegions();
         TabsView.LayoutUpdated += OnTabsLayoutUpdated;
@@ -172,7 +190,13 @@ public sealed partial class MainWindow : Window, IShellActions
     }
 
     /// <inheritdoc />
-    public void FocusAddressBar() => OnUi(() => Address.BeginEdit());
+    public void FocusAddressBar() => OnUi(() => ActiveAddressBar().BeginEdit());
+
+    // Ctrl+L and friends edit the address of the pane that has the focus: its own bar while the tab is split, else the window-level one.
+    private AddressBar ActiveAddressBar() =>
+        _viewModel.Tabs.Selected is { IsSplit: true } tab
+            ? (tab.FocusedPane == 1 ? PaneNav2.AddressBox : PaneNav1.AddressBox)
+            : Address;
 
     /// <inheritdoc />
     public void OpenContactSheet(FileEntry video) => OnUi(() => new ContactSheetWindow(video, App.Host.SheetClient).Activate());
@@ -261,6 +285,7 @@ public sealed partial class MainWindow : Window, IShellActions
         ForwardButton.IsEnabled = _commands.CanExecute(CommandIds.NavForward);
         UpButton.IsEnabled = _commands.CanExecute(CommandIds.NavUp);
         ReloadButton.IsEnabled = _commands.CanExecute(CommandIds.NavReload);
+        UpdatePaneNavButtons();
         RefreshCommandBar();
     }
 
@@ -436,6 +461,8 @@ public sealed partial class MainWindow : Window, IShellActions
     private void OnCloudFoldersChanged(object? sender, EventArgs e) => OnUi(() =>
     {
         Address.RefreshStatus();
+        PaneNav1.AddressBox.RefreshStatus();
+        PaneNav2.AddressBox.RefreshStatus();
         RebuildSidebar();
     });
 

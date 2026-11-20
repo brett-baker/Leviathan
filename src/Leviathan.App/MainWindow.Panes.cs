@@ -85,6 +85,8 @@ public sealed partial class MainWindow
     {
         UpdateState();
         UpdateHeaders();
+        UpdatePaneNavButtons();
+        UpdateFavoriteStar();
     });
 
     // A count arrived for a folder of either pane: its header says it.
@@ -113,6 +115,7 @@ public sealed partial class MainWindow
 
         BindPaneViews(strip);
         LayoutPanes(strip);
+        BindPaneBars(strip);
         BindTab(strip?.Focused);
         ApplyLayout();
         UpdatePaneButtons();
@@ -155,6 +158,30 @@ public sealed partial class MainWindow
             }
         }
     }
+
+    // A split tab gives every pane its own navigation buttons and address bar; a single pane uses the window-level row.
+    private void BindPaneBars(TabViewModel? strip)
+    {
+        var split = strip?.IsSplit == true;
+        NavRow.Visibility = split ? Visibility.Collapsed : Visibility.Visible;
+        PaneNav1.Visibility = split ? Visibility.Visible : Visibility.Collapsed;
+        PaneNav1.AddressBox.Bind(split ? strip : null);
+        PaneNav2.AddressBox.Bind(split ? strip!.Secondary : null);
+        UpdatePaneNavButtons();
+        UpdateFavoriteStar();
+        AlignStrip();
+    }
+
+    // Each pane's buttons are enabled by that pane's own history, not by the focused pane's.
+    private void UpdatePaneNavButtons()
+    {
+        var strip = _viewModel.Tabs.Selected;
+        SetNavButtons(PaneNav1, strip);
+        SetNavButtons(PaneNav2, strip?.Secondary);
+    }
+
+    private static void SetNavButtons(PaneNavBar bar, TabViewModel? pane) =>
+        bar.SetEnabled(pane?.History.CanGoBack == true, pane?.History.CanGoForward == true, pane?.History.CanGoUp == true, pane is not null);
 
     private async Task ListPaneAsync(TabViewModel pane)
     {
