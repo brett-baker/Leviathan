@@ -316,7 +316,8 @@ public sealed partial class AddressBar : UserControl
 
     private Button CrumbButton(Breadcrumb crumb)
     {
-        var button = SubtleButton(new TextBlock { Text = crumb.Label.TrimEnd('\\'), TextTrimming = TextTrimming.CharacterEllipsis }, new Thickness(8, 0, 8, 0));
+        var label = new TextBlock { Text = crumb.Label.TrimEnd('\\'), TextTrimming = TextTrimming.CharacterEllipsis };
+        var button = SubtleButton(label, new Thickness(8, 0, 8, 0));
         ToolTipService.SetToolTip(button, crumb.Location.Value);
         button.Click += (_, _) => NavigationRequested?.Invoke(this, new AddressNavigation(crumb.Location, KeyTranslator.IsDown(VirtualKey.Control)));
         button.PointerPressed += (_, e) =>
@@ -330,6 +331,7 @@ public sealed partial class AddressBar : UserControl
 
         // Drag files onto a segment to copy or move them there (spec §5.2).
         var normal = button.Background;
+        ShowsHover(button, label, normal);
         button.AllowDrop = true;
         button.DragOver += (_, e) =>
         {
@@ -368,6 +370,29 @@ public sealed partial class AddressBar : UserControl
         return button;
     }
 
+    // A segment you can click says so when the pointer is over it: a soft fill and an underline (the theme's own hover is too faint on the address box).
+    private static void ShowsHover(Button button, TextBlock? label, Brush normal)
+    {
+        button.PointerEntered += (_, _) =>
+        {
+            button.Background = HoverFill;
+            if (label is not null)
+            {
+                label.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+            }
+        };
+        button.PointerExited += (_, _) =>
+        {
+            button.Background = normal;
+            if (label is not null)
+            {
+                label.TextDecorations = Windows.UI.Text.TextDecorations.None;
+            }
+        };
+    }
+
+    private static Brush HoverFill { get; } = new SolidColorBrush(Windows.UI.Color.FromArgb(0x38, 0x80, 0x80, 0x80));
+
     private static Brush DropHighlight =>
         Application.Current.Resources.TryGetValue("SystemAccentColor", out var value) && value is Windows.UI.Color accent
             ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x70, accent.R, accent.G, accent.B))
@@ -376,6 +401,7 @@ public sealed partial class AddressBar : UserControl
     private Button ChevronButton(Breadcrumb crumb)
     {
         var button = SubtleButton(Icons.OfGlyph("", 9), new Thickness(5, 0, 5, 0));
+        ShowsHover(button, null, button.Background);
         ToolTipService.SetToolTip(button, "Folders in " + crumb.Label.TrimEnd('\\'));
         AutomationProperties.SetName(button, "Folders in " + crumb.Label.TrimEnd('\\'));
         button.Click += (_, _) => ShowSubfolders(crumb.Location, button);

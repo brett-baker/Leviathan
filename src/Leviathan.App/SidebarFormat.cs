@@ -72,7 +72,7 @@ internal static class SidebarFormat
     public static Visibility IsItem(SidebarNodeKind kind) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder);
 
     /// <summary>Rows with an icon: places and folders, and section headings that were given one.</summary>
-    public static Visibility HasIcon(SidebarNodeKind kind, string? glyph) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder || (kind == SidebarNodeKind.Section && !string.IsNullOrEmpty(glyph)));
+    public static Visibility HasIcon(SidebarNodeKind kind, string? glyph) => Show(kind is SidebarNodeKind.Place or SidebarNodeKind.Folder || (kind is SidebarNodeKind.Section or SidebarNodeKind.Group && !string.IsNullOrEmpty(glyph)));
 
     /// <summary>The dot beside a server's icon shows for servers only (spec 7.1).</summary>
     public static Visibility HasHealth(Core.Resilience.ShareHealth? health) => Show(health is not null);

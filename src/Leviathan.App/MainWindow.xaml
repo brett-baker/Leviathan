@@ -60,9 +60,8 @@
                   IsDynamicOverflowEnabled="True" OverflowButtonVisibility="Auto">
         <AppBarElementContainer VerticalContentAlignment="Center">
           <DropDownButton x:Name="NewButton" AutomationProperties.Name="New" ToolTipService.ToolTip="New (Ctrl+Shift+N creates a folder)">
-            <StackPanel x:Name="NewContent" Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE710;" FontSize="14" />
-              <TextBlock Text="New" />
+            <StackPanel x:Name="NewContent" Orientation="Horizontal" Spacing="0">
+              <FontIcon Glyph="&#xE710;" FontSize="16" Foreground="#107C10" />
             </StackPanel>
             <DropDownButton.Flyout>
               <MenuFlyout x:Name="NewMenu" Opening="OnNewMenuOpening" />
@@ -122,18 +121,30 @@
         <ToggleButton x:Name="PaneSingleButton" IsChecked="True" Padding="6,5" ToolTipService.ToolTip="One pane" AutomationProperties.Name="One pane" Click="OnPaneSingleClick">
           <Border Width="16" Height="12" BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
         </ToggleButton>
-        <ToggleButton x:Name="PaneSideButton" Padding="6,5" Click="OnPaneSideClick" ToolTipService.ToolTip="Split side by side (Ctrl+\)" AutomationProperties.Name="Split side by side">
-          <Grid Width="16" Height="12">
-            <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
-            <Border Width="1.5" HorizontalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
-          </Grid>
-        </ToggleButton>
-        <ToggleButton x:Name="PaneStackedButton" Padding="6,5" Click="OnPaneStackedClick" ToolTipService.ToolTip="Split top and bottom (Ctrl+Shift+\)" AutomationProperties.Name="Split top and bottom">
-          <Grid Width="16" Height="12">
-            <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
-            <Border Height="1.5" VerticalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
-          </Grid>
-        </ToggleButton>
+        <!-- The split button shows the orientation in use (side by side until the tab is split top and bottom); its arrow offers the other one. -->
+        <StackPanel Orientation="Horizontal" Spacing="0">
+          <ToggleButton x:Name="PaneSideButton" Padding="6,5" Click="OnPaneSideClick" ToolTipService.ToolTip="Split side by side (Ctrl+\)" AutomationProperties.Name="Split the panes">
+            <Grid Width="16" Height="12">
+              <Grid x:Name="PaneSideGlyph">
+                <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Border Width="1.5" HorizontalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+              </Grid>
+              <Grid x:Name="PaneStackedGlyph" Visibility="Collapsed">
+                <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Border Height="1.5" VerticalAlignment="Center" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+              </Grid>
+            </Grid>
+          </ToggleButton>
+          <Button x:Name="PaneMoreButton" Padding="2,5" MinWidth="0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Other split layouts" AutomationProperties.Name="Other split layouts">
+            <FontIcon Glyph="&#xE70D;" FontSize="9" />
+            <Button.Flyout>
+              <MenuFlyout x:Name="PaneMenu">
+                <MenuFlyoutItem x:Name="PaneSideItem" Text="Side by side" KeyboardAcceleratorTextOverride="Ctrl+\" Click="OnPaneSideItemClick" />
+                <MenuFlyoutItem x:Name="PaneStackedItem" Text="Top and bottom" KeyboardAcceleratorTextOverride="Ctrl+Shift+\" Click="OnPaneStackedItemClick" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
         <ToggleButton x:Name="PreviewToggle" IsChecked="True" Padding="6,5" Click="OnPreviewToggleClick" ToolTipService.ToolTip="Preview pane (Alt+P)" AutomationProperties.Name="Preview pane">
           <Grid Width="16" Height="12">
             <Border BorderThickness="1.5" CornerRadius="2" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" />

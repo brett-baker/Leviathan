@@ -106,7 +106,14 @@ public sealed record SidebarPlace(string Title, LocationPath Location, SidebarIc
 /// <param name="Title">Heading.</param>
 /// <param name="Places">Entries; may change later through <see cref="SidebarTree.UpdateGroupAsync"/>.</param>
 /// <param name="EmptyText">Shown when there are no entries.</param>
-public sealed record SidebarGroup(string Title, IReadOnlyList<SidebarPlace> Places, string EmptyText);
+public sealed record SidebarGroup(string Title, IReadOnlyList<SidebarPlace> Places, string EmptyText)
+{
+    /// <summary>Icon character shown beside the heading, or null for none.</summary>
+    public string? Glyph { get; init; }
+
+    /// <summary>The icon's colour as <c>#RRGGBB</c>, or null for the text colour.</summary>
+    public string? Accent { get; init; }
+}
 
 /// <summary>A section and its entries.</summary>
 /// <param name="Title">Header text.</param>
@@ -122,6 +129,9 @@ public sealed record SidebarSection(string Title, IReadOnlyList<SidebarPlace> Pl
 
     /// <summary>Icon character shown beside the heading, or null for none.</summary>
     public string? Glyph { get; init; }
+
+    /// <summary>The heading icon's colour as <c>#RRGGBB</c>, or null for the text colour.</summary>
+    public string? Accent { get; init; }
 
     /// <summary>True when the section starts folded (its places are one click away).</summary>
     public bool StartCollapsed { get; init; }
@@ -275,7 +285,7 @@ public sealed class SidebarTree
                 continue;
             }
 
-            var header = new SidebarNode(SidebarNodeKind.Section, section.Title) { IsExpanded = wasFolded.Contains(section.Title) ? false : wasOpen.Contains(section.Title) || !section.StartCollapsed, CanExpand = true, Glyph = section.Glyph };
+            var header = new SidebarNode(SidebarNodeKind.Section, section.Title) { IsExpanded = wasFolded.Contains(section.Title) ? false : wasOpen.Contains(section.Title) || !section.StartCollapsed, CanExpand = true, Glyph = section.Glyph, Accent = section.Accent };
             if (section.Places.Count == 0 && section.Groups.Count == 0)
             {
                 AddChild(header, new SidebarNode(SidebarNodeKind.Message, section.EmptyText!));
@@ -288,7 +298,7 @@ public sealed class SidebarTree
 
             foreach (var group in section.Groups)
             {
-                var node = new SidebarNode(SidebarNodeKind.Group, group.Title) { CanExpand = true, IsLoaded = true };
+                var node = new SidebarNode(SidebarNodeKind.Group, group.Title) { CanExpand = true, IsLoaded = true, Glyph = group.Glyph, Accent = group.Accent };
                 AddChild(header, node);
                 FillGroup(node, group, healthOf);
             }

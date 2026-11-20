@@ -240,8 +240,10 @@ public sealed partial class MainWindow
     {
         var layout = _viewModel.Tabs.Selected is { IsSplit: true } tab ? tab.Panes : PaneLayout.Single;
         PaneSingleButton.IsChecked = layout == PaneLayout.Single;
-        PaneSideButton.IsChecked = layout == PaneLayout.SideBySide;
-        PaneStackedButton.IsChecked = layout == PaneLayout.TopBottom;
+        PaneSideButton.IsChecked = layout != PaneLayout.Single;
+        PaneSideGlyph.Visibility = layout == PaneLayout.TopBottom ? Visibility.Collapsed : Visibility.Visible;
+        PaneStackedGlyph.Visibility = layout == PaneLayout.TopBottom ? Visibility.Visible : Visibility.Collapsed;
+        ToolTipService.SetToolTip(PaneSideButton, layout == PaneLayout.TopBottom ? @"Split top and bottom (Ctrl+Shift+\)" : @"Split side by side (Ctrl+\)");
     }
 
     // A thin accent frame on the pane that has the focus, only while there are two panes.

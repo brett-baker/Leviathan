@@ -85,9 +85,23 @@ public sealed partial class MainWindow
 
     private void OnPaneSingleClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneSingle);
 
-    private void OnPaneSideClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneSideBySide);
+    // The split button works on the orientation it shows: the tab's own while split, else side by side.
+    private void OnPaneSideClick(object sender, RoutedEventArgs e) =>
+        RunPaneCommand(_viewModel.Tabs.Selected is { IsSplit: true, Panes: ViewModels.Tabs.PaneLayout.TopBottom } ? CommandIds.PaneTopBottom : CommandIds.PaneSideBySide);
 
-    private void OnPaneStackedClick(object sender, RoutedEventArgs e) => RunPaneCommand(CommandIds.PaneTopBottom);
+    // Choosing the layout the tab already has leaves it alone (the toggle command would close the split).
+    private void OnPaneSideItemClick(object sender, RoutedEventArgs e) => ChoosePaneLayout(ViewModels.Tabs.PaneLayout.SideBySide, CommandIds.PaneSideBySide);
+
+    private void OnPaneStackedItemClick(object sender, RoutedEventArgs e) => ChoosePaneLayout(ViewModels.Tabs.PaneLayout.TopBottom, CommandIds.PaneTopBottom);
+
+    private void ChoosePaneLayout(ViewModels.Tabs.PaneLayout wanted, CommandId command)
+    {
+        var current = _viewModel.Tabs.Selected is { IsSplit: true } tab ? tab.Panes : ViewModels.Tabs.PaneLayout.Single;
+        if (current != wanted)
+        {
+            RunPaneCommand(command);
+        }
+    }
 
     // Enabled state ----------------------------------------------------------------------------------------------------
 

@@ -190,8 +190,8 @@ public static class SidebarSections
         [
             new SidebarSection("Favorites", [.. favorites.Select(FavoritePlace)]) { Glyph = "\uE734", Groups = SyncPairGroup(syncPairs) },
             new SidebarSection("Common folders", [.. common.OrderBy(CommonOrder)]) { Glyph = "\uE8B7" },
-            new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags") { Glyph = "\uE8EC", StartCollapsed = true },
-            new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uEDA2" },
+            new SidebarSection("Tags", [.. (tags ?? []).Select(t => new SidebarPlace(t.Name, Tags.TagLocations.For(t.Id), SidebarIcon.Folder) { Glyph = "", Accent = t.Colour, IsLeaf = true })], "No tags") { Glyph = "\uE8EC", Accent = Icons.IconCatalog.Purple, StartCollapsed = true },
+            new SidebarSection("Local", [.. driveList.Where(d => d.Kind != DriveKind.Network).Select(DrivePlace)]) { Glyph = "\uE977", Accent = Icons.IconCatalog.Teal },
             new SidebarSection(
                 "Network",
                 [.. saved.Select(ServerPlace), .. (remote ?? []).Select(RemotePlace), .. driveList.Where(d => d.Kind == DriveKind.Network).Select(DrivePlace)],
@@ -199,7 +199,8 @@ public static class SidebarSections
             {
                 Groups = [NearbyGroup(nearby, saved, searching)],
                 ActionTitle = "Add connection…",
-                Glyph = "\uE839",
+                Glyph = "\uE968",
+                Accent = Icons.IconCatalog.Blue,
             },
             new SidebarSection("Internet", [.. cloud.Select(c => new SidebarPlace(c.Name, c.SyncFolder, SidebarIcon.Cloud, SyncText(cloudStates?.GetValueOrDefault(c) ?? CloudSyncState.Unknown)))]) { Glyph = "\uE753" },
         ];
@@ -229,7 +230,7 @@ public static class SidebarSections
             .OrderBy(d => d.Title, StringComparer.OrdinalIgnoreCase)
             .Select(d => new SidebarPlace(d.Title, LocationPath.Parse(@"\\" + SavedConnectionList.Normalize(d.Host)), SidebarIcon.Server, d.Host) { Server = SavedConnectionList.Normalize(d.Host) })
             .ToList();
-        return new SidebarGroup(NearbyTitle, places, searching ? "Searching…" : "No devices found");
+        return new SidebarGroup(NearbyTitle, places, searching ? "Searching…" : "No devices found") { Glyph = "\uEB44", Accent = Icons.IconCatalog.Orange };
     }
 
     // Desktop, Documents, Downloads, Pictures, Videos, Music, then the user's home folder (Brett's order, 2026-11-10; Downloads was not
