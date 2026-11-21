@@ -979,7 +979,7 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         var host = App.Host;
         _sidebarTags = string.Join('|', host.Settings.Current.Tags.Catalog().Tags.Select(t => $"{t.Id}:{t.Name}:{t.Colour}"));
-        _sidebar.SetSections(SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags, host.RemoteConnections.Items, host.CloudStates, host.SyncPairs.Items), HealthOfServer);
+        _sidebar.SetSections(SidebarTabs.Filter(_sidebarTab, SidebarSections.Build(host.Favorites.Items, _commonPlaces, _drives, host.CloudProviders, host.SavedServers.Items, host.Nearby.Devices, host.Nearby.IsSearching, host.Settings.Current.Tags.Catalog().Tags, host.RemoteConnections.Items, host.CloudStates, host.SyncPairs.Items)), HealthOfServer);
         SyncSidebar();
         UpdateStatus();
     }

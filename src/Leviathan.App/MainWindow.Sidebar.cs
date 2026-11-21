@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Leviathan.ViewModels.Commands;
+using Leviathan.ViewModels.Sidebar;
 using Leviathan.ViewModels.Windows;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -39,6 +40,27 @@ public sealed partial class MainWindow
         ApplySidebar();
     }
 
+    private SidebarTab _sidebarTab = SidebarTab.Files;
+
+    private void OnFilesTabClick(object sender, RoutedEventArgs e) => ChooseSidebarTab(SidebarTab.Files);
+
+    private void OnFavoritesTabClick(object sender, RoutedEventArgs e) => ChooseSidebarTab(SidebarTab.Favorites);
+
+    // The tab under the tree decides which sections the tree shows (spec §7); the same tab again just stays checked.
+    private void ChooseSidebarTab(SidebarTab tab)
+    {
+        FilesTabButton.IsChecked = tab == SidebarTab.Files;
+        FavoritesTabButton.IsChecked = tab == SidebarTab.Favorites;
+        if (_sidebarTab == tab)
+        {
+            return;
+        }
+
+        _sidebarTab = tab;
+        App.Actions.Record("sidebar.tab", tab.ToString());
+        RebuildSidebar();
+    }
+
     private double WindowWidth() => Content is FrameworkElement { ActualWidth: > 0 } root ? root.ActualWidth : SidebarLayout.MaxWidth * 2;
 
     private void OnSidebarPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -53,7 +75,7 @@ public sealed partial class MainWindow
     {
         var collapsed = _viewModel.SidebarCollapsed;
         SidebarColumn.Width = new GridLength(collapsed ? 0 : SidebarLayout.Clamp(_viewModel.SidebarWidth, WindowWidth()));
-        Sidebar.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        SidebarColumnHost.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
         ToolTipService.SetToolTip(SidebarGrip, collapsed ? "Double-click or drag to show the sidebar (Ctrl+B)" : "Drag to resize the sidebar. Double-click to hide it (Ctrl+B).");
     }
 }

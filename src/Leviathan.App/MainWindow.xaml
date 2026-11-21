@@ -232,6 +232,7 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
       <ListView x:Name="Sidebar"
                 Grid.Row="0"
@@ -297,7 +298,27 @@
       </ListView>
 
         <!-- Under the tree (spec 4, 16.1): the jobs running now, a failed job, the UI-stall count and the status hub arrow. -->
-        <Grid x:Name="SidebarBar" Grid.Row="1" Padding="8,2" ColumnSpacing="4">
+        <!-- Tabs under the tree (spec 7): Files is the tree; Favorites is just the pinned folders. -->
+        <Grid x:Name="SidebarTabBar" Grid.Row="1" Padding="8,2" ColumnSpacing="4">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <ToggleButton x:Name="FilesTabButton" IsChecked="True" HorizontalAlignment="Stretch" Padding="6,3" Click="OnFilesTabClick" AutomationProperties.Name="Files tab" ToolTipService.ToolTip="Drives, folders, network and cloud">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <FontIcon Glyph="&#xE8B7;" FontSize="13" />
+              <TextBlock Text="Files" Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+          </ToggleButton>
+          <ToggleButton x:Name="FavoritesTabButton" Grid.Column="1" HorizontalAlignment="Stretch" Padding="6,3" Click="OnFavoritesTabClick" AutomationProperties.Name="Favorites tab" ToolTipService.ToolTip="Pinned folders and saved searches">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <FontIcon Glyph="&#xE734;" FontSize="13" />
+              <TextBlock Text="Favorites" Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+          </ToggleButton>
+        </Grid>
+
+        <Grid x:Name="SidebarBar" Grid.Row="2" Padding="8,2" ColumnSpacing="4">
           <Grid.Resources>
             <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
               <Setter Property="Background" Value="Transparent" />
