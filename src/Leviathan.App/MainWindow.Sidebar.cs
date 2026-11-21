@@ -60,14 +60,22 @@ public sealed partial class MainWindow
         RebuildSidebar();
     }
 
-    // The active tab has a line under it and a bolder label, like a tab, not a pressed button.
+    // The active tab is a tab shape that joins the panel above it (open at the top, lined on the other sides, label in the text colour); the other
+    // one is plain and grey. This is the look of Visual Studio's Solution Explorer tabs.
     private void ShowSidebarTab(SidebarTab tab)
     {
-        var files = tab == SidebarTab.Files;
-        FilesTabLine.Visibility = files ? Visibility.Visible : Visibility.Collapsed;
-        FavoritesTabLine.Visibility = files ? Visibility.Collapsed : Visibility.Visible;
-        FilesTabLabel.FontWeight = files ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-        FavoritesTabLabel.FontWeight = files ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold;
+        Style(FilesTabFrame, FilesTabLabel, tab == SidebarTab.Files);
+        Style(FavoritesTabFrame, FavoritesTabLabel, tab == SidebarTab.Favorites);
+
+        static void Style(Border frame, TextBlock label, bool active)
+        {
+            var resources = Application.Current.Resources;
+            frame.BorderThickness = active ? new Thickness(1, 0, 1, 1) : new Thickness(0);
+            frame.Background = active
+                ? (Microsoft.UI.Xaml.Media.Brush)resources["LayerFillColorDefaultBrush"]
+                : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            label.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources[active ? "TextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush"];
+        }
     }
 
     private double WindowWidth() => Content is FrameworkElement { ActualWidth: > 0 } root ? root.ActualWidth : SidebarLayout.MaxWidth * 2;

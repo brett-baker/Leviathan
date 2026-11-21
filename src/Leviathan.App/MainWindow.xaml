@@ -234,6 +234,8 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        <!-- The panel behind the tree and its tabs; the bar of jobs below stays outside it. -->
+        <Border Grid.RowSpan="2" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6" IsHitTestVisible="False" />
       <ListView x:Name="Sidebar"
                 Grid.Row="0"
                 IsItemClickEnabled="True"
@@ -299,31 +301,24 @@
 
         <!-- Under the tree (spec 4, 16.1): the jobs running now, a failed job, the UI-stall count and the status hub arrow. -->
         <!-- Tabs under the tree (spec 7): Files is the tree; Favorites is just the pinned folders. -->
-        <Grid x:Name="SidebarTabBar" Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <Grid>
-            <Button x:Name="FilesTabButton" HorizontalAlignment="Stretch" Padding="6,7,6,8" Background="Transparent" BorderThickness="0" CornerRadius="0"
-                    Click="OnFilesTabClick" AutomationProperties.Name="Files tab" ToolTipService.ToolTip="Drives, folders, network and cloud">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE8B7;" FontSize="13" />
-                <TextBlock x:Name="FilesTabLabel" Text="Files" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
-              </StackPanel>
-            </Button>
-            <Border x:Name="FilesTabLine" Height="2" VerticalAlignment="Bottom" IsHitTestVisible="False" Background="{ThemeResource AccentFillColorDefaultBrush}" />
-          </Grid>
-          <Grid Grid.Column="1">
-            <Button x:Name="FavoritesTabButton" HorizontalAlignment="Stretch" Padding="6,7,6,8" Background="Transparent" BorderThickness="0" CornerRadius="0"
-                    Click="OnFavoritesTabClick" AutomationProperties.Name="Favorites tab" ToolTipService.ToolTip="Pinned folders and saved searches">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE734;" FontSize="13" />
-                <TextBlock x:Name="FavoritesTabLabel" Text="Favorites" Style="{StaticResource CaptionTextBlockStyle}" />
-              </StackPanel>
-            </Button>
-            <Border x:Name="FavoritesTabLine" Height="2" VerticalAlignment="Bottom" IsHitTestVisible="False" Visibility="Collapsed" Background="{ThemeResource AccentFillColorDefaultBrush}" />
-          </Grid>
+        <Grid x:Name="SidebarTabBar" Grid.Row="1" Padding="6,0,6,0">
+          <!-- The line along the bottom of the panel; the active tab sits over it, open at the top, so it joins the panel above (as in Visual Studio's Solution Explorer tabs). -->
+          <Border Height="1" VerticalAlignment="Top" Background="{ThemeResource ControlStrokeColorDefaultBrush}" IsHitTestVisible="False" />
+          <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
+            <Border x:Name="FilesTabFrame" CornerRadius="0,0,4,4" BorderThickness="1,0,1,1" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}">
+              <Button x:Name="FilesTabButton" Padding="12,4,12,5" MinHeight="0" Background="Transparent" BorderThickness="0" CornerRadius="0,0,4,4"
+                      Click="OnFilesTabClick" AutomationProperties.Name="Files tab" ToolTipService.ToolTip="Drives, folders, network and cloud">
+                <TextBlock x:Name="FilesTabLabel" Text="Files" Style="{StaticResource CaptionTextBlockStyle}" />
+              </Button>
+            </Border>
+            <Border x:Name="FavoritesTabFrame" CornerRadius="0,0,4,4" BorderThickness="0" Background="Transparent">
+              <Button x:Name="FavoritesTabButton" Padding="12,4,12,5" MinHeight="0" Background="Transparent" BorderThickness="0" CornerRadius="0,0,4,4"
+                      Click="OnFavoritesTabClick" AutomationProperties.Name="Favorites tab" ToolTipService.ToolTip="Pinned folders and saved searches">
+                <TextBlock x:Name="FavoritesTabLabel" Text="Favorites" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </Button>
+            </Border>
+          </StackPanel>
         </Grid>
 
         <Grid x:Name="SidebarBar" Grid.Row="2" Padding="8,2" ColumnSpacing="4">
