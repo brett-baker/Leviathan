@@ -87,6 +87,7 @@ public sealed partial class MainWindow
         UpdateHeaders();
         UpdatePaneNavButtons();
         UpdateFavoriteStar();
+        UpdateFooters();
     });
 
     // A count arrived for a folder of either pane: its header says it.

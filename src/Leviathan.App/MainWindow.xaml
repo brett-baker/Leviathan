@@ -310,6 +310,7 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <!-- Only while the tab is split: the one window-level bar above serves a single pane. -->
         <local:PaneNavBar x:Name="PaneNav1" Visibility="Collapsed" />
@@ -328,7 +329,8 @@
           <Button x:Name="SignInButton" Content="Sign in…" HorizontalAlignment="Center" Click="OnSignInClick" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
         </StackPanel>
         </Grid>
-        <Border x:Name="Pane1Frame" Grid.RowSpan="3" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+        <local:PaneFooter x:Name="Footer1" Grid.Row="3" />
+        <Border x:Name="Pane1Frame" Grid.RowSpan="4" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
 
         <Border x:Name="PaneGap" Visibility="Collapsed" />
@@ -338,6 +340,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <local:PaneNavBar x:Name="PaneNav2" />
           <local:PaneHeader x:Name="Header2" Grid.Row="1" />
@@ -351,7 +354,8 @@
             <Button x:Name="Retry2Button" Content="Try again" HorizontalAlignment="Center" Click="OnRetry2Click" Visibility="Collapsed" />
           </StackPanel>
           </Grid>
-          <Border x:Name="Pane2Frame" Grid.RowSpan="3" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
+          <local:PaneFooter x:Name="Footer2" Grid.Row="3" />
+          <Border x:Name="Pane2Frame" Grid.RowSpan="4" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" BorderBrush="Transparent" />
         </Grid>
         </Grid>
       </Grid>
@@ -466,19 +470,7 @@
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <Button x:Name="ItemsPart" Style="{StaticResource StatusPart}" Click="OnStatusItemsClick" ToolTipService.ToolTip="Show or hide hidden items">
-        <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}" />
-      </Button>
-      <Button x:Name="SelectionPart" Grid.Column="1" Style="{StaticResource StatusPart}" Click="OnStatusSelectionClick" ToolTipService.ToolTip="Select none" Visibility="Collapsed">
-        <TextBlock x:Name="SelectionText" Style="{StaticResource CaptionTextBlockStyle}" />
-      </Button>
-      <Button x:Name="FilterPart" Grid.Column="2" Style="{StaticResource StatusPart}" Click="OnStatusFilterClick" ToolTipService.ToolTip="Clear the filter" Visibility="Collapsed">
-        <TextBlock x:Name="FilterText" Style="{StaticResource CaptionTextBlockStyle}" />
-      </Button>
       <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock x:Name="HealthText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
-
         <!-- Rows that came from the cache: shown while the real folder is checked, so it is clear they may still change (spec 3.3). -->
         <StackPanel x:Name="NoticePart" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
                     AutomationProperties.LiveSetting="Polite">
@@ -489,11 +481,6 @@
       </StackPanel>
       <TextBlock x:Name="MessageText" Grid.Column="4" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-      <StackPanel x:Name="FreePart" Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed"
-                  Tapped="OnFreeSpaceTapped" ToolTipService.ToolTip="Space map of this folder (Ctrl+Shift+O)">
-        <TextBlock x:Name="FreeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <ProgressBar AutomationProperties.Name="Free space on this drive" x:Name="FreeBar" Width="80" Height="4" Maximum="100" VerticalAlignment="Center" />
-      </StackPanel>
       <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->
         <Button x:Name="FailurePart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick" AutomationProperties.Name="A job failed">
@@ -510,19 +497,6 @@
         </Button>
         <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-      </StackPanel>
-      <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-        <Slider x:Name="SizeSlider" Width="90" Minimum="64" Maximum="512" StepFrequency="16" SmallChange="16" LargeChange="64" Visibility="Collapsed"
-                VerticalAlignment="Center" ValueChanged="OnSizeSliderChanged" AutomationProperties.Name="Thumbnail size" />
-        <Button x:Name="DetailsSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="details" ToolTipService.ToolTip="Details (Ctrl+Shift+6)" AutomationProperties.Name="Details">
-          <FontIcon Glyph="&#xE8FD;" FontSize="14" />
-        </Button>
-        <Button x:Name="ListSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="list" ToolTipService.ToolTip="List (Ctrl+Shift+5)" AutomationProperties.Name="List">
-          <FontIcon Glyph="&#xE8A9;" FontSize="14" />
-        </Button>
-        <Button x:Name="ThumbsSwitch" Style="{StaticResource StatusPart}" Click="OnLayoutSwitchClick" Tag="thumbnails" ToolTipService.ToolTip="Thumbnails (Ctrl+Shift+2)" AutomationProperties.Name="Thumbnails">
-          <FontIcon Glyph="&#xE80A;" FontSize="14" />
-        </Button>
       </StackPanel>
       <!-- The status hub (spec 16.1): the chevron opens it; the badge counts failed jobs nobody has looked at. -->
       <Grid Grid.Column="8" VerticalAlignment="Center">

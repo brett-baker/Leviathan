@@ -155,7 +155,7 @@ public sealed partial class MainWindow
         Run(CommandIds.HubToggle, parameter: HubTab.Deleted);
     }
 
-    private void OnFreeSpaceTapped(object sender, TappedRoutedEventArgs e) => Run(CommandIds.HubToggle, parameter: HubTab.Space);
+    internal void OnFreeSpaceTapped(object sender, TappedRoutedEventArgs e) => Run(CommandIds.HubToggle, parameter: HubTab.Space);
 
     private void OnHubChanged()
     {

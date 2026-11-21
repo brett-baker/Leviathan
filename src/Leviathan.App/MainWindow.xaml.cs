@@ -148,6 +148,17 @@ public sealed partial class MainWindow : Window, IShellActions
         Address.NavigationRequested += OnAddressNavigation;
         Address.DropRequested += OnItemsDropped;
         Address.EditEnded += OnAddressEditEnded;
+        foreach (var footer in new[] { Footer1, Footer2 })
+        {
+            // A touched pane has the focus before any of these run (InitPanes), so the window's handlers act on this pane.
+            footer.ItemsClick += OnStatusItemsClick;
+            footer.SelectionClick += OnStatusSelectionClick;
+            footer.FilterClick += OnStatusFilterClick;
+            footer.FreeTapped += OnFreeSpaceTapped;
+            footer.LayoutClick += OnLayoutSwitchClick;
+            footer.ThumbnailSizeChanged += OnThumbnailSizeChanged;
+        }
+
         foreach (var bar in new[] { PaneNav1, PaneNav2 })
         {
             // A touched pane has the focus before any of these run (InitPanes), so the window's handlers act on this pane.
@@ -438,15 +449,15 @@ public sealed partial class MainWindow : Window, IShellActions
                     ApplyLayout();
                 }
 
-                using (UiTrace.Begin("MainWindow.UpdateLayoutSwitch", 5))
+                using (UiTrace.Begin("MainWindow.UpdateFooters", 5))
                 {
-                    UpdateLayoutSwitch();
+                    UpdateFooters();
                 }
             });
         }
         else if (e.PropertyName == nameof(TabViewModel.ThumbnailSize))
         {
-            OnUi(UpdateLayoutSwitch);
+            OnUi(UpdateFooters);
         }
         else if (e.PropertyName == nameof(TabViewModel.FilterText))
         {
@@ -855,61 +866,45 @@ public sealed partial class MainWindow : Window, IShellActions
     {
         if (_bound is null)
         {
-            StatusText.Text = string.Empty;
-            SelectionPart.Visibility = FilterPart.Visibility = HealthText.Visibility = FreePart.Visibility = NoticePart.Visibility = Visibility.Collapsed;
+            NoticePart.Visibility = Visibility.Collapsed;
+            UpdateFooters();
             return;
         }
 
-        var items = _bound.Items;
-        StatusText.Text = StatusBarText.Items(items.TotalCount, items.FolderCount, items.HiddenCount);
-        if (App.Host.Git.SummaryFor(_bound.History.Current) is { } git)
-        {
-            StatusText.Text += "  ·  " + git;
-        }
-
-        var selection = StatusBarText.Selection(_bound.Selection.Count, _bound.Selection.SelectedBytes);
-        SelectionText.Text = selection;
-        SelectionPart.Visibility = selection.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        var filter = StatusBarText.Filter(_bound.FilterText, items.ShownCount, items.TotalCount);
-        FilterText.Text = filter;
-        FilterPart.Visibility = filter.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-
         ShowListingNotice(_bound.Folder.Notice);
-
-        var health = StatusBarText.Health(_bound.History.Current, _bound.IsOffline, LinkSpeedOf(_bound.History.Current));
-        HealthText.Text = health;
-        HealthText.Visibility = health.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        var drive = StatusBarText.DriveOf(_bound.History.Current, _drives);
-        var free = StatusBarText.FreeSpace(drive);
-        FreeText.Text = free;
-        FreeBar.Value = (drive?.UsedFraction ?? 0) * 100;
-        FreeBar.Foreground = SidebarFormat.BarBrush(drive?.IsLowOnSpace == true);
-        FreePart.Visibility = free.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        UpdateLayoutSwitch();
+        UpdateFooters();
         UpdateHeaders();
     }
 
-    private bool _syncingSlider;
-
-    /// <summary>Highlights the active layout and shows the size slider in Thumbnails.</summary>
-    private void UpdateLayoutSwitch()
+    // Every pane has its own footer (spec §8.7, §15.1): a single pane uses the first, a split tab fills both.
+    private void UpdateFooters()
     {
-        var layout = _bound?.Layout;
-        void Mark(Button button, bool on) => button.Background = on
-            ? (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"]
-            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        Mark(DetailsSwitch, layout == ViewModels.Views.ViewLayout.Details);
-        Mark(ListSwitch, layout == ViewModels.Views.ViewLayout.List);
-        Mark(ThumbsSwitch, layout == ViewModels.Views.ViewLayout.Thumbnails);
-        SizeSlider.Visibility = layout == ViewModels.Views.ViewLayout.Thumbnails ? Visibility.Visible : Visibility.Collapsed;
-        if (_bound is { } tab && Math.Abs(SizeSlider.Value - tab.ThumbnailSize) > 0.5)
+        var strip = _viewModel.Tabs.Selected;
+        Footer1.Show(strip is null ? PaneFooterState.Empty : FooterStateOf(strip));
+        Footer2.Show(strip is { IsSplit: true, Secondary: { } second } ? FooterStateOf(second) : PaneFooterState.Empty);
+    }
+
+    private PaneFooterState FooterStateOf(TabViewModel pane)
+    {
+        var items = pane.Items;
+        var count = StatusBarText.Items(items.TotalCount, items.FolderCount, items.HiddenCount);
+        if (App.Host.Git.SummaryFor(pane.History.Current) is { } git)
         {
-            _syncingSlider = true;
-            SizeSlider.Value = tab.ThumbnailSize;
-            _syncingSlider = false;
+            count += "  ·  " + git;
         }
+
+        var here = pane.History.Current;
+        var drive = StatusBarText.DriveOf(here, _drives);
+        return new PaneFooterState(
+            count,
+            StatusBarText.Selection(pane.Selection.Count, pane.Selection.SelectedBytes),
+            StatusBarText.Filter(pane.FilterText, items.ShownCount, items.TotalCount),
+            StatusBarText.Health(here, pane.IsOffline, LinkSpeedOf(here)),
+            StatusBarText.FreeSpace(drive),
+            (drive?.UsedFraction ?? 0) * 100,
+            drive?.IsLowOnSpace == true,
+            pane.Layout,
+            pane.ThumbnailSize);
     }
 
     private void OnStatusItemsClick(object sender, RoutedEventArgs e) => Run(CommandIds.ViewHidden);
@@ -925,11 +920,11 @@ public sealed partial class MainWindow : Window, IShellActions
         _ => CommandIds.ViewDetails,
     });
 
-    private void OnSizeSliderChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void OnThumbnailSizeChanged(object? sender, int size)
     {
-        if (!_syncingSlider && _bound is { Layout: ViewModels.Views.ViewLayout.Thumbnails })
+        if (_bound is { Layout: ViewModels.Views.ViewLayout.Thumbnails })
         {
-            Run(CommandIds.ViewThumbnailSize, parameter: (int)e.NewValue);
+            Run(CommandIds.ViewThumbnailSize, parameter: size);
         }
     }
 

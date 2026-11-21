@@ -37,9 +37,8 @@ public sealed partial class MainWindow
         Icons.Bind(UndoButton, static (b, i) => b.Icon = i, "undo", 20);
         Icons.Bind(RedoButton, static (b, i) => b.Icon = i, "redo", 20);
         Icons.Bind(OptionsButton, static (b, i) => b.Content = i, "settings");
-        Icons.Bind(DetailsSwitch, static (b, i) => b.Content = i, "layout-details");
-        Icons.Bind(ListSwitch, static (b, i) => b.Content = i, "layout-list");
-        Icons.Bind(ThumbsSwitch, static (b, i) => b.Content = i, "layout-thumbnails");
+        Footer1.BindIcons();
+        Footer2.BindIcons();
 
         icons.Changed += OnIconsChanged;
     }
