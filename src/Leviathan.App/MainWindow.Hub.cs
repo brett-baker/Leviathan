@@ -390,6 +390,7 @@ public sealed partial class MainWindow
         var summary = operations.Summary;
         OperationsPart.Visibility = summary.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         OperationsText.Text = summary;
+        ToolTipService.SetToolTip(OperationsPart, summary.Length == 0 ? "Show the operations (Ctrl+Shift+O)" : summary + "  (Ctrl+Shift+O)");
         OperationsSparkline.Values = operations.TotalSpeedHistory;
         var failures = operations.UnseenFailures;
         FailurePart.Visibility = failures > 0 ? Visibility.Visible : Visibility.Collapsed;

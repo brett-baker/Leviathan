@@ -49,8 +49,7 @@ public sealed partial class MainWindow
     // The tab under the tree decides which sections the tree shows (spec §7); the same tab again just stays checked.
     private void ChooseSidebarTab(SidebarTab tab)
     {
-        FilesTabButton.IsChecked = tab == SidebarTab.Files;
-        FavoritesTabButton.IsChecked = tab == SidebarTab.Favorites;
+        ShowSidebarTab(tab);
         if (_sidebarTab == tab)
         {
             return;
@@ -59,6 +58,16 @@ public sealed partial class MainWindow
         _sidebarTab = tab;
         App.Actions.Record("sidebar.tab", tab.ToString());
         RebuildSidebar();
+    }
+
+    // The active tab has a line under it and a bolder label, like a tab, not a pressed button.
+    private void ShowSidebarTab(SidebarTab tab)
+    {
+        var files = tab == SidebarTab.Files;
+        FilesTabLine.Visibility = files ? Visibility.Visible : Visibility.Collapsed;
+        FavoritesTabLine.Visibility = files ? Visibility.Collapsed : Visibility.Visible;
+        FilesTabLabel.FontWeight = files ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+        FavoritesTabLabel.FontWeight = files ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold;
     }
 
     private double WindowWidth() => Content is FrameworkElement { ActualWidth: > 0 } root ? root.ActualWidth : SidebarLayout.MaxWidth * 2;

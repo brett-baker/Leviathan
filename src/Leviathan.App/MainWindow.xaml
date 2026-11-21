@@ -299,23 +299,31 @@
 
         <!-- Under the tree (spec 4, 16.1): the jobs running now, a failed job, the UI-stall count and the status hub arrow. -->
         <!-- Tabs under the tree (spec 7): Files is the tree; Favorites is just the pinned folders. -->
-        <Grid x:Name="SidebarTabBar" Grid.Row="1" Padding="8,2" ColumnSpacing="4">
+        <Grid x:Name="SidebarTabBar" Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
-          <ToggleButton x:Name="FilesTabButton" IsChecked="True" HorizontalAlignment="Stretch" Padding="6,3" Click="OnFilesTabClick" AutomationProperties.Name="Files tab" ToolTipService.ToolTip="Drives, folders, network and cloud">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="&#xE8B7;" FontSize="13" />
-              <TextBlock Text="Files" Style="{StaticResource CaptionTextBlockStyle}" />
-            </StackPanel>
-          </ToggleButton>
-          <ToggleButton x:Name="FavoritesTabButton" Grid.Column="1" HorizontalAlignment="Stretch" Padding="6,3" Click="OnFavoritesTabClick" AutomationProperties.Name="Favorites tab" ToolTipService.ToolTip="Pinned folders and saved searches">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="&#xE734;" FontSize="13" />
-              <TextBlock Text="Favorites" Style="{StaticResource CaptionTextBlockStyle}" />
-            </StackPanel>
-          </ToggleButton>
+          <Grid>
+            <Button x:Name="FilesTabButton" HorizontalAlignment="Stretch" Padding="6,7,6,8" Background="Transparent" BorderThickness="0" CornerRadius="0"
+                    Click="OnFilesTabClick" AutomationProperties.Name="Files tab" ToolTipService.ToolTip="Drives, folders, network and cloud">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE8B7;" FontSize="13" />
+                <TextBlock x:Name="FilesTabLabel" Text="Files" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+            <Border x:Name="FilesTabLine" Height="2" VerticalAlignment="Bottom" IsHitTestVisible="False" Background="{ThemeResource AccentFillColorDefaultBrush}" />
+          </Grid>
+          <Grid Grid.Column="1">
+            <Button x:Name="FavoritesTabButton" HorizontalAlignment="Stretch" Padding="6,7,6,8" Background="Transparent" BorderThickness="0" CornerRadius="0"
+                    Click="OnFavoritesTabClick" AutomationProperties.Name="Favorites tab" ToolTipService.ToolTip="Pinned folders and saved searches">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE734;" FontSize="13" />
+                <TextBlock x:Name="FavoritesTabLabel" Text="Favorites" Style="{StaticResource CaptionTextBlockStyle}" />
+              </StackPanel>
+            </Button>
+            <Border x:Name="FavoritesTabLine" Height="2" VerticalAlignment="Bottom" IsHitTestVisible="False" Visibility="Collapsed" Background="{ThemeResource AccentFillColorDefaultBrush}" />
+          </Grid>
         </Grid>
 
         <Grid x:Name="SidebarBar" Grid.Row="2" Padding="8,2" ColumnSpacing="4">
@@ -339,11 +347,11 @@
                     ToolTipService.ToolTip="Show the operations (Ctrl+Shift+O)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ProgressRing Width="12" Height="12" IsActive="True" />
-                <TextBlock x:Name="OperationsText" Style="{StaticResource CaptionTextBlockStyle}" MaxWidth="90" TextTrimming="CharacterEllipsis" />
-                <local:SparklineView x:Name="OperationsSparkline" Width="40" Height="14" VerticalAlignment="Center" Visibility="Collapsed" />
+                <TextBlock x:Name="OperationsText" Visibility="Collapsed" />
+                <local:SparklineView x:Name="OperationsSparkline" Width="64" Height="14" VerticalAlignment="Center" Visibility="Collapsed" />
               </StackPanel>
             </Button>
-            <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+            <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" TextWrapping="NoWrap" MaxLines="1" TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->
