@@ -173,6 +173,19 @@ public sealed partial class MainWindow
         AlignStrip();
     }
 
+    // The message line and the cache notice live in the footer of the pane that has the focus.
+    private PaneFooter FocusedFooter => _viewModel.Tabs.Selected is { IsSplit: true, FocusedPane: 1 } ? Footer2 : Footer1;
+
+    private TextBlock MessageText => FocusedFooter.Message;
+
+    private StackPanel NoticePart => FocusedFooter.Notice;
+
+    private ProgressRing NoticeRing => FocusedFooter.NoticeSpinner;
+
+    private ContentControl NoticeIcon => FocusedFooter.NoticeGlyph;
+
+    private TextBlock NoticeText => FocusedFooter.NoticeLabel;
+
     // Each pane's buttons are enabled by that pane's own history, not by the focused pane's.
     private void UpdatePaneNavButtons()
     {

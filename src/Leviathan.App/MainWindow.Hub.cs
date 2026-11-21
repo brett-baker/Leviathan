@@ -282,7 +282,7 @@ public sealed partial class MainWindow
         }
     }
 
-    // A click anywhere outside an unpinned fly-up closes it (the status bar excepted: its parts open and close the hub themselves).
+    // A click anywhere outside an unpinned fly-up closes it (the bar under the sidebar excepted: its parts open and close the hub themselves).
     private void OnPointerPressedForHub(object sender, PointerRoutedEventArgs e)
     {
         var hub = _viewModel.Hub;
@@ -291,7 +291,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (Inside(panel, e) || Inside(StatusBar, e))
+        if (Inside(panel, e) || Inside(SidebarBar, e))
         {
             return;
         }

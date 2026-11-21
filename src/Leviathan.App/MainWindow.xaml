@@ -224,8 +224,13 @@
       <local:SidebarSplitter x:Name="SidebarGrip" Grid.Column="1" />
 
       <!-- The sidebar tree (spec 7): one virtualized list of rows; the tree model decides which rows exist. -->
+      <Grid x:Name="SidebarColumnHost" Grid.Column="0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
       <ListView x:Name="Sidebar"
-                Grid.Column="0"
+                Grid.Row="0"
                 IsItemClickEnabled="True"
                 SelectionMode="None"
                 ItemClick="OnSidebarItemClick"
@@ -286,6 +291,48 @@
           </DataTemplate>
         </ListView.ItemTemplate>
       </ListView>
+
+        <!-- Under the tree (spec 4, 16.1): the jobs running now, a failed job, the UI-stall count and the status hub arrow. -->
+        <Grid x:Name="SidebarBar" Grid.Row="1" Padding="8,2" ColumnSpacing="4">
+          <Grid.Resources>
+            <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+              <Setter Property="Background" Value="Transparent" />
+              <Setter Property="BorderThickness" Value="0" />
+              <Setter Property="Padding" Value="6,2" />
+              <Setter Property="MinHeight" Value="0" />
+              <Setter Property="MinWidth" Value="0" />
+            </Style>
+          </Grid.Resources>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <!-- The jobs running now ("2 jobs, 1 queued, 112 MB/s, 2 min left"); opens the Operations tab of the status hub (spec 16.1). -->
+            <Button x:Name="OperationsPart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick"
+                    ToolTipService.ToolTip="Show the operations (Ctrl+Shift+O)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ProgressRing Width="12" Height="12" IsActive="True" />
+                <TextBlock x:Name="OperationsText" Style="{StaticResource CaptionTextBlockStyle}" MaxWidth="90" TextTrimming="CharacterEllipsis" />
+                <local:SparklineView x:Name="OperationsSparkline" Width="40" Height="14" VerticalAlignment="Center" Visibility="Collapsed" />
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+          <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->
+          <Button x:Name="FailurePart" Grid.Column="1" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick" AutomationProperties.Name="A job failed">
+            <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+          </Button>
+          <!-- The status hub (spec 16.1): the chevron opens it; the badge counts failed jobs nobody has looked at. -->
+          <Grid Grid.Column="2" VerticalAlignment="Center">
+            <Button x:Name="HubChevron" Style="{StaticResource StatusPart}" Click="OnHubChevronClick" AutomationProperties.Name="Status hub"
+                    ToolTipService.ToolTip="Operations, activity, background tasks and quick settings (Ctrl+Shift+O)" />
+            <InfoBadge x:Name="HubBadge" Value="0" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" />
+          </Grid>
+        </Grid>
+      </Grid>
 
       <!-- The file view (spec 8): the Details grid with its states laid over the rows (spec 8.6). -->
       <Grid Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6">
@@ -446,66 +493,6 @@
       </Border>
     </Grid>
     </Grid>
-
-    <!-- Row 5: status bar (spec 16). -->
-    <!-- Parts with nothing to say are collapsed; clicking a part acts on it. -->
-    <Grid x:Name="StatusBar" Grid.Row="5" Padding="8,2" ColumnSpacing="4">
-      <Grid.Resources>
-        <Style x:Key="StatusPart" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-          <Setter Property="Background" Value="Transparent" />
-          <Setter Property="BorderThickness" Value="0" />
-          <Setter Property="Padding" Value="6,2" />
-          <Setter Property="MinHeight" Value="0" />
-          <Setter Property="MinWidth" Value="0" />
-        </Style>
-      </Grid.Resources>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-        <!-- Rows that came from the cache: shown while the real folder is checked, so it is clear they may still change (spec 3.3). -->
-        <StackPanel x:Name="NoticePart" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
-                    AutomationProperties.LiveSetting="Polite">
-          <ProgressRing x:Name="NoticeRing" Width="12" Height="12" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
-          <ContentControl x:Name="NoticeIcon" Visibility="Collapsed" VerticalAlignment="Center" IsTabStop="False" />
-          <TextBlock x:Name="NoticeText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis" />
-        </StackPanel>
-      </StackPanel>
-      <TextBlock x:Name="MessageText" Grid.Column="4" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" Margin="8,0,0,0"
-                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-      <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <!-- A job failed and nobody has looked yet: the full text is in the Operations tab, this shows the start of it on hover. -->
-        <Button x:Name="FailurePart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick" AutomationProperties.Name="A job failed">
-          <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-        </Button>
-        <!-- The jobs running now ("2 jobs, 1 queued, 112 MB/s, 2 min left"); opens the Operations tab of the status hub (spec 16.1). -->
-        <Button x:Name="OperationsPart" Style="{StaticResource StatusPart}" Visibility="Collapsed" Click="OnHubOperationsClick"
-                ToolTipService.ToolTip="Show the operations (Ctrl+Shift+O)">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ProgressRing Width="12" Height="12" IsActive="True" />
-            <TextBlock x:Name="OperationsText" Style="{StaticResource CaptionTextBlockStyle}" />
-            <local:SparklineView x:Name="OperationsSparkline" Width="48" Height="14" VerticalAlignment="Center" Visibility="Collapsed" />
-          </StackPanel>
-        </Button>
-        <TextBlock x:Name="StallText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-      </StackPanel>
-      <!-- The status hub (spec 16.1): the chevron opens it; the badge counts failed jobs nobody has looked at. -->
-      <Grid Grid.Column="8" VerticalAlignment="Center">
-        <Button x:Name="HubChevron" Style="{StaticResource StatusPart}" Click="OnHubChevronClick" AutomationProperties.Name="Status hub"
-                ToolTipService.ToolTip="Operations, activity, background tasks and quick settings (Ctrl+Shift+O)" />
-        <InfoBadge x:Name="HubBadge" Value="0" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" />
-      </Grid>
-    </Grid>
-
     <!-- The settings sheet (spec 17.2, D36) rises over the window from the bottom; the sheet itself is made the first time it is opened. -->
     <Grid x:Name="SettingsLayer" Grid.Row="1" Grid.RowSpan="5" Visibility="Collapsed">
       <Border x:Name="SettingsScrim" Background="#66000000" Tapped="OnSettingsScrimTapped" />

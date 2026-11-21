@@ -34,6 +34,21 @@ public sealed partial class PaneFooter : UserControl
     /// <summary>Creates the footer.</summary>
     public PaneFooter() => InitializeComponent();
 
+    /// <summary>The line of the last message of this pane (the window writes to the focused pane's).</summary>
+    public TextBlock Message => MessageText;
+
+    /// <summary>The cache notice: its panel, spinner, icon and text.</summary>
+    public StackPanel Notice => NoticePart;
+
+    /// <summary>The cache notice's spinner.</summary>
+    public ProgressRing NoticeSpinner => NoticeRing;
+
+    /// <summary>The cache notice's icon.</summary>
+    public ContentControl NoticeGlyph => NoticeIcon;
+
+    /// <summary>The cache notice's text.</summary>
+    public TextBlock NoticeLabel => NoticeText;
+
     /// <summary>The count was clicked: show or hide hidden items.</summary>
     public event RoutedEventHandler ItemsClick { add => ItemsPart.Click += value; remove => ItemsPart.Click -= value; }
 
