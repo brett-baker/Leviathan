@@ -9,9 +9,9 @@
 
   <UserControl.Resources>
     <DataTemplate x:Key="PageTemplate" x:DataType="settings:SettingsPageInfo">
-      <StackPanel Padding="4,6" Spacing="1">
-        <TextBlock Text="{x:Bind Title}" />
-        <TextBlock Text="{x:Bind Summary}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <StackPanel Orientation="Horizontal" Spacing="14" Padding="2,8">
+        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+        <TextBlock Text="{x:Bind Title}" VerticalAlignment="Center" />
       </StackPanel>
     </DataTemplate>
     <DataTemplate x:Key="ResultTemplate" x:DataType="settings:SettingEntry">
@@ -21,25 +21,50 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       </StackPanel>
     </DataTemplate>
-    <DataTemplate x:Key="KeyRowTemplate" x:DataType="commands:KeyboardRow">
-      <Grid ColumnSpacing="12" Padding="4,4">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="150" />
-          <ColumnDefinition Width="200" />
-          <ColumnDefinition Width="70" />
-        </Grid.ColumnDefinitions>
-        <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Column="1" Text="{x:Bind Category}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock Grid.Column="2" Text="{x:Bind local:SettingsFormat.Keys(Keys)}" FontFamily="Consolas" />
-        <TextBlock Grid.Column="3" Text="{x:Bind local:SettingsFormat.Changed(IsCustom)}" Style="{StaticResource CaptionTextBlockStyle}"
-                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+    <DataTemplate x:Key="KeyCapTemplate" x:DataType="settings:KeyCap">
+      <Grid>
+        <Border Visibility="{x:Bind local:SettingsFormat.Show(IsCap)}" CornerRadius="4" BorderThickness="1,1,1,2" Padding="8,2,8,2" MinWidth="26"
+                Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}">
+          <TextBlock Text="{x:Bind Text}" Style="{StaticResource CaptionTextBlockStyle}" HorizontalAlignment="Center" />
+        </Border>
+        <TextBlock Visibility="{x:Bind local:SettingsFormat.Hide(IsCap)}" Text="{x:Bind Text}" Style="{StaticResource CaptionTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
       </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="KeyRowTemplate" x:DataType="local:KeyRowView">
+      <StackPanel>
+        <StackPanel Visibility="{x:Bind local:SettingsFormat.Show(HasHeader)}" Orientation="Horizontal" Spacing="6" Margin="0,14,0,4">
+          <TextBlock Text="{x:Bind Header}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <FontIcon Glyph="&#xE946;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind Scope}" />
+        </StackPanel>
+        <Grid ColumnSpacing="12" Padding="4,6" MinHeight="40">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{x:Bind Row.Title}" TextTrimming="CharacterEllipsis" />
+            <FontIcon Glyph="&#xE946;" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind Scope}" />
+            <TextBlock Text="{x:Bind local:SettingsFormat.Changed(Row.IsCustom)}" Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+          </StackPanel>
+          <ItemsControl Grid.Column="1" ItemsSource="{x:Bind Caps}" ItemTemplate="{StaticResource KeyCapTemplate}" VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </Grid>
+      </StackPanel>
     </DataTemplate>
     <Style x:Key="SettingTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}" />
     <Style x:Key="SettingNote" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
       <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="SectionHeader" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+      <Setter Property="Margin" Value="1,18,0,2" />
     </Style>
   </UserControl.Resources>
 
@@ -69,7 +94,7 @@
 
       <Grid Grid.Row="1">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="230" />
+          <ColumnDefinition Width="250" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -81,229 +106,334 @@
           <TextBlock x:Name="NoResults" Text="No setting matches that." Margin="16,8,0,0" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
           <ScrollViewer x:Name="PageScroll" VerticalScrollBarVisibility="Auto">
-            <Grid Padding="20,8,24,24" MaxWidth="760" HorizontalAlignment="Left">
+            <StackPanel Padding="24,4,32,32" MaxWidth="1100" HorizontalAlignment="Left" Spacing="2">
+              <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+              <TextBlock x:Name="PageSummary" Style="{StaticResource SettingNote}" Margin="0,0,0,6" />
+              <Grid>
+
               <!-- General -->
-              <StackPanel x:Name="GeneralPage" Spacing="14">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="When the app starts" Style="{StaticResource SettingTitle}" />
-                  <ComboBox x:Name="StartupBox" Width="280" SelectionChanged="OnStartupChanged" AutomationProperties.Name="When the app starts">
-                    <ComboBoxItem Content="Open where I left off (Last session)" />
-                    <ComboBoxItem Content="Open a saved profile" />
-                    <ComboBoxItem Content="Ask me" />
-                  </ComboBox>
-                  <ComboBox x:Name="ProfileBox" Width="280" Visibility="Collapsed" PlaceholderText="Choose a profile" SelectionChanged="OnProfileChanged"
-                            AutomationProperties.Name="Startup profile" />
-                  <TextBlock Text="Profiles are saved from the Options menu (Save current windows as profile)." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Where a new tab opens" Style="{StaticResource SettingTitle}" />
-                  <TextBox x:Name="NewTabBox" Width="420" HorizontalAlignment="Left" PlaceholderText="Home (leave empty)" LostFocus="OnNewTabCommit" KeyDown="OnNewTabKeyDown"
+              <StackPanel x:Name="GeneralPage" Spacing="4">
+                <TextBlock Text="Startup" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE7E8;" Title="When the app starts" Description="Open where you left off, a saved profile, or ask each time."
+                                   Info="Profiles are saved from the Options menu (Save current windows as profile).">
+                  <StackPanel Spacing="6">
+                    <ComboBox x:Name="StartupBox" Width="280" SelectionChanged="OnStartupChanged" AutomationProperties.Name="When the app starts">
+                      <ComboBoxItem Content="Open where I left off (Last session)" />
+                      <ComboBoxItem Content="Open a saved profile" />
+                      <ComboBoxItem Content="Ask me" />
+                    </ComboBox>
+                    <ComboBox x:Name="ProfileBox" Width="280" Visibility="Collapsed" PlaceholderText="Choose a profile" SelectionChanged="OnProfileChanged"
+                              AutomationProperties.Name="Startup profile" />
+                  </StackPanel>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE710;" Title="Where a new tab opens" Description="Leave empty for your user folder."
+                                   Info="A folder such as C:\Projects or \\nas\media.">
+                  <TextBox x:Name="NewTabBox" Width="320" PlaceholderText="Home (leave empty)" LostFocus="OnNewTabCommit" KeyDown="OnNewTabKeyDown"
                            AutomationProperties.Name="Where a new tab opens" />
-                  <TextBlock x:Name="NewTabNote" Text="A folder such as C:\Projects or \\nas\media. Empty means your user folder." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Open terminal here uses" Style="{StaticResource SettingTitle}" />
-                  <ComboBox x:Name="TerminalBox" Width="280" SelectionChanged="OnTerminalChanged" AutomationProperties.Name="Terminal">
+                </local:SettingCard>
+                <TextBlock x:Name="NewTabNote" Text="A folder such as C:\Projects or \\nas\media. Empty means your user folder." Style="{StaticResource SettingNote}" Margin="2,2,0,0" />
+                <TextBlock Text="Tools" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE756;" Title="Open terminal here uses" Description="The program that starts when you choose Open terminal here.">
+                  <ComboBox x:Name="TerminalBox" Width="320" SelectionChanged="OnTerminalChanged" AutomationProperties.Name="Terminal">
                     <ComboBoxItem Content="Windows Terminal (PowerShell when it is not installed)" />
                     <ComboBoxItem Content="Windows PowerShell" />
                     <ComboBoxItem Content="Command Prompt" />
                     <ComboBoxItem Content="WSL (the default distribution)" />
                   </ComboBox>
-                </StackPanel>
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Appearance -->
-              <StackPanel x:Name="AppearancePage" Spacing="16" Visibility="Collapsed">
-                <RadioButtons x:Name="ThemeButtons" Header="Theme (takes effect the next time the app starts)" SelectionChanged="OnLookChanged" AutomationProperties.Name="Theme">
-                  <x:String>Same as Windows</x:String>
-                  <x:String>Light</x:String>
-                  <x:String>Dark</x:String>
-                </RadioButtons>
-                <RadioButtons x:Name="DensityButtons" Header="Density" SelectionChanged="OnLookChanged" AutomationProperties.Name="Density">
-                  <x:String>Comfortable: roomier rows</x:String>
-                  <x:String>Compact: more on the screen</x:String>
-                </RadioButtons>
-                <StackPanel Spacing="6">
-                  <TextBlock Text="Accent colour" Style="{StaticResource SettingTitle}" />
-                  <StackPanel x:Name="AccentList" Orientation="Horizontal" Spacing="6" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBox x:Name="AccentBox" Width="140" PlaceholderText="#RRGGBB" LostFocus="OnAccentCommit" KeyDown="OnAccentKeyDown" AutomationProperties.Name="Accent colour as #RRGGBB" />
-                    <TextBlock x:Name="AccentNote" Style="{StaticResource SettingNote}" VerticalAlignment="Center" Text="Pick one, or type a colour. The first swatch follows Windows. Windows opened from now on use it; this one has it from the next start." />
+              <StackPanel x:Name="AppearancePage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Look" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE771;" Title="Theme" Description="Light, dark, or the same as Windows." Info="Takes effect the next time the app starts.">
+                  <ComboBox x:Name="ThemeButtons" Width="220" SelectionChanged="OnLookChanged" AutomationProperties.Name="Theme">
+                    <x:String>Same as Windows</x:String>
+                    <x:String>Light</x:String>
+                    <x:String>Dark</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE8FD;" Title="Density" Description="How much room each row gets.">
+                  <ComboBox x:Name="DensityButtons" Width="220" SelectionChanged="OnLookChanged" AutomationProperties.Name="Density">
+                    <x:String>Comfortable: roomier rows</x:String>
+                    <x:String>Compact: more on the screen</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE7B3;" Title="Window backdrop (Mica)" Description="The colour of your wallpaper shows through the window.">
+                  <ToggleSwitch x:Name="MicaSwitch" Toggled="OnLookToggled" AutomationProperties.Name="Window backdrop" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE8B9;" Title="Icon size in the file list" Description="The size of file and folder icons.">
+                  <ComboBox x:Name="IconSizeButtons" Width="220" SelectionChanged="OnLookChanged" AutomationProperties.Name="Icon size">
+                    <x:String>Small (16)</x:String>
+                    <x:String>Medium (20)</x:String>
+                    <x:String>Large (24)</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <TextBlock Text="Colour and icons" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE790;" Title="Accent colour" Description="Pick one, or type a colour such as #0F6CBD."
+                                   Info="The first swatch follows Windows. Windows opened from now on use it; this one has it from the next start." Stacked="True">
+                  <StackPanel Spacing="8">
+                    <StackPanel x:Name="AccentList" Orientation="Horizontal" Spacing="6" />
+                    <TextBox x:Name="AccentBox" Width="140" HorizontalAlignment="Left" PlaceholderText="#RRGGBB" LostFocus="OnAccentCommit" KeyDown="OnAccentKeyDown" AutomationProperties.Name="Accent colour as #RRGGBB" />
                   </StackPanel>
-                </StackPanel>
-                <ToggleSwitch x:Name="MicaSwitch" Header="Window backdrop (Mica): the colour of your wallpaper shows through" Toggled="OnLookToggled" />
-                <RadioButtons x:Name="IconSizeButtons" Header="Icon size in the file list" SelectionChanged="OnLookChanged" AutomationProperties.Name="Icon size">
-                  <x:String>Small (16)</x:String>
-                  <x:String>Medium (20)</x:String>
-                  <x:String>Large (24)</x:String>
-                </RadioButtons>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Icon set" Style="{StaticResource SettingTitle}" />
-                  <TextBlock Text="The icons of the toolbar, the sidebar, tabs and menus. The change shows at once." Style="{StaticResource SettingNote}" />
+                </local:SettingCard>
+                <TextBlock x:Name="AccentNote" Style="{StaticResource SettingNote}" Margin="2,2,0,0" Text="Pick one, or type a colour. The first swatch follows Windows. Windows opened from now on use it; this one has it from the next start." />
+                <local:SettingCard Glyph="&#xE8D2;" Title="Icon set" Description="The icons of the toolbar, the sidebar, tabs and menus. The change shows at once." Stacked="True">
                   <StackPanel x:Name="IconPackList" Spacing="2" />
-                </StackPanel>
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Files and folders -->
-              <StackPanel x:Name="FilesPage" Spacing="14" Visibility="Collapsed">
-                <ToggleSwitch x:Name="HiddenSwitch" Header="Show hidden files and folders" Toggled="OnFilesToggled" />
-                <ToggleSwitch x:Name="SystemSwitch" Header="Show system files and folders" Toggled="OnFilesToggled" />
-                <StackPanel Spacing="4">
-                  <ToggleSwitch x:Name="SizesSwitch" Header="Show the size of folders" Toggled="OnFilesToggled" />
-                  <ToggleSwitch x:Name="EagerSwitch" Header="Show deletes, moves and copies at once" OnContent="Rows go and arrive when you ask; a moved or copied file is dimmed until it is there" OffContent="Rows change as the job reports and when it ends" Toggled="OnFilesToggled" />
-                  <TextBlock Text="Counted in the background and kept up to date. Folders on network drives can be left out in the status hub's Quick settings." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBox x:Name="RecheckBox" Header="Count these network drives again every day (one per line)" AcceptsReturn="True" TextWrapping="NoWrap"
-                           MinHeight="72" MaxHeight="140" PlaceholderText="Y:\media" LostFocus="OnRecheckLostFocus" HorizontalAlignment="Left" Width="360" />
-                  <TextBlock Text="A folder size on a share can only show how old it is, because a change deep inside is not noticed. These drives (mapped drive letters) are counted again in the background once a day, a few minutes after start-up first." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <ToggleSwitch x:Name="GitSwitch" Header="Show Git status in repositories" OnContent="A Git column (add it from the column chooser) and the branch in the status bar; local drives only" OffContent="Git is never asked" Toggled="OnFilesToggled" />
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Quick move and copy targets" Style="{StaticResource SettingTitle}" />
-                  <TextBlock Text="Ctrl+Alt+1 to 9 move the selection to the folder in that slot; add Shift to copy. Leave a slot empty to leave it unset." Style="{StaticResource SettingNote}" />
+              <StackPanel x:Name="FilesPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="What the list shows" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE7B3;" Title="Show hidden files and folders" Description="Items marked hidden in Windows, such as .git.">
+                  <ToggleSwitch x:Name="HiddenSwitch" Toggled="OnFilesToggled" AutomationProperties.Name="Show hidden files and folders" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE72E;" Title="Show system files and folders" Description="Protected operating system items." Info="Most of these are not safe to change; they stay hidden until you ask.">
+                  <ToggleSwitch x:Name="SystemSwitch" Toggled="OnFilesToggled" AutomationProperties.Name="Show system files and folders" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE8B7;" Title="Show the size of folders" Description="Counted in the background and kept up to date."
+                                   Info="Folders on network drives can be left out in the status hub's Quick settings, or on the Network page.">
+                  <ToggleSwitch x:Name="SizesSwitch" Toggled="OnFilesToggled" AutomationProperties.Name="Show the size of folders" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE895;" Title="After a delete, move or copy" Description="When the file list changes."
+                                   Info="'At once': rows go and arrive when you ask, and a moved or copied file is dimmed until it is there. 'When it is done': rows change as the job reports and when it ends.">
+                  <ComboBox x:Name="EagerBox" Width="260" SelectionChanged="OnFilesSelected" AutomationProperties.Name="When the list changes">
+                    <x:String>Show the change at once</x:String>
+                    <x:String>Show it when the job is done</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE943;" Title="Show Git status in repositories" Description="A Git column and the branch in the status bar. Local drives only."
+                                   Info="Add the Git column from the column chooser. When this is off Git is never asked.">
+                  <ToggleSwitch x:Name="GitSwitch" Toggled="OnFilesToggled" AutomationProperties.Name="Show Git status" />
+                </local:SettingCard>
+                <TextBlock Text="Network drive sizes" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE895;" Title="Count these network drives again every day" Description="One drive per line, for example Y:\media."
+                                   Info="A folder size on a share can only show how old it is, because a change deep inside is not noticed. These mapped drives are counted again in the background once a day, a few minutes after start-up first." Stacked="True">
+                  <TextBox x:Name="RecheckBox" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="72" MaxHeight="140" PlaceholderText="Y:\media" LostFocus="OnRecheckLostFocus"
+                           HorizontalAlignment="Left" Width="360" AutomationProperties.Name="Network drives to count daily" />
+                </local:SettingCard>
+                <TextBlock Text="Quick targets" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8DE;" Title="Quick move and copy targets" Description="Ctrl+Alt+1 to 9 move the selection to the folder in that slot; add Shift to copy."
+                                   Info="Leave a slot empty to leave it unset." Stacked="True">
                   <StackPanel x:Name="QuickTargetRows" Spacing="4" />
-                </StackPanel>
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Tabs and windows -->
-              <StackPanel x:Name="TabsPage" Spacing="14" Visibility="Collapsed">
-                <ToggleSwitch x:Name="LastTabSwitch" Header="Closing the last tab opens your home folder instead of closing the window" Toggled="OnTabsToggled" />
+              <StackPanel x:Name="TabsPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Tabs" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE711;" Title="When you close the last tab" Description="Close the window, or keep it open on your home folder."
+                                   Info="'Open my home folder' means the window never closes by accident when you close its last tab; close it with the window button instead.">
+                  <ComboBox x:Name="LastTabBox" Width="260" SelectionChanged="OnTabsSelected" AutomationProperties.Name="When you close the last tab">
+                    <x:String>Close the window</x:String>
+                    <x:String>Open my home folder</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE840;" Title="Show the names of pinned tabs" Description="A pinned tab shows its icon only, or its icon and its name."
+                                   Info="Also in the tab strip's menu (right-click a pinned tab).">
+                  <ToggleSwitch x:Name="PinnedNamesSwitch" Toggled="OnTabsToggled" AutomationProperties.Name="Show the names of pinned tabs" />
+                </local:SettingCard>
+                <TextBlock Style="{StaticResource SettingNote}" Margin="2,8,0,0"
+                           Text="Not settings yet: Ctrl+Tab in most-recent order, and where a new tab goes (beside the current one or at the end). They are planned for the tab strip." />
               </StackPanel>
 
               <!-- Network -->
-              <StackPanel x:Name="NetworkPage" Spacing="14" Visibility="Collapsed">
-                <TextBlock Text="What Leviathan does over the network" Style="{StaticResource SettingTitle}" />
-                <ToggleSwitch x:Name="NetSizesSwitch" Header="Count the size of folders on network drives" OnContent="Each folder means walking the share" OffContent="Folder sizes on shares stay empty (a slow NAS is spared)" Toggled="OnNetworkToggled" />
-                <ToggleSwitch x:Name="NetThumbsSwitch" Header="Make thumbnails of files on network drives" OnContent="Each thumbnail means reading the file over the network" OffContent="Pictures on shares show icons only" Toggled="OnNetworkToggled" />
-                <TextBlock Style="{StaticResource SettingNote}" Text="A share that stops answering fails fast in its own tab and is tried again with back-off; that is not a setting. The status hub Quick settings tab has the same two switches." />
+              <StackPanel x:Name="NetworkPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Slow shares" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8B7;" Title="Count the size of folders on network drives" Description="Folders on shares get a size, or stay empty."
+                                   Info="Each folder means walking the share. Turn off to spare a slow NAS; folder sizes on shares then stay empty. The status hub's Quick settings has the same switch.">
+                  <ToggleSwitch x:Name="NetSizesSwitch" Toggled="OnNetworkToggled" AutomationProperties.Name="Count folder sizes on network drives" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xEB9F;" Title="Make thumbnails of files on network drives" Description="Pictures and videos on shares show a preview, or an icon."
+                                   Info="Each thumbnail means reading the file over the network. When off, pictures on shares show icons only. The status hub's Quick settings has the same switch.">
+                  <ToggleSwitch x:Name="NetThumbsSwitch" Toggled="OnNetworkToggled" AutomationProperties.Name="Make thumbnails on network drives" />
+                </local:SettingCard>
+                <TextBlock Text="When a share stops answering" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE7BA;" Title="A dead share fails fast" Description="It shows a clear message in its own tab and is tried again with back-off. Other tabs, the tree and the status bar are not held up."
+                                   Info="This is how the app keeps working when a NAS is off. It is built in, not a setting." />
+                <TextBlock Style="{StaticResource SettingNote}" Margin="2,8,0,0"
+                           Text="Planned here: the time to wait for a share, how often to retry, and whether to check shares in the background. Saved connections and server addresses are in the Network section of the sidebar." />
               </StackPanel>
 
               <!-- Operations -->
-              <StackPanel x:Name="OperationsPage" Spacing="14" Visibility="Collapsed">
-                <NumberBox x:Name="RunningBox" Header="Operations at once (copies, moves, deletes)" Minimum="1" Maximum="16" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
-                <NumberBox x:Name="PerDeviceBox" Header="At once on one drive or share" Minimum="1" Maximum="4" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
-                <NumberBox x:Name="BackgroundBox" Header="Background jobs at once (folder sizes, thumbnails)" Minimum="1" Maximum="8" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Check copies against their sources" Style="{StaticResource SettingTitle}" />
-                  <ComboBox x:Name="VerifyBox" Width="360" SelectionChanged="OnOperationsSelectionChanged" AutomationProperties.Name="Verify policy">
+              <StackPanel x:Name="OperationsPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="How many at once" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard x:Name="RunningCard" Glyph="&#xE9D2;" Title="Operations at once" Description="Copies, moves and deletes that run together; the rest wait in the queue."
+                                   Info="More at once is not faster when they use the same disk or network. Extra jobs wait their turn.">
+                  <NumberBox x:Name="RunningBox" Minimum="1" Maximum="16" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="140" AutomationProperties.Name="Operations at once" />
+                </local:SettingCard>
+                <local:SettingCard x:Name="PerDeviceCard" Glyph="&#xE8CE;" Title="At once on one drive or share" Description="Jobs that may use the same drive or share together."
+                                   Info="One stream is fastest for a hard disk or a NAS. Two or more can help a fast SSD or a 10 GbE link.">
+                  <NumberBox x:Name="PerDeviceBox" Minimum="1" Maximum="4" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="140" AutomationProperties.Name="At once on one drive or share" />
+                </local:SettingCard>
+                <local:SettingCard x:Name="BackgroundCard" Glyph="&#xE9F5;" Title="Background jobs at once" Description="Folder sizes and thumbnails, made while you work."
+                                   Info="These run quietly beside your own work. A low number keeps the file list quick.">
+                  <NumberBox x:Name="BackgroundBox" Minimum="1" Maximum="8" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="140" AutomationProperties.Name="Background jobs at once" />
+                </local:SettingCard>
+                <TextBlock Text="Safety and speed" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE73E;" Title="Check copies against their sources" Description="Read the copy back to make sure it matches."
+                                   Info="Default checks every move, and every copy to or from a share. Full checks every file in full. Off skips the check for copies; moves are always checked before the source is deleted.">
+                  <ComboBox x:Name="VerifyBox" Width="320" SelectionChanged="OnOperationsSelectionChanged" AutomationProperties.Name="Verify policy">
                     <ComboBoxItem Content="Default: every move, and copies to or from a share" />
                     <ComboBoxItem Content="Full: every file in full, whatever its size" />
                     <ComboBoxItem Content="Off for copies (moves are still checked)" />
                   </ComboBox>
-                </StackPanel>
-                <NumberBox x:Name="BandwidthBox" Header="Speed limit (MB per second, 0 = none)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" HorizontalAlignment="Left" Width="260" />
-                <StackPanel Spacing="6">
-                  <ToggleSwitch x:Name="ScheduleSwitch" Header="Use a different limit at certain hours" Toggled="OnOperationsToggled" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xEC4A;" Title="Speed limit" Description="Megabytes per second a job may use; 0 means no limit."
+                                   Info="Use it to keep a copy from using all of the network while you work or stream. A gigabit link carries about 110 MB per second.">
+                  <NumberBox x:Name="BandwidthBox" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="140" AutomationProperties.Name="Speed limit in MB per second" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE823;" Title="Use a different limit at certain hours" Description="For example a lower limit in the day and none at night."
+                                   Info="A window that ends earlier than it starts runs past midnight.">
+                  <ToggleSwitch x:Name="ScheduleSwitch" Toggled="OnOperationsToggled" AutomationProperties.Name="Use a different limit at certain hours" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE916;" Title="The hours and the limit then" Description="From, to (hh:mm), and the limit in that window (MB per second, 0 = none)." Stacked="True">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBox x:Name="ScheduleFromBox" Header="From (hh:mm)" Width="110" LostFocus="OnOperationsCommit" KeyDown="OnOperationsKeyDown" />
                     <TextBox x:Name="ScheduleToBox" Header="To (hh:mm)" Width="110" LostFocus="OnOperationsCommit" KeyDown="OnOperationsKeyDown" />
-                    <NumberBox x:Name="ScheduleLimitBox" Header="Limit then (MB/s, 0 = none)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="200" />
+                    <NumberBox x:Name="ScheduleLimitBox" Header="Limit then (MB/s)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnOperationsChanged" Width="160" />
                   </StackPanel>
-                  <TextBlock x:Name="OperationsNote" Style="{StaticResource SettingNote}" Text="A window that ends earlier than it starts runs past midnight. What to do on a name conflict is asked in the conflict dialog; a standing default is not a setting yet." />
-                </StackPanel>
+                </local:SettingCard>
+                <TextBlock x:Name="OperationsNote" Style="{StaticResource SettingNote}" Margin="2,2,0,0"
+                           Text="A window that ends earlier than it starts runs past midnight. What to do on a name conflict is asked in the conflict dialog; a standing default is not a setting yet." />
               </StackPanel>
 
               <!-- Delete -->
-              <StackPanel x:Name="DeletePage" Spacing="14" Visibility="Collapsed">
-                <StackPanel Spacing="4">
-                  <ToggleSwitch x:Name="OwnTrashSwitch" Header="Keep a hidden recycle folder on network shares" Toggled="OnFilesToggled" />
-                  <TextBlock Text="Deleted items go to the NAS's own recycle folder (Synology #recycle, QNAP @Recycle) when you can see it, otherwise to a hidden .leviathan-trash so they can be undone. Turn off if your NAS already keeps deletes but hides its bin from you: items then are deleted on the share for the NAS to keep, and Leviathan cannot undo or restore them." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Soft-delete bin" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                  <NumberBox x:Name="BinDaysBox" Header="Keep deleted items for (days)" Minimum="0" Maximum="3650" SmallChange="1" LargeChange="10"
-                             SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" HorizontalAlignment="Left" Width="260" />
-                  <NumberBox x:Name="BinSizeBox" Header="Largest the bin may grow (GiB)" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100"
-                             SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" HorizontalAlignment="Left" Width="260" />
-                  <TextBlock Text="Items deleted from network shares wait here. Once a day, items older than this are deleted for good, and then the oldest ones until the bin is under the size. 0 turns a limit off." Style="{StaticResource SettingNote}" />
-                </StackPanel>
+              <StackPanel x:Name="DeletePage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Network shares" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE74D;" Title="Keep a hidden recycle folder on network shares" Description="So a delete on a share can be undone."
+                                   Info="Deleted items go to the NAS's own recycle folder (Synology #recycle, QNAP @Recycle) when you can see it, otherwise to a hidden .leviathan-trash so they can be undone. Turn off if your NAS already keeps deletes but hides its bin from you: items then are deleted on the share for the NAS to keep, and Leviathan cannot undo or restore them.">
+                  <ToggleSwitch x:Name="OwnTrashSwitch" Toggled="OnFilesToggled" AutomationProperties.Name="Keep a hidden recycle folder on network shares" />
+                </local:SettingCard>
+                <TextBlock Text="Soft-delete bin" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE787;" Title="Keep deleted items for (days)" Description="0 turns the limit off."
+                                   Info="Items deleted from network shares wait in the bin. Once a day, items older than this are deleted for good.">
+                  <NumberBox x:Name="BinDaysBox" Minimum="0" Maximum="3650" SmallChange="1" LargeChange="10" SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" Width="140" AutomationProperties.Name="Days to keep deleted items" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xEDA2;" Title="Largest the bin may grow (GiB)" Description="0 turns the limit off."
+                                   Info="When the bin is over this size, the oldest items are deleted for good until it is under it.">
+                  <NumberBox x:Name="BinSizeBox" Minimum="0" Maximum="100000" SmallChange="10" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnBinLimitChanged" Width="140" AutomationProperties.Name="Largest size of the bin" />
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Triage -->
-              <StackPanel x:Name="TriagePage" Spacing="14" Visibility="Collapsed">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Kept files" Style="{StaticResource SettingTitle}" />
-                  <ToggleSwitch x:Name="TriageAtEndSwitch" Header="When kept files move" OnContent="Together, when I close triage" OffContent="As I keep each one (recommended: nothing is left waiting)" Toggled="OnTriageToggled" />
-                  <ToggleSwitch x:Name="TriageAskSwitch" Header="Ask before they move (only when they move at the end)" Toggled="OnTriageToggled" />
-                  <TextBox x:Name="TriageFolderBox" Header="Keep also moves the file to this folder (empty = the other pane of a split tab, else leave it)" Width="420" HorizontalAlignment="Left" LostFocus="OnMediaCommit" KeyDown="OnMediaKeyDown" />
-                  <TextBlock Text="Moves are background jobs: closing the triage window never waits for them. See Operations in the status hub." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Playing" Style="{StaticResource SettingTitle}" />
-                  <NumberBox x:Name="TriageOffsetBox" Header="Each video starts this many percent in (0 to 90)" Minimum="0" Maximum="90" SmallChange="5" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
-                  <ToggleSwitch x:Name="TriageAdvanceSwitch" Header="Go to the next file after a decision" Toggled="OnMediaToggled" />
-                  <NumberBox x:Name="TriageDelayBox" Header="Wait this long first (milliseconds, 0 to 1000)" Minimum="0" Maximum="1000" SmallChange="50" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Skim playback (S)" Style="{StaticResource SettingTitle}" />
-                  <NumberBox x:Name="SkimBurstBox" Header="Each burst plays (seconds, 1 to 30)" Minimum="1" Maximum="30" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
-                  <NumberBox x:Name="SkimIntervalBox" Header="A burst every (percent of the video, 1 to 50)" Minimum="1" Maximum="50" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" HorizontalAlignment="Left" Width="300" />
-                </StackPanel>
+              <StackPanel x:Name="TriagePage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Kept files" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8DE;" Title="When kept files move" Description="As you keep each one, or all together when you close triage."
+                                   Info="'As I keep each one' means nothing is left waiting. Moves are background jobs: closing the triage window never waits for them. See Operations in the status hub.">
+                  <ComboBox x:Name="TriageWhenBox" Width="300" SelectionChanged="OnTriageSelected" AutomationProperties.Name="When kept files move">
+                    <x:String>As I keep each one (recommended)</x:String>
+                    <x:String>Together, when I close triage</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE897;" Title="Ask before they move" Description="Only when they move at the end.">
+                  <ToggleSwitch x:Name="TriageAskSwitch" Toggled="OnTriageToggled" AutomationProperties.Name="Ask before kept files move" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE8B7;" Title="Keep also moves the file to this folder" Description="Empty means the other pane of a split tab, else leave it where it is." Stacked="True">
+                  <TextBox x:Name="TriageFolderBox" HorizontalAlignment="Left" Width="420" LostFocus="OnMediaCommit" KeyDown="OnMediaKeyDown" AutomationProperties.Name="Folder that Keep moves to" />
+                </local:SettingCard>
+                <TextBlock Text="Playing" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE768;" Title="Each video starts this far in (percent)" Description="0 to 90. Skips an intro."
+                                   Info="10 starts a video a tenth of the way through, which is usually past the titles.">
+                  <NumberBox x:Name="TriageOffsetBox" Minimum="0" Maximum="90" SmallChange="5" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" Width="140" AutomationProperties.Name="Start offset in percent" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE893;" Title="Go to the next file after a decision" Description="Or stay on the file until you move on yourself.">
+                  <ToggleSwitch x:Name="TriageAdvanceSwitch" Toggled="OnMediaToggled" AutomationProperties.Name="Go to the next file after a decision" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE916;" Title="Wait this long first (milliseconds)" Description="0 to 1000, before moving to the next file."
+                                   Info="A short wait lets you see what your key did.">
+                  <NumberBox x:Name="TriageDelayBox" Minimum="0" Maximum="1000" SmallChange="50" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" Width="140" AutomationProperties.Name="Wait before the next file" />
+                </local:SettingCard>
+                <TextBlock Text="Skim playback (S)" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE768;" Title="Each burst plays (seconds)" Description="1 to 30. Skim plays short bursts across the video.">
+                  <NumberBox x:Name="SkimBurstBox" Minimum="1" Maximum="30" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" Width="140" AutomationProperties.Name="Seconds each burst plays" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE9D9;" Title="A burst every (percent of the video)" Description="1 to 50. Smaller means more bursts.">
+                  <NumberBox x:Name="SkimIntervalBox" Minimum="1" Maximum="50" SmallChange="1" SpinButtonPlacementMode="Compact" ValueChanged="OnMediaChanged" Width="140" AutomationProperties.Name="Percent between bursts" />
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Media and preview -->
-              <StackPanel x:Name="MediaPage" Spacing="14" Visibility="Collapsed">
-                <ToggleSwitch x:Name="HoverScrubSwitch" Header="Slide through a video by moving the mouse over its picture" OnContent="Tiles, Thumbnails and Gallery" OffContent="Pictures stay still" Toggled="OnMediaToggled" />
-                <TextBlock Style="{StaticResource SettingNote}" Text="The video engine, hardware decoding, the ffmpeg location and preview size limits are not settings yet: the app picks them itself." />
+              <StackPanel x:Name="MediaPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Pictures and video" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE7C5;" Title="Slide through a video by moving the mouse over its picture" Description="In Tiles, Thumbnails and Gallery. Off keeps pictures still.">
+                  <ToggleSwitch x:Name="HoverScrubSwitch" Toggled="OnMediaToggled" AutomationProperties.Name="Slide through a video with the mouse" />
+                </local:SettingCard>
+                <TextBlock Style="{StaticResource SettingNote}" Margin="2,8,0,0"
+                           Text="The video engine, hardware decoding, the ffmpeg location and preview size limits are not settings yet: the app picks them itself." />
               </StackPanel>
 
               <!-- Search and index -->
-              <StackPanel x:Name="SearchPage" Spacing="10" Visibility="Collapsed">
-                <TextBlock Text="Folders kept in the search index" Style="{StaticResource SettingTitle}" />
-                <TextBlock Style="{StaticResource SettingNote}" Text="These folders are listed in the background, one at a time and never while a job copies to the same share, so a search by name is instant. A folder you open also refreshes its entries." />
-                <StackPanel x:Name="IndexRows" Spacing="6" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBox x:Name="IndexAddBox" Width="340" PlaceholderText="A folder such as D:\Photos" KeyDown="OnIndexAddKeyDown" AutomationProperties.Name="Folder to index" />
-                  <Button Content="Add" Click="OnIndexAddClick" />
-                  <Button x:Name="IndexPauseButton" Content="Pause" Click="OnIndexPauseClick" />
-                </StackPanel>
-                <TextBlock x:Name="IndexNote" Style="{StaticResource SettingNote}" />
+              <StackPanel x:Name="SearchPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="How it works" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE946;" Title="Why index folders?" Description="A search by name in an indexed folder is instant, even on a NAS."
+                                   Info="The index is a list of file names and sizes kept on this PC. Searching reads the list, not the share, so it does not wait for the NAS.">
+                  <TextBlock Text="1. Add a folder below.   2. Wait for it to be listed.   3. Press Ctrl+F, type a name and press Enter." Style="{StaticResource SettingNote}" MaxWidth="360" />
+                </local:SettingCard>
+                <TextBlock Text="Folders kept in the index" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8B7;" Title="Indexed folders" Description="Listed in the background, one at a time, and never while a job copies to the same share. A folder you open also refreshes its entries."
+                                   Stacked="True">
+                  <StackPanel Spacing="8">
+                    <StackPanel x:Name="IndexRows" Spacing="6" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBox x:Name="IndexAddBox" Width="340" PlaceholderText="A folder such as D:\Photos" KeyDown="OnIndexAddKeyDown" AutomationProperties.Name="Folder to index" />
+                      <Button Content="Add" Click="OnIndexAddClick" />
+                      <Button x:Name="IndexPauseButton" Content="Pause" Click="OnIndexPauseClick" />
+                    </StackPanel>
+                  </StackPanel>
+                </local:SettingCard>
+                <TextBlock x:Name="IndexNote" Style="{StaticResource SettingNote}" Margin="2,2,0,0" />
               </StackPanel>
 
               <!-- Tags -->
-              <StackPanel x:Name="TagsPage" Spacing="12" Visibility="Collapsed">
-                <TextBlock Text="Colour tags" Style="{StaticResource SettingTitle}" />
-                <TextBlock Style="{StaticResource SettingNote}"
-                           Text="Keys 1 to 9 tag the selected files with the first nine tags below; Ctrl+0 clears. Moving a tag changes which key it has, never what is already tagged. Tags can be renamed, recoloured and reordered; they cannot be deleted, so a tag on a file never loses its meaning." />
-                <StackPanel x:Name="TagRows" Spacing="6" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="AddTagButton" Content="Add a tag" Click="OnAddTagClick" />
-                  <Button Content="Back to the standard colours and names" Click="OnResetTagsClick" />
-                </StackPanel>
-                <ToggleSwitch x:Name="TintSwitch" Header="Tint the rows of tagged files with their first tag's colour" Toggled="OnTintToggled" />
-                <TextBlock Style="{StaticResource SettingNote}" Text="Writing the Windows Tags property is not built yet." />
+              <StackPanel x:Name="TagsPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Colour tags" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8EC;" Title="Your tags" Description="Keys 1 to 9 tag the selected files with the first nine tags; Ctrl+0 clears."
+                                   Info="Moving a tag changes which key it has, never what is already tagged. Tags can be renamed, recoloured and reordered; they cannot be deleted, so a tag on a file never loses its meaning." Stacked="True">
+                  <StackPanel Spacing="8">
+                    <StackPanel x:Name="TagRows" Spacing="6" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button x:Name="AddTagButton" Content="Add a tag" Click="OnAddTagClick" />
+                      <Button Content="Back to the standard colours and names" Click="OnResetTagsClick" />
+                    </StackPanel>
+                  </StackPanel>
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE790;" Title="Tint the rows of tagged files" Description="With the colour of their first tag.">
+                  <ToggleSwitch x:Name="TintSwitch" Toggled="OnTintToggled" AutomationProperties.Name="Tint the rows of tagged files" />
+                </local:SettingCard>
+                <TextBlock Style="{StaticResource SettingNote}" Margin="2,8,0,0"
+                           Text="A tag is always a coloured dot for now; choosing an icon per tag, and writing the Windows Tags property, are not built yet." />
               </StackPanel>
 
               <!-- Advanced -->
-              <StackPanel x:Name="AdvancedPage" Spacing="14" Visibility="Collapsed">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Settings file" Style="{StaticResource SettingTitle}" />
-                  <TextBlock x:Name="SettingsPathText" Style="{StaticResource SettingNote}" IsTextSelectionEnabled="True" />
+              <StackPanel x:Name="AdvancedPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="Settings file" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE8A5;" Title="Settings file" Description="Changes made to the file while the app runs are picked up the next time it starts.">
                   <Button Content="Show the settings file" Click="OnShowSettingsFileClick" />
-                  <TextBlock Text="Changes made to the file while the app runs are picked up the next time it starts." Style="{StaticResource SettingNote}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Diagnostics" Style="{StaticResource SettingTitle}" />
-                  <TextBlock Text="The worker connection, the job queue and crash reports." Style="{StaticResource SettingNote}" />
+                </local:SettingCard>
+                <TextBlock x:Name="SettingsPathText" Style="{StaticResource SettingNote}" IsTextSelectionEnabled="True" Margin="2,2,0,0" />
+                <TextBlock Text="Problems" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xEBE8;" Title="Diagnostics" Description="The worker connection, the job queue and crash reports.">
                   <Button Content="Open diagnostics" Click="OnDiagnosticsClick" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Caches" Style="{StaticResource SettingTitle}" />
-                  <TextBlock x:Name="CacheText" Style="{StaticResource SettingNote}" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Clear remembered folders" Click="OnClearListingsClick" />
-                    <Button Content="Clear thumbnails" Click="OnClearThumbnailsClick" />
-                    <Button Content="Clear the activity log" Click="OnClearActivityClick" />
+                </local:SettingCard>
+                <TextBlock Text="Caches" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE74D;" Title="Caches" Description="Clearing one is safe; they fill up again as you work." Stacked="True">
+                  <StackPanel Spacing="8">
+                    <TextBlock x:Name="CacheText" Style="{StaticResource SettingNote}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Content="Clear remembered folders" Click="OnClearListingsClick" />
+                      <Button Content="Clear thumbnails" Click="OnClearThumbnailsClick" />
+                      <Button Content="Clear the activity log" Click="OnClearActivityClick" />
+                    </StackPanel>
                   </StackPanel>
-                </StackPanel>
+                </local:SettingCard>
               </StackPanel>
 
               <!-- Keyboard -->
-              <StackPanel x:Name="KeyboardPage" Spacing="10" Visibility="Collapsed">
-                <TextBlock Text="Every command and the keys that run it." Style="{StaticResource SettingTitle}" />
+              <StackPanel x:Name="KeyboardPage" Spacing="6" Visibility="Collapsed">
                 <TextBlock Style="{StaticResource SettingNote}"
-                           Text="Pick a command, click the box and press the new keys. A key another command uses moves to this one, and the page says which. Only your changes are saved; Reset puts the defaults back." />
+                           Text="Pick a command, click the box and press the new keys. A key another command uses moves to this one, and the page says which. Only your changes are saved; Reset puts the defaults back. The (i) beside a command or a group says where its keys work." />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="Reset all keys" Click="OnKeysResetAllClick" />
                   <Button Content="Export keys…" Click="OnKeysExportClick" />
@@ -314,7 +444,7 @@
                 <TextBlock x:Name="KeyFileNote" Style="{StaticResource SettingNote}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                 <TextBlock x:Name="KeyProblemsText" Style="{StaticResource SettingNote}" Foreground="{ThemeResource SystemFillColorCautionBrush}" IsTextSelectionEnabled="True" />
                 <TextBlock x:Name="KeyNotesText" Style="{StaticResource SettingNote}" IsTextSelectionEnabled="True" />
-                <Border x:Name="KeyEditor" Visibility="Collapsed" Padding="12" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                <Border x:Name="KeyEditor" Visibility="Collapsed" Padding="16,12" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                   <StackPanel Spacing="6">
                     <TextBlock x:Name="KeyEditorTitle" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
@@ -339,7 +469,8 @@
                 <TextBlock x:Name="PlannedWhen" Style="{StaticResource SettingNote}" />
                 <ItemsControl x:Name="PlannedList" />
               </StackPanel>
-            </Grid>
+              </Grid>
+            </StackPanel>
           </ScrollViewer>
         </Grid>
       </Grid>

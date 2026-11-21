@@ -9,7 +9,8 @@ namespace Leviathan.ViewModels.Settings;
 /// <param name="IsAvailable">True when the page has settings that work; false for a page that only says what it will hold.</param>
 /// <param name="Arrives">For a page not available yet: when it arrives, e.g. "Phase 2".</param>
 /// <param name="Planned">For a page not available yet: what it will hold.</param>
-public sealed record SettingsPageInfo(string Id, string Title, string Summary, bool IsAvailable, string? Arrives = null, IReadOnlyList<string>? Planned = null);
+/// <param name="Glyph">Segoe Fluent icon shown beside the page name in the list.</param>
+public sealed record SettingsPageInfo(string Id, string Title, string Summary, bool IsAvailable, string? Arrives = null, IReadOnlyList<string>? Planned = null, string Glyph = "");
 
 /// <summary>One setting findable by the sheet's search.</summary>
 /// <param name="PageId">The page it lives on.</param>
@@ -26,19 +27,19 @@ public static class SettingsCatalog
     /// <summary>The pages in the order of the list. Pages not built yet say what they will hold, so nothing a user looks for seems to be missing.</summary>
     public static IReadOnlyList<SettingsPageInfo> Pages { get; } =
     [
-        new("general", "General", "Startup and new tabs", true),
-        new("appearance", "Appearance", "How the app looks", true),
-        new("files", "Files and folders", "What the file list shows", true),
-        new("tabs", "Tabs and windows", "How tabs behave", true),
-        new("network", "Network", "Shares and connections", true),
-        new("operations", "Operations", "Copying and moving", true),
-        new("delete", "Delete", "Deleting and the bin", true),
-        new("media", "Media and preview", "Video and pictures", true),
-        new("triage", "Triage", "Keeping and discarding videos", true),
-        new("tags", "Tags", "Colour tags", true),
-        new("search", "Search and index", "Finding files", true),
-        new("keyboard", "Keyboard", "Shortcuts of every command", true),
-        new("advanced", "Advanced", "Diagnostics, caches and the settings file", true),
+        new("general", "General", "Startup and new tabs", true, Glyph: ""),
+        new("appearance", "Appearance", "How the app looks", true, Glyph: ""),
+        new("files", "Files and folders", "What the file list shows", true, Glyph: ""),
+        new("tabs", "Tabs and windows", "How tabs behave", true, Glyph: ""),
+        new("network", "Network", "Shares and connections", true, Glyph: ""),
+        new("operations", "Operations", "Copying and moving", true, Glyph: ""),
+        new("delete", "Delete", "Deleting and the bin", true, Glyph: ""),
+        new("media", "Media and preview", "Video and pictures", true, Glyph: ""),
+        new("triage", "Triage", "Keeping and discarding videos", true, Glyph: ""),
+        new("tags", "Tags", "Colour tags", true, Glyph: ""),
+        new("search", "Search and index", "Finding files", true, Glyph: ""),
+        new("keyboard", "Keyboard", "Shortcuts of every command", true, Glyph: ""),
+        new("advanced", "Advanced", "Diagnostics, caches and the settings file", true, Glyph: ""),
     ];
 
     /// <summary>Every setting the search knows, working or planned.</summary>

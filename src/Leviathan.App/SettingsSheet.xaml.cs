@@ -19,11 +19,27 @@ internal static class SettingsFormat
 
     public static string Changed(bool custom) => custom ? "changed" : string.Empty;
 
+    public static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
+    public static Visibility Hide(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+
     public static string Where(string pageId)
     {
         var page = SettingsCatalog.Page(pageId);
         return page.IsAvailable ? page.Title : $"{page.Title} (arrives in {page.Arrives})";
     }
+}
+
+/// <summary>
+/// A row of the Keyboard page: the command, its key caps, where it works, and the group name when it is the first of its group.
+/// </summary>
+internal sealed record KeyRowView(KeyboardRow Row, string? Header)
+{
+    public bool HasHeader => Header is not null;
+
+    public string Scope => KeyScopes.Describe(Row.Category);
+
+    public IReadOnlyList<KeyCap> Caps => KeyCaps.Split(Row.Keys);
 }
 
 /// <summary>
@@ -46,6 +62,7 @@ internal sealed partial class SettingsSheet : UserControl
         _model = model;
         InitializeComponent();
         BuildQuickRows();
+        ShowAdvice();
         _ready = true;
         PageList.ItemsSource = SettingsCatalog.Pages;
         Icons.Bind(ExpandButton, static (b, i) => b.Content = i, "layout-gallery");
@@ -54,6 +71,17 @@ internal sealed partial class SettingsSheet : UserControl
         App.Host.Settings.Changed += OnSettingsChanged;
         App.Host.SearchIndex.Changed += OnIndexChanged;
         Sync();
+    }
+
+    // What to suggest on the Operations page, worked out from this machine; nothing is changed for the user.
+    private void ShowAdvice()
+    {
+        var cores = Environment.ProcessorCount;
+        RunningCard.Advice = Suggest(OperationsAdvice.RunningJobs(cores));
+        PerDeviceCard.Advice = Suggest(OperationsAdvice.PerDevice());
+        BackgroundCard.Advice = Suggest(OperationsAdvice.Background(cores));
+
+        static string Suggest(OperationsAdvice.Advice advice) => $"Suggested for this PC: {advice.Value}. {advice.Why}";
     }
 
     /// <summary>Gives the Keyboard page its rows (the window knows the commands).</summary>
@@ -154,6 +182,8 @@ internal sealed partial class SettingsSheet : UserControl
                 PlannedList.ItemsSource = page.Planned!.Select(item => new TextBlock { Text = "•  " + item, Margin = new Thickness(8, 0, 0, 2) }).ToList();
             }
 
+            PageTitle.Text = page.Title;
+            PageSummary.Text = page.Summary;
             ExpandButton.SetValue(ToolTipService.ToolTipProperty, _model.IsExpanded ? "Back to the lower part of the window" : "Fill the window");
         }
         finally
@@ -190,14 +220,15 @@ internal sealed partial class SettingsSheet : UserControl
             HiddenSwitch.IsOn = settings.Files.ShowHidden;
             SystemSwitch.IsOn = settings.Files.ShowSystem;
             SizesSwitch.IsOn = settings.Files.ShowFolderSizes;
-            EagerSwitch.IsOn = settings.Files.UiUpdates == UiUpdateMode.Immediate;
-            TriageAtEndSwitch.IsOn = settings.Media.TriageMoveWhen == TriageMoveMode.AtEnd;
+            EagerBox.SelectedIndex = settings.Files.UiUpdates == UiUpdateMode.Immediate ? 0 : 1;
+            TriageWhenBox.SelectedIndex = settings.Media.TriageMoveWhen == TriageMoveMode.AtEnd ? 1 : 0;
             TriageAskSwitch.IsOn = settings.Media.TriageAskBeforeMove;
             OwnTrashSwitch.IsOn = settings.Files.KeepOwnTrashOnShares;
             RecheckBox.Text = string.Join('\r', settings.Files.RecheckSizePaths);
             BinDaysBox.Value = settings.Files.BinKeepDays;
             BinSizeBox.Value = settings.Files.BinMaxGiB;
-            LastTabSwitch.IsOn = settings.Tabs.LastTabResetsToHome;
+            LastTabBox.SelectedIndex = settings.Tabs.LastTabResetsToHome ? 1 : 0;
+            PinnedNamesSwitch.IsOn = settings.Tabs.PinnedTabsShowNames;
             FillIconPacks(settings.Appearance.IconPack);
             ThemeButtons.SelectedIndex = (int)settings.Appearance.Theme;
             DensityButtons.SelectedIndex = settings.Appearance.Density == Density.Compact ? 1 : 0;
@@ -474,12 +505,16 @@ internal sealed partial class SettingsSheet : UserControl
         var system = SystemSwitch.IsOn;
         var sizes = SizesSwitch.IsOn;
         var ownTrash = OwnTrashSwitch.IsOn;
-        var updates = EagerSwitch.IsOn ? UiUpdateMode.Immediate : UiUpdateMode.WhenFinished;
+        var updates = EagerBox.SelectedIndex == 0 ? UiUpdateMode.Immediate : UiUpdateMode.WhenFinished;
         var git = GitSwitch.IsOn;
         await SaveAsync(s => s with { Files = s.Files with { ShowHidden = hidden, ShowSystem = system, ShowFolderSizes = sizes, KeepOwnTrashOnShares = ownTrash, UiUpdates = updates, GitStatus = git } });
     }
 
+    private void OnFilesSelected(object sender, SelectionChangedEventArgs e) => OnFilesToggled(sender, new RoutedEventArgs());
+
     private async void OnTriageToggled(object sender, RoutedEventArgs e) => await SaveMediaAsync();
+
+    private async void OnTriageSelected(object sender, SelectionChangedEventArgs e) => await SaveMediaAsync();
 
     // ---- General, network, operations, media and preview (spec §17.2)
 
@@ -594,7 +629,7 @@ internal sealed partial class SettingsSheet : UserControl
         }
 
         TriageFolderBox.Description = null;
-        var when = TriageAtEndSwitch.IsOn ? TriageMoveMode.AtEnd : TriageMoveMode.OnKeep;
+        var when = TriageWhenBox.SelectedIndex == 1 ? TriageMoveMode.AtEnd : TriageMoveMode.OnKeep;
         var ask = TriageAskSwitch.IsOn;
         var offset = Whole(TriageOffsetBox, 10);
         var advance = TriageAdvanceSwitch.IsOn;
@@ -770,9 +805,12 @@ internal sealed partial class SettingsSheet : UserControl
             return;
         }
 
-        var on = LastTabSwitch.IsOn;
-        await SaveAsync(s => s with { Tabs = s.Tabs with { LastTabResetsToHome = on } });
+        var home = LastTabBox.SelectedIndex == 1;
+        var names = PinnedNamesSwitch.IsOn;
+        await SaveAsync(s => s with { Tabs = s.Tabs with { LastTabResetsToHome = home, PinnedTabsShowNames = names } });
     }
+
+    private void OnTabsSelected(object sender, SelectionChangedEventArgs e) => OnTabsToggled(sender, new RoutedEventArgs());
 
     // ---- Advanced
 
@@ -857,11 +895,13 @@ internal sealed partial class SettingsSheet : UserControl
                 || r.Command.Value.Contains(filter, StringComparison.OrdinalIgnoreCase))
             .ToList();
         _keysLoading = true;
-        KeyList.ItemsSource = rows;
+        // The rows are in group order; the first row of each group carries the group's name.
+        var views = rows.Select((r, i) => new KeyRowView(r, i == 0 || rows[i - 1].Category != r.Category ? r.Category : null)).ToList();
+        KeyList.ItemsSource = views;
         if (_editing is { } editing)
         {
             var again = rows.FirstOrDefault(r => r.Command == editing.Command);
-            KeyList.SelectedItem = again;
+            KeyList.SelectedItem = views.FirstOrDefault(v => v.Row == again);
             _editing = again;
             if (again is null)
             {
@@ -892,7 +932,7 @@ internal sealed partial class SettingsSheet : UserControl
 
     private void OnKeyRowSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (!_ready || _keysLoading || KeyList.SelectedItem is not KeyboardRow row)
+        if (!_ready || _keysLoading || KeyList.SelectedItem is not KeyRowView { Row: var row })
         {
             return;
         }
