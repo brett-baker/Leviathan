@@ -54,6 +54,7 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
       <CommandBar x:Name="Bar" Grid.Column="0" HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Collapsed"
@@ -91,7 +92,10 @@
         <AppBarSeparator x:Name="ContextSeparator" />
       </CommandBar>
 
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+      <!-- The colour tags (spec 11.1): one click tags or untags the selection, the same as keys 1 to 9. Built in code from the user's tag list. -->
+      <StackPanel x:Name="TagDots" Grid.Column="1" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" />
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
         <DropDownButton x:Name="ViewButton" AutomationProperties.Name="View" ToolTipService.ToolTip="View">
           <FontIcon Glyph="&#xE8A9;" FontSize="14" />
           <DropDownButton.Flyout>

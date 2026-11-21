@@ -119,6 +119,10 @@ public sealed partial class MainWindow
         NewButton.IsEnabled = _commands.CanExecute(CommandIds.NewFolder);
         var hasTab = _bound is not null;
         ViewButton.IsEnabled = SortButton.IsEnabled = GroupButton.IsEnabled = SearchBox.IsEnabled = hasTab;
+        foreach (var dot in TagDots.Children.OfType<Button>())
+        {
+            dot.IsEnabled = _bound?.Selection.Count > 0;
+        }
         RefreshContextZone();
     }
 

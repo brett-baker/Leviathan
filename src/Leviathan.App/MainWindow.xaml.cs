@@ -142,6 +142,7 @@ public sealed partial class MainWindow : Window, IShellActions
         FlowList.KeyDown += OnFileKeyDown;
         FlowList.ZoomRequested += (_, notches) => Run(CommandIds.ViewZoom, parameter: notches);
         InitPanes();
+        InitializeTagDots();
         InitHeaders();
         InitMouseNavigation();
         Address.Submitted += OnAddressSubmitted;
