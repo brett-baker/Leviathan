@@ -67,6 +67,7 @@ public sealed partial class MainWindow
             {
                 MenuEntryKind.Separator => new MenuFlyoutSeparator(),
                 MenuEntryKind.NewMenu => NewSubMenu(entry),
+                MenuEntryKind.SubMenu => OwnSubMenu(entry),
                 _ => OwnItem(entry),
             });
         }
@@ -186,6 +187,17 @@ public sealed partial class MainWindow
         var sub = new MenuFlyoutSubItem { Text = entry.Title, IsEnabled = entry.Enabled, Icon = Icons.OfGlyph("") };
         sub.Items.Add(new MenuFlyoutItem { Text = "Loading…", IsEnabled = false });
         _ = FillNewItemsAsync(sub.Items);
+        return sub;
+    }
+
+    private MenuFlyoutSubItem OwnSubMenu(MenuEntry entry)
+    {
+        var sub = new MenuFlyoutSubItem { Text = entry.Title, IsEnabled = entry.Enabled };
+        foreach (var child in entry.Children ?? [])
+        {
+            sub.Items.Add(child.Kind == MenuEntryKind.Separator ? new MenuFlyoutSeparator() : OwnItem(child));
+        }
+
         return sub;
     }
 

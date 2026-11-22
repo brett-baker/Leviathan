@@ -17,6 +17,9 @@ public enum MenuEntryKind
 
     /// <summary>The New submenu, which the window fills from the New item catalog (spec §6.1).</summary>
     NewMenu,
+
+    /// <summary>A submenu whose lines are <see cref="MenuEntry.Children"/>.</summary>
+    SubMenu,
 }
 
 /// <summary>One icon button of the strip along the top of the right-click menu.</summary>
@@ -34,7 +37,8 @@ public sealed record StripButton(CommandId Command, string Title, string Glyph, 
 /// <param name="Context">What the command receives.</param>
 /// <param name="Shortcut">Key text shown at the right, or null.</param>
 /// <param name="Enabled">False when the command cannot run now; it is shown greyed rather than hidden so the menu keeps its shape.</param>
-public sealed record MenuEntry(MenuEntryKind Kind, string Title, CommandId? Command, CommandContext? Context, string? Shortcut, bool Enabled)
+/// <param name="Children">The lines of a <see cref="MenuEntryKind.SubMenu"/>, or null.</param>
+public sealed record MenuEntry(MenuEntryKind Kind, string Title, CommandId? Command, CommandContext? Context, string? Shortcut, bool Enabled, IReadOnlyList<MenuEntry>? Children = null)
 {
     /// <summary>A divider.</summary>
     public static MenuEntry Separator { get; } = new(MenuEntryKind.Separator, string.Empty, null, null, null, true);
@@ -89,6 +93,7 @@ public static class RightClickMenu
         if (selected.Count == 0 && registry.TryGet(CommandIds.NewFolder, out _))
         {
             entries.Add(new MenuEntry(MenuEntryKind.NewMenu, "New", null, null, null, registry.CanExecute(CommandIds.NewFolder, null)));
+            AddPasteSpecial(entries, registry);
         }
 
         entries.Add(MenuEntry.Separator);
@@ -112,6 +117,27 @@ public static class RightClickMenu
         }
 
         return Tidy(entries);
+    }
+
+    /// <summary>"Paste special": paste into a new folder, text as a file, a picture as a file. Greyed as a whole when none of them can run now.</summary>
+    private static void AddPasteSpecial(List<MenuEntry> entries, CommandRegistry registry)
+    {
+        var children = new List<MenuEntry>();
+        void Add(CommandId command, string title)
+        {
+            if (registry.TryGet(command, out _))
+            {
+                children.Add(new MenuEntry(MenuEntryKind.Command, title, command, null, null, registry.CanExecute(command, null)));
+            }
+        }
+
+        Add(CommandIds.EditPasteIntoNewFolder, "Paste into new folder");
+        Add(CommandIds.EditPasteTextAsFile, "Paste text as new file");
+        Add(CommandIds.EditPasteImageAsFile, "Paste image as new file");
+        if (children.Count > 0)
+        {
+            entries.Add(new MenuEntry(MenuEntryKind.SubMenu, "Paste special", null, null, null, children.Any(c => c.Enabled), children));
+        }
     }
 
     /// <summary>

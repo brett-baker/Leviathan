@@ -36,6 +36,20 @@ public sealed class ClipboardCommandTests
         }
 
         public Task<ClipboardItems?> GetAsync(CancellationToken cancellationToken) => Task.FromResult(_held);
+
+        /// <summary>Text on the clipboard, as another application would put it; null for none.</summary>
+        public string? Text { get; set; }
+
+        /// <summary>PNG bytes of a picture on the clipboard; null for none.</summary>
+        public byte[]? ImagePng { get; set; }
+
+        public bool HasText => Text is not null && _held is null;
+
+        public bool HasImage => ImagePng is not null && _held is null;
+
+        public Task<string?> GetTextAsync(CancellationToken cancellationToken) => Task.FromResult(HasText ? Text : null);
+
+        public Task<byte[]?> GetImagePngAsync(CancellationToken cancellationToken) => Task.FromResult(HasImage ? ImagePng : null);
     }
 
     private sealed class RecordingTransfers(bool started = true) : ITransferService
@@ -228,6 +242,75 @@ public sealed class ClipboardCommandTests
 
         Assert.Empty(transfers.Requests);
         Assert.Empty(disk.Directory.GetDirectories(@"C:\a\b"));
+    }
+
+    [Fact]
+    public async Task PasteTextAsFile_WritesTheTextToANewTxtFile_Utf8()
+    {
+        var (h, clipboard, _, disk) = await MakeAsync();
+        clipboard.Text = "héllo";
+
+        var result = await h.Run(CommandIds.EditPasteTextAsFile);
+
+        Assert.Equal(CommandResult.Executed, result);
+        Assert.Equal("héllo", disk.File.ReadAllText(@"C:\a\Pasted text.txt"));
+        Assert.Equal("Created Pasted text.txt", h.Shell.Messages[^1]);
+    }
+
+    [Fact]
+    public async Task PasteTextAsFile_NumbersTheName_NeverOverwriting()
+    {
+        var (h, clipboard, _, disk) = await MakeAsync();
+        disk.AddFile(@"C:\a\Pasted text.txt", new MockFileData("old"));
+        clipboard.Text = "new";
+
+        await h.Run(CommandIds.EditPasteTextAsFile);
+
+        Assert.Equal("old", disk.File.ReadAllText(@"C:\a\Pasted text.txt"));
+        Assert.Equal("new", disk.File.ReadAllText(@"C:\a\Pasted text (2).txt"));
+    }
+
+    [Fact]
+    public async Task PasteImageAsFile_WritesThePngBytes()
+    {
+        var (h, clipboard, _, disk) = await MakeAsync();
+        clipboard.ImagePng = [0x89, 0x50, 0x4E, 0x47];
+
+        await h.Run(CommandIds.EditPasteImageAsFile);
+
+        Assert.Equal([0x89, 0x50, 0x4E, 0x47], disk.File.ReadAllBytes(@"C:\a\Pasted image.png"));
+    }
+
+    [Fact]
+    public async Task PasteTextAndImage_AreDisabled_WhenTheClipboardHoldsNeither_OrHoldsFiles()
+    {
+        var (h, clipboard, _, _) = await MakeAsync();
+
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.EditPasteTextAsFile));
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.EditPasteImageAsFile));
+
+        clipboard.Text = "paths of copied files";
+        clipboard.Set([P(@"C:\a\1.txt")], ClipboardOperation.Copy);
+
+        Assert.Equal(CommandResult.Disabled, await h.Run(CommandIds.EditPasteTextAsFile));
+    }
+
+    [Fact]
+    public async Task PasteSpecial_IsOnTheEmptySpaceMenu_GreyedUntilSomethingCanBePasted()
+    {
+        var (h, clipboard, _, _) = await MakeAsync();
+        h.Tab.Selection.Clear();
+
+        var before = Leviathan.ViewModels.ContextMenu.RightClickMenu.Build(h.Tab.Selection.SelectedEntries, h.Tab.History.Current, h.Commands)
+            .Single(e => e.Title == "Paste special");
+        clipboard.Text = "x";
+        var after = Leviathan.ViewModels.ContextMenu.RightClickMenu.Build(h.Tab.Selection.SelectedEntries, h.Tab.History.Current, h.Commands)
+            .Single(e => e.Title == "Paste special");
+
+        Assert.False(before.Enabled);
+        Assert.True(after.Enabled);
+        Assert.Equal(["Paste into new folder", "Paste text as new file", "Paste image as new file"], after.Children!.Select(c => c.Title));
+        Assert.Equal([false, true, false], after.Children!.Select(c => c.Enabled));
     }
 
     [Fact]

@@ -19,11 +19,68 @@ internal sealed class WindowsFileClipboard : IFileClipboard
 
     private ClipboardItems? _own;
     private bool _hasFiles;
+    private bool _hasText;
+    private bool _hasImage;
 
     public WindowsFileClipboard()
     {
         Clipboard.ContentChanged += OnContentChanged;
-        _hasFiles = ReadHasFiles();
+        ReadFormats();
+    }
+
+    /// <inheritdoc />
+    public bool HasText => _hasText;
+
+    /// <inheritdoc />
+    public bool HasImage => _hasImage;
+
+    /// <inheritdoc />
+    public async Task<string?> GetTextAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var view = Clipboard.GetContent();
+            return view.Contains(StandardDataFormats.Text) && !view.Contains(StandardDataFormats.StorageItems) ? await view.GetTextAsync() : null;
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or IOException or UnauthorizedAccessException)
+        {
+            UiTrace.Mark($"clipboard: could not read text: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<byte[]?> GetImagePngAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var view = Clipboard.GetContent();
+            if (!view.Contains(StandardDataFormats.Bitmap))
+            {
+                return null;
+            }
+
+            var reference = await view.GetBitmapAsync();
+            using var source = await reference.OpenReadAsync();
+
+            // Whatever format the other program put there, the file is a PNG.
+            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(source);
+            using var bitmap = await decoder.GetSoftwareBitmapAsync();
+            using var target = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, target);
+            encoder.SetSoftwareBitmap(bitmap);
+            await encoder.FlushAsync();
+            var bytes = new byte[target.Size];
+            using var reader = new Windows.Storage.Streams.DataReader(target.GetInputStreamAt(0));
+            await reader.LoadAsync((uint)target.Size);
+            reader.ReadBytes(bytes);
+            return bytes;
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            UiTrace.Mark($"clipboard: could not read the picture: {ex.Message}");
+            return null;
+        }
     }
 
     /// <inheritdoc />
@@ -66,7 +123,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         package.SetData(OwnFormat, "1");
         Clipboard.SetContent(package);
         _own = new ClipboardItems(items, operation);
-        _hasFiles = true;
+        (_hasFiles, _hasText, _hasImage) = (true, false, false);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -83,7 +140,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
             UiTrace.Mark($"clipboard: could not clear: {ex.Message}");
         }
 
-        _hasFiles = false;
+        (_hasFiles, _hasText, _hasImage) = (false, false, false);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -139,7 +196,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
             _own = null;
         }
 
-        _hasFiles = ReadHasFiles();
+        ReadFormats();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -155,15 +212,20 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         }
     }
 
-    private static bool ReadHasFiles()
+    private void ReadFormats()
     {
         try
         {
-            return Clipboard.GetContent().Contains(StandardDataFormats.StorageItems);
+            var view = Clipboard.GetContent();
+            _hasFiles = view.Contains(StandardDataFormats.StorageItems);
+
+            // Copying files also puts their paths there as text; that is a file paste, not a text one.
+            _hasText = !_hasFiles && view.Contains(StandardDataFormats.Text);
+            _hasImage = !_hasFiles && view.Contains(StandardDataFormats.Bitmap);
         }
         catch (System.Runtime.InteropServices.COMException)
         {
-            return false;
+            (_hasFiles, _hasText, _hasImage) = (false, false, false);
         }
     }
 

@@ -40,6 +40,18 @@ public sealed class NewItemService
     /// <summary>Forgets the list, so the next menu reads the registry and the templates folder again.</summary>
     public void Refresh() => _templates = null;
 
+    /// <summary>Makes a file with the given bytes in a local folder or share, numbered if the name is taken (used to paste clipboard text or a picture as a file).</summary>
+    /// <exception cref="IOException">The file could not be created.</exception>
+    public Task<LocationPath> CreateFileAsync(string name, byte[] bytes, LocationPath folder, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentNullException.ThrowIfNull(folder);
+        var extension = Path.GetExtension(name);
+        var template = new NewItemTemplate("clipboard:" + extension, name, extension, name, NewItemSource.BuiltIn, new FileDataContent(bytes));
+        return Task.Run(() => _creator.Create(template, folder), cancellationToken);
+    }
+
     /// <summary>Creates the item for <paramref name="templateId"/> in <paramref name="folder"/> and returns its location.</summary>
     /// <exception cref="KeyNotFoundException">No such template.</exception>
     /// <exception cref="IOException">The item could not be created.</exception>

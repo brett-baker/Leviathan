@@ -79,6 +79,53 @@ internal sealed class ClipboardCommands(CommandScope scope) : CommandArea(scope)
             }
         }
 
+        // "Paste special": text or a picture on the clipboard becomes a file, named "Pasted text.txt" or "Pasted image.png" (numbered if
+        // taken), then opens its rename box like any new item. Local folders and shares only: the file is written through the new-item creator.
+        bool CanPasteContent(TabViewModel tab, bool present) => present && newItems is not null && LocationKinds.IsLocalOrShare(tab.History.Current.Kind);
+
+        async Task PasteContentAsync(TabViewModel tab, string name, Func<Task<byte[]?>> read, string nothing, CancellationToken ct)
+        {
+            var bytes = await read();
+            if (bytes is not { Length: > 0 })
+            {
+                shell.ShowMessage(nothing);
+                return;
+            }
+
+            try
+            {
+                var created = await newItems!.CreateFileAsync(name, bytes, tab.History.Current, ct);
+                shell.ShowMessage($"Created {created.Name}");
+                await tab.ReloadAndSelectAsync(created, ct);
+                if (Scope.Renamer is not null && tab.Items.Rows.FirstOrDefault(r => r.Location == created) is { } row)
+                {
+                    tab.BeginRename(row);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                shell.ShowMessage($"Could not paste it: {ex.Message}");
+            }
+        }
+
+        AddOnCurrent(
+            CommandIds.EditPasteTextAsFile,
+            "Paste text as new file",
+            "Edit",
+            (tab, _, ct) => PasteContentAsync(
+                tab,
+                "Pasted text.txt",
+                async () => await clipboard!.GetTextAsync(ct) is { } text ? System.Text.Encoding.UTF8.GetBytes(text) : null,
+                "There is no text on the clipboard to paste.",
+                ct),
+            (tab, _) => CanPasteContent(tab, clipboard is { HasText: true }));
+        AddOnCurrent(
+            CommandIds.EditPasteImageAsFile,
+            "Paste image as new file",
+            "Edit",
+            (tab, _, ct) => PasteContentAsync(tab, "Pasted image.png", () => clipboard!.GetImagePngAsync(ct), "There is no picture on the clipboard to paste.", ct),
+            (tab, _) => CanPasteContent(tab, clipboard is { HasImage: true }));
+
         AddOnCurrent(CommandIds.EditCut, "Cut", "Edit", (tab, _) => PutOnClipboard(tab, Transfers.ClipboardOperation.Cut), (tab, _) => CanTakeSelection(tab), shortcut: "Ctrl+X", icon: "Cut");
         AddOnCurrent(CommandIds.EditCopy, "Copy", "Edit", (tab, _) => PutOnClipboard(tab, Transfers.ClipboardOperation.Copy), (tab, _) => CanTakeSelection(tab), shortcut: "Ctrl+C", icon: "Copy");
         AddOnCurrent(CommandIds.EditPaste, "Paste", "Edit", (tab, _, ct) => PasteAsync(tab, false, ct), (tab, _) => CanPasteHere(tab), shortcut: "Ctrl+V", icon: "Paste");

@@ -306,6 +306,12 @@ public static class CommandIds
     /// <summary>Paste into a new folder created in the current folder, which then opens its rename box.</summary>
     public static readonly CommandId EditPasteIntoNewFolder = new("edit.pasteIntoNewFolder");
 
+    /// <summary>Paste the clipboard's text as a new .txt file in the current folder.</summary>
+    public static readonly CommandId EditPasteTextAsFile = new("edit.pasteTextAsFile");
+
+    /// <summary>Paste the clipboard's picture (a screenshot, say) as a new .png file in the current folder.</summary>
+    public static readonly CommandId EditPasteImageAsFile = new("edit.pasteImageAsFile");
+
     /// <summary>Rename (F2): shows the inline rename box on the selected item.</summary>
     public static readonly CommandId EditRename = new("edit.rename");
 

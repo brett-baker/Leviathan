@@ -13,7 +13,9 @@ edit.cut | Cut | Edit | Cut | Ctrl+X | False | False
 edit.delete | Delete | Edit | Delete | Del | False | False
 edit.deletePermanent | Delete permanently | Edit |  | Shift+Del | False | False
 edit.paste | Paste | Edit | Paste | Ctrl+V | False | False
+edit.pasteImageAsFile | Paste image as new file | Edit |  |  | False | False
 edit.pasteIntoNewFolder | Paste into new folder | Edit |  |  | False | False
+edit.pasteTextAsFile | Paste text as new file | Edit |  |  | False | False
 edit.redo | Redo | Edit | Redo | Ctrl+Y | False | False
 edit.rename | Rename | Edit | Rename | F2 | False | False
 edit.renameCommit | Finish renaming | Edit |  |  | False | False

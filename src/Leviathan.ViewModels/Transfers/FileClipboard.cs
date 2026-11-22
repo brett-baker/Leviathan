@@ -29,6 +29,18 @@ public interface IFileClipboard
     /// <summary>True when the clipboard holds files or folders. Cheap, so the command bar can ask it on every refresh.</summary>
     bool HasFiles { get; }
 
+    /// <summary>True when the clipboard holds text that did not come from copying files (which also put their paths there as text). Cheap.</summary>
+    bool HasText { get; }
+
+    /// <summary>True when the clipboard holds a picture, such as a screenshot. Cheap.</summary>
+    bool HasImage { get; }
+
+    /// <summary>Reads the text on the clipboard, or null when there is none.</summary>
+    Task<string?> GetTextAsync(CancellationToken cancellationToken);
+
+    /// <summary>Reads the picture on the clipboard as PNG bytes, or null when there is none.</summary>
+    Task<byte[]?> GetImagePngAsync(CancellationToken cancellationToken);
+
     /// <summary>Puts <paramref name="items"/> on the clipboard for a later paste.</summary>
     void Set(IReadOnlyList<LocationPath> items, ClipboardOperation operation);
 
