@@ -38,6 +38,9 @@ public sealed class TriageItem(FileEntry file)
     /// <summary>Takes the decision back: restores a discarded file, removes the green tag, moves a kept file home. Null when there is nothing to take back.</summary>
     internal Func<Task>? Undo { get; set; }
 
+    /// <summary>True when the file was deleted or moved away outside the session, so it was skipped.</summary>
+    public bool IsMissing { get; internal set; }
+
     /// <summary>True when the file can be opened in the player: a discarded file is in the recycle area, not where it was.</summary>
     public bool IsPlayable => Decision != TriageDecision.Discarded;
 }

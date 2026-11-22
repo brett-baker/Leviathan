@@ -56,9 +56,19 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="TimeText" VerticalAlignment="Center" FontSize="12" Foreground="#E0E0E0" Text="0:00 / 0:00" MinWidth="100" />
         <Slider AutomationProperties.Name="Seek" x:Name="Seek" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001" VerticalAlignment="Center" ValueChanged="OnSeekChanged" IsTabStop="False" />
+        <!-- The volume: a mute button and a slider, kept from one session to the next. -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Button x:Name="MuteButton" Width="32" Height="32" Padding="0" Background="Transparent" BorderThickness="0" IsTabStop="False" Click="OnMuteClick"
+                  ToolTipService.ToolTip="Mute or unmute" AutomationProperties.Name="Mute">
+            <FontIcon x:Name="MuteGlyph" Glyph="&#xE767;" FontSize="16" Foreground="#E0E0E0" />
+          </Button>
+          <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="100" StepFrequency="1" IsTabStop="False" VerticalAlignment="Center"
+                  ValueChanged="OnVolumeChanged" ToolTipService.ToolTip="Volume" AutomationProperties.Name="Volume" />
+        </StackPanel>
       </Grid>
 
       <!-- The summary when the queue ends: what was done, and the discarded files to look over and restore (spec 10.1). -->

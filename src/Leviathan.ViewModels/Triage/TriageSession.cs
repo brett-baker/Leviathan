@@ -23,6 +23,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     private readonly ITriageActions _actions;
     private readonly TriageOptions _options;
     private readonly TimeProvider _time;
+    private readonly Func<FileEntry, CancellationToken, Task<bool>>? _isMissing;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Stack<HistoryEntry> _history = new();
     private CancellationTokenSource _navigation = new();
@@ -32,8 +33,19 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     private string? _error;
 
     /// <summary>Starts a session over <paramref name="queue"/>; call <see cref="StartAsync"/> to open the first file.</summary>
-    public TriageSession(IReadOnlyList<FileEntry> queue, IVideoEngine engine, ITriageActions actions, TriageOptions? options = null, TimeProvider? time = null)
+    /// <param name="queue">The files to go through.</param>
+    /// <param name="engine">The player.</param>
+    /// <param name="actions">What a decision does to files and tags.</param>
+    /// <param name="options">How the session behaves.</param>
+    /// <param name="time">The clock.</param>
+    /// <param name="isMissing">
+    /// Tells whether a file has been deleted or moved away since the queue was made (only a definite "gone", never "could not tell").
+    /// A file it reports gone is skipped and the session moves on to the next one, so a file removed behind the back of the session never stops it.
+    /// </param>
+    public TriageSession(IReadOnlyList<FileEntry> queue, IVideoEngine engine, ITriageActions actions, TriageOptions? options = null, TimeProvider? time = null,
+        Func<FileEntry, CancellationToken, Task<bool>>? isMissing = null)
     {
+        _isMissing = isMissing;
         ArgumentNullException.ThrowIfNull(queue);
         _items = [.. queue.Select(f => new TriageItem(f))];
         for (var i = 0; i < _items.Count; i++)
@@ -598,17 +610,72 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
     // Moves to a file and opens it (a discarded file only shows its state: it is not where it was).
     private async Task GoToCoreAsync(int index)
     {
-        _advancePending = false;
-        _index = index;
-        RaiseCurrent();
-        var item = _items[index];
-        if (!item.IsPlayable)
+        var step = index >= _index ? 1 : -1;
+        while (true)
         {
-            await _engine.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-            return;
+            _advancePending = false;
+            _index = index;
+            RaiseCurrent();
+            var item = _items[index];
+            if (!item.IsPlayable)
+            {
+                await _engine.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                return;
+            }
+
+            if (!await IsGoneAsync(item).ConfigureAwait(false))
+            {
+                await OpenCurrentAsync(item).ConfigureAwait(false);
+                return;
+            }
+
+            // Deleted or moved away behind the back of the session: note it and carry on to the next file that is still there.
+            MarkMissing(item);
+            var next = index + step;
+            if (next >= _items.Count)
+            {
+                await _engine.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                Finish();
+                return;
+            }
+
+            if (next < 0)
+            {
+                await _engine.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                return;
+            }
+
+            index = next;
+        }
+    }
+
+    private async Task<bool> IsGoneAsync(TriageItem item)
+    {
+        if (_isMissing is null)
+        {
+            return false;
         }
 
-        await OpenCurrentAsync(item).ConfigureAwait(false);
+        try
+        {
+            return await _isMissing(item.File, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            return false; // could not tell: let the player try
+        }
+    }
+
+    private void MarkMissing(TriageItem item)
+    {
+        item.IsMissing = true;
+        if (item.Decision == TriageDecision.None)
+        {
+            item.Decision = TriageDecision.Skipped;
+        }
+
+        LastError = $"{item.File.Name} is no longer there; skipped.";
+        RaiseCounts();
     }
 
     private async Task OpenCurrentAsync(TriageItem item)
@@ -621,6 +688,14 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             var snapshot = _engine.Snapshot;
             if (snapshot.State == PlaybackState.Failed)
             {
+                if (await IsGoneAsync(item).ConfigureAwait(false))
+                {
+                    // It was deleted while the player was opening it: the same as one that was gone before.
+                    MarkMissing(item);
+                    await MoveNextCoreAsync().ConfigureAwait(false);
+                    return;
+                }
+
                 LastError = $"{item.File.Name} could not be played: {snapshot.Error ?? "unknown error"}";
                 return;
             }

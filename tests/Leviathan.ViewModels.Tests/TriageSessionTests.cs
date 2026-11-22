@@ -91,6 +91,56 @@ public sealed class TriageSessionTests
     }
 
     [Fact]
+    public async Task Advance_SkipsFilesDeletedBehindTheBackOfTheSession()
+    {
+        var gone = new HashSet<string> { "v2.mkv", "v3.mkv" };
+        var engine = new FakeVideoEngine();
+        var files = Enumerable.Range(1, 5).Select(i => Video($"v{i}.mkv")).ToList();
+        var session = new TriageSession(files, engine, new FakeActions(engine), new TriageOptions { StartOffset = 0 }, null,
+            (file, _) => Task.FromResult(gone.Contains(file.Name)));
+        await session.StartAsync();
+
+        await session.KeepAsync();
+
+        Assert.Equal("v4.mkv", session.Current!.File.Name);
+        Assert.Equal(@"C:\inbox\v4.mkv", engine.OpenPath);
+        Assert.True(session.Items[1].IsMissing);
+        Assert.Equal(TriageDecision.Skipped, session.Items[2].Decision);
+        Assert.Contains("no longer there", session.LastError);
+    }
+
+    [Fact]
+    public async Task Advance_WhenEveryRemainingFileIsGone_FinishesTheSession()
+    {
+        var engine = new FakeVideoEngine();
+        var files = Enumerable.Range(1, 3).Select(i => Video($"v{i}.mkv")).ToList();
+        var session = new TriageSession(files, engine, new FakeActions(engine), new TriageOptions { StartOffset = 0 }, null,
+            (file, _) => Task.FromResult(file.Name != "v1.mkv"));
+        await session.StartAsync();
+
+        await session.KeepAsync();
+
+        Assert.True(session.IsFinished);
+    }
+
+    [Fact]
+    public async Task Open_WhenThePlayerFailsBecauseTheFileWasDeletedMeanwhile_MovesOn()
+    {
+        var engine = new FakeVideoEngine();
+        engine.Refuse[@"C:\inbox\v2.mkv"] = "not found";
+        var files = Enumerable.Range(1, 3).Select(i => Video($"v{i}.mkv")).ToList();
+        var checks = 0;
+        var session = new TriageSession(files, engine, new FakeActions(engine), new TriageOptions { StartOffset = 0 }, null,
+            (file, _) => Task.FromResult(file.Name == "v2.mkv" && ++checks > 1));
+        await session.StartAsync();
+
+        await session.KeepAsync();
+
+        Assert.Equal("v3.mkv", session.Current!.File.Name);
+        Assert.True(session.Items[1].IsMissing);
+    }
+
+    [Fact]
     public async Task Start_OpensTheFirstFile_Playing()
     {
         var rig = new Rig();

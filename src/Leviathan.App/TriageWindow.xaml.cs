@@ -289,7 +289,8 @@ internal sealed partial class TriageWindow : Window
             Video.MediaPlayer = _engine.Player;
             var settings = App.Host.Settings.Current.Media;
             _actions = App.Host.TriageActionsFor(_destination);
-            var session = _session = new TriageSession(_queue, _engine, _actions, settings.ToTriageOptions());
+            await ApplyVolumeAsync(settings);
+            var session = _session = new TriageSession(_queue, _engine, _actions, settings.ToTriageOptions(), null, FileGoneAsync);
             // Every decision goes to the journal as it is made (spec §10.1, §3.4), so a crash loses none of them; a kept file that is to
             // be moved when triage ends is remembered with its folder, and offered again on the next start if the move never happened.
             _recorder = new Leviathan.ViewModels.Triage.TriageRecorder(
@@ -763,10 +764,100 @@ internal sealed partial class TriageWindow : Window
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 
+    // ---- Volume (spec §10.1): a slider and a mute button, remembered for the next session.
+
+    private double _volume = 100;
+    private bool _muted;
+
+    private async Task ApplyVolumeAsync(Leviathan.ViewModels.Settings.MediaSettings media)
+    {
+        _volume = media.TriageVolumePercent;
+        _muted = media.TriageMuted;
+        _updating = true;
+        try
+        {
+            VolumeSlider.Value = _volume;
+            ShowMute();
+        }
+        finally
+        {
+            _updating = false;
+        }
+
+        if (_engine is { } engine)
+        {
+            await engine.SetVolumeAsync(_volume / 100.0, CancellationToken.None);
+            await engine.SetMutedAsync(_muted, CancellationToken.None);
+        }
+    }
+
+    private void ShowMute() => MuteGlyph.Glyph = _muted || _volume <= 0 ? "\uE74F" : "\uE767";
+
+    private async void OnVolumeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_updating || _engine is not { } engine)
+        {
+            return;
+        }
+
+        _volume = e.NewValue;
+        if (_muted && _volume > 0)
+        {
+            _muted = false; // moving the slider up is asking to hear it
+            await engine.SetMutedAsync(false, CancellationToken.None);
+        }
+
+        ShowMute();
+        await engine.SetVolumeAsync(_volume / 100.0, CancellationToken.None);
+    }
+
+    private async void OnMuteClick(object sender, RoutedEventArgs e)
+    {
+        await ToggleMuteAsync();
+        Root.Focus(FocusState.Programmatic); // the keys must keep working after a click
+    }
+
+    private async Task ToggleMuteAsync()
+    {
+        if (_engine is not { } engine)
+        {
+            return;
+        }
+
+        _muted = !_muted;
+        ShowMute();
+        await engine.SetMutedAsync(_muted, CancellationToken.None);
+    }
+
+    private async Task SaveVolumeAsync()
+    {
+        var percent = (int)Math.Round(_volume);
+        var muted = _muted;
+        try
+        {
+            await App.Host.Settings.UpdateAsync(s => s with { Media = s.Media with { TriageVolumePercent = percent, TriageMuted = muted } }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The volume is only a convenience; the settings file could not be written.
+        }
+    }
+
+    // A file deleted or moved away while triage runs is skipped, never waited for (spec §10.1). Only a definite answer counts: when the
+    // folder itself cannot be reached (a share that is off) nothing is called missing, and the player gets to try.
+    private static async Task<bool> FileGoneAsync(FileEntry file, CancellationToken cancellationToken)
+    {
+        var path = file.Location.ToWin32Path();
+        var check = Task.Run(() => !System.IO.File.Exists(path) && System.IO.Directory.Exists(System.IO.Path.GetDirectoryName(path)), CancellationToken.None);
+        var finished = await Task.WhenAny(check, Task.Delay(TimeSpan.FromSeconds(3), cancellationToken));
+        return finished == check && await check;
+    }
+
     private async void OnClosed(object sender, WindowEventArgs args)
     {
         _timer.Stop();
         _closing.Cancel();
+        await SaveVolumeAsync();
         Exited?.Invoke(this, _session?.Current?.File ?? _last);
         if (_session is { } session)
         {

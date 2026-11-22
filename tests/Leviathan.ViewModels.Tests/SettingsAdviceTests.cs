@@ -42,6 +42,15 @@ public sealed class SettingsAdviceTests
         Assert.Equal(1, OperationsAdvice.PerDevice().Value);
     }
 
+    [Theory]
+    [InlineData(-5, 0)]
+    [InlineData(40, 40)]
+    [InlineData(900, 100)]
+    public void TriageVolume_IsKeptBetweenZeroAndAHundred(int saved, int expected)
+    {
+        Assert.Equal(expected, new MediaSettings { TriageVolumePercent = saved }.Clamped().TriageVolumePercent);
+    }
+
     [Fact]
     public void Pages_AllHaveAnIcon()
     {

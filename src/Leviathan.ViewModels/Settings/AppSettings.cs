@@ -278,6 +278,12 @@ public sealed record MediaSettings
     /// <summary>Ask before moving the kept files when triage ends; the question's "always move" box turns this off.</summary>
     public bool TriageAskBeforeMove { get; init; } = true;
 
+    /// <summary>The volume of the triage player, 0 to 100; kept from one triage session to the next (spec §10.1).</summary>
+    public int TriageVolumePercent { get; init; } = 100;
+
+    /// <summary>True when the triage player was left silent.</summary>
+    public bool TriageMuted { get; init; }
+
     /// <summary>Skim playback (S): how many seconds each burst plays, 1 to 30 (spec §10.3).</summary>
     public int SkimBurstSeconds { get; init; } = 3;
 
@@ -293,6 +299,7 @@ public sealed record MediaSettings
     /// <summary>The values in range.</summary>
     public MediaSettings Clamped() => this with
     {
+        TriageVolumePercent = Math.Clamp(TriageVolumePercent, 0, 100),
         SkimBurstSeconds = Math.Clamp(SkimBurstSeconds, 1, 30),
         SkimIntervalPercent = Math.Clamp(SkimIntervalPercent, 1, 50),
         TriageStartOffsetPercent = Math.Clamp(TriageStartOffsetPercent, 0, 90),
