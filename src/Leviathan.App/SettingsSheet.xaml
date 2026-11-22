@@ -408,6 +408,10 @@
 
               <!-- Advanced -->
               <StackPanel x:Name="AdvancedPage" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="About" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard x:Name="AboutCard" Glyph="&#xE946;" Title="Leviathan" Description="">
+                  <TextBlock x:Name="AboutChannelText" VerticalAlignment="Center" ToolTipService.ToolTip="Dev: a local build. Beta: an early release. Stable: a finished release." />
+                </local:SettingCard>
                 <TextBlock Text="Settings file" Style="{StaticResource SectionHeader}" />
                 <local:SettingCard Glyph="&#xE8A5;" Title="Settings file" Description="Changes made to the file while the app runs are picked up the next time it starts.">
                   <Button Content="Show the settings file" Click="OnShowSettingsFileClick" />

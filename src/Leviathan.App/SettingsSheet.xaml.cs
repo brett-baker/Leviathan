@@ -240,6 +240,7 @@ internal sealed partial class SettingsSheet : UserControl
                 AccentBox.Text = settings.Appearance.Accent;
             }
             SettingsPathText.Text = App.Host.SettingsPath;
+            ShowAbout();
             TerminalBox.SelectedIndex = (int)settings.Files.Terminal;
             GitSwitch.IsOn = settings.Files.GitStatus;
             var quick = QuickTargets.Normalize(settings.Files.QuickTargets);
@@ -813,6 +814,15 @@ internal sealed partial class SettingsSheet : UserControl
     private void OnTabsSelected(object sender, SelectionChangedEventArgs e) => OnTabsToggled(sender, new RoutedEventArgs());
 
     // ---- Advanced
+
+    // The version comes from the release tag through the build (release plan §1); a local build says it is one.
+    private void ShowAbout()
+    {
+        var version = Leviathan.ViewModels.Settings.AppVersion.Parse(Leviathan.Diagnostics.Crash.CrashReportBuilder.ReadBuildInfo(typeof(App).Assembly));
+        AboutCard.Title = $"Leviathan {version.Display}";
+        AboutCard.Description = version.ShortCommit.Length > 0 ? $"Built from commit {version.ShortCommit}." : "The commit this build was made from is not known.";
+        AboutChannelText.Text = version.Channel.ToString();
+    }
 
     private void OnShowSettingsFileClick(object sender, RoutedEventArgs e)
     {

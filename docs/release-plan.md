@@ -104,7 +104,9 @@ repeatable. Development keeps going on `main` while the release pipeline runs on
 
 ## 8. Answers (Brett, 2026-11-22)
 
-1. **Repo goes public**: the app reads GitHub Releases directly, no token and no separate feed repo.
+1. **Repo goes public, but not yet** (Brett, same day: it stays private for now). Design for public; until then builds are
+   rehearsed locally (`tools/Make-Release.ps1`) and the GitHub pipeline waits. The feed reader sits behind `IUpdateSource`, so a
+   private-repo token or a different feed can be swapped in without touching the app.
 2. **A few people will install it soon**: signing moves up. Slice 6 must land before the first build is shared; until then
    only Brett installs. Before going public, check the repo for secrets and personal data, and keep `THIRD-PARTY-NOTICES.md` current.
 3. **Release when Brett says "ship it"**: no automatic cadence. He names the version; Claude tags it and the pipeline runs.
