@@ -54,9 +54,21 @@ public sealed partial class MainWindow
 
         var entries = RightClickMenu.Build(tab.Selection.SelectedEntries, tab.History.Current, _commands);
         var flyout = new MenuFlyout();
+        var strip = RightClickMenu.BuildStrip(tab.Selection.SelectedEntries, _commands);
+        if (strip.Count > 0)
+        {
+            flyout.Items.Add(StripItem(flyout, strip));
+            flyout.Items.Add(new MenuFlyoutSeparator());
+        }
+
         foreach (var entry in entries)
         {
-            flyout.Items.Add(entry.Kind == MenuEntryKind.Separator ? new MenuFlyoutSeparator() : OwnItem(entry));
+            flyout.Items.Add(entry.Kind switch
+            {
+                MenuEntryKind.Separator => new MenuFlyoutSeparator(),
+                MenuEntryKind.NewMenu => NewSubMenu(entry),
+                _ => OwnItem(entry),
+            });
         }
 
         if (tab.Selection.SelectedEntries.Any(e => e.Kind == FileEntryKind.File))
@@ -127,6 +139,54 @@ public sealed partial class MainWindow
         menu.Items.Add(clear);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(menu);
+    }
+
+    /// <summary>The icon strip along the top of the menu (Cut, Copy, Rename, Delete; Paste on empty space), icon over a short label as in Windows 11.</summary>
+    private MenuFlyoutItem StripItem(MenuFlyout flyout, IReadOnlyList<StripButton> buttons)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(4, 2, 4, 2) };
+        foreach (var button in buttons)
+        {
+            var label = button.Title.Split(" (", 2)[0];
+            var content = new StackPanel { Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center };
+            content.Children.Add(new FontIcon { Glyph = button.Glyph, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center });
+            content.Children.Add(new TextBlock { Text = label, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center });
+            var control = new Button
+            {
+                Content = content,
+                IsEnabled = button.Enabled,
+                MinWidth = 64,
+                Padding = new Thickness(6, 6, 6, 4),
+                BorderThickness = new Thickness(0),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            };
+            ToolTipService.SetToolTip(control, button.Title);
+            var command = button.Command;
+            control.Click += (_, _) =>
+            {
+                flyout.Hide();
+                Run(command);
+            };
+            row.Children.Add(control);
+        }
+
+        // A menu item cannot hold a row of buttons, so the item is given a template that shows one; the row travels in Tag.
+        var item = new MenuFlyoutItem
+        {
+            Tag = row,
+            Template = (ControlTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='MenuFlyoutItem'><ContentPresenter Content='{TemplateBinding Tag}' /></ControlTemplate>"),
+        };
+        return item;
+    }
+
+    /// <summary>The New submenu of the empty-space menu (spec §6.1); filled when the menu opens, like the command bar's New menu.</summary>
+    private MenuFlyoutSubItem NewSubMenu(MenuEntry entry)
+    {
+        var sub = new MenuFlyoutSubItem { Text = entry.Title, IsEnabled = entry.Enabled, Icon = Icons.OfGlyph("") };
+        sub.Items.Add(new MenuFlyoutItem { Text = "Loading…", IsEnabled = false });
+        _ = FillNewItemsAsync(sub.Items);
+        return sub;
     }
 
     private MenuFlyoutItem OwnItem(MenuEntry entry)

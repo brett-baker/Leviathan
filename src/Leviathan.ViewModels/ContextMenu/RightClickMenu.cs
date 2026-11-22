@@ -14,7 +14,18 @@ public enum MenuEntryKind
 
     /// <summary>A divider.</summary>
     Separator,
+
+    /// <summary>The New submenu, which the window fills from the New item catalog (spec §6.1).</summary>
+    NewMenu,
 }
+
+/// <summary>One icon button of the strip along the top of the right-click menu.</summary>
+/// <param name="Command">The command it runs.</param>
+/// <param name="Title">Tooltip text, with the shortcut.</param>
+/// <param name="Glyph">The Segoe Fluent Icons character shown.</param>
+/// <param name="Context">What the command receives, or null.</param>
+/// <param name="Enabled">False when the command cannot run now (Paste with an empty clipboard); shown greyed so the strip keeps its shape.</param>
+public sealed record StripButton(CommandId Command, string Title, string Glyph, CommandContext? Context, bool Enabled);
 
 /// <summary>One line of Leviathan's own part of the right-click menu.</summary>
 /// <param name="Kind">Command or divider.</param>
@@ -73,28 +84,11 @@ public static class RightClickMenu
             }
         }
 
-        entries.Add(MenuEntry.Separator);
-
-        // The clipboard group and rename / delete.
-        if (selected.Count > 0)
+        // Empty space: the New submenu (folder, text document, templates), as in Explorer. Cut, Copy, Paste, Rename and Delete are
+        // the icon strip at the top (BuildStrip), not lines here.
+        if (selected.Count == 0 && registry.TryGet(CommandIds.NewFolder, out _))
         {
-            Add(CommandIds.EditCut, "Cut", "Ctrl+X");
-            Add(CommandIds.EditCopy, "Copy", "Ctrl+C");
-        }
-
-        Add(CommandIds.EditPaste, "Paste", "Ctrl+V");
-        if (single is not null)
-        {
-            Add(CommandIds.EditRename, "Rename", "F2");
-        }
-
-        if (selected.Count > 0)
-        {
-            Add(CommandIds.EditDelete, "Delete", "Del");
-        }
-        else
-        {
-            Add(CommandIds.NewFolder, "New folder", "Ctrl+Shift+N");
+            entries.Add(new MenuEntry(MenuEntryKind.NewMenu, "New", null, null, null, registry.CanExecute(CommandIds.NewFolder, null)));
         }
 
         entries.Add(MenuEntry.Separator);
@@ -118,6 +112,41 @@ public static class RightClickMenu
         }
 
         return Tidy(entries);
+    }
+
+    /// <summary>
+    /// The icon strip along the top (as in Windows 11): Cut, Copy, Rename (one item) and Delete for a selection, Paste for empty
+    /// space. Only registered commands appear. Paste is disabled until the clipboard holds something usable.
+    /// </summary>
+    public static IReadOnlyList<StripButton> BuildStrip(IReadOnlyList<FileEntry> selected, CommandRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(selected);
+        ArgumentNullException.ThrowIfNull(registry);
+
+        var buttons = new List<StripButton>();
+        void Add(CommandId command, string title, string glyph)
+        {
+            if (registry.TryGet(command, out _))
+            {
+                buttons.Add(new StripButton(command, title, glyph, null, registry.CanExecute(command, null)));
+            }
+        }
+
+        if (selected.Count == 0)
+        {
+            Add(CommandIds.EditPaste, "Paste (Ctrl+V)", "");
+            return buttons;
+        }
+
+        Add(CommandIds.EditCut, "Cut (Ctrl+X)", "");
+        Add(CommandIds.EditCopy, "Copy (Ctrl+C)", "");
+        if (selected.Count == 1)
+        {
+            Add(CommandIds.EditRename, "Rename (F2)", "");
+        }
+
+        Add(CommandIds.EditDelete, "Delete (Del)", "");
+        return buttons;
     }
 
     private static string OpenTitle(SelectionClass selection) => selection switch

@@ -224,15 +224,18 @@ public sealed partial class MainWindow
 
     // New menu ---------------------------------------------------------------------------------------------------------
 
-    private async void OnNewMenuOpening(object? sender, object e)
+    private async void OnNewMenuOpening(object? sender, object e) => await FillNewItemsAsync(NewMenu.Items);
+
+    /// <summary>Fills a New menu (the command bar's, or the submenu of the right-click menu on empty space) from the catalog of spec §6.1.</summary>
+    private async Task FillNewItemsAsync(IList<MenuFlyoutItemBase> items)
     {
-        NewMenu.Items.Clear();
+        items.Clear();
         var pending = App.Host.NewItems.TemplatesAsync();
         if (!pending.IsCompleted)
         {
             // The registry scan is still running (a cold start). The Folder item works without it.
-            NewMenu.Items.Add(NewItemFor(NewItemService.FolderTemplate));
-            NewMenu.Items.Add(new MenuFlyoutItem { Text = "Loading more…", IsEnabled = false });
+            items.Add(NewItemFor(NewItemService.FolderTemplate));
+            items.Add(new MenuFlyoutItem { Text = "Loading more…", IsEnabled = false });
         }
 
         IReadOnlyList<NewItemTemplate> templates;
@@ -245,23 +248,23 @@ public sealed partial class MainWindow
             return;
         }
 
-        NewMenu.Items.Clear();
+        items.Clear();
         NewItemSource? previous = null;
         foreach (var template in templates)
         {
             if (previous is { } source && source != template.Source)
             {
-                NewMenu.Items.Add(new MenuFlyoutSeparator());
+                items.Add(new MenuFlyoutSeparator());
             }
 
             previous = template.Source;
-            NewMenu.Items.Add(NewItemFor(template));
+            items.Add(NewItemFor(template));
         }
 
-        NewMenu.Items.Add(new MenuFlyoutSeparator());
+        items.Add(new MenuFlyoutSeparator());
         var manage = new MenuFlyoutItem { Text = "Manage templates…", Icon = Icons.OfGlyph("") };
         manage.Click += OnManageTemplatesClick;
-        NewMenu.Items.Add(manage);
+        items.Add(manage);
     }
 
     private MenuFlyoutItem NewItemFor(NewItemTemplate template)

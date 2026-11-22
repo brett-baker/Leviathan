@@ -44,8 +44,11 @@ public sealed class RightClickMenuTests
     private static void Select(WindowCommandsTests.Harness h, string name) =>
         h.Tab.Selection.Click(h.Tab.Items.Rows.First(r => r.Name == name));
 
+    private static string[] StripTitles(WindowCommandsTests.Harness h) =>
+        [.. RightClickMenu.BuildStrip(h.Tab.Selection.SelectedEntries, h.Commands).Select(b => b.Title)];
+
     [Fact]
-    public async Task AFolder_OffersOpenOpenInNewTab_TheClipboardGroup_AndProperties_InThatOrder()
+    public async Task AFolder_OffersOpenOpenInNewTab_AndProperties_InThatOrder_WithTheClipboardGroupInTheStrip()
     {
         var (h, _) = await MakeAsync();
         Select(h, "b");
@@ -54,11 +57,10 @@ public sealed class RightClickMenuTests
 
         Assert.Equal("Open", titles[0]);
         Assert.Equal("Open in new tab", titles[1]);
-        var cut = Array.IndexOf(titles, "Cut");
-        Assert.True(cut > 1);
-        Assert.Equal(["Cut", "Copy", "Paste", "Rename", "Delete"], titles[cut..(cut + 5)]);
         Assert.Equal("Properties", titles[^1]);
         Assert.DoesNotContain("Open with…", titles);
+        Assert.DoesNotContain("Cut", titles);
+        Assert.Equal(["Cut (Ctrl+X)", "Copy (Ctrl+C)", "Rename (F2)", "Delete (Del)"], StripTitles(h));
     }
 
     [Fact]
@@ -84,24 +86,33 @@ public sealed class RightClickMenuTests
         Assert.DoesNotContain("Open", titles);
         Assert.DoesNotContain("Rename", titles);
         Assert.DoesNotContain("Properties", titles);
-        Assert.Contains("Cut", titles);
-        Assert.Contains("Copy", titles);
-        Assert.Contains("Delete", titles);
+        Assert.Equal(["Cut (Ctrl+X)", "Copy (Ctrl+C)", "Delete (Del)"], StripTitles(h));
     }
 
     [Fact]
-    public async Task EmptySpace_OffersPasteAndNewFolder_AndSelectCommands()
+    public async Task EmptySpace_OffersTheNewSubmenu_AndSelectCommands_AndOnlyPasteInTheStrip()
     {
         var (h, _) = await MakeAsync();
         h.Tab.Selection.Clear();
 
-        var titles = Titles(Build(h));
+        var entries = Build(h);
+        var titles = Titles(entries);
 
-        Assert.Contains("Paste", titles);
-        Assert.Contains("New folder", titles);
+        Assert.Equal(MenuEntryKind.NewMenu, entries[0].Kind);
+        Assert.Equal("New", titles[0]);
+        Assert.True(entries[0].Enabled);
         Assert.Contains("Select all", titles);
-        Assert.DoesNotContain("Cut", titles);
-        Assert.DoesNotContain("Delete", titles);
+        Assert.DoesNotContain("New folder", titles);
+        Assert.Equal(["Paste (Ctrl+V)"], StripTitles(h));
+    }
+
+    [Fact]
+    public async Task ASelection_HasNoNewSubmenu()
+    {
+        var (h, _) = await MakeAsync();
+        Select(h, "1.txt");
+
+        Assert.DoesNotContain(Build(h), e => e.Kind == MenuEntryKind.NewMenu);
     }
 
     [Fact]
@@ -110,10 +121,11 @@ public sealed class RightClickMenuTests
         var (h, clipboard) = await MakeAsync();
         h.Tab.Selection.Clear();
 
-        var before = Build(h).Single(e => e.Title == "Paste");
+        var before = RightClickMenu.BuildStrip(h.Tab.Selection.SelectedEntries, h.Commands).Single();
         clipboard.Set([LocationPath.Parse(@"C:\v\2.txt")], ClipboardOperation.Copy);
-        var after = Build(h).Single(e => e.Title == "Paste");
+        var after = RightClickMenu.BuildStrip(h.Tab.Selection.SelectedEntries, h.Commands).Single();
 
+        Assert.Equal(CommandIds.EditPaste, before.Command);
         Assert.False(before.Enabled);
         Assert.True(after.Enabled);
     }
@@ -139,8 +151,9 @@ public sealed class RightClickMenuTests
         Select(h, "1.txt");
 
         var entries = Build(h);
+        var strip = RightClickMenu.BuildStrip(h.Tab.Selection.SelectedEntries, h.Commands);
 
-        Assert.All(entries.Where(e => e.Title is "Cut" or "Paste" or "Delete"), e => Assert.False(e.Enabled));
+        Assert.All(strip.Where(b => b.Command == CommandIds.EditCut || b.Command == CommandIds.EditDelete), b => Assert.False(b.Enabled));
         Assert.Contains(entries, e => e.Title == "Open" && e.Enabled);
     }
 
