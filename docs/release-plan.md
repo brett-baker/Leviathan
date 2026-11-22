@@ -41,7 +41,8 @@ repeatable. Development keeps going on `main` while the release pipeline runs on
 
 ## 3. What gets installed
 
-- One folder per user, `%LOCALAPPDATA%\Leviathan\app\` (Velopack's layout, e.g. `current\`), holding `Leviathan.exe`,
+- One folder per user, **`%LOCALAPPDATA%\LeviathanApp\`** (Velopack's layout: `current\`, `packages\`, `Update.exe`). The name differs
+  from the data folder on purpose: Velopack deletes its folder on uninstall, so it must never be the one that holds user data. It holds `Leviathan.exe`,
   `Leviathan.Worker.exe`, `Leviathan.Media.exe`, `Leviathan.ShellHost.exe`, `Leviathan.Elevated.exe`, `RestartAgent.exe` and
   libraries (LibVLC, ffprobe, 7-Zip).
 - **User data stays where it is now**, `%LOCALAPPDATA%\Leviathan\` (settings, journal, databases, logs, crashes), apart from the
