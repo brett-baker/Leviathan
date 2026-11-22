@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Option 1: a sea serpent coiled around a folder. The back of the coil runs behind the folder, the front crosses it. -->
+  <path d="M60 182 C16 150 20 96 74 74 C128 52 196 60 216 100" fill="none" stroke="#0E5A63" stroke-width="26" stroke-linecap="round"/>
+  <path d="M34 92 h66 l16 18 h106 a12 12 0 0 1 12 12 v88 a14 14 0 0 1 -14 14 h-172 a14 14 0 0 1 -14 -14 z" fill="#14808A"/>
+  <path d="M34 92 h66 l16 18 h-82 z" fill="#0F6B75" opacity="0"/>
+  <path d="M20 128 h216 v10 h-216 z" fill="#0F6B75" opacity="0"/>
+  <path d="M40 214 C96 238 150 150 214 196" fill="none" stroke="#5FE0CC" stroke-width="26" stroke-linecap="round"/>
+  <path d="M216 100 C236 128 236 176 214 196" fill="none" stroke="#5FE0CC" stroke-width="26" stroke-linecap="round"/>
+  <!-- head -->
+  <path d="M194 74 C206 52 238 54 244 76 C248 92 232 106 214 104 C200 102 190 90 194 74 z" fill="#5FE0CC"/>
+  <circle cx="222" cy="76" r="6.5" fill="#06343A"/>
+  <circle cx="224" cy="74" r="2" fill="#E8FFFB"/>
+  <!-- scales on the front coil -->
+  <path d="M70 218 q6 -10 14 -2 M108 212 q6 -10 14 -2 M146 190 q6 -10 14 -2" fill="none" stroke="#2BB8A6" stroke-width="5" stroke-linecap="round"/>
+</svg>

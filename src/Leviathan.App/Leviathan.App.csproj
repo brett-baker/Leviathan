@@ -7,6 +7,8 @@
     <RootNamespace>Leviathan.App</RootNamespace>
     <AssemblyName>Leviathan</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The eye over a folder (tools/icons/Leviathan.svg), 16 to 256 px: the exe, the taskbar and the title bar. -->
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\tools\icons\Leviathan.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>

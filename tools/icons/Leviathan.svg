@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Option 2: an eye watching from behind a folder. -->
+  <path d="M28 96 h72 l18 20 h110 a14 14 0 0 1 14 14 v82 a16 16 0 0 1 -16 16 h-182 a16 16 0 0 1 -16 -16 z" fill="#0E5A63"/>
+  <!-- eye -->
+  <path d="M56 112 C84 44 172 44 200 112 C172 132 84 132 56 112 z" fill="#E8FFFB"/>
+  <circle cx="128" cy="96" r="30" fill="#2BB8A6"/>
+  <ellipse cx="128" cy="96" rx="9" ry="26" fill="#06343A"/>
+  <circle cx="139" cy="80" r="6" fill="#E8FFFB"/>
+  <path d="M52 114 C80 40 176 40 204 114" fill="none" stroke="#5FE0CC" stroke-width="10" stroke-linecap="round"/>
+  <!-- folder front -->
+  <path d="M28 124 h200 a14 14 0 0 1 14 14 v76 a16 16 0 0 1 -16 16 h-196 a16 16 0 0 1 -16 -16 v-76 a14 14 0 0 1 14 -14 z" fill="#14808A"/>
+  <path d="M28 124 h200 a14 14 0 0 1 14 14 v6 h-228 v-6 a14 14 0 0 1 14 -14 z" fill="#5FE0CC" opacity="0.55"/>
+</svg>
