@@ -217,6 +217,45 @@ public static class ShellMenuFilter
         "open", "cut", "copy", "paste", "rename", "delete", "properties",
     };
 
+    /// <summary>
+    /// Takes the shell's "Open with" submenu out of <paramref name="items"/> (already prepared), so the window can show it in the top part of
+    /// the menu, under Open, instead of leaving it among the other shell items. The shell builds that list itself, from the apps
+    /// registered for the file type, including packaged apps and the "Choose another app" line, so Leviathan does not have to. When the
+    /// shell has no such submenu, <c>OpenWith</c> is null and the list is returned as it was. Matched by its title.
+    /// </summary>
+    public static (ShellMenuItem? OpenWith, IReadOnlyList<ShellMenuItem> Others) TakeOpenWith(IReadOnlyList<ShellMenuItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var found = items.FirstOrDefault(i => i.Kind == ShellMenuItemKind.SubMenu && string.Equals(ShellMenuText.Split(i.Label).Title, "Open with", StringComparison.OrdinalIgnoreCase));
+        if (found is null)
+        {
+            return (null, items);
+        }
+
+        return (found, Tidy([.. items.Where(i => !ReferenceEquals(i, found))]));
+    }
+
+    private static List<ShellMenuItem> Tidy(List<ShellMenuItem> items)
+    {
+        var result = new List<ShellMenuItem>(items.Count);
+        foreach (var item in items)
+        {
+            if (item.Kind == ShellMenuItemKind.Separator && (result.Count == 0 || result[^1].Kind == ShellMenuItemKind.Separator))
+            {
+                continue;
+            }
+
+            result.Add(item);
+        }
+
+        while (result.Count > 0 && result[^1].Kind == ShellMenuItemKind.Separator)
+        {
+            result.RemoveAt(result.Count - 1);
+        }
+
+        return result;
+    }
+
     /// <summary>Returns <paramref name="items"/> without the items Leviathan shows itself, and with tidy dividers; submenus are filtered too.</summary>
     public static IReadOnlyList<ShellMenuItem> Prepare(IReadOnlyList<ShellMenuItem> items)
     {

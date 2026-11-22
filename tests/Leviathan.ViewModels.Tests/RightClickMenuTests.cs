@@ -236,6 +236,36 @@ public sealed class ShellMenuFilterTests
     }
 
     [Fact]
+    public void TakeOpenWith_PullsTheSubmenuOut_AndTidiesTheDividersItLeaves()
+    {
+        var items = new[] { Item(0, "7-Zip", null, ShellMenuItemKind.SubMenu), Sep(1), Item(2, "Open wit&h", null, ShellMenuItemKind.SubMenu), Sep(3), Item(4, "Send to", null, ShellMenuItemKind.SubMenu) };
+
+        var (openWith, rest) = ShellMenuFilter.TakeOpenWith(items);
+
+        Assert.Equal(2, openWith!.Position);
+        Assert.Equal(["7-Zip", "-", "Send to"], Labels(rest));
+    }
+
+    [Fact]
+    public void TakeOpenWith_WithNoSuchSubmenu_ChangesNothing()
+    {
+        var items = new[] { Item(0, "Open with Code", "vscode"), Item(1, "7-Zip", null, ShellMenuItemKind.SubMenu) };
+
+        var (openWith, rest) = ShellMenuFilter.TakeOpenWith(items);
+
+        Assert.Null(openWith);
+        Assert.Same(items, rest);
+    }
+
+    [Fact]
+    public void TakeOpenWith_OnlyTakesASubmenu_NotAPlainItemWithTheSameTitle()
+    {
+        var items = new[] { Item(0, "Open with", "openas") };
+
+        Assert.Null(ShellMenuFilter.TakeOpenWith(items).OpenWith);
+    }
+
+    [Fact]
     public void Positions_AreKept_SoSubmenusStayAddressable()
     {
         var result = ShellMenuFilter.Prepare([Item(0, "Open", "open"), Item(1, "7-Zip", null, ShellMenuItemKind.SubMenu)]);

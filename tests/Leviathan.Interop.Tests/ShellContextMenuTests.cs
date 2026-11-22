@@ -53,6 +53,20 @@ public sealed class ShellContextMenuTests : IDisposable
     }
 
     [Fact]
+    public async Task AFilesMenu_HasAnOpenWithSubmenu_TitledOpenWith_WhichTheWindowShowsUnderOpen()
+    {
+        // The right-click menu pulls this submenu out by its title (ShellMenuFilter.TakeOpenWith), so the title is part of the contract.
+        var items = await OnThread(() =>
+        {
+            using var menu = ShellContextMenu.Create([Path.Combine(_root, "note.txt")], background: false, extended: false);
+            return menu.Items;
+        });
+
+        var openWith = Assert.Single(items, i => i.Kind == ShellMenuItemKind.SubMenu && i.Label?.Replace("&", string.Empty, StringComparison.Ordinal) == "Open with");
+        Assert.Null(openWith.Verb);
+    }
+
+    [Fact]
     public async Task AMenuForSeveralFiles_IsBuilt()
     {
         var count = await OnThread(() =>

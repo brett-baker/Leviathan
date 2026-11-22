@@ -37,6 +37,11 @@ public sealed partial class MainWindow
 
         public CancellationTokenSource Cancel { get; } = new();
 
+        /// <summary>The menu's own lines and the "Open with…" line among them, which the shell's "Open with" submenu replaces when it arrives; null where there is none.</summary>
+        public IList<MenuFlyoutItemBase>? OpenWithHost { get; set; }
+
+        public MenuFlyoutItemBase? OpenWithSlot { get; set; }
+
         public Guid? MenuId { get; set; }
 
         public bool Closed { get; set; }
@@ -61,15 +66,23 @@ public sealed partial class MainWindow
             flyout.Items.Add(new MenuFlyoutSeparator());
         }
 
+        MenuFlyoutItemBase? openWithSlot = null;
         foreach (var entry in entries)
         {
-            flyout.Items.Add(entry.Kind switch
+            MenuFlyoutItemBase item = entry.Kind switch
             {
                 MenuEntryKind.Separator => new MenuFlyoutSeparator(),
                 MenuEntryKind.NewMenu => NewSubMenu(entry),
                 MenuEntryKind.SubMenu => OwnSubMenu(entry),
                 _ => OwnItem(entry),
-            });
+            };
+            if (entry.Command == CommandIds.OpenWith)
+            {
+                // Stands in until the shell's own list of apps arrives; if it never does, this opens Windows' chooser.
+                openWithSlot = item;
+            }
+
+            flyout.Items.Add(item);
         }
 
         if (tab.Selection.SelectedEntries.Any(e => e.Kind == FileEntryKind.File))
@@ -93,6 +106,8 @@ public sealed partial class MainWindow
         if (shellRequest is not null)
         {
             section = AddShellSection(flyout, extended, tab.History.Current.ToWin32Path());
+            section.OpenWithHost = flyout.Items;
+            section.OpenWithSlot = openWithSlot;
             flyout.Closed += (_, _) => OnContextMenuClosed(section);
         }
 
@@ -289,6 +304,7 @@ public sealed partial class MainWindow
             }
 
             var items = ShellMenuFilter.Prepare(menu.Items);
+            items = PromoteOpenWith(section, items);
             ReplacePlaceholder(section, items.Count == 0 ? [Notice("No other items")] : BuildShellItems(section, items, [], 0));
         }
         catch (OperationCanceledException)
@@ -304,6 +320,25 @@ public sealed partial class MainWindow
                 ReplacePlaceholder(section, [Notice(ex is ShellHostUnavailableException unavailable ? unavailable.Message : "Shell extensions did not answer; showing the built-in items only.", ex.Message)]);
             }
         }
+    }
+
+    /// <summary>Puts the shell's "Open with" submenu where Leviathan's own "Open with…" line is, and returns the shell items that are left.</summary>
+    private IReadOnlyList<ShellMenuItem> PromoteOpenWith(ShellSection section, IReadOnlyList<ShellMenuItem> items)
+    {
+        if (section.OpenWithHost is not { } host || section.OpenWithSlot is not { } slot)
+        {
+            return items;
+        }
+
+        var index = host.IndexOf(slot);
+        var (openWith, rest) = ShellMenuFilter.TakeOpenWith(items);
+        if (index < 0 || openWith is null || BuildShellItems(section, [openWith], [], 0) is not [{ } submenu])
+        {
+            return items;
+        }
+
+        host[index] = submenu;
+        return rest;
     }
 
     private static MenuFlyoutItem Notice(string text, string? detail = null)
