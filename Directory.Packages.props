@@ -15,6 +15,9 @@
     <PackageVersion Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
 
     <!-- Markdown to HTML for the preview pane (spec 9.1); BSD-2-Clause -->
+    <!-- Installer and updater (release plan §2): Velopack, MIT; the vpk tool in .config/dotnet-tools.json must match this version -->
+    <PackageVersion Include="Velopack" Version="1.2.161" />
+
     <PackageVersion Include="Markdig" Version="0.38.0" />
 
     <!-- Draws font samples from a font file in the preview pane (spec 9.1); MIT, Microsoft -->

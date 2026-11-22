@@ -10,6 +10,8 @@
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
+    <!-- Program.cs is the entry point, so Velopack can handle install, update and uninstall runs before any window exists. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- Unpackaged (decision D28): runs straight from the build output, Windows App SDK bundled with the app. -->
@@ -32,6 +34,7 @@
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="LibVLCSharp.WinUI" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
 
   <ItemGroup>

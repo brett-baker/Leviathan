@@ -19,6 +19,7 @@ Leviathan uses the following packages (see `Directory.Packages.props` for versio
 | System.Drawing.Common (font samples in the preview pane) | MIT |
 | Markdig (Markdown to HTML in the preview pane) | BSD-2-Clause |
 | LibVLCSharp, LibVLCSharp.WinUI (SharpDX comes with the WinUI package) | LGPL-2.1+ (SharpDX: MIT) |
+| Velopack (installer and updater) | MIT |
 | VideoLAN.LibVLC.Windows (the LibVLC 3 native libraries, dynamically linked, unmodified) | LGPL-2.1+ |
 | SSH.NET (SFTP locations) | MIT |
 | FluentFTP (FTP and FTPS locations) | MIT |

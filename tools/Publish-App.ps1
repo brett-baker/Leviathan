@@ -10,11 +10,17 @@
   Measure the result with:
     dotnet run -c Release --project tests/Leviathan.Benchmarks -p:Platform=x64 -- --gate --cold-start <output>\Leviathan.exe
 #>
-param([string]$Output = (Join-Path $PSScriptRoot '..\artifacts\publish'))
+param(
+  [string]$Output = (Join-Path $PSScriptRoot '..\artifacts\publish'),
+  # The version to stamp into every exe (release plan section 5); empty keeps the repository default, a development build.
+  [string]$Version = ''
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
-dotnet publish "$root\src\Leviathan.App" -c Release -p:Platform=x64 -r win-x64 -p:PublishReadyToRun=true -o $Output
+$stamp = @()
+if ($Version) { $stamp += "-p:Version=$Version" }
+dotnet publish "$root\src\Leviathan.App" -c Release -p:Platform=x64 -r win-x64 -p:PublishReadyToRun=true @stamp -o $Output
 if ($LASTEXITCODE -ne 0) { throw 'publish failed' }
 $build = Join-Path $root 'src\Leviathan.App\bin\x64\Release\net10.0-windows10.0.26100.0\win-x64'
 Copy-Item "$build\*.xbf", "$build\Leviathan.pri" $Output -Force
