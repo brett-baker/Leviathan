@@ -102,9 +102,10 @@ repeatable. Development keeps going on `main` while the release pipeline runs on
    to `-beta.2` to watch the whole loop.
 6. **Signing and public stable channel**: only when the app is shared beyond Brett.
 
-## 8. Open questions for Brett
+## 8. Answers (Brett, 2026-11-22)
 
-1. Private repo or public? (decides where the feed lives)
-2. Who will install it besides Brett, and when? (decides when signing is needed)
-3. Release when: per phase, or whenever Brett says "ship it"?
-4. Is a per-user install (no admin) fine? It is the recommendation; the elevated runner already handles admin work on demand.
+1. **Repo goes public**: the app reads GitHub Releases directly, no token and no separate feed repo.
+2. **A few people will install it soon**: signing moves up. Slice 6 must land before the first build is shared; until then
+   only Brett installs. Before going public, check the repo for secrets and personal data, and keep `THIRD-PARTY-NOTICES.md` current.
+3. **Release when Brett says "ship it"**: no automatic cadence. He names the version; Claude tags it and the pipeline runs.
+4. **Per-user install, no admin prompt**: confirmed.
