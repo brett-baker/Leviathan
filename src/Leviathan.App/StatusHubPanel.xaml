@@ -404,47 +404,60 @@
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="QuickSettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="12" Padding="0,0,8,8" MaxWidth="640" HorizontalAlignment="Left">
-            <TextBlock Text="How much runs at once" Style="{StaticResource BodyStrongTextBlockStyle}" />
-            <Grid ColumnSpacing="16" RowSpacing="8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <NumberBox x:Name="RunningBox" Header="Copies, moves and deletes" Minimum="1" Maximum="16" SpinButtonPlacementMode="Inline" SmallChange="1"
-                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="All together, on every drive" />
-              <NumberBox x:Name="PerDeviceBox" Grid.Column="1" Header="On one drive or share" Minimum="1" Maximum="4" SpinButtonPlacementMode="Inline" SmallChange="1"
-                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="One at a time is kindest to a NAS" />
-              <NumberBox x:Name="BackgroundBox" Grid.Column="2" Header="Background work" Minimum="1" Maximum="8" SpinButtonPlacementMode="Inline" SmallChange="1"
-                         ValueChanged="OnQuickNumberChanged" ToolTipService.ToolTip="Folder sizes, thumbnails and the like" />
-            </Grid>
-            <TextBlock Text="On network drives" Style="{StaticResource BodyStrongTextBlockStyle}" />
-            <ToggleSwitch x:Name="NetworkSizesSwitch" Header="Count the size of folders" Toggled="OnQuickToggled"
-                          ToolTipService.ToolTip="Each folder means walking the whole share. Turn off to spare a slow NAS." />
-            <ToggleSwitch x:Name="NetworkThumbsSwitch" Header="Make thumbnails of files" Toggled="OnQuickToggled"
-                          ToolTipService.ToolTip="Each thumbnail means reading the file over the network." />
-            <TextBlock Text="Copy speed" Style="{StaticResource BodyStrongTextBlockStyle}" />
-            <NumberBox x:Name="BandwidthBox" Header="Limit for all copies and moves (MB/s, 0 = none)" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Inline" SmallChange="10"
-                       ValueChanged="OnQuickSpeedChanged" ToolTipService.ToolTip="Leaves room on the network for everything else. The slowest limit that applies wins." />
-            <ToggleSwitch x:Name="ScheduleSwitch" Header="A different limit at set times" Toggled="OnQuickSpeedToggled" />
-            <Grid x:Name="ScheduleGrid" ColumnSpacing="16">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <TimePicker x:Name="ScheduleFromPicker" Header="From" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
-              <TimePicker x:Name="ScheduleToPicker" Grid.Column="1" Header="To" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
-              <NumberBox x:Name="ScheduleBox" Grid.Column="2" Header="Limit then (MB/s, 0 = none)" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Inline" SmallChange="10"
-                         ValueChanged="OnQuickSpeedChanged" />
-            </Grid>
-            <ComboBox x:Name="VerifyBox" Header="Check copies against the original" SelectionChanged="OnVerifyChanged" MinWidth="320">
-              <ComboBoxItem Content="Moves and network copies (recommended)" Tag="Default" />
-              <ComboBoxItem Content="Every file in full" Tag="Full" />
-              <ComboBoxItem Content="Moves only" Tag="Off" />
-            </ComboBox>
-            <HyperlinkButton Content="All settings…" Click="OnAllSettingsClick" Padding="0" />
+          <StackPanel Spacing="4" Padding="0,0,8,8">
+            <TextBlock Text="How much runs at once" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,4,0,2" />
+            <local:SettingCard Glyph="&#xE9D2;" Title="Copies, moves and deletes" Description="All together, on every drive."
+                               Info="More at once is not faster when they use the same disk or network. Extra jobs wait their turn.">
+              <NumberBox x:Name="RunningBox" Minimum="1" Maximum="16" SpinButtonPlacementMode="Compact" SmallChange="1" Width="120"
+                         ValueChanged="OnQuickNumberChanged" AutomationProperties.Name="Copies, moves and deletes at once" />
+            </local:SettingCard>
+            <local:SettingCard Glyph="&#xE8CE;" Title="On one drive or share" Description="One at a time is kindest to a NAS."
+                               Info="One stream is fastest for a hard disk or a NAS. Two or more can help a fast SSD or a 10 GbE link.">
+              <NumberBox x:Name="PerDeviceBox" Minimum="1" Maximum="4" SpinButtonPlacementMode="Compact" SmallChange="1" Width="120"
+                         ValueChanged="OnQuickNumberChanged" AutomationProperties.Name="At once on one drive or share" />
+            </local:SettingCard>
+            <local:SettingCard Glyph="&#xE9F5;" Title="Background work" Description="Folder sizes, thumbnails and the like."
+                               Info="These run quietly beside your own work. A low number keeps the file list quick.">
+              <NumberBox x:Name="BackgroundBox" Minimum="1" Maximum="8" SpinButtonPlacementMode="Compact" SmallChange="1" Width="120"
+                         ValueChanged="OnQuickNumberChanged" AutomationProperties.Name="Background jobs at once" />
+            </local:SettingCard>
+            <TextBlock Text="On network drives" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,14,0,2" />
+            <local:SettingCard Glyph="&#xE8B7;" Title="Count the size of folders" Description="Folders on shares get a size, or stay empty."
+                               Info="Each folder means walking the whole share. Turn off to spare a slow NAS.">
+              <ToggleSwitch x:Name="NetworkSizesSwitch" Toggled="OnQuickToggled" AutomationProperties.Name="Count the size of folders" />
+            </local:SettingCard>
+            <local:SettingCard Glyph="&#xEB9F;" Title="Make thumbnails of files" Description="Pictures and videos on shares show a preview, or an icon."
+                               Info="Each thumbnail means reading the file over the network.">
+              <ToggleSwitch x:Name="NetworkThumbsSwitch" Toggled="OnQuickToggled" AutomationProperties.Name="Make thumbnails of files" />
+            </local:SettingCard>
+            <TextBlock Text="Copy speed" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,14,0,2" />
+            <local:SettingCard Glyph="&#xEC4A;" Title="Limit for all copies and moves" Description="Megabytes per second; 0 means no limit."
+                               Info="Leaves room on the network for everything else. The slowest limit that applies wins. A gigabit link carries about 110 MB per second.">
+              <NumberBox x:Name="BandwidthBox" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Compact" SmallChange="10" Width="120"
+                         ValueChanged="OnQuickSpeedChanged" AutomationProperties.Name="Speed limit in MB per second" />
+            </local:SettingCard>
+            <local:SettingCard Glyph="&#xE823;" Title="A different limit at set times" Description="For example a lower limit in the day and none at night."
+                               Info="A window that ends earlier than it starts runs past midnight.">
+              <ToggleSwitch x:Name="ScheduleSwitch" Toggled="OnQuickSpeedToggled" AutomationProperties.Name="A different limit at set times" />
+            </local:SettingCard>
+            <local:SettingCard x:Name="ScheduleGrid" Glyph="&#xE916;" Title="The hours and the limit then" Stacked="True">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TimePicker x:Name="ScheduleFromPicker" Header="From" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
+                <TimePicker x:Name="ScheduleToPicker" Header="To" ClockIdentifier="24HourClock" MinuteIncrement="15" SelectedTimeChanged="OnQuickScheduleTimeChanged" />
+                <NumberBox x:Name="ScheduleBox" Header="Limit then (MB/s, 0 = none)" Minimum="0" Maximum="100000" SpinButtonPlacementMode="Compact" SmallChange="10" Width="170"
+                           ValueChanged="OnQuickSpeedChanged" />
+              </StackPanel>
+            </local:SettingCard>
+            <TextBlock Text="Safety" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,14,0,2" />
+            <local:SettingCard Glyph="&#xE73E;" Title="Check copies against the original" Description="Read the copy back to make sure it matches."
+                               Info="Recommended checks every move, and every copy to or from a share. 'Every file in full' checks all of them. 'Moves only' skips the check for copies; moves are always checked before the source is deleted.">
+              <ComboBox x:Name="VerifyBox" SelectionChanged="OnVerifyChanged" Width="280">
+                <ComboBoxItem Content="Moves and network copies (recommended)" Tag="Default" />
+                <ComboBoxItem Content="Every file in full" Tag="Full" />
+                <ComboBoxItem Content="Moves only" Tag="Off" />
+              </ComboBox>
+            </local:SettingCard>
+            <HyperlinkButton Content="All settings…" Click="OnAllSettingsClick" Padding="0" Margin="0,8,0,0" />
           </StackPanel>
         </ScrollViewer>
         <Grid x:Name="SpacePage" Margin="4,8,0,0" RowSpacing="6" Visibility="Collapsed">
