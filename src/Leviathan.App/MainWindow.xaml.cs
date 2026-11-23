@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window, IShellActions
                 Deleter = host.Transfers,
                 Undo = host.Undo,
                 Clipboard = host.FileClipboard,
+                ImageEditor = new Leviathan.Interop.WicImageEditor(),
                 Profiles = host.Profiles,
                 Archives = host.Archives,
                 Terminal = () => host.Settings.Current.Files.Terminal,

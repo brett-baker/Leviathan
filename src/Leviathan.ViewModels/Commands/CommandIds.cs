@@ -396,6 +396,18 @@ public static class CommandIds
     /// <summary>Convert an image format (Phase 3).</summary>
     public static readonly CommandId ConvertFormat = new("image.convert");
 
+    /// <summary>Mirror the selected pictures left to right, saving copies.</summary>
+    public static readonly CommandId ImageFlipHorizontal = new("image.flipHorizontal");
+
+    /// <summary>Mirror the selected pictures top to bottom, saving copies.</summary>
+    public static readonly CommandId ImageFlipVertical = new("image.flipVertical");
+
+    /// <summary>Scale the selected pictures; the parameter is the percentage (int), saving copies.</summary>
+    public static readonly CommandId ImageResize = new("image.resize");
+
+    /// <summary>Save the selected pictures in another format; the parameter is the <c>ImageFormat</c>.</summary>
+    public static readonly CommandId ImageConvertTo = new("image.convertTo");
+
     /// <summary>Print the selected document.</summary>
     public static readonly CommandId Print = new("item.print");
 

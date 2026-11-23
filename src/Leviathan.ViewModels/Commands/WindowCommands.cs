@@ -49,6 +49,7 @@ public static class WindowCommands
         new FileCommands(scope).Register();
         new EditCommands(scope).Register();
         new ClipboardCommands(scope).Register();
+        new ImageCommands(scope).Register();
         new ArchiveCommands(scope).Register();
         new ToolCommands(scope).Register();
         new FavoriteCommands(scope).Register();

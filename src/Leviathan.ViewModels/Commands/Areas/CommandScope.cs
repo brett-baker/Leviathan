@@ -38,6 +38,8 @@ internal sealed record CommandScope(
     public Undo.UndoService? UndoService => Services.Undo;
     /// <summary>The file clipboard, or null.</summary>
     public Transfers.IFileClipboard? Clipboard => Services.Clipboard;
+    /// <summary>The picture editor, or null.</summary>
+    public Core.Images.IImageEditor? ImageEditor => Services.ImageEditor;
     /// <summary>Folder profiles, or null.</summary>
     public Sessions.ProfileService? Profiles => Services.Profiles;
     /// <summary>Archives, or null.</summary>

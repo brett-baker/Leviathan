@@ -29,6 +29,12 @@ filter.set | Filter this folder | View |  |  | True | True
 folder.sync | Compare and sync folders... | Files |  |  | True | True
 group.by | Group by | View |  |  | True | False
 hub.toggle | Status hub | View |  | Ctrl+Shift+O | True | True
+image.convertTo | Convert picture | Image |  |  | False | False
+image.flipHorizontal | Flip horizontally | Image |  |  | False | False
+image.flipVertical | Flip vertically | Image |  |  | False | False
+image.resize | Resize picture | Image |  |  | False | False
+image.rotateLeft | Rotate left | Image |  |  | False | False
+image.rotateRight | Rotate right | Image |  |  | False | False
 item.checksum | Checksums... | Files |  |  | True | True
 item.drop | Drop items here | Files |  |  | False | False
 item.open | Open | Files |  | Enter | False | False

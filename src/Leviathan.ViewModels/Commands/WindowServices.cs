@@ -35,6 +35,9 @@ public sealed record WindowServices
     /// <summary>Cut, copy and paste of files.</summary>
     public Transfers.IFileClipboard? Clipboard { get; init; }
 
+    /// <summary>Rotate, flip, resize and convert pictures.</summary>
+    public Core.Images.IImageEditor? ImageEditor { get; init; }
+
     /// <summary>Folder profiles.</summary>
     public Sessions.ProfileService? Profiles { get; init; }
 

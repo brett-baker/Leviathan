@@ -210,7 +210,12 @@ public sealed partial class MainWindow
         var sub = new MenuFlyoutSubItem { Text = entry.Title, IsEnabled = entry.Enabled };
         foreach (var child in entry.Children ?? [])
         {
-            sub.Items.Add(child.Kind == MenuEntryKind.Separator ? new MenuFlyoutSeparator() : OwnItem(child));
+            sub.Items.Add(child.Kind switch
+            {
+                MenuEntryKind.Separator => new MenuFlyoutSeparator(),
+                MenuEntryKind.SubMenu => OwnSubMenu(child),
+                _ => OwnItem(child),
+            });
         }
 
         return sub;

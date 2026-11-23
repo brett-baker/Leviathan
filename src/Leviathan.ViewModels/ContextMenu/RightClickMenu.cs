@@ -98,10 +98,17 @@ public static class RightClickMenu
 
         entries.Add(MenuEntry.Separator);
 
+        // Pictures (one or several): rotate, flip, resize and convert live in one submenu, so the rotate lines of the table below are not repeated.
+        var pictures = selected.Count > 0 && selected.All(e => e.Kind == FileEntryKind.File && Core.Images.ImageEditRules.CanEdit(e.Extension));
+        if (pictures)
+        {
+            AddImageMenu(entries, registry);
+        }
+
         // What the selection offers, from the same table as the command bar.
         foreach (var button in ContextActions.For(selection, registry))
         {
-            if (button.Command == CommandIds.Properties)
+            if (button.Command == CommandIds.Properties || (pictures && (button.Command == CommandIds.RotateLeft || button.Command == CommandIds.RotateRight)))
             {
                 continue;
             }
@@ -117,6 +124,38 @@ public static class RightClickMenu
         }
 
         return Tidy(entries);
+    }
+
+    private static readonly int[] ResizePercents = [75, 50, 25, 200];
+
+    /// <summary>"Image": rotate, flip, a Resize submenu (percentages) and a Convert to submenu (formats). Each saves a copy.</summary>
+    private static void AddImageMenu(List<MenuEntry> entries, CommandRegistry registry)
+    {
+        MenuEntry? Line(CommandId command, string title, object? parameter = null)
+        {
+            var context = parameter is null ? null : new CommandContext(null, parameter);
+            return registry.TryGet(command, out _) ? new MenuEntry(MenuEntryKind.Command, title, command, context, null, registry.CanExecute(command, context)) : null;
+        }
+
+        MenuEntry? Sub(string title, IEnumerable<MenuEntry?> lines)
+        {
+            var kept = lines.OfType<MenuEntry>().ToList();
+            return kept.Count == 0 ? null : new MenuEntry(MenuEntryKind.SubMenu, title, null, null, null, kept.Any(c => c.Enabled), kept);
+        }
+
+        var children = new List<MenuEntry?>
+        {
+            Line(CommandIds.RotateLeft, "Rotate left"),
+            Line(CommandIds.RotateRight, "Rotate right"),
+            Line(CommandIds.ImageFlipHorizontal, "Flip horizontally"),
+            Line(CommandIds.ImageFlipVertical, "Flip vertically"),
+            Sub("Resize", ResizePercents.Select(p => Line(CommandIds.ImageResize, $"{p}%", p))),
+            Sub("Convert to", Enum.GetValues<Core.Images.ImageFormat>().Select(f => Line(CommandIds.ImageConvertTo, f.ToString().ToUpperInvariant(), f))),
+        };
+        if (Sub("Image", children) is { } menu)
+        {
+            entries.Add(menu);
+        }
     }
 
     /// <summary>"Paste special": paste into a new folder, text as a file, a picture as a file. Greyed as a whole when none of them can run now.</summary>

@@ -152,9 +152,11 @@ public sealed class WindowCommandsTests
 
     internal sealed class Harness
     {
-        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null, Folders.RenameService? renamer = null, Transfers.ITransferService? transfers = null, Drives.DriveCardPreferences? driveCards = null, Transfers.IDeleteService? deleter = null, Undo.UndoService? undo = null, Transfers.IFileClipboard? clipboard = null, Sessions.ProfileService? profiles = null, Archives.IArchiveService? archives = null, Func<Leviathan.Core.Platform.TerminalKind>? terminal = null, IQuickTargets? quickTargets = null)
+        public Harness(Views.ViewOptions? viewOptions = null, NewMenu.NewItemService? newItems = null, Sidebar.FavoritesList? favorites = null, Folders.RenameService? renamer = null, Transfers.ITransferService? transfers = null, Drives.DriveCardPreferences? driveCards = null, Transfers.IDeleteService? deleter = null, Undo.UndoService? undo = null, Transfers.IFileClipboard? clipboard = null, Sessions.ProfileService? profiles = null, Archives.IArchiveService? archives = null, Func<Leviathan.Core.Platform.TerminalKind>? terminal = null, IQuickTargets? quickTargets = null, Leviathan.Core.Images.IImageEditor? imageEditor = null, IEnumerable<string>? extraFiles = null)
         {
-            var services = TabTestSupport.Services() with { Options = viewOptions };
+            var tree = TabTestSupport.Tree();
+            foreach (var extra in extraFiles ?? []) { tree.AddFile(extra, 1); }
+            var services = TabTestSupport.Services(tree) with { Options = viewOptions };
             Windows = new WindowManager(services);
             Window = Windows.OpenWindow(TabTestSupport.P(@"C:\a"));
             Trail = new ActionTrail();
@@ -165,7 +167,7 @@ public sealed class WindowCommandsTests
             fs.AddDirectory(@"C:\a\b");
             fs.AddDirectory(@"C:\v");
             fs.AddFile(@"C:\a\1.txt", new MockFileData("x"));
-            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), new WindowServices { Favorites = favorites, NewItems = newItems, ViewOptions = viewOptions, Renamer = renamer, Transfers = transfers, DriveCards = driveCards, Deleter = deleter, Undo = undo, Clipboard = clipboard, Profiles = profiles, Archives = archives, Terminal = terminal, QuickTargets = quickTargets });
+            Commands = WindowCommands.Create(Trail, Window, Windows, new AddressResolver(new FileSystemEntryProbe(fs)), Launcher, Shell, () => TabTestSupport.P(@"C:\Home"), new WindowServices { Favorites = favorites, NewItems = newItems, ViewOptions = viewOptions, Renamer = renamer, Transfers = transfers, DriveCards = driveCards, Deleter = deleter, Undo = undo, Clipboard = clipboard, ImageEditor = imageEditor, Profiles = profiles, Archives = archives, Terminal = terminal, QuickTargets = quickTargets });
             Ready = Window.Tabs.Selected!.ReloadAsync(CancellationToken.None);
         }
 
