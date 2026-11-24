@@ -283,10 +283,20 @@ internal sealed partial class TriageWindow : Window
         {
             // The video surface hands over the options LibVLC needs to draw into it, so the instance is made only now.
             UiTrace.Mark("Triage: video surface ready");
-            var libvlc = LibVlcEngine.CreateLibVlc(e.SwapChainOptions);
+            // Loading LibVLC and scanning its plugins takes seconds the first time (longer with a virus scanner watching), so it is done
+            // on the pool: the window and the app stay responsive, and the spinner turns, while it starts (spec §3.2).
+            var swapChainOptions = e.SwapChainOptions;
+            var engine = await Task.Run(() => new LibVlcEngine(LibVlcEngine.CreateLibVlc(swapChainOptions), ownsLibVlc: true));
             UiTrace.Mark("Triage: LibVLC created");
-            _engine = new LibVlcEngine(libvlc, ownsLibVlc: true);
+            if (_closing.IsCancellationRequested)
+            {
+                await engine.DisposeAsync();
+                return;
+            }
+
+            _engine = engine;
             Video.MediaPlayer = _engine.Player;
+            LoadingText.Text = "Opening the first video…";
             var settings = App.Host.Settings.Current.Media;
             _actions = App.Host.TriageActionsFor(_destination);
             await ApplyVolumeAsync(settings);
@@ -310,6 +320,7 @@ internal sealed partial class TriageWindow : Window
             UiTrace.Mark("Triage: opening the first file");
             await session.StartAsync(_startIndex, _closing.Token);
             UiTrace.Mark("Triage: first file playing");
+            Loading.Visibility = Visibility.Collapsed;
 
             // The order used last time (not for an inbox, which has its own: oldest, newest, largest or random).
             if (Inbox is null && settings.TriageOrder != TriageListOrder.AsOpened)
@@ -327,6 +338,7 @@ internal sealed partial class TriageWindow : Window
         {
             // The video surface is drawn over everything and is white until LibVLC draws: hide it, or the message cannot be seen.
             Video.Visibility = Visibility.Collapsed;
+            Loading.Visibility = Visibility.Collapsed;
             NameText.Text = "The video engine could not start";
             Message.Text = $"The video engine could not start: {ex.Message}";
             Message.Visibility = Visibility.Visible;

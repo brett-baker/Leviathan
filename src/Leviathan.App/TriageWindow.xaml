@@ -47,6 +47,12 @@
         </StackPanel>
       </Border>
       <TextBlock x:Name="Message" TextWrapping="Wrap" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620" Foreground="White" />
+      <!-- Shown from the moment the window opens until the first video is on screen: the video engine takes seconds to start the first time. -->
+      <StackPanel x:Name="Loading" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" IsHitTestVisible="False"
+                  AutomationProperties.Name="Loading the first video">
+        <ProgressRing IsActive="True" IsIndeterminate="True" Width="56" Height="56" HorizontalAlignment="Center" Foreground="White" />
+        <TextBlock x:Name="LoadingText" Text="Starting the video engine…" Foreground="White" FontSize="14" HorizontalAlignment="Center" />
+      </StackPanel>
       <Border x:Name="ErrorBox" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,64" Padding="12,6" CornerRadius="6"
               Background="#DC962020" MaxWidth="900" IsHitTestVisible="False">
         <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="White" />

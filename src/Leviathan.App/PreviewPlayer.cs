@@ -105,13 +105,14 @@ internal sealed partial class PreviewPlayer : Grid
     /// <summary>Raised on the UI thread when the engine could not start (no LibVLC, a bad install).</summary>
     public event EventHandler<string>? Failed;
 
-    private void OnVideoInitialized(object? sender, InitializedEventArgs e)
+    private async void OnVideoInitialized(object? sender, InitializedEventArgs e)
     {
         try
         {
-            // The video surface hands over the options LibVLC needs to draw into it, so the instance is made only now.
-            var libvlc = LibVlcEngine.CreateLibVlc(e.SwapChainOptions);
-            _engine = new LibVlcEngine(libvlc, ownsLibVlc: true);
+            // The video surface hands over the options LibVLC needs to draw into it, so the instance is made only now. Loading LibVLC
+            // takes seconds the first time, so it is done on the pool, not on the UI thread (spec §3.2).
+            var swapChainOptions = e.SwapChainOptions;
+            _engine = await Task.Run(() => new LibVlcEngine(LibVlcEngine.CreateLibVlc(swapChainOptions), ownsLibVlc: true));
             _keys = new PlaybackController(_engine);
             _video.MediaPlayer = _engine.Player;
             _ready.TrySetResult();
