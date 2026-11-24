@@ -53,6 +53,9 @@ public sealed class BinModel
     /// <summary>Raised when the rows or the summary changed. May come from any thread the caller awaited on.</summary>
     public event EventHandler? Changed;
 
+    /// <summary>How long the tab waits for the worker to read the bin before it says so and stops waiting (spec §3.2: no wait without a timeout).</summary>
+    public TimeSpan ReadTimeout { get; init; } = TimeSpan.FromSeconds(60);
+
     /// <summary>True while the bin is being read.</summary>
     public bool IsLoading { get; private set; }
 
@@ -63,7 +66,7 @@ public sealed class BinModel
         Changed?.Invoke(this, EventArgs.Empty);
         try
         {
-            var listing = await _service.ListAsync(cancellationToken).ConfigureAwait(true);
+            var listing = await _service.ListAsync(cancellationToken).WaitAsync(ReadTimeout, _time, cancellationToken).ConfigureAwait(true);
             lock (_lock)
             {
                 _items = listing.Items;
@@ -75,7 +78,14 @@ public sealed class BinModel
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException)
+        catch (TimeoutException)
+        {
+            lock (_lock)
+            {
+                _problem = $"Reading the bin took longer than {ReadTimeout.TotalSeconds:0} seconds, so this tab stopped waiting. A share may be slow or away. Open the tab again to retry.";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
         {
             lock (_lock)
             {

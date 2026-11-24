@@ -137,6 +137,29 @@ public sealed class SoftDeleteBinTests
         Assert.Equal([@"\\gone\share\.leviathan-trash"], scan.Unreachable.Select(r => r.Value));
     }
 
+    [Fact]
+    public void Scan_OfAManifestFullOfGhosts_ListsOnlyWhatIsStillThere()
+    {
+        // A real manifest held 38,000 lines for files the share's own recycle bin had long emptied. The scan lists each folder once and
+        // matches names, instead of asking the share about every line.
+        var (fs, registry) = Setup();
+        registry.Add(P(Root));
+        fs.AddFile($@"{Root}\manifest.jsonl", new MockFileData(string.Empty));
+        for (var i = 0; i < 3000; i++)
+        {
+            fs.File.AppendAllText($@"{Root}\manifest.jsonl", Line($@"\\nas\media\show\ghost{i}.mkv", $@"{Root}\batch\ghost{i}.mkv", Now.AddDays(-30)));
+        }
+
+        fs.AddFile($@"{Root}\batch\Real One.MKV", new MockFileData("abcd"));
+        fs.File.AppendAllText($@"{Root}\manifest.jsonl", Line(@"\\nas\media\show\Real One.mkv", $@"{Root}\batch\real one.mkv", Now));
+
+        var scan = new BinScanner(registry).Scan(false, CancellationToken.None);
+
+        var found = Assert.Single(scan.Items);
+        Assert.Equal(4, found.SizeBytes);
+        Assert.Empty(scan.Unreachable);
+    }
+
     private static BinItem Item(string name, int daysAgo, long size) =>
         new(@"\\nas\media\" + name, P($@"{Root}\b\{name}"), Now.AddDays(-daysAgo), size, false, P(Root));
 

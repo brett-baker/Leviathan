@@ -25,6 +25,13 @@
       <Setter Property="IsEnabled" Value="True" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
+    <Style x:Key="SectionCardStyle" TargetType="Border">
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+      <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+    </Style>
     <local:OperationContainerSelector x:Key="OperationContainers" Row="{StaticResource LogCardStyle}" Header="{StaticResource LogHeaderStyle}" />
     <DataTemplate x:Key="OperationRowTemplate" x:DataType="hub:OperationRow">
       <Grid ColumnSpacing="12">
@@ -360,65 +367,79 @@
             <TextBox x:Name="BinSearch" Grid.Column="2" PlaceholderText="Search the bin" TextChanged="OnBinSearchChanged" AutomationProperties.Name="Search the bin" />
           </Grid>
           <TextBlock x:Name="BinMessage" Grid.Row="2" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" Visibility="Collapsed" />
-          <ListView AutomationProperties.Name="Soft-deleted items" x:Name="BinList" Grid.Row="3" SelectionMode="Extended" ItemTemplate="{StaticResource BinTemplate}"
+          <ListView AutomationProperties.Name="Soft-deleted items" x:Name="BinList" Grid.Row="3" SelectionMode="Extended" ItemTemplate="{StaticResource BinTemplate}" ItemContainerStyle="{StaticResource LogCardStyle}"
                     SelectionChanged="OnBinSelectionChanged" />
         </Grid>
         <ScrollViewer x:Name="BackgroundPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="10" Padding="0,0,8,8">
-            <StackPanel Spacing="4">
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Folder sizes and other background work" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
-                <Button x:Name="PauseAllButton" Grid.Column="1" Content="Pause all" Click="OnPauseAllClick" />
-                <Button x:Name="ResumeAllButton" Grid.Column="2" Content="Resume all" Click="OnResumeAllClick" />
-              </Grid>
-              <TextBlock x:Name="FolderSizeText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <ListView AutomationProperties.Name="Background tasks" x:Name="TaskList" SelectionMode="None" ItemTemplate="{StaticResource TaskTemplate}" MaxHeight="260" />
-              <TextBlock x:Name="TasksEmpty" Text="No background work right now." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,0,0,0" />
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Thumbnails" Style="{StaticResource BodyStrongTextBlockStyle}" />
-              <TextBlock x:Name="ThumbText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Video and audio details" Style="{StaticResource BodyStrongTextBlockStyle}" />
-              <TextBlock x:Name="MediaText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <ItemsControl x:Name="QuarantineList" ItemTemplate="{StaticResource QuarantineTemplate}" />
-            </StackPanel>
-            <StackPanel x:Name="SheetsSection" Spacing="4" Visibility="Collapsed">
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Contact sheets" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
-                <Button x:Name="CancelSheetsButton" Grid.Column="1" Content="Cancel" Click="OnCancelSheetsClick" />
-              </Grid>
-              <TextBlock x:Name="SheetsText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Search index" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
-                <Button x:Name="IndexPauseButton" Grid.Column="1" Content="Pause" Click="OnIndexPauseClick" Visibility="Collapsed" />
-              </Grid>
-              <TextBlock x:Name="IndexText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />
-              <TextBlock x:Name="NetworkText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Programs this app runs" Style="{StaticResource BodyStrongTextBlockStyle}" />
-              <ItemsControl x:Name="ProcessList" ItemTemplate="{StaticResource ProcessTemplate}" />
-            </StackPanel>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <Grid ColumnSpacing="8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Folder sizes and other background work" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                  <Button x:Name="PauseAllButton" Grid.Column="1" Content="Pause all" Click="OnPauseAllClick" />
+                  <Button x:Name="ResumeAllButton" Grid.Column="2" Content="Resume all" Click="OnResumeAllClick" />
+                </Grid>
+                <TextBlock x:Name="FolderSizeText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <ListView AutomationProperties.Name="Background tasks" x:Name="TaskList" SelectionMode="None" ItemTemplate="{StaticResource TaskTemplate}" MaxHeight="260" />
+                <TextBlock x:Name="TasksEmpty" Text="No background work right now." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,0,0,0" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Thumbnails" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Name="ThumbText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Video and audio details" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Name="MediaText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <ItemsControl x:Name="QuarantineList" ItemTemplate="{StaticResource QuarantineTemplate}" />
+              </StackPanel>
+            </Border>
+            <Border x:Name="SheetsSection" Style="{StaticResource SectionCardStyle}" Visibility="Collapsed">
+              <StackPanel Spacing="4">
+                <Grid ColumnSpacing="8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Contact sheets" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                  <Button x:Name="CancelSheetsButton" Grid.Column="1" Content="Cancel" Click="OnCancelSheetsClick" />
+                </Grid>
+                <TextBlock x:Name="SheetsText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <Grid ColumnSpacing="8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Search index" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                  <Button x:Name="IndexPauseButton" Grid.Column="1" Content="Pause" Click="OnIndexPauseClick" Visibility="Collapsed" />
+                </Grid>
+                <TextBlock x:Name="IndexText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Network folders" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Name="NetworkText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SectionCardStyle}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Programs this app runs" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <ItemsControl x:Name="ProcessList" ItemTemplate="{StaticResource ProcessTemplate}" />
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="QuickSettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">

@@ -22,8 +22,12 @@ public sealed class BinModelTests
 
         public int PurgedOld { get; private set; }
 
+        /// <summary>When set, listing never finishes, as when a share does not answer.</summary>
+        public bool Hang { get; set; }
+
         public Task<BinListing> ListAsync(CancellationToken cancellationToken) =>
-            Failure is null ? Task.FromResult(Listing) : Task.FromException<BinListing>(Failure);
+            Hang ? new TaskCompletionSource<BinListing>().Task
+            : Failure is null ? Task.FromResult(Listing) : Task.FromException<BinListing>(Failure);
 
         public Task<TransferOutcome> RestoreAsync(IReadOnlyList<BinEntryInfo> items, CancellationToken cancellationToken)
         {
@@ -213,5 +217,21 @@ public sealed class BinModelTests
         Assert.False(run.IsFaulted);
         await stop.CancelAsync();
         await run;
+    }
+
+    [Fact]
+    public async Task Refresh_OfABinThatNeverAnswers_GivesUpAfterTheTimeout_AndSaysSo()
+    {
+        var time = new ManualTimeProvider(Now);
+        var bin = new FakeBin { Hang = true };
+        var model = new BinModel(bin, time) { ReadTimeout = TimeSpan.FromSeconds(30) };
+
+        var reading = model.RefreshAsync(CancellationToken.None);
+        Assert.True(model.IsLoading);
+        time.Advance(TimeSpan.FromSeconds(31));
+        await reading;
+
+        Assert.False(model.IsLoading);
+        Assert.Contains("longer than 30 seconds", model.Summary());
     }
 }

@@ -55,35 +55,52 @@ public sealed class BinScanner(BinRegistry registry)
             }
 
             // The same item twice (a retried write) is one item; the later line wins.
-            foreach (var entry in entries.GroupBy(e => e.Trashed, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()))
+            var wanted = entries.GroupBy(e => e.Trashed, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()).ToList();
+
+            // A manifest can list tens of thousands of items whose files are long gone (the share's own recycle bin empties itself). Asking
+            // the share about each one is one round trip apiece, which took minutes. Each folder is listed once instead, and the entries are
+            // matched against that listing: one round trip per folder, however many entries it has.
+            foreach (var folder in wanted.GroupBy(e => Parent(e.Trashed), StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!LocationPath.TryParse(entry.Trashed, out var trashed))
-                {
-                    continue;
-                }
-
+                Dictionary<string, IFileSystemInfo> present;
                 try
                 {
-                    var path = trashed.ToWin32Path();
-                    if (fs.File.Exists(path))
-                    {
-                        items.Add(new BinItem(entry.Original, trashed, entry.DeletedAt, fs.FileInfo.New(path).Length, false, root));
-                    }
-                    else if (fs.Directory.Exists(path))
-                    {
-                        items.Add(new BinItem(entry.Original, trashed, entry.DeletedAt, measureFolders ? SizeOf(fs, path, cancellationToken) : -1, true, root));
-                    }
+                    present = fs.DirectoryInfo.New(folder.Key).Exists
+                        ? fs.DirectoryInfo.New(folder.Key).EnumerateFileSystemInfos().ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                        : [];
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // One unreadable item is left out; the rest of the bin is still listed.
+                    // A folder that cannot be listed leaves its items out; the rest of the bin is still listed.
+                    continue;
+                }
+
+                foreach (var entry in folder)
+                {
+                    if (!LocationPath.TryParse(entry.Trashed, out var trashed) || !present.TryGetValue(trashed.Name, out var info))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        items.Add(info is IFileInfo file
+                            ? new BinItem(entry.Original, trashed, entry.DeletedAt, file.Length, false, root)
+                            : new BinItem(entry.Original, trashed, entry.DeletedAt, measureFolders ? SizeOf(fs, trashed.ToWin32Path(), cancellationToken) : -1, true, root));
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // One unreadable item is left out; the rest of the bin is still listed.
+                    }
                 }
             }
         }
 
         return new BinScan([.. items.OrderByDescending(i => i.DeletedAt)], unreachable);
     }
+
+    private static string Parent(string path) => System.IO.Path.GetDirectoryName(path.TrimEnd('\\', '/')) ?? string.Empty;
 
     private static long SizeOf(IFileSystem fs, string folder, CancellationToken cancellationToken)
     {
