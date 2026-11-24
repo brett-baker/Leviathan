@@ -54,7 +54,7 @@
 | 13 | Right-click a `.txt` file in `01-basic`. | Under Open there is "Open with". |
 | 14 | Point at it (give it a second). | The list of apps Windows offers for that type (Notepad at least), ending with "Choose another app". |
 | 15 | Choose Notepad. | The file opens in Notepad. |
-| 16 | Open the menu on a file inside a zip (browse `picture.zip` in `11-preview`). | "Open with…" still appears; it opens the Windows chooser. |
+| 16 | Open the menu on a file inside a zip (browse `sample.zip` in `11-preview`). | "Open with…" still appears; it opens the Windows chooser. |
 
 ### E. Image submenu
 
@@ -76,7 +76,7 @@
 - Does the strip look like Windows 11's: spacing, icon size, hover colour, Paste greyed convincingly?
 - Is the Open with list as quick to appear as Explorer's? (It arrives a moment after the menu opens.)
 - Wording: "Paste text as new file", "Convert to", the status bar messages.
-- Does the menu feel as fast as before with the extra entries? Open it on a 10,000-item folder (`10-large`) and note any delay.
+- Does the menu feel as fast as before with the extra entries? Open it on a 10,000-item folder (`06-ten-thousand`) and note any delay.
 
 ## Known edge cases
 
