@@ -684,10 +684,10 @@ public sealed partial class MainWindow
 
         var window = new TriageWindow(queue, start, title, OtherPaneFolder) { Inbox = inbox };
         window.Notice += (_, text) => OnUi(() => MessageText.Text = text);
-        window.Exited += (_, file) => OnUi(() =>
+        // Files moved by Keep or the hand-off changed the keep folder and the folder triage ran in; the worker moves them without the
+        // views hearing of it, so forget what the cache holds and reload every pane showing either folder.
+        void ReloadFolders()
         {
-            // Files moved by Keep or the hand-off changed the keep folder and the folder triage ran in; the worker moves them without the
-            // views hearing of it, so forget what the cache holds and reload every pane showing either folder.
             var changed = new List<Core.Paths.LocationPath>();
             if (window.KeptFolder is { Length: > 0 } kept)
             {
@@ -711,6 +711,26 @@ public sealed partial class MainWindow
                     _ = shown.ReloadAsync(CancellationToken.None, forceFresh: true);
                 }
             }
+        }
+
+        // While triage runs, the two folders follow it: a keep shows in the destination and leaves the source as it happens. One reload at
+        // a time, a moment after the last decision, so a quick run of keeps does not reload the share for every file.
+        var reloadQueued = false;
+        window.FilesMoved += (_, _) => OnUi(async () =>
+        {
+            if (reloadQueued)
+            {
+                return;
+            }
+
+            reloadQueued = true;
+            await Task.Delay(1200);
+            reloadQueued = false;
+            ReloadFolders();
+        });
+        window.Exited += (_, file) => OnUi(() =>
+        {
+            ReloadFolders();
 
             OnUi(() =>
             {

@@ -82,7 +82,8 @@ public sealed class TriageFileActions(IUndoActions files, ITagStore tags, Func<T
         StepResult moved;
         try
         {
-            moved = await files.MoveAsync([new ItemMove(path, target)], cancellationToken).ConfigureAwait(false);
+            ItemMove[] keep = [new ItemMove(path, target)];
+            moved = await files.MoveAsync(keep, cancellationToken, MoveTitles.Keep(keep)).ConfigureAwait(false);
         }
         catch
         {

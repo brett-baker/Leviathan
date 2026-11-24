@@ -83,6 +83,16 @@ internal sealed partial class OperationTemplateSelector : DataTemplateSelector
     protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => SelectTemplateCore(item);
 }
 
+/// <summary>Picks the look of a line of the Operations list: a job is a card like the ones in Settings, a group heading is plain text.</summary>
+internal sealed partial class OperationContainerSelector : StyleSelector
+{
+    public Style? Row { get; set; }
+
+    public Style? Header { get; set; }
+
+    protected override Style? SelectStyleCore(object item, DependencyObject container) => item is OperationHeader ? Header : Row;
+}
+
 /// <summary>
 /// The status hub (spec §16.1, D34): the tabs, the pin, where it is shown, and the Operations list. It draws what
 /// <see cref="StatusHubModel"/> says and reports what the user did (a tab, the pin, a new place, a drag of the edge); the window

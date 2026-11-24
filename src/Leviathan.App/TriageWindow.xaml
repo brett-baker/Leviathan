@@ -20,12 +20,19 @@
 
     <!-- Where we are, in one quiet line: the position and the decisions so far on the left, the space reclaimed on the right. -->
     <Grid Grid.Row="0" Padding="12,6" ColumnSpacing="12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <TextBlock x:Name="ProgressText" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" Text="Starting…" />
       <TextBlock x:Name="ReclaimedText" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="#C9C9C9" />
+      <!-- Where Keep puts files, or a warning that it puts them nowhere (the file is only tagged). -->
+      <TextBlock x:Name="DestinationText" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,2,0,0" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                 Foreground="#C9C9C9" AutomationProperties.Name="Where kept files go" />
     </Grid>
     <ProgressBar AutomationProperties.Name="Triage progress" x:Name="Bar" Grid.Row="1" Minimum="0" Maximum="1" Height="3" />
 

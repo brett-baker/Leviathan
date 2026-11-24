@@ -300,6 +300,7 @@ internal sealed partial class TriageWindow : Window
                 () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null);
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys);
             _dispatcher.WindowCommand += OnWindowCommand;
+            session.DecisionChanged += OnDecisionChanged;
             session.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);
             session.Finished += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);
             session.OrderChanged += (_, _) => DispatcherQueue.TryEnqueue(OnOrderChanged);
@@ -345,6 +346,7 @@ internal sealed partial class TriageWindow : Window
               + $" · {session.Kept:N0} kept · {session.Discarded:N0} discarded"
             : session.ProgressText;
         ReclaimedText.Text = session.ReclaimedText;
+        ShowDestination();
         Bar.Value = session.Items.Count == 0 ? 0 : (double)(session.IsFinished ? session.Items.Count : Math.Max(0, session.Index)) / session.Items.Count;
         ErrorText.Text = session.LastError ?? string.Empty;
         ErrorBox.Visibility = session.LastError is null ? Visibility.Collapsed : Visibility.Visible;
@@ -362,6 +364,48 @@ internal sealed partial class TriageWindow : Window
 
         Summary.Visibility = session.IsFinished ? Visibility.Visible : Visibility.Collapsed;
         RefreshQueue();
+    }
+
+    // Where Keep puts files, always on screen: the folder, or a warning in amber when there is none and Keep only tags.
+    private void ShowDestination()
+    {
+        var destination = Destination();
+        var moveOnKeep = App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.OnKeep;
+        var line = Leviathan.ViewModels.Triage.TriageNotes.DestinationLine(destination, moveOnKeep);
+        if (DestinationText.Text == line)
+        {
+            return;
+        }
+
+        // The other pane can be moved to another folder while triage runs, so this is looked at again with every refresh.
+        DestinationText.Text = line;
+        DestinationText.Foreground = Leviathan.ViewModels.Triage.TriageNotes.IsWarning(destination)
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 208, 96))
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 201, 201, 201));
+    }
+
+    /// <summary>Raised after a kept or discarded file moved, so the folder views can show the change at once, not only when this window closes.</summary>
+    public event EventHandler? FilesMoved;
+
+    // Every decision is written to the Activity tab with where the file went (spec §16.1), and the folder views are told to reload.
+    private void OnDecisionChanged(object? sender, TriageItem item)
+    {
+        var name = item.File.Name;
+        var from = item.Original.Location.Parent?.ToWin32Path() ?? string.Empty;
+        var now = item.File.Location.Parent?.ToWin32Path() ?? from;
+        var moveOnKeep = App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.OnKeep;
+        var note = item.Decision switch
+        {
+            TriageDecision.Kept => Leviathan.ViewModels.Triage.TriageNotes.Kept(name, from, now, Destination(), moveOnKeep),
+            TriageDecision.Discarded => Leviathan.ViewModels.Triage.TriageNotes.Discarded(name, from),
+            TriageDecision.None => Leviathan.ViewModels.Triage.TriageNotes.TakenBack(item.Original.Name, from),
+            _ => null,
+        };
+        if (note is not null)
+        {
+            App.Host.Activity.Note(note, Leviathan.ViewModels.Activity.ActivityKind.Files, item.File.Location.Value);
+            DispatcherQueue.TryEnqueue(() => FilesMoved?.Invoke(this, EventArgs.Empty));
+        }
     }
 
     private void ShowCurrent(TriageItem item)
@@ -539,6 +583,7 @@ internal sealed partial class TriageWindow : Window
 
     private void Refresh()
     {
+        ShowDestination();
         if (_engine is not { } engine)
         {
             return;

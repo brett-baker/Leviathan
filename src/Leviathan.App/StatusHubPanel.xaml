@@ -8,8 +8,26 @@
     xmlns:activity="using:Leviathan.ViewModels.Activity">
 
   <UserControl.Resources>
+    <!-- Rows of the logs look like the cards of Settings: a card surface, a thin stroke, rounded corners, room to breathe. -->
+    <Style x:Key="LogCardStyle" TargetType="ListViewItem">
+      <Setter Property="Margin" Value="0,0,0,6" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+      <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style x:Key="LogHeaderStyle" TargetType="ListViewItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="IsEnabled" Value="True" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <local:OperationContainerSelector x:Key="OperationContainers" Row="{StaticResource LogCardStyle}" Header="{StaticResource LogHeaderStyle}" />
     <DataTemplate x:Key="OperationRowTemplate" x:DataType="hub:OperationRow">
-      <Grid ColumnSpacing="10" Padding="4,6">
+      <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
@@ -18,12 +36,12 @@
         </Grid.ColumnDefinitions>
         <Border Width="4" CornerRadius="2" Background="{x:Bind local:HubFormat.Color(Entry.ColorIndex), Mode=OneWay}" />
         <StackPanel Grid.Column="1" Spacing="3">
-          <TextBlock Text="{x:Bind Entry.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Entry.Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
           <ProgressBar AutomationProperties.Name="Progress" Value="{x:Bind local:HubFormat.Value(Entry.Percent), Mode=OneWay}" Maximum="100"
                        IsIndeterminate="{x:Bind local:HubFormat.Indeterminate(Entry.Percent, Entry.State), Mode=OneWay}"
                        ShowError="{x:Bind Entry.IsFailed, Mode=OneWay}"
                        Visibility="{x:Bind local:HubFormat.ShowBar(Entry.IsActive), Mode=OneWay}" />
-          <TextBlock Text="{x:Bind Entry.Detail, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+          <TextBlock Text="{x:Bind Entry.Detail, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <!-- The job stopped on an error it cannot decide for itself (spec 12.2): Skip / Retry / Skip all like this. -->
           <StackPanel Spacing="4" Visibility="{x:Bind local:HubFormat.ShowBar(Entry.HasPrompt), Mode=OneWay}">
@@ -78,24 +96,24 @@
     </DataTemplate>
 
     <DataTemplate x:Key="OperationHeaderTemplate" x:DataType="hub:OperationHeader">
-      <TextBlock Text="{x:Bind Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="2,10,0,2" />
+      <TextBlock Text="{x:Bind Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="2,14,0,6" />
     </DataTemplate>
 
     <local:OperationTemplateSelector x:Key="OperationSelector" Row="{StaticResource OperationRowTemplate}" Header="{StaticResource OperationHeaderTemplate}" />
 
 
     <DataTemplate x:Key="ActivityTemplate" x:DataType="activity:ActivityEntry">
-      <Grid ColumnSpacing="12" Padding="4,5">
+      <Grid ColumnSpacing="14">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="104" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <TextBlock Text="{x:Bind local:HubFormat.When(Time)}" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Top" Margin="0,2,0,0"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <StackPanel Grid.Column="1" Spacing="1">
-          <TextBlock Text="{x:Bind Summary}" TextTrimming="CharacterEllipsis"
+        <StackPanel Grid.Column="1" Spacing="2">
+          <TextBlock Text="{x:Bind Summary}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                      Foreground="{x:Bind local:HubFormat.ActivityBrush(IsError)}" />
-          <TextBlock Text="{x:Bind local:HubFormat.Where(Target, Location)}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+          <TextBlock Text="{x:Bind local:HubFormat.Where(Target, Location)}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind local:HubFormat.ShowText(Target, Location)}" />
         </StackPanel>
       </Grid>
@@ -262,7 +280,7 @@
               <Button x:Name="OpRemoveButton" Content="Remove" Tag="Remove" Click="OnSelectionActionClick" ToolTipService.ToolTip="Take off the list" />
             </StackPanel>
           </ScrollViewer>
-          <ListView AutomationProperties.Name="Operations" x:Name="OperationList" Grid.Row="2" SelectionMode="Extended" ItemTemplateSelector="{StaticResource OperationSelector}"
+          <ListView AutomationProperties.Name="Operations" x:Name="OperationList" Grid.Row="2" SelectionMode="Extended" ItemTemplateSelector="{StaticResource OperationSelector}" ItemContainerStyleSelector="{StaticResource OperationContainers}"
                     SelectionChanged="OnOperationSelectionChanged" RightTapped="OnOperationRightTapped" />
           <TextBlock x:Name="NothingText" Grid.Row="2" Text="Nothing is running. Copies, moves and deletes appear here."
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,12,0,0" Visibility="Collapsed" />
@@ -307,7 +325,7 @@
             </Button>
           </Grid>
           <ListView AutomationProperties.Name="Recent activity" x:Name="ActivityList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnActivityItemClick"
-                    ItemTemplate="{StaticResource ActivityTemplate}" />
+                    ItemTemplate="{StaticResource ActivityTemplate}" ItemContainerStyle="{StaticResource LogCardStyle}" />
           <TextBlock x:Name="ActivityEmpty" Grid.Row="1" Text="Nothing here yet. What you do is listed here, newest first." Margin="4,12,0,0"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
         </Grid>
