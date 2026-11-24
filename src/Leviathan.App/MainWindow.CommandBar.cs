@@ -202,7 +202,23 @@ public sealed partial class MainWindow
     private void OnPasteIntoNewFolderClick(object sender, RoutedEventArgs e) => Run(CommandIds.EditPasteIntoNewFolder);
 
     /// <summary>The clipboard changed (here or in another application): Paste enables or disables itself.</summary>
-    private void OnClipboardChanged(object? sender, EventArgs e) => OnUi(RefreshCommandBar);
+    private Leviathan.ViewModels.Transfers.CutMarks _shownCut = Leviathan.ViewModels.Transfers.CutMarks.None;
+
+    private void OnClipboardChanged(object? sender, EventArgs e) => OnUi(() =>
+    {
+        RefreshCommandBar();
+
+        // Cut files are drawn faded (spec §6.1): the rows in view are drawn again when the cut changes, and only then.
+        var cut = App.Host.FileClipboard.Cut;
+        if (!ReferenceEquals(cut, _shownCut))
+        {
+            _shownCut = cut;
+            FileList.RefreshIcons();
+            FlowList.RefreshIcons();
+            FileList2.RefreshIcons();
+            FlowList2.RefreshIcons();
+        }
+    });
 
     /// <summary>"Select by pattern": asks for a wildcard such as <c>*.mkv</c> in a small flyout and selects what matches.</summary>
     private void AskForPattern(FrameworkElement anchor)

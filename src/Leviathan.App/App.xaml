@@ -8,6 +8,36 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+
+      <!-- Buttons answer the pointer clearly: a tint of the accent and an accent outline under the mouse, a stronger tint while pressed
+           (the stock fills are barely visible on a dark or white surface). They follow the accent colour, and apply to every button,
+           toolbar button and toggle in the app. -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.22" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.7" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.45" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="1" />
+          <SolidColorBrush x:Key="AppBarButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.22" />
+          <SolidColorBrush x:Key="AppBarButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.45" />
+          <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.22" />
+          <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.7" />
+          <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.45" />
+          <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="1" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.16" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.7" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.34" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="1" />
+          <SolidColorBrush x:Key="AppBarButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.16" />
+          <SolidColorBrush x:Key="AppBarButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.34" />
+          <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.16" />
+          <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.7" />
+          <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.34" />
+          <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="1" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

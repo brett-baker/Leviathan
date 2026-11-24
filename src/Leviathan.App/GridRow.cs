@@ -121,8 +121,8 @@ internal sealed class GridRow : Grid
     {
         Entry = entry;
 
-        // A copy a running job has not finished creating here (the "UI updates: Immediate" setting).
-        Opacity = entry.IsPending ? 0.45 : 1;
+        // A copy a running job has not finished creating here (the "UI updates: Immediate" setting), or an item that was cut and not yet pasted.
+        Opacity = entry.IsPending || App.Host.FileClipboard.Cut.IsCut(entry.Location) ? 0.45 : 1;
         EnsureCells();
         Fill();
         UpdateVisuals();

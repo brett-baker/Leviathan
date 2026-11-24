@@ -18,6 +18,9 @@ internal sealed class WindowsFileClipboard : IFileClipboard
     private const string OwnFormat = "Leviathan.FileClipboard";
 
     private ClipboardItems? _own;
+
+    // The rows ask this for every item they draw, so it is rebuilt when the clipboard changes, never per row.
+    private CutMarks _cut = CutMarks.None;
     private bool _hasFiles;
     private bool _hasText;
     private bool _hasImage;
@@ -27,6 +30,9 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         Clipboard.ContentChanged += OnContentChanged;
         ReadFormats();
     }
+
+    /// <summary>The items cut from this program and not yet pasted, for the lists to draw faded (spec §6.1).</summary>
+    public CutMarks Cut => _cut;
 
     /// <inheritdoc />
     public bool HasText => _hasText;
@@ -123,6 +129,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         package.SetData(OwnFormat, "1");
         Clipboard.SetContent(package);
         _own = new ClipboardItems(items, operation);
+        _cut = CutMarks.Of(_own);
         (_hasFiles, _hasText, _hasImage) = (true, false, false);
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -131,6 +138,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
     public void Clear()
     {
         _own = null;
+        _cut = CutMarks.None;
         try
         {
             Clipboard.Clear();
@@ -194,6 +202,7 @@ internal sealed class WindowsFileClipboard : IFileClipboard
         if (!HoldsOwnFormat())
         {
             _own = null;
+            _cut = CutMarks.None;
         }
 
         ReadFormats();

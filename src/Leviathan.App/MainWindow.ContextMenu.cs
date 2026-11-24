@@ -173,7 +173,10 @@ public sealed partial class MainWindow
                 IsEnabled = button.Enabled,
                 MinWidth = 64,
                 Padding = new Thickness(6, 6, 6, 4),
-                BorderThickness = new Thickness(0),
+                // A transparent 1 px outline, so the accent outline of the hover and pressed states (App.xaml) has somewhere to show.
+                BorderThickness = new Thickness(1),
+                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                CornerRadius = new CornerRadius(6),
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
             };
             ToolTipService.SetToolTip(control, button.Title);
