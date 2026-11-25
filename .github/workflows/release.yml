@@ -19,7 +19,7 @@ concurrency:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,6 +93,8 @@ jobs:
           artifact-configuration-slug: binaries
           github-artifact-id: ${{ steps.unsigned-binaries.outputs.artifact-id }}
           wait-for-completion: true
+          # Every SignPath Foundation release needs a person to approve it in SignPath, so this waits for you (up to 50 minutes).
+          wait-for-completion-timeout-in-seconds: 3000
           output-artifact-directory: signed-binaries
 
       - name: Use the signed binaries
@@ -129,6 +131,8 @@ jobs:
           artifact-configuration-slug: installer
           github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
           wait-for-completion: true
+          # Every SignPath Foundation release needs a person to approve it in SignPath, so this waits for you (up to 50 minutes).
+          wait-for-completion-timeout-in-seconds: 3000
           output-artifact-directory: signed-installer
 
       - name: Use the signed installer

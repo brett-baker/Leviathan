@@ -62,11 +62,12 @@ they are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Code signing policy
 
-Free code signing for the Windows releases is provided by [SignPath.io](https://signpath.io), with a certificate from the
-[SignPath Foundation](https://signpath.org). Only binaries built from this repository by the GitHub Actions release workflow are signed
-(see [docs/signing.md](docs/signing.md)).
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+Only binaries built from this repository by the GitHub Actions release workflow are signed (see [docs/signing.md](docs/signing.md)).
 
-- **Committers, reviewers and approvers of a release:** Brett Baker ([@brett-baker](https://github.com/brett-baker)).
-- **Privacy:** Leviathan sends nothing about you or your files anywhere. The only network call it makes by itself is the update check,
-  which asks the GitHub release page whether a newer version exists, if "Look for updates" is on (Settings > Advanced). Everything else
-  (shares, servers, cloud drives) is contacted only when you open it.
+- **Committers and reviewers:** Brett Baker ([@brett-baker](https://github.com/brett-baker)).
+- **Approvers:** Brett Baker ([@brett-baker](https://github.com/brett-baker)).
+- **Privacy policy:** this program will not transfer any information to other networked systems unless specifically requested by the
+  user or the person installing or operating it. The one exception is the update check: if "Look for updates" is on (Settings > Advanced;
+  it can be switched off), it asks the GitHub release page whether a newer version exists, which sends nothing but the request itself.
+  Shares, servers and cloud drives are contacted only when you open them.
