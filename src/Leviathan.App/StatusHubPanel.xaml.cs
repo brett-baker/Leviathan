@@ -127,6 +127,8 @@ internal sealed partial class StatusHubPanel : UserControl
         LeftGrip.SizeRequested += (_, size) => WidthRequested?.Invoke(this, size);
         _model.PropertyChanged += OnModelChanged;
         App.Host.Settings.Changed += OnSettingsChanged;
+        App.Host.Updates.Changed += OnUpdateChanged;
+        ShowUpdate();
         Sync();
         LoadQuick();
         RefreshOperations();
@@ -178,7 +180,37 @@ internal sealed partial class StatusHubPanel : UserControl
     }
 
     /// <summary>Called when the window closes, so the panel stops listening to the shared settings.</summary>
-    internal void Detach() => App.Host.Settings.Changed -= OnSettingsChanged;
+    internal void Detach()
+    {
+        App.Host.Settings.Changed -= OnSettingsChanged;
+        App.Host.Updates.Changed -= OnUpdateChanged;
+    }
+
+    private void OnUpdateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ShowUpdate);
+
+    // The notice of a newer version (release plan §4). Applying it is not built yet, so the bar says where to get it rather than offer a button that cannot work.
+    private void ShowUpdate()
+    {
+        var updates = App.Host.Updates;
+        if (updates.State != Leviathan.ViewModels.Updates.UpdateState.Available || updates.Offer is not { } offer)
+        {
+            UpdateBar.IsOpen = false;
+            return;
+        }
+
+        UpdateBar.Title = $"Leviathan {offer.Version} is ready";
+        UpdateBar.Message = "Updating from inside the app is not built yet: install it from the release page. Your settings and files are kept.";
+        UpdateBar.Tag = offer.Version;
+        UpdateBar.IsOpen = true;
+    }
+
+    private void OnReleasePageClick(object sender, RoutedEventArgs e)
+    {
+        if (UpdateBar.Tag is string version)
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri($"https://github.com/brett-baker/Leviathan/releases/tag/v{version}"));
+        }
+    }
 
     private void OnSettingsChanged(object? sender, Leviathan.ViewModels.Settings.AppSettings settings) => DispatcherQueue.TryEnqueue(LoadQuick);
 

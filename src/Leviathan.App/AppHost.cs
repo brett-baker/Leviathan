@@ -253,6 +253,38 @@ internal sealed class AppHost
     /// <summary>The folder of contact sheets being made in the background, if any.</summary>
     internal ContactSheetBatch SheetBatch { get; init; } = null!;
 
+    private const string RepositoryUrl = "https://github.com/brett-baker/Leviathan";
+
+    private static Leviathan.ViewModels.Updates.UpdateChecker NewUpdateChecker(Func<UpdateSettings> settings)
+    {
+        var build = Leviathan.Diagnostics.Crash.CrashReportBuilder.ReadBuildInfo(typeof(AppHost).Assembly);
+        return new Leviathan.ViewModels.Updates.UpdateChecker(
+            new VelopackUpdateSource(build.RepositoryUrl ?? RepositoryUrl),
+            Leviathan.ViewModels.Settings.AppVersion.Parse(build),
+            settings);
+    }
+
+    // The first check waits until well after the first folder is on screen (spec §3.1); a newer version is written to the Activity tab once.
+    private void StartUpdateChecks()
+    {
+        string? announced = null;
+        Updates.Changed += (_, _) =>
+        {
+            if (Updates.LastError is { } error)
+            {
+                UiTrace.Mark($"update check failed: {error}");
+            }
+
+            if (Updates.State == Leviathan.ViewModels.Updates.UpdateState.Available && Updates.Offer is { } offer && offer.Version != announced)
+            {
+                announced = offer.Version;
+                Activity.Note($"Leviathan {offer.Version} is ready. Open Settings > Advanced to see it.", ActivityKind.Message);
+            }
+        };
+
+        _ = Updates.RunAsync(CancellationToken.None);
+    }
+
     /// <summary>The folder a new tab opens: the one chosen in General, else Home.</summary>
     public LocationPath NewTabLocation() =>
         Settings.Current.General.NewTabLocation is { Length: > 0 } chosen && LocationPath.TryParse(chosen, out var parsed) ? parsed : Home;
@@ -453,6 +485,9 @@ internal sealed class AppHost
 
     /// <summary>What the user did this session and, for seven days, earlier (spec 16.1, D35).</summary>
     public ActivityLog Activity { get; private init; } = null!;
+
+    /// <summary>Asks the release feed whether a newer version exists (release plan §4); never applies anything.</summary>
+    internal Leviathan.ViewModels.Updates.UpdateChecker Updates { get; private init; } = null!;
 
     /// <summary>The user's operations (copies, moves, deletes) as the Operations tab of the status hub lists them (spec 16.1).</summary>
     public OperationsModel Operations { get; private init; } = null!;
@@ -880,6 +915,7 @@ internal sealed class AppHost
             Activity = activity,
             Background = background,
             Bin = new BinModel(binService),
+            Updates = NewUpdateChecker(() => built!.Settings.Current.Updates),
             Sizes = sizes,
             Git = new Leviathan.ViewModels.Git.GitStatusService(new Leviathan.Interop.GitProcessRunner(), disk, () => built!.Settings.Current.Files.GitStatus),
             ThumbnailGate = thumbnailGate,
@@ -907,6 +943,7 @@ internal sealed class AppHost
             host.StartApplyingSettings(ui);
         }
 
+        host.StartUpdateChecks();
         transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
         transfers.Volumes = host.Volumes;
         transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;

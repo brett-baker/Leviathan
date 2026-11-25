@@ -212,6 +212,7 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
@@ -221,7 +222,7 @@
 
       <!-- The grip on the top edge (fly-up and bottom dock) or the left edge (right dock): drag to resize. -->
       <local:HubGrip x:Name="TopGrip" Grid.Row="0" Grid.Column="1" Vertical="False" />
-      <local:HubGrip x:Name="LeftGrip" Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Vertical="True" Visibility="Collapsed" />
+      <local:HubGrip x:Name="LeftGrip" Grid.Row="0" Grid.RowSpan="4" Grid.Column="0" Vertical="True" Visibility="Collapsed" />
 
       <Grid Grid.Row="1" Grid.Column="1" Padding="12,2,8,2" ColumnSpacing="4">
         <Grid.ColumnDefinitions>
@@ -253,7 +254,14 @@
         </StackPanel>
       </Grid>
 
-      <Grid x:Name="Pages" Grid.Row="2" Grid.Column="1" Padding="12,4,12,8">
+      <!-- A newer version exists (release plan §4): quiet, closable, and never in the way of a running copy. -->
+      <InfoBar x:Name="UpdateBar" Grid.Row="2" Grid.Column="1" Margin="12,4,12,0" Severity="Informational" IsOpen="False" IsClosable="True">
+        <InfoBar.ActionButton>
+          <Button Content="Release page" Click="OnReleasePageClick" />
+        </InfoBar.ActionButton>
+      </InfoBar>
+
+      <Grid x:Name="Pages" Grid.Row="3" Grid.Column="1" Padding="12,4,12,8">
         <Grid x:Name="OperationsPage" RowSpacing="6">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

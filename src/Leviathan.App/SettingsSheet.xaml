@@ -412,6 +412,22 @@
                 <local:SettingCard x:Name="AboutCard" Glyph="&#xE946;" Title="Leviathan" Description="">
                   <TextBlock x:Name="AboutChannelText" VerticalAlignment="Center" ToolTipService.ToolTip="Dev: a local build. Beta: an early release. Stable: a finished release." />
                 </local:SettingCard>
+                <TextBlock Text="Updates" Style="{StaticResource SectionHeader}" />
+                <local:SettingCard Glyph="&#xE895;" Title="Look for updates" Description="Checks the release page in the background a little after start-up, then every few hours. Nothing is downloaded or installed without you."
+                                   Info="A build run from Visual Studio never checks: it is not an installed copy.">
+                  <ToggleSwitch x:Name="UpdatesSwitch" Toggled="OnUpdatesChanged" AutomationProperties.Name="Look for updates" />
+                </local:SettingCard>
+                <local:SettingCard Glyph="&#xE8FD;" Title="Which releases" Description="Beta gets early releases as well as finished ones."
+                                   Info="Same as this build: a beta stays on beta, a finished release stays on finished releases.">
+                  <ComboBox x:Name="UpdateChannelBox" Width="260" SelectionChanged="OnUpdateChannelSelected" AutomationProperties.Name="Which releases">
+                    <x:String>Same as this build</x:String>
+                    <x:String>Finished releases only</x:String>
+                    <x:String>Beta and finished releases</x:String>
+                  </ComboBox>
+                </local:SettingCard>
+                <local:SettingCard x:Name="UpdateCard" Glyph="&#xE72C;" Title="Check now" Description="">
+                  <Button x:Name="UpdateCheckButton" Content="Check now" Click="OnCheckUpdatesClick" />
+                </local:SettingCard>
                 <TextBlock Text="Settings file" Style="{StaticResource SectionHeader}" />
                 <local:SettingCard Glyph="&#xE8A5;" Title="Settings file" Description="Changes made to the file while the app runs are picked up the next time it starts.">
                   <Button Content="Show the settings file" Click="OnShowSettingsFileClick" />

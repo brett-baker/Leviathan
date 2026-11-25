@@ -50,6 +50,22 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public async Task Updates_AreOnByDefault_AndTheChannelChoiceSurvivesAReload()
+    {
+        var (store, fs, _) = Make();
+        var defaults = (await store.LoadAsync(CancellationToken.None)).Updates;
+        Assert.True(defaults.CheckForUpdates);
+        Assert.Equal(UpdateChannelChoice.FollowBuild, defaults.Channel);
+
+        await store.UpdateAsync(s => s with { Updates = new UpdateSettings { CheckForUpdates = false, Channel = UpdateChannelChoice.Beta } }, CancellationToken.None);
+
+        var reloaded = (await new SettingsStore(fs, Path).LoadAsync(CancellationToken.None)).Updates;
+        Assert.False(reloaded.CheckForUpdates);
+        Assert.Equal(UpdateChannelChoice.Beta, reloaded.Channel);
+        Assert.Contains("\"Beta\"", fs.File.ReadAllText(Path));
+    }
+
+    [Fact]
     public async Task KeepOwnTrashOnShares_IsOnByDefault_AndTurningItOffSurvivesAReload()
     {
         var (store, fs, _) = Make();

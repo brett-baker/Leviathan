@@ -75,6 +75,29 @@ public sealed record GeneralSettings
     public string NewTabLocation { get; init; } = string.Empty;
 }
 
+/// <summary>Which releases an installed copy is offered (release plan §2).</summary>
+public enum UpdateChannelChoice
+{
+    /// <summary>The channel this build came from: a beta stays on beta, a stable build on stable.</summary>
+    FollowBuild,
+
+    /// <summary>Finished releases only.</summary>
+    Stable,
+
+    /// <summary>Beta releases as well as finished ones.</summary>
+    Beta,
+}
+
+/// <summary>Updates (release plan §4): whether the app looks for a newer version and in which channel.</summary>
+public sealed record UpdateSettings
+{
+    /// <summary>Look for a newer version in the background. "Check now" works either way.</summary>
+    public bool CheckForUpdates { get; init; } = true;
+
+    /// <summary>Which releases to look at.</summary>
+    public UpdateChannelChoice Channel { get; init; } = UpdateChannelChoice.FollowBuild;
+}
+
 /// <summary>Appearance page (spec §17.2).</summary>
 public sealed record AppearanceSettings
 {
@@ -361,6 +384,9 @@ public sealed record AppSettings
 
     /// <summary>The colour tags, in order (spec §11.1).</summary>
     public TagSettings Tags { get; init; } = new();
+
+    /// <summary>Whether and where the app looks for updates (release plan §4).</summary>
+    public UpdateSettings Updates { get; init; } = new();
 
     /// <summary>Key overrides: command id to gesture text (empty text unbinds). Only the user's changes are stored.</summary>
     public Dictionary<string, string> KeyBindings { get; init; } = [];

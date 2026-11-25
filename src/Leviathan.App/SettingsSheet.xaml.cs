@@ -240,7 +240,10 @@ internal sealed partial class SettingsSheet : UserControl
                 AccentBox.Text = settings.Appearance.Accent;
             }
             SettingsPathText.Text = App.Host.SettingsPath;
+            UpdatesSwitch.IsOn = settings.Updates.CheckForUpdates;
+            UpdateChannelBox.SelectedIndex = (int)settings.Updates.Channel;
             ShowAbout();
+            ShowUpdateState();
             TerminalBox.SelectedIndex = (int)settings.Files.Terminal;
             GitSwitch.IsOn = settings.Files.GitStatus;
             var quick = QuickTargets.Normalize(settings.Files.QuickTargets);
@@ -822,6 +825,61 @@ internal sealed partial class SettingsSheet : UserControl
         AboutCard.Title = $"Leviathan {version.Display}";
         AboutCard.Description = version.ShortCommit.Length > 0 ? $"Built from commit {version.ShortCommit}." : "The commit this build was made from is not known.";
         AboutChannelText.Text = version.Channel.ToString();
+    }
+
+    // ---- Updates (release plan §4): the checker owns the state; this page only shows it and asks for a check.
+
+    private void ShowUpdateState()
+    {
+        var updates = App.Host.Updates;
+        var disabled = updates.State == Leviathan.ViewModels.Updates.UpdateState.Disabled;
+        var line = updates.Message.Length == 0 ? "Not checked yet." : updates.Message;
+        if (updates.LastChecked is { } at && updates.State != Leviathan.ViewModels.Updates.UpdateState.Checking)
+        {
+            line += $" Last checked {at.ToLocalTime():g}.";
+        }
+
+        UpdateCard.Description = line;
+        UpdateCheckButton.IsEnabled = !disabled && updates.State != Leviathan.ViewModels.Updates.UpdateState.Checking;
+    }
+
+    private async void OnCheckUpdatesClick(object sender, RoutedEventArgs e)
+    {
+        var updates = App.Host.Updates;
+        updates.Changed += OnUpdateStateChanged;
+        try
+        {
+            await updates.CheckAsync(CancellationToken.None);
+        }
+        finally
+        {
+            updates.Changed -= OnUpdateStateChanged;
+            ShowUpdateState();
+        }
+    }
+
+    private void OnUpdateStateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ShowUpdateState);
+
+    private async void OnUpdatesChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var on = UpdatesSwitch.IsOn;
+        await SaveAsync(s => s with { Updates = s.Updates with { CheckForUpdates = on } });
+    }
+
+    private async void OnUpdateChannelSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _loading || UpdateChannelBox.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var choice = (Leviathan.ViewModels.Settings.UpdateChannelChoice)UpdateChannelBox.SelectedIndex;
+        await SaveAsync(s => s with { Updates = s.Updates with { Channel = choice } });
     }
 
     private void OnShowSettingsFileClick(object sender, RoutedEventArgs e)
