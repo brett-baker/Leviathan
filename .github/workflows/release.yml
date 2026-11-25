@@ -1,0 +1,95 @@
+name: Release
+
+# A release is a deliberate act (release plan section 1): pushing a version tag such as v0.6.0 or v0.6.0-beta.1 builds that exact commit,
+# runs every test and the budget gate, packs the installer and update packages with Velopack and publishes a GitHub Release. Work that lands
+# on main meanwhile is not in it. A tag that is not a version, or that is not on main, stops the run before anything is built.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+(-beta\.\d+)?)$') { throw "'$tag' is not a release tag. Use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-beta.N." }
+          git fetch origin main
+          git merge-base --is-ancestor $tag origin/main
+          if ($LASTEXITCODE -ne 0) { throw "$tag is not on main. Release from a commit that has been pushed to main." }
+          "VERSION=$($Matches.version)" >> $env:GITHUB_ENV
+          $pre = if ($Matches.version -like '*-beta.*') { 'true' } else { 'false' }
+          "PRERELEASE=$pre" >> $env:GITHUB_ENV
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Leviathan.slnx -p:Platform=x64
+
+      - name: Build
+        run: dotnet build Leviathan.slnx -c Release -p:Platform=x64 --no-restore
+
+      - name: Test
+        run: dotnet test Leviathan.slnx -c Release -p:Platform=x64 --no-build --logger trx --results-directory TestResults
+
+      - name: Budget gate
+        run: dotnet run -c Release --project tests/Leviathan.Benchmarks -p:Platform=x64 -- --gate
+
+      - name: Release notes
+        shell: pwsh
+        run: ./tools/New-ReleaseNotes.ps1 -Tag '${{ github.ref_name }}' -OutFile release-notes.md -Max 40
+
+      # The packages of the last release let Velopack make a small delta package. The first release has none, which is not an error.
+      - name: Fetch the previous release
+        shell: pwsh
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dotnet tool restore --tool-manifest .config/dotnet-tools.json
+          $pre = if ($env:PRERELEASE -eq 'true') { @('--pre') } else { @() }
+          dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir artifacts/release @pre
+
+      # Signing goes here before the pack once a certificate exists (release plan slice 6); until then the build is unsigned.
+      - name: Pack
+        shell: pwsh
+        run: ./tools/Make-Release.ps1 -Version $env:VERSION -ReleaseNotes release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: artifacts/release
+          retention-days: 30
+
+      - name: Publish the GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $pre = if ($env:PRERELEASE -eq 'true') { @('--pre') } else { @() }
+          dotnet vpk upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN `
+            --outputDir artifacts/release --publish --merge --releaseName "Leviathan $env:VERSION" --tag '${{ github.ref_name }}' @pre
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: TestResults

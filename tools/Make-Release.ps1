@@ -10,17 +10,18 @@
   folder, and uninstalling removes it, which must never reach the user's data in %LOCALAPPDATA%\Leviathan\.
 
 .PARAMETER Version
-  SemVer, e.g. 0.2.0 or 0.2.0-beta.1. A label after the dash puts the build on the beta channel; none is stable.
+  SemVer, e.g. 0.2.0 or 0.2.0-beta.1. A label after the dash is a beta, none is stable. Both go into the one Velopack feed (win): stable or beta is the release page's pre-release flag, which the app's update source reads, so a beta user is also offered the finished release.
 #>
 param(
   [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+(-beta\.\d+)?$')][string]$Version,
-  [string]$Output = (Join-Path $PSScriptRoot '..\artifacts\release')
+  [string]$Output = (Join-Path $PSScriptRoot '..\artifacts\release'),
+  # A Markdown file of release notes to put in the update package (tools\New-ReleaseNotes.ps1 writes one).
+  [string]$ReleaseNotes = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 $publish = Join-Path $root 'artifacts\release-publish'
-$channel = if ($Version -like '*-beta.*') { 'beta' } else { 'stable' }
 
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 & (Join-Path $PSScriptRoot 'Publish-App.ps1') -Output $publish -Version $Version
@@ -30,7 +31,8 @@ if ($LASTEXITCODE -ne 0) { throw 'tool restore failed' }
 
 $icon = Join-Path $PSScriptRoot 'icons\Leviathan.ico'
 $iconArgs = if (Test-Path $icon) { @('--icon', $icon) } else { @() }
+$notesArgs = if ($ReleaseNotes) { @('--releaseNotes', (Resolve-Path $ReleaseNotes)) } else { @() }
 dotnet vpk pack --packId LeviathanApp --packVersion $Version --packTitle Leviathan --packAuthors 'Brett Baker' `
-  --packDir $publish --mainExe Leviathan.exe --outputDir $Output --channel $channel --runtime win-x64 @iconArgs
+  --packDir $publish --mainExe Leviathan.exe --outputDir $Output --runtime win-x64 @iconArgs @notesArgs
 if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
-Write-Host "Release $Version ($channel) is in $Output"
+Write-Host "Release $Version is in $Output"

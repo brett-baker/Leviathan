@@ -25,8 +25,8 @@
 
 | # | Do | Expect |
 |---|----|--------|
-| 1 | Look in `artifacts\release`. | `LeviathanApp-beta-Setup.exe` (about 149 MB), a `.nupkg`, `Portable.zip`, `RELEASES-beta` and two `.json` feed files. |
-| 2 | Run `.\artifacts\release\LeviathanApp-beta-Setup.exe` from your PowerShell window. | Windows SmartScreen may warn (the file is unsigned): choose More info, then Run anyway. No administrator prompt. A short progress window, then Leviathan starts by itself. |
+| 1 | Look in `artifacts\release`. | `LeviathanApp-win-Setup.exe` (about 143 MB), a `.nupkg`, `Portable.zip`, `RELEASES` and two `.json` feed files. |
+| 2 | Run `.\artifacts\release\LeviathanApp-win-Setup.exe` from your PowerShell window. | Windows SmartScreen may warn (the file is unsigned): choose More info, then Run anyway. No administrator prompt. A short progress window, then Leviathan starts by itself. |
 | 3 | Open Settings (Ctrl+,), then Advanced. | The About card says **Leviathan 0.2.0-beta.1**, with the commit it was built from, and the channel **Beta**. |
 | 4 | Look for `$env:LOCALAPPDATA\LeviathanApp\`. | It holds `current\`, `packages\` and `Update.exe`. Your real data folder `$env:LOCALAPPDATA\Leviathan\` is unchanged. |
 | 5 | Open the Start menu and search for Leviathan. | A shortcut exists. A desktop shortcut was also created. |
