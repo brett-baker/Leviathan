@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration "installer" (release plan slice 6, docs/signing.md): the installer Velopack makes, zipped by the
+  workflow. This is the file people download, so it is the one SmartScreen judges. Paste into the project's artifact configurations.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="LeviathanApp-win-Setup.exe">
+      <authenticode-sign hash-algorithm="sha256" />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

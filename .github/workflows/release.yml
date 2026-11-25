@@ -68,10 +68,76 @@ jobs:
           $pre = if ($env:PRERELEASE -eq 'true') { @('--pre') } else { @() }
           dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir artifacts/release @pre
 
-      # Signing goes here before the pack once a certificate exists (release plan slice 6); until then the build is unsigned.
+      # Signing (release plan slice 6, docs/signing.md): the program's own binaries are signed before they are packed, and the installer
+      # after. It switches on when the repository variable SIGNPATH_ORGANIZATION_ID is set; until then the build is unsigned.
+      - name: Publish the program
+        shell: pwsh
+        run: ./tools/Make-Release.ps1 -Version $env:VERSION -PublishOnly
+
+      - name: Upload the binaries to sign
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: unsigned-binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-binaries
+          path: artifacts/release-publish
+
+      - name: Sign the binaries
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: binaries
+          github-artifact-id: ${{ steps.unsigned-binaries.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-binaries
+
+      - name: Use the signed binaries
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        shell: pwsh
+        run: |
+          Remove-Item artifacts/release-publish -Recurse -Force
+          Move-Item signed-binaries artifacts/release-publish
+          foreach ($file in 'Leviathan.exe', 'Leviathan.Worker.exe') {
+            $signature = Get-AuthenticodeSignature (Join-Path artifacts/release-publish $file)
+            if ($signature.Status -ne 'Valid') { throw "$file is not validly signed: $($signature.Status)" }
+          }
+
       - name: Pack
         shell: pwsh
-        run: ./tools/Make-Release.ps1 -Version $env:VERSION -ReleaseNotes release-notes.md
+        run: ./tools/Make-Release.ps1 -Version $env:VERSION -ReleaseNotes release-notes.md -UsePublished
+
+      - name: Upload the installer to sign
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: unsigned-installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer
+          path: artifacts/release/LeviathanApp-win-Setup.exe
+
+      - name: Sign the installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-installer
+
+      - name: Use the signed installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        shell: pwsh
+        run: |
+          Copy-Item signed-installer/LeviathanApp-win-Setup.exe artifacts/release/LeviathanApp-win-Setup.exe -Force
+          $signature = Get-AuthenticodeSignature artifacts/release/LeviathanApp-win-Setup.exe
+          if ($signature.Status -ne 'Valid') { throw "The installer is not validly signed: $($signature.Status)" }
 
       - uses: actions/upload-artifact@v4
         with:

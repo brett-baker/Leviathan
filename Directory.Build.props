@@ -29,6 +29,7 @@
     <Company>Leviathan</Company>
     <Product>Leviathan</Product>
     <Copyright>Copyright (c) Brett Baker</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <VersionPrefix>0.1.0</VersionPrefix>
   </PropertyGroup>
 

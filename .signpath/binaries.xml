@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration "binaries" (release plan slice 6, docs/signing.md): the published program folder, zipped. Signs the
+  program's own executables and libraries, never third-party files. Paste this into the project's artifact configurations on signpath.io.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file-set>
+      <include path="Leviathan*.exe" />
+      <include path="Leviathan*.dll" />
+      <for-each>
+        <authenticode-sign hash-algorithm="sha256" />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

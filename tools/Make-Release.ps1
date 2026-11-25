@@ -16,15 +16,26 @@ param(
   [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+(-beta\.\d+)?$')][string]$Version,
   [string]$Output = (Join-Path $PSScriptRoot '..\artifacts\release'),
   # A Markdown file of release notes to put in the update package (tools\New-ReleaseNotes.ps1 writes one).
-  [string]$ReleaseNotes = ''
+  [string]$ReleaseNotes = '',
+  # Publish and stop, so the binaries can be signed before they are packed (docs/signing.md).
+  [switch]$PublishOnly,
+  # Pack what -PublishOnly left in artifacts\release-publish (signed by then) instead of publishing again.
+  [switch]$UsePublished
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 $publish = Join-Path $root 'artifacts\release-publish'
 
-if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
-& (Join-Path $PSScriptRoot 'Publish-App.ps1') -Output $publish -Version $Version
+if ($UsePublished) {
+  if (-not (Test-Path (Join-Path $publish 'Leviathan.exe'))) { throw "Nothing to pack in $publish. Run with -PublishOnly first." }
+}
+else {
+  if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
+  & (Join-Path $PSScriptRoot 'Publish-App.ps1') -Output $publish -Version $Version
+}
+
+if ($PublishOnly) { Write-Host "Published to $publish; pack it with -UsePublished."; return }
 
 dotnet tool restore --tool-manifest (Join-Path $root '.config\dotnet-tools.json')
 if ($LASTEXITCODE -ne 0) { throw 'tool restore failed' }

@@ -36,7 +36,8 @@ The installer and packages are in `artifacts\release\`. Nothing is uploaded.
 
 ## Before anyone but you installs a build
 
-- **Signing** (release plan slice 6) is not set up: the installer is unsigned, and Windows SmartScreen warns on it.
-- **The repository is private**, so the app cannot read its own release page without a token. Either make the repository public, or put the
-  feed in a small public repository and point the update source at it (the source is behind `IUpdateSource`, so this is one class).
-  Check the repository for secrets and personal data first.
+- **Make the repository public and sign** (`docs/signing.md`): the SignPath Foundation signs open-source projects only. The steps are
+  there; the pipeline signs by itself once the repository variable `SIGNPATH_ORGANIZATION_ID` is set, and stays unsigned (SmartScreen
+  warns) until then.
+- **The repository is private**, so the app cannot read its own release page without a token. Going public fixes that too. Go through
+  `docs/repo-check.md` first (no secrets were found; a few things are yours to decide).
