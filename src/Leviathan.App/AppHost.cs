@@ -255,13 +255,47 @@ internal sealed class AppHost
 
     private const string RepositoryUrl = "https://github.com/brett-baker/Leviathan";
 
-    private static Leviathan.ViewModels.Updates.UpdateChecker NewUpdateChecker(Func<UpdateSettings> settings)
+    /// <summary>Downloads a found update and restarts into it when the user chooses (release plan §4).</summary>
+    internal Leviathan.ViewModels.Updates.UpdateInstaller UpdateInstaller { get; private init; } = null!;
+
+    // One Velopack source serves both the check and the install, because the install needs what the check found.
+    private static (Leviathan.ViewModels.Updates.UpdateChecker Checker, Leviathan.ViewModels.Updates.UpdateInstaller Installer) NewUpdates(Func<AppHost> late)
     {
         var build = Leviathan.Diagnostics.Crash.CrashReportBuilder.ReadBuildInfo(typeof(AppHost).Assembly);
-        return new Leviathan.ViewModels.Updates.UpdateChecker(
-            new VelopackUpdateSource(build.RepositoryUrl ?? RepositoryUrl),
-            Leviathan.ViewModels.Settings.AppVersion.Parse(build),
-            settings);
+        var source = new VelopackUpdateSource(build.RepositoryUrl ?? RepositoryUrl);
+        var checker = new Leviathan.ViewModels.Updates.UpdateChecker(source, Leviathan.ViewModels.Settings.AppVersion.Parse(build), () => late().Settings.Current.Updates);
+        var installer = new Leviathan.ViewModels.Updates.UpdateInstaller(
+            source,
+            new HelperShutdown(ct => late().StopHelpersAsync(ct)),
+            () => new Leviathan.ViewModels.Updates.JobLoad(late().Operations.ActiveCount, late().Operations.QueuedCount));
+        return (checker, installer);
+    }
+
+    private sealed class HelperShutdown(Func<CancellationToken, Task> stop) : Leviathan.ViewModels.Updates.IHelperStopper
+    {
+        public Task StopAllAsync(CancellationToken cancellationToken) => stop(cancellationToken);
+    }
+
+    // The worker would otherwise outlive the UI while it has jobs (spec 4.2) and hold files the update replaces. Jobs are journaled and resume
+    // when the new version starts it again (spec §3.4). The connections are closed first, so the supervisors do not start the helpers again.
+    private async Task StopHelpersAsync(CancellationToken cancellationToken)
+    {
+        if (WorkerLazy.IsValueCreated)
+        {
+            await WorkerLazy.Value.DisposeAsync();
+        }
+
+        if (_shellHost.IsValueCreated)
+        {
+            await _shellHost.Value.DisposeAsync();
+        }
+
+        if (_mediaHost.IsValueCreated)
+        {
+            await _mediaHost.Value.DisposeAsync();
+        }
+
+        await Task.Run(() => Leviathan.Engine.Supervision.HelperStopper.StopAllAsync(AppContext.BaseDirectory, cancellationToken), cancellationToken);
     }
 
     // The first check waits until well after the first folder is on screen (spec §3.1); a newer version is written to the Activity tab once.
@@ -701,6 +735,7 @@ internal sealed class AppHost
         // started when something needs it.
         var operations = new OperationsModel();
         AppHost? built = null;
+        var updates = NewUpdates(() => built!);
         UiTrace.Mark("AppHost: operations model");
         // Video thumbnails (spec §10.4): the shell's own when it has one, else a frame ffmpeg draws in the media process. The gate stays
         // outermost, so "no thumbnails on network drives" also keeps ffmpeg off them. LEVIATHAN_VIDEO_FRAMES=1 skips the shell for video.
@@ -915,7 +950,8 @@ internal sealed class AppHost
             Activity = activity,
             Background = background,
             Bin = new BinModel(binService),
-            Updates = NewUpdateChecker(() => built!.Settings.Current.Updates),
+            Updates = updates.Checker,
+            UpdateInstaller = updates.Installer,
             Sizes = sizes,
             Git = new Leviathan.ViewModels.Git.GitStatusService(new Leviathan.Interop.GitProcessRunner(), disk, () => built!.Settings.Current.Files.GitStatus),
             ThumbnailGate = thumbnailGate,

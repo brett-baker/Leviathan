@@ -257,8 +257,11 @@
       <!-- A newer version exists (release plan §4): quiet, closable, and never in the way of a running copy. -->
       <InfoBar x:Name="UpdateBar" Grid.Row="2" Grid.Column="1" Margin="12,4,12,0" Severity="Informational" IsOpen="False" IsClosable="True">
         <InfoBar.ActionButton>
-          <Button Content="Release page" Click="OnReleasePageClick" />
+          <Button x:Name="UpdateActionButton" Content="Restart and update" Click="OnRestartAndUpdateClick" />
         </InfoBar.ActionButton>
+        <InfoBar.Content>
+          <HyperlinkButton Content="What's new" Click="OnReleasePageClick" Padding="0" />
+        </InfoBar.Content>
       </InfoBar>
 
       <Grid x:Name="Pages" Grid.Row="3" Grid.Column="1" Padding="12,4,12,8">

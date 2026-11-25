@@ -128,6 +128,7 @@ internal sealed partial class StatusHubPanel : UserControl
         _model.PropertyChanged += OnModelChanged;
         App.Host.Settings.Changed += OnSettingsChanged;
         App.Host.Updates.Changed += OnUpdateChanged;
+        App.Host.UpdateInstaller.Changed += OnUpdateChanged;
         ShowUpdate();
         Sync();
         LoadQuick();
@@ -184,14 +185,18 @@ internal sealed partial class StatusHubPanel : UserControl
     {
         App.Host.Settings.Changed -= OnSettingsChanged;
         App.Host.Updates.Changed -= OnUpdateChanged;
+        App.Host.UpdateInstaller.Changed -= OnUpdateChanged;
     }
 
     private void OnUpdateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ShowUpdate);
 
-    // The notice of a newer version (release plan §4). Applying it is not built yet, so the bar says where to get it rather than offer a button that cannot work.
+    private Action? _cancelInstall;
+
+    // The notice of a newer version and what installing it is doing (release plan §4). Nothing is installed until the user presses the button.
     private void ShowUpdate()
     {
         var updates = App.Host.Updates;
+        var installer = App.Host.UpdateInstaller;
         if (updates.State != Leviathan.ViewModels.Updates.UpdateState.Available || updates.Offer is not { } offer)
         {
             UpdateBar.IsOpen = false;
@@ -199,9 +204,73 @@ internal sealed partial class StatusHubPanel : UserControl
         }
 
         UpdateBar.Title = $"Leviathan {offer.Version} is ready";
-        UpdateBar.Message = "Updating from inside the app is not built yet: install it from the release page. Your settings and files are kept.";
         UpdateBar.Tag = offer.Version;
+        var working = installer.State is Leviathan.ViewModels.Updates.InstallState.Downloading or Leviathan.ViewModels.Updates.InstallState.Stopping or Leviathan.ViewModels.Updates.InstallState.Applying;
+        var waiting = installer.State == Leviathan.ViewModels.Updates.InstallState.WaitingForJobs;
+        UpdateBar.Message = installer.State switch
+        {
+            Leviathan.ViewModels.Updates.InstallState.Idle => "Restart to install it. Your settings and files are kept, and any job that is running is saved and carries on afterwards.",
+            _ => installer.Message,
+        };
+        UpdateBar.Severity = installer.State == Leviathan.ViewModels.Updates.InstallState.Failed ? InfoBarSeverity.Error : InfoBarSeverity.Informational;
+        UpdateActionButton.Content = waiting ? "Cancel" : "Restart and update";
+        UpdateActionButton.IsEnabled = !working;
+        UpdateBar.IsClosable = !working && !waiting;
         UpdateBar.IsOpen = true;
+    }
+
+    private async void OnRestartAndUpdateClick(object sender, RoutedEventArgs e)
+    {
+        var installer = App.Host.UpdateInstaller;
+        if (installer.State == Leviathan.ViewModels.Updates.InstallState.WaitingForJobs)
+        {
+            _cancelInstall?.Invoke();
+            return;
+        }
+
+        var jobs = installer.Jobs;
+        var waitForJobs = false;
+        if (jobs.Total > 0)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Jobs are running",
+                Content = $"{jobs.Describe()}. If you restart now they are saved and carry on after the restart. Or wait for them to finish and restart after that.",
+                PrimaryButtonText = "Wait for them",
+                SecondaryButtonText = "Restart now",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+            var choice = await dialog.ShowAsync();
+            if (choice == ContentDialogResult.None)
+            {
+                return;
+            }
+
+            waitForJobs = choice == ContentDialogResult.Primary;
+        }
+
+        using var installing = new CancellationTokenSource();
+        _cancelInstall = installing.Cancel;
+        try
+        {
+            await installer.ApplyAsync(waitForJobs, installing.Token);
+            if (installer.State == Leviathan.ViewModels.Updates.InstallState.Applying)
+            {
+                // The installer was started and waits for this process to end.
+                Microsoft.UI.Xaml.Application.Current.Exit();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The user chose to stay on this version.
+        }
+        finally
+        {
+            _cancelInstall = null;
+            ShowUpdate();
+        }
     }
 
     private void OnReleasePageClick(object sender, RoutedEventArgs e)
