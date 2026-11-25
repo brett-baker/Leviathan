@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <!-- The app is published ready-to-run, never trimmed or compiled ahead of time, so CsWinRT's trimming/AOT analyzer has nothing to protect;
+         some SDK builds report it as errors (CsWinRT1032 on every collection expression handed to a WinRT-visible interface type). -->
+    <CsWinRTAotWarningLevel>0</CsWinRTAotWarningLevel>
     <TargetPlatformMinVersion>$(MinimalWindowsVersion)</TargetPlatformMinVersion>
     <RootNamespace>Leviathan.App</RootNamespace>
     <AssemblyName>Leviathan</AssemblyName>
