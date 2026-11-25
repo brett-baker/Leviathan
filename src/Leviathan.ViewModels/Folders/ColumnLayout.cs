@@ -251,6 +251,83 @@ public sealed class ColumnLayout
         Resize(id, widest + extra + CellPadding);
     }
 
+    /// <summary>
+    /// Narrowest a column is squeezed to by <see cref="FitTo"/>: enough for a typical value ("2026-11-24 14:05", "1,234 MB", "H--S") so it
+    /// stays readable, well above the <see cref="MinWidth"/> a hand-drag can reach.
+    /// </summary>
+    public static double MinFitWidth(FileColumn column) => column.Id switch
+    {
+        "name" => 160,
+        "modified" or "created" => 120,
+        "tags" => 80,
+        "git" => 56,
+        "size" or "ownsize" or "items" or "totalfiles" or "totalfolders" => 72,
+        "audiolanguages" or "subtitles" => 90,
+        _ => 72,
+    };
+
+    /// <summary>
+    /// Sizes the visible columns to fit <paramref name="available"/> pixels so none is scrolled out of sight (spec §8.2), on a best-effort
+    /// basis: columns shrink in proportion to how much room they have above their <see cref="MinFitWidth"/> and never go below it, so
+    /// with too many columns for the width they stop at their minimums and the list scrolls sideways as before. When everything already
+    /// fits, the spare width goes to Name. Hidden columns are left hidden.
+    /// </summary>
+    public void FitTo(double available)
+    {
+        if (!double.IsFinite(available) || available <= 0 || _slots.Count == 0)
+        {
+            return;
+        }
+
+        var minimums = _slots.Select(s => Math.Min(MinFitWidth(s.Column), s.Width)).ToArray();
+        var widths = _slots.Select(s => s.Width).ToArray();
+        var overflow = widths.Sum() - available;
+        if (overflow > 0)
+        {
+            var slack = widths.Zip(minimums, (w, m) => w - m).ToArray();
+            var room = slack.Sum();
+            var take = Math.Min(overflow, room);
+            for (var i = 0; i < widths.Length; i++)
+            {
+                widths[i] -= room > 0 ? take * slack[i] / room : 0;
+            }
+        }
+        else
+        {
+            var nameAt = _slots.FindIndex(s => s.Column == FileColumns.Name);
+            widths[nameAt < 0 ? 0 : nameAt] += -overflow;
+        }
+
+        // Whole pixels, with what the rounding dropped given back to Name, so fitting twice in a row changes nothing the second time.
+        for (var i = 0; i < widths.Length; i++)
+        {
+            widths[i] = Clamp(Math.Floor(widths[i]));
+        }
+
+        var spare = Math.Floor(available - widths.Sum());
+        if (spare > 0)
+        {
+            var nameIndex = _slots.FindIndex(s => s.Column == FileColumns.Name);
+            widths[nameIndex < 0 ? 0 : nameIndex] += spare;
+        }
+
+        var changed = false;
+        for (var i = 0; i < _slots.Count; i++)
+        {
+            var width = Clamp(widths[i]);
+            if (width != _slots[i].Width)
+            {
+                _slots[i] = _slots[i] with { Width = width };
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke(this, false);
+        }
+    }
+
     private static double Clamp(double width) => Math.Clamp(width, MinWidth, MaxWidth);
 
     private int IndexOf(string id) => _slots.FindIndex(s => s.Column.Id.Equals(id, StringComparison.OrdinalIgnoreCase));

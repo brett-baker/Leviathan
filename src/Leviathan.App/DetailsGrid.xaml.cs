@@ -1026,7 +1026,11 @@ public sealed partial class DetailsGrid : UserControl
         var more = new MenuFlyoutItem { Text = "More columns…" };
         more.Click += (_, _) => ColumnChooserRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(more);
-        var fit = new MenuFlyoutItem { Text = "Size all columns to fit" };
+        var showAll = new MenuFlyoutItem { Text = "Fit all columns to this pane" };
+        ToolTipService.SetToolTip(showAll, "Shrinks the columns so they all show without scrolling sideways, down to a readable minimum each");
+        showAll.Click += (_, _) => _tab.Columns.FitTo(Scroller.ViewportWidth - 8);
+        menu.Items.Add(showAll);
+        var fit = new MenuFlyoutItem { Text = "Size all columns to their contents" };
         fit.Click += (_, _) =>
         {
             foreach (var id in _tab.Columns.Ids.ToList())
