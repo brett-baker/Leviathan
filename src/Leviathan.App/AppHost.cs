@@ -531,6 +531,12 @@ internal sealed class AppHost
     /// <summary>Every triage decision, written as it is made, so a crash loses none and kept files waiting for a move are offered again (spec §10.1, §3.4).</summary>
     public Leviathan.ViewModels.Triage.TriageJournal TriageJournal { get; private init; } = null!;
 
+    /// <summary>Every triage decision kept for good, with its reject reason: the examples the recommendations learn from.</summary>
+    public Leviathan.ViewModels.Triage.Learning.ITriageHistory TriageHistory { get; private init; } = null!;
+
+    /// <summary>The user's own reasons for discarding a video; the list starts empty.</summary>
+    public Leviathan.ViewModels.Triage.Learning.RejectReasonStore RejectReasons { get; private init; } = null!;
+
     /// <summary>The saved triage inboxes (spec §10.1).</summary>
     public InboxCatalog Inboxes { get; private init; } = null!;
 
@@ -962,6 +968,8 @@ internal sealed class AppHost
             BinService = binService,
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             TriageJournal = triageJournal,
+            TriageHistory = new Leviathan.Data.SqliteTriageHistory(Path.Combine(data, "triage-history.db")),
+            RejectReasons = new Leviathan.ViewModels.Triage.Learning.RejectReasonStore(disk, Path.Combine(data, "reject-reasons.json")),
             Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json")), journal: triageJournal),
             Providers = providers,
             Settings = new SettingsStore(disk, Path.Combine(data, "settings.json")),

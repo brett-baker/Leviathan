@@ -60,7 +60,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
         Keys = new PlaybackController(engine);
     }
 
-    private sealed record HistoryEntry(TriageItem Item, TriageDecision Previous, Func<Task>? PreviousUndo, FileEntry PreviousFile);
+    private sealed record HistoryEntry(TriageItem Item, TriageDecision Previous, Func<Task>? PreviousUndo, FileEntry PreviousFile, string? PreviousReason = null);
 
     /// <summary>The playback keys over the session's player (Space, jumps, skim…), so the window needs only one object.</summary>
     public PlaybackController Keys { get; }
@@ -190,9 +190,11 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             }
 
             item.Decision = TriageDecision.None;
+            item.RejectReasonId = null;
             item.Undo = null;
             item.File = item.Original;
-            var kept = _history.Reverse().Where(h => h.Item != item).ToList();
+            DecisionChanged?.Invoke(this, item);
+            var kept =_history.Reverse().Where(h => h.Item != item).ToList();
             _history.Clear();
             foreach (var entry in kept)
             {
@@ -275,6 +277,9 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
 
     /// <summary>Delete or X: discard the file (a soft delete), then the next one.</summary>
     public Task DiscardAsync() => DecideAsync(TriageDecision.Discarded);
+
+    /// <summary>Discards the file for a reason the user gave (a click on its chip, or Shift plus its number), then the next one.</summary>
+    public Task DiscardAsync(string? rejectReasonId) => DecideAsync(TriageDecision.Discarded, reasonId: rejectReasonId);
 
     /// <summary>Down or Tab: no decision, the next file.</summary>
     public async Task SkipAsync()
@@ -360,6 +365,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             }
 
             entry.Item.Decision = entry.Previous;
+            entry.Item.RejectReasonId = entry.PreviousReason;
             entry.Item.Undo = entry.PreviousUndo;
             entry.Item.File = entry.PreviousFile;
             DecisionChanged?.Invoke(this, entry.Item);
@@ -465,7 +471,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
         _gate.Dispose();
     }
 
-    private async Task DecideAsync(TriageDecision decision, string? moveTo = null)
+    private async Task DecideAsync(TriageDecision decision, string? moveTo = null, string? reasonId = null)
     {
         await _gate.WaitAsync().ConfigureAwait(false);
         var advanceAfter = false;
@@ -484,7 +490,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
                 return;
             }
 
-            var previous = new HistoryEntry(item, item.Decision, item.Undo, item.File);
+            var previous = new HistoryEntry(item, item.Decision, item.Undo, item.File, item.RejectReasonId);
             {
                 // Windows will not move or delete a file the player has open.
                 await _engine.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -532,6 +538,7 @@ public sealed class TriageSession : ObservableObject, IAsyncDisposable
             }
 
             item.Decision = decision;
+            item.RejectReasonId = decision == TriageDecision.Discarded ? reasonId : null;
             DecisionChanged?.Invoke(this, item);
             _history.Push(previous);
             LastError = null;

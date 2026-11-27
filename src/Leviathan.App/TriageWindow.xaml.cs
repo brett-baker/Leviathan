@@ -307,7 +307,8 @@ internal sealed partial class TriageWindow : Window
                 session,
                 App.Host.TriageJournal,
                 Inbox?.Inbox.Id ?? string.Empty,
-                () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null);
+                () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null,
+                App.Host.TriageHistory);
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys);
             _dispatcher.WindowCommand += OnWindowCommand;
             session.DecisionChanged += OnDecisionChanged;

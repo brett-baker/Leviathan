@@ -32,6 +32,9 @@ public sealed class TriageItem(FileEntry file)
     /// <summary>The decision, <see cref="TriageDecision.None"/> until one is made.</summary>
     public TriageDecision Decision { get; internal set; }
 
+    /// <summary>The id of the reject reason given when the file was discarded, or null (no reason, or not discarded).</summary>
+    public string? RejectReasonId { get; internal set; }
+
     /// <summary>The tags (1 to 9) toggled on this file during the session.</summary>
     public HashSet<int> Tags { get; } = [];
 

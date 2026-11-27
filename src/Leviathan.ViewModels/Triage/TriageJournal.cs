@@ -175,11 +175,13 @@ public sealed class TriageRecorder : IDisposable
     private readonly TriageJournal _journal;
     private readonly string _scope;
     private readonly Func<string?> _moveTo;
+    private readonly Learning.ITriageHistory? _history;
+    private readonly TimeProvider _time;
     private readonly Lock _lock = new();
     private Task _tail = Task.CompletedTask;
 
     /// <summary>Starts recording <paramref name="session"/>. <paramref name="scope"/> is the inbox id (empty for a plain queue); <paramref name="moveTo"/> gives the folder a kept file is to be moved to later, or null when it is not.</summary>
-    public TriageRecorder(TriageSession session, TriageJournal journal, string scope, Func<string?> moveTo)
+    public TriageRecorder(TriageSession session, TriageJournal journal, string scope, Func<string?> moveTo, Learning.ITriageHistory? history = null, TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(journal);
@@ -188,6 +190,8 @@ public sealed class TriageRecorder : IDisposable
         _journal = journal;
         _scope = scope ?? string.Empty;
         _moveTo = moveTo;
+        _history = history;
+        _time = time ?? TimeProvider.System;
         session.DecisionChanged += OnChanged;
     }
 
@@ -214,10 +218,11 @@ public sealed class TriageRecorder : IDisposable
         var path = item.Original.Location.Value;
         var decision = item.Decision;
         var moveTo = decision == TriageDecision.Kept ? _moveTo() : null;
+        var example = new Learning.TriageDecisionRecord(_time.GetUtcNow(), path, decision, item.RejectReasonId, item.Original.Size, item.Original.Modified.UtcTicks);
         lock (_lock)
         {
             _tail = _tail.ContinueWith(
-                _ =>
+                async _ =>
                 {
                     try
                     {
@@ -227,10 +232,23 @@ public sealed class TriageRecorder : IDisposable
                     {
                         LastError = ex.Message;
                     }
+
+                    // The learning's own record of the decision; losing it never stops the triage either.
+                    if (_history is not null)
+                    {
+                        try
+                        {
+                            await _history.AppendAsync(example, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            LastError = ex.Message;
+                        }
+                    }
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.None,
-                TaskScheduler.Default);
+                TaskScheduler.Default).Unwrap();
         }
     }
 }
