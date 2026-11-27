@@ -388,6 +388,9 @@ public sealed record AppSettings
     /// <summary>Whether and where the app looks for updates (release plan §4).</summary>
     public UpdateSettings Updates { get; init; } = new();
 
+    /// <summary>Triage learning: whether it is on, and the servers that can add facts to it.</summary>
+    public Triage.Learning.LearningSettings Learning { get; init; } = new();
+
     /// <summary>Key overrides: command id to gesture text (empty text unbinds). Only the user's changes are stored.</summary>
     public Dictionary<string, string> KeyBindings { get; init; } = [];
 }

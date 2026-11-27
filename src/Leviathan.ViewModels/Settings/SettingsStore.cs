@@ -124,6 +124,7 @@ public sealed class SettingsStore : IDisposable
         Media = (settings.Media ?? new MediaSettings()).Clamped(),
         Performance = (settings.Performance ?? new PerformanceSettings()).Clamped(),
         Tags = (settings.Tags ?? new TagSettings()).Cleaned(),
+        Learning = (settings.Learning ?? new Triage.Learning.LearningSettings()).Cleaned(),
         KeyBindings = settings.KeyBindings ?? [],
     };
 

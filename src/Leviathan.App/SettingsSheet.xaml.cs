@@ -303,6 +303,7 @@ internal sealed partial class SettingsSheet : UserControl
         }
 
         FillTags(settings.Tags);
+        FillLearning(settings.Learning);
 
         if (_model.IsOpen && _model.PageId == "keyboard")
         {

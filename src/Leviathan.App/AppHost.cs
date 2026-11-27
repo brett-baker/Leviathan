@@ -534,6 +534,12 @@ internal sealed class AppHost
     /// <summary>Every triage decision kept for good, with its reject reason: the examples the recommendations learn from.</summary>
     public Leviathan.ViewModels.Triage.Learning.ITriageHistory TriageHistory { get; private init; } = null!;
 
+    /// <summary>Where the API keys of learning servers are kept (Windows Credential Manager).</summary>
+    public Leviathan.ViewModels.Triage.Learning.ILearningSecrets LearningSecrets { get; private init; } = null!;
+
+    /// <summary>Tests a learning server (address and key) from Settings.</summary>
+    public Leviathan.ViewModels.Triage.Learning.ILearningSourceTester LearningTester { get; private init; } = null!;
+
     /// <summary>The user's own reasons for discarding a video; the list starts empty.</summary>
     public Leviathan.ViewModels.Triage.Learning.RejectReasonStore RejectReasons { get; private init; } = null!;
 
@@ -944,6 +950,8 @@ internal sealed class AppHost
             SearchHooks = searchHooks,
             RemoteConnections = new Leviathan.ViewModels.Sidebar.RemoteConnectionList(new JsonRemoteConnectionsStorage(Path.Combine(data, "remote-connections.json"))),
             RemoteSecrets = remoteSecrets,
+            LearningSecrets = new WindowsLearningSecrets(),
+            LearningTester = new Leviathan.ViewModels.Triage.Learning.StashSourceTester(),
             RemoteProvider = remoteProvider,
             Trust = trustPrompt,
             ArchiveIndex = archiveIndex,

@@ -19,9 +19,19 @@ internal sealed partial class TriageWindow
 
     private bool _reasonsHooked;
 
+    // Whether learning was on when this triage began (Settings, Triage, Learning). Off, there is no chip bar, no Shift+number discard
+    // and no history; a change in Settings applies from the next triage.
+    private bool _learning;
+
     // The list is read once off the UI thread (it comes from a file), so the keys and the chips never wait for the disk.
     private async Task LoadReasonsAsync()
     {
+        ReasonBar.Visibility = _learning ? Visibility.Visible : Visibility.Collapsed;
+        if (!_learning)
+        {
+            return;
+        }
+
         await Task.Run(() => App.Host.RejectReasons.Reasons.Count);
         if (!_reasonsHooked)
         {
@@ -44,7 +54,7 @@ internal sealed partial class TriageWindow
     }
 
     // The id of the reason in position n (1 to 9) of the list, for Shift+n.
-    private static string? ReasonAt(int number) => App.Host.RejectReasons.Reasons.ElementAtOrDefault(number - 1)?.Id;
+    private string? ReasonAt(int number) => _learning ? App.Host.RejectReasons.Reasons.ElementAtOrDefault(number - 1)?.Id : null;
 
     private void ShowReasonChips()
     {

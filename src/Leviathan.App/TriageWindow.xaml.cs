@@ -298,6 +298,7 @@ internal sealed partial class TriageWindow : Window
             Video.MediaPlayer = _engine.Player;
             LoadingText.Text = "Opening the first video…";
             var settings = App.Host.Settings.Current.Media;
+            _learning = App.Host.Settings.Current.Learning.Enabled;
             _actions = App.Host.TriageActionsFor(_destination);
             await ApplyVolumeAsync(settings);
             var session = _session = new TriageSession(_queue, _engine, _actions, settings.ToTriageOptions(), null, FileGoneAsync);
@@ -308,7 +309,7 @@ internal sealed partial class TriageWindow : Window
                 App.Host.TriageJournal,
                 Inbox?.Inbox.Id ?? string.Empty,
                 () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null,
-                App.Host.TriageHistory);
+                _learning ? App.Host.TriageHistory : null);
             await LoadReasonsAsync();
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys, ReasonAt);
             _dispatcher.WindowCommand += OnWindowCommand;

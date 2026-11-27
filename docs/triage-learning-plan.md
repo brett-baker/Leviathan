@@ -14,8 +14,11 @@ so neither holds the discards. Examples build up from now on.
       reason, size and time to the history.
 - [x] 2. Reason chips in the triage window, always visible; click = discard with that reason; Shift+1 to Shift+9; add, edit and
       remove reasons from the window.
+- [x] 2b. Learning is optional (Settings, Triage, Learning; off by default). Off: no history, no chip bar, no Shift+number
+      discard. A list of servers that can help it learn, added from presets (Stash today, more kinds later), each with a name,
+      address, API key (Windows Credential Manager, never the settings file), an on/off switch and a Test connection button.
 - [ ] 3. Background feature collection per decided file: parsed file name, ffprobe facts, folder, and the Stash scene when the
-      file matches one (Stash URL and key in Settings, key stored encrypted for the Windows account).
+      file matches one (from the enabled servers in Settings).
 - [ ] 4. The "Learning" bar: examples so far against what is needed (both kinds), counts of keeps and discards.
 - [ ] 5. The model and the hint: gradient-boosted trees or logistic regression on the features, judged on later decisions, the
       hint with confidence and top reasons, a recent accuracy figure, a setting to switch it off.
