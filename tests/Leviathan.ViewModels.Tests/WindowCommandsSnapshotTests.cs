@@ -12,8 +12,27 @@ namespace Leviathan.ViewModels.Tests;
 /// </summary>
 public sealed class WindowCommandsSnapshotTests
 {
-    private static string SnapshotPath([CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(source)!, "WindowCommandsSnapshot.txt");
+    private static string SnapshotPath([CallerFilePath] string source = "")
+    {
+        var beside = Path.Combine(Path.GetDirectoryName(source)!, "WindowCommandsSnapshot.txt");
+        if (File.Exists(beside))
+        {
+            return beside;
+        }
+
+        // A continuous-integration build rewrites source paths to "/_/...", so the caller path points nowhere on the runner; find the
+        // file by walking up from the test binaries to the repository.
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, "tests", "Leviathan.ViewModels.Tests", "WindowCommandsSnapshot.txt");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return beside;
+    }
 
     private static async Task<string> TakeAsync()
     {
