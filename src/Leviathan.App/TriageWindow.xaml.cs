@@ -309,7 +309,8 @@ internal sealed partial class TriageWindow : Window
                 Inbox?.Inbox.Id ?? string.Empty,
                 () => App.Host.Settings.Current.Media.TriageMoveWhen == Leviathan.ViewModels.Settings.TriageMoveMode.AtEnd ? Destination() : null,
                 App.Host.TriageHistory);
-            _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys);
+            await LoadReasonsAsync();
+            _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys, ReasonAt);
             _dispatcher.WindowCommand += OnWindowCommand;
             session.DecisionChanged += OnDecisionChanged;
             session.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(OnSessionChanged);
@@ -625,7 +626,7 @@ internal sealed partial class TriageWindow : Window
 
     private async void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (_dispatcher is not { } dispatcher || KeyNames.IsModifier((int)e.Key))
+        if (_dispatcher is not { } dispatcher || KeyNames.IsModifier((int)e.Key) || e.OriginalSource is TextBox)
         {
             return;
         }
@@ -914,6 +915,7 @@ internal sealed partial class TriageWindow : Window
     private async void OnClosed(object sender, WindowEventArgs args)
     {
         _timer.Stop();
+        UnhookReasons();
         _closing.Cancel();
         await SaveVolumeAsync();
         Exited?.Invoke(this, _session?.Current?.File ?? _last);

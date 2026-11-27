@@ -7,9 +7,10 @@ namespace Leviathan.ViewModels.Triage;
 /// decisions and navigation go to the <see cref="TriageSession"/>, the playback keys to its player, and the commands that need the
 /// window (contact sheet, rename, move to a preset, overlay, skim, leave) are raised as <see cref="WindowCommand"/> for the window to
 /// carry out, because they need dialogs and pictures this class knows nothing about. Mouse buttons in the window call
-/// <see cref="RunAsync"/> with the same ids, so a click and its key always do the same.
+/// <see cref="RunAsync"/> with the same ids, so a click and its key always do the same. <paramref name="reasonAt"/> gives the id of the
+/// reject reason in a position (1 to 9) of the user's list, or null when there is none.
 /// </summary>
-public sealed class TriageDispatcher(TriageSession session, KeyMap map)
+public sealed class TriageDispatcher(TriageSession session, KeyMap map, Func<int, string?>? reasonAt = null)
 {
     private static readonly HashSet<string> WindowCommands = new(StringComparer.Ordinal)
     {
@@ -67,6 +68,12 @@ public sealed class TriageDispatcher(TriageSession session, KeyMap map)
         if (TryNumber(id, "triageMode.tag", out var tag))
         {
             return session.ToggleTagAsync(tag);
+        }
+
+        if (TryNumber(id, "triageMode.discardReason", out var slot))
+        {
+            // A position with no reason behind it does nothing: a stray Shift+digit must never discard a file.
+            return reasonAt?.Invoke(slot) is { } reason ? session.DiscardAsync(reason) : Task.CompletedTask;
         }
 
         if (TryNumber(id, "triageMode.jump", out var percent))

@@ -22,6 +22,7 @@ public static class TriageCommands
 
     private static readonly CommandId[] TagIds = [.. Enumerable.Range(1, 9).Select(i => new CommandId($"triageMode.tag{i}"))];
     private static readonly CommandId[] JumpIds = [.. Enumerable.Range(1, 9).Select(i => new CommandId($"triageMode.jump{i * 10}"))];
+    private static readonly CommandId[] ReasonIds = [.. Enumerable.Range(1, 9).Select(i => new CommandId($"triageMode.discardReason{i}"))];
 
     /// <summary>Play or pause.</summary>
     public static readonly CommandId PlayPause = new("triageMode.playPause");
@@ -119,6 +120,9 @@ public static class TriageCommands
     /// <summary>The command that jumps to <paramref name="tenths"/> tenths of the file (1 to 9).</summary>
     public static CommandId JumpToTenth(int tenths) => JumpIds[tenths - 1];
 
+    /// <summary>The command that discards with the reject reason in position <paramref name="number"/> (1 to 9) of the user's list.</summary>
+    public static CommandId DiscardReason(int number) => ReasonIds[number - 1];
+
     /// <summary>True when <paramref name="id"/> names a triage command (whatever the file says, so the app's own builder can leave it alone).</summary>
     public static bool IsTriage(string id) => id.StartsWith(Prefix, StringComparison.Ordinal);
 
@@ -135,6 +139,7 @@ public static class TriageCommands
         new(Undo, "Undo the last decision", "Decide"),
         new(ClearTags, "Clear all tags", "Decide"),
         .. TagIds.Select((id, i) => new TriageCommandInfo(id, $"Toggle tag {i + 1}", "Decide")),
+        .. ReasonIds.Select((id, i) => new TriageCommandInfo(id, $"Discard with reject reason {i + 1}", "Decide")),
         new(PlayPause, "Play or pause", "Playback"),
         new(Forward30, "Forward 30 s", "Playback"),
         new(Back30, "Back 30 s", "Playback"),
@@ -191,6 +196,7 @@ public static class TriageCommands
         {
             Bind(JumpToTenth(i), $"Ctrl+{i}");
             Bind(Tag(i), i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Bind(DiscardReason(i), $"Shift+{i}");
         }
 
         Bind(Start, "Home");

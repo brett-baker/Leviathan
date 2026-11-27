@@ -12,7 +12,7 @@ so neither holds the discards. Examples build up from now on.
 - [x] 1. Decision history (`triage-history.db`, append-only, never compacted) and the reject-reason list
       (`reject-reasons.json`, starts empty). The session carries a reason with a discard; the recorder writes every decision,
       reason, size and time to the history.
-- [ ] 2. Reason chips in the triage window, always visible; click = discard with that reason; Shift+1 to Shift+9; add, edit and
+- [x] 2. Reason chips in the triage window, always visible; click = discard with that reason; Shift+1 to Shift+9; add, edit and
       remove reasons from the window.
 - [ ] 3. Background feature collection per decided file: parsed file name, ffprobe facts, folder, and the Stash scene when the
       file matches one (Stash URL and key in Settings, key stored encrypted for the Windows account).

@@ -16,6 +16,7 @@
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
     <!-- Where we are, in one quiet line: the position and the decisions so far on the left, the space reclaimed on the right. -->
@@ -100,8 +101,21 @@
       </Grid>
     </Grid>
 
+    <!-- Reject reasons: the user's own short titles, always on screen. A click (or Shift plus the number) discards the file with that reason;
+         plain Discard still works with none. The list starts empty; the last button adds one. -->
+    <Grid x:Name="ReasonBar" Grid.Row="3" Padding="16,8" ColumnSpacing="10" BorderBrush="#2B2B2B" BorderThickness="0,1,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="Discard because" VerticalAlignment="Center" FontSize="12" Foreground="#A8A8A8" />
+      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" IsTabStop="False">
+        <StackPanel x:Name="ReasonChips" Orientation="Horizontal" Spacing="6" />
+      </ScrollViewer>
+    </Grid>
+
     <!-- The queue as a filmstrip: thumbnails with a tick or a cross for each decision. Collapsed until asked for (Q or the button). -->
-    <Grid x:Name="Strip" Grid.Row="3" Visibility="Collapsed" Padding="16,10" ColumnSpacing="12" BorderBrush="#2B2B2B" BorderThickness="0,1,0,0">
+    <Grid x:Name="Strip" Grid.Row="4" Visibility="Collapsed" Padding="16,10" ColumnSpacing="12" BorderBrush="#2B2B2B" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
@@ -122,7 +136,7 @@
     </Grid>
 
     <!-- The decisions. Keep and Discard are the only big controls, centred and well apart; the rest are small icon buttons at the right. -->
-    <Grid Grid.Row="4" Padding="20,26,20,16" ColumnSpacing="16">
+    <Grid Grid.Row="5" Padding="20,26,20,16" ColumnSpacing="16">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
