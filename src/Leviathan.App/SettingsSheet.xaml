@@ -356,6 +356,9 @@
                              Text="Servers that know about your videos can help it learn. Only Stash is supported now; more kinds can be added later. Leave this empty if you have none." />
                   <StackPanel x:Name="LearningSourceList" Spacing="4" />
                   <Button x:Name="LearningAddButton" Content="Add a server…" Click="OnAddLearningSourceClick" Margin="0,4,0,0" />
+                  <Button x:Name="LearningReportButton" Content="Check how well it is doing" Click="OnLearningReportClick" Margin="0,8,0,0"
+                          ToolTipService.ToolTip="Learns from your earlier decisions and tries to guess your latest ones. Nothing is changed." />
+                  <TextBlock x:Name="LearningReportText" Style="{StaticResource SettingNote}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="2,2,0,0" />
                 </StackPanel>
                 <TextBlock Text="Skim playback (S)" Style="{StaticResource SectionHeader}" />
                 <local:SettingCard Glyph="&#xE768;" Title="Each burst plays (seconds)" Description="1 to 30. Skim plays short bursts across the video.">

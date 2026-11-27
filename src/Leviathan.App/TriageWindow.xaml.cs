@@ -312,6 +312,7 @@ internal sealed partial class TriageWindow : Window
                 _learning ? App.Host.TriageHistory : null,
                 decided: _learning ? App.Host.FeatureCollector.Enqueue : null);
             await LoadReasonsAsync();
+            StartLearningProgress();
             _dispatcher = new TriageDispatcher(session, App.Host.TriageKeys, ReasonAt);
             _dispatcher.WindowCommand += OnWindowCommand;
             session.DecisionChanged += OnDecisionChanged;

@@ -55,6 +55,23 @@ public sealed class SqliteFileFactStore(string databasePath) : IFileFactStore, I
     }), cancellationToken);
 
     /// <inheritdoc />
+    public Task<ISet<string>> CompletePathsAsync(CancellationToken cancellationToken) => Task.Run(() => Guard<ISet<string>>(() =>
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT path FROM facts WHERE complete = 1;";
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            paths.Add(reader.GetString(0));
+        }
+
+        return paths;
+    }), cancellationToken);
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<FileFacts>> LoadAllAsync(CancellationToken cancellationToken) => Task.Run(() => Guard<IReadOnlyList<FileFacts>>(() =>
     {
         using var connection = Open();

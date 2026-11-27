@@ -22,7 +22,7 @@ so neither holds the discards. Examples build up from now on.
       tags, studio, date, rating) matched by file name and size from each enabled server. Collected the moment a file is decided,
       then a backfill a minute after start-up and when learning or a server is switched on. A server that cannot be reached leaves
       the file incomplete, to be retried; a server added later is asked about older files. Settings shows how many files have facts.
-- [ ] 4. The "Learning" bar: examples so far against what is needed (both kinds), counts of keeps and discards.
+- [x] 4. The "Learning" bar in the triage window (keeps and discards that have facts, against 100 of each; half the bar per kind) and an accuracy report in Settings: a baseline (naive Bayes) learns from the earlier 80% of decisions and guesses the latest 20%, compared with always guessing the commoner answer.
 - [ ] 5. The model and the hint: gradient-boosted trees or logistic regression on the features, judged on later decisions, the
       hint with confidence and top reasons, a recent accuracy figure, a setting to switch it off.
 

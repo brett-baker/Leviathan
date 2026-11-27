@@ -46,6 +46,7 @@ internal sealed partial class TriageWindow
 
     private void UnhookReasons()
     {
+        UnhookLearning();
         if (_reasonsHooked)
         {
             _reasonsHooked = false;

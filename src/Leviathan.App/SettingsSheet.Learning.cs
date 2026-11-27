@@ -55,6 +55,26 @@ internal sealed partial class SettingsSheet
         }
     }
 
+    // The accuracy report: learn from the earlier decisions, guess the latest ones, say how often it was right (off the UI thread).
+    private async void OnLearningReportClick(object sender, RoutedEventArgs e)
+    {
+        LearningReportButton.IsEnabled = false;
+        LearningReportText.Text = "Working it out…";
+        try
+        {
+            var report = await App.Host.Learning.ReportAsync(CancellationToken.None);
+            LearningReportText.Text = report.Text;
+        }
+        catch (IOException)
+        {
+            LearningReportText.Text = "The learning facts could not be read.";
+        }
+        finally
+        {
+            LearningReportButton.IsEnabled = true;
+        }
+    }
+
     private async void OnLearningToggled(object sender, RoutedEventArgs e)
     {
         if (!_ready || _loading)

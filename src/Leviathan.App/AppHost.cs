@@ -325,6 +325,7 @@ internal sealed class AppHost
     /// </summary>
     public void StartLearning()
     {
+        Learning = new Leviathan.ViewModels.Triage.Learning.LearningService(TriageHistory, FileFacts);
         FeatureCollector = new Leviathan.ViewModels.Triage.Learning.FeatureCollector(
             FileFacts,
             new TriageVideoFacts(new MediaInfoSource(() => MediaHost)),
@@ -572,6 +573,9 @@ internal sealed class AppHost
 
     /// <summary>Collects the facts about decided files in the background; created at start-up by <see cref="StartLearning"/>.</summary>
     public Leviathan.ViewModels.Triage.Learning.FeatureCollector FeatureCollector { get; private set; } = null!;
+
+    /// <summary>How far the learning has got and whether the data holds a pattern; created at start-up by <see cref="StartLearning"/>.</summary>
+    public Leviathan.ViewModels.Triage.Learning.LearningService Learning { get; private set; } = null!;
 
     /// <summary>Where the API keys of learning servers are kept (Windows Credential Manager).</summary>
     public Leviathan.ViewModels.Triage.Learning.ILearningSecrets LearningSecrets { get; private init; } = null!;

@@ -107,11 +107,17 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <TextBlock Text="Discard because" VerticalAlignment="Center" FontSize="12" Foreground="#A8A8A8" />
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" IsTabStop="False">
         <StackPanel x:Name="ReasonChips" Orientation="Horizontal" Spacing="6" />
       </ScrollViewer>
+      <!-- Learning: how far the examples are from being enough to suggest Keep or Discard. -->
+      <StackPanel x:Name="LearningBox" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">
+        <ProgressBar x:Name="LearningBar" AutomationProperties.Name="Learning progress" Width="110" Minimum="0" Maximum="1" Value="0" VerticalAlignment="Center" />
+        <TextBlock x:Name="LearningText" FontSize="12" Foreground="#A8A8A8" VerticalAlignment="Center" />
+      </StackPanel>
     </Grid>
 
     <!-- The queue as a filmstrip: thumbnails with a tick or a cross for each decision. Collapsed until asked for (Q or the button). -->

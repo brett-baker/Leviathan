@@ -32,6 +32,9 @@ public sealed class FeatureCollectorTests
         public Task<(int Complete, int Incomplete)> CountAsync(CancellationToken cancellationToken) =>
             Task.FromResult((Items.Values.Count(f => f.Complete), Items.Values.Count(f => !f.Complete)));
 
+        public Task<ISet<string>> CompletePathsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<ISet<string>>(new HashSet<string>(Items.Values.Where(f => f.Complete).Select(f => f.Path), StringComparer.OrdinalIgnoreCase));
+
         public Task<IReadOnlyList<FileFacts>> LoadAllAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FileFacts>>([.. Items.Values]);
     }
 

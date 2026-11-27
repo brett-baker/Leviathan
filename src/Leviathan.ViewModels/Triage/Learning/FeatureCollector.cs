@@ -14,6 +14,9 @@ public interface IFileFactStore
     /// <summary>How many files have complete facts, and how many are waiting for a server.</summary>
     Task<(int Complete, int Incomplete)> CountAsync(CancellationToken cancellationToken);
 
+    /// <summary>The paths of the files whose facts are complete (cheap: no facts are read).</summary>
+    Task<ISet<string>> CompletePathsAsync(CancellationToken cancellationToken);
+
     /// <summary>Every file's facts (for the model).</summary>
     Task<IReadOnlyList<FileFacts>> LoadAllAsync(CancellationToken cancellationToken);
 }
