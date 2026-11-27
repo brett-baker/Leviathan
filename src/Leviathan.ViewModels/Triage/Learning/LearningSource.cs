@@ -75,6 +75,9 @@ public sealed record LearningSettings
     /// </summary>
     public bool Enabled { get; init; }
 
+    /// <summary>Show the Keep/Discard hint in the triage window once the learning is ready (on by default; the learning itself carries on when off).</summary>
+    public bool ShowHint { get; init; } = true;
+
     /// <summary>The servers, in the order the user added them.</summary>
     public List<LearningSource> Sources { get; init; } = [];
 

@@ -16,6 +16,8 @@ internal sealed partial class SettingsSheet
     {
         LearningSwitch.IsOn = learning.Enabled;
         LearningServersPanel.Visibility = learning.Enabled ? Visibility.Visible : Visibility.Collapsed;
+        LearningHintCard.Visibility = learning.Enabled ? Visibility.Visible : Visibility.Collapsed;
+        LearningHintSwitch.IsOn = learning.ShowHint;
 
         if (learning.Enabled)
         {
@@ -62,8 +64,7 @@ internal sealed partial class SettingsSheet
         LearningReportText.Text = "Working it out…";
         try
         {
-            var report = await App.Host.Learning.ReportAsync(CancellationToken.None);
-            LearningReportText.Text = report.Text;
+            LearningReportText.Text = await App.Host.Advisor.DescribeAsync(CancellationToken.None);
         }
         catch (IOException)
         {
@@ -73,6 +74,17 @@ internal sealed partial class SettingsSheet
         {
             LearningReportButton.IsEnabled = true;
         }
+    }
+
+    private async void OnLearningHintToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _loading)
+        {
+            return;
+        }
+
+        var on = LearningHintSwitch.IsOn;
+        await SaveAsync(s => s with { Learning = s.Learning with { ShowHint = on } });
     }
 
     private async void OnLearningToggled(object sender, RoutedEventArgs e)

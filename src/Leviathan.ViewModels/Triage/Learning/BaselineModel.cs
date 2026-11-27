@@ -2,6 +2,19 @@ using System.Globalization;
 
 namespace Leviathan.ViewModels.Triage.Learning;
 
+/// <summary>A learned guess at whether the user would discard a file.</summary>
+public interface IDiscardModel
+{
+    /// <summary>The chance, 0 to 1, that the file is one the user would discard.</summary>
+    double DiscardProbability(IEnumerable<string> features);
+
+    /// <summary>What each known feature of the file pushes towards: above 0 towards discard, below 0 towards keep. Used to say why.</summary>
+    IReadOnlyList<(string Feature, double Weight)> Contributions(IEnumerable<string> features);
+}
+
+/// <summary>Learns a model from decided files: the features of each and whether it was discarded.</summary>
+public delegate IDiscardModel ModelTrainer(IReadOnlyList<(IReadOnlyCollection<string> Features, bool Discarded)> examples);
+
 /// <summary>The words a file is described to the learning with: what its name, video and servers say. One string per fact, such as <c>t:cadence</c> or <c>g:feet</c>.</summary>
 public static class LearningFeatures
 {
@@ -74,6 +87,33 @@ public static class LearningFeatures
         return features;
     }
 
+    /// <summary>A feature said the way a person would, for "because …" (for example <c>t:bts</c> becomes <c>the name has "bts"</c>).</summary>
+    public static string Describe(string feature)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        var colon = feature.IndexOf(':', StringComparison.Ordinal);
+        if (colon < 0)
+        {
+            return feature;
+        }
+
+        var value = feature[(colon + 1)..];
+        return feature[..colon] switch
+        {
+            "t" => $"the name has \"{value}\"",
+            "folder" => $"it is in {value}",
+            "year" => $"from {value}",
+            "size" => "its size",
+            "len" => $"{value} minutes long",
+            "h" => $"{value}p-class video",
+            "codec" => $"{value} video",
+            "p" => $"performer {value}",
+            "g" => $"tag {value}",
+            "studio" => $"studio {value}",
+            _ => feature,
+        };
+    }
+
     private static string LengthBucket(double minutes) => minutes switch
     {
         < 5 => "<5",
@@ -89,8 +129,43 @@ public static class LearningFeatures
 /// A naive Bayes classifier over <see cref="LearningFeatures"/>: simple, fast, needs no tuning and works with a few dozen examples, so
 /// it is the baseline that tells whether the data holds a pattern at all. A feature seen in no example is ignored, never a surprise.
 /// </summary>
-public sealed class BaselineModel
+public sealed class BaselineModel : IDiscardModel
 {
+    /// <summary>Learns from the examples (features of a file, whether it was discarded).</summary>
+    public static IDiscardModel Train(IReadOnlyList<(IReadOnlyCollection<string> Features, bool Discarded)> examples)
+    {
+        var model = new BaselineModel();
+        foreach (var (features, discarded) in examples)
+        {
+            model.Add(features, discarded);
+        }
+
+        return model;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<(string Feature, double Weight)> Contributions(IEnumerable<string> features)
+    {
+        ArgumentNullException.ThrowIfNull(features);
+        var list = new List<(string, double)>();
+        if (_discards == 0 || _keeps == 0)
+        {
+            return list;
+        }
+
+        foreach (var feature in features)
+        {
+            var inDiscards = _discard.GetValueOrDefault(feature);
+            var inKeeps = _keep.GetValueOrDefault(feature);
+            if (inDiscards + inKeeps > 0)
+            {
+                list.Add((feature, Math.Log((inDiscards + 1.0) / (_discards + 2.0)) - Math.Log((inKeeps + 1.0) / (_keeps + 2.0))));
+            }
+        }
+
+        return list;
+    }
+
     private readonly Dictionary<string, int> _discard = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _keep = new(StringComparer.Ordinal);
     private int _discards;
@@ -158,6 +233,9 @@ public sealed record AccuracyReport(bool Enough, int Trained, int Tested, double
     /// <summary>The fewest of each kind.</summary>
     public const int MinimumPerKind = 5;
 
+    /// <summary>True when it was right clearly more often than always guessing the commoner answer: the bar for showing hints at all.</summary>
+    public bool Useful => Enough && Accuracy > MajorityAccuracy + 0.05;
+
     /// <summary>A plain sentence or two for Settings.</summary>
     public string Text
     {
@@ -172,7 +250,7 @@ public sealed record AccuracyReport(bool Enough, int Trained, int Tested, double
             text += DiscardPrecision is { } precision
                 ? string.Create(CultureInfo.InvariantCulture, $" When it said discard ({DiscardGuesses} times) it was right {precision:P0} of the time.")
                 : " It never said discard.";
-            text += Accuracy > MajorityAccuracy + 0.05 ? " That is a real pattern." : " That is not clearly better than guessing, so more examples or more facts are needed.";
+            text += Useful ? " That is a real pattern." : " That is not clearly better than guessing, so more examples or more facts are needed.";
             return text;
         }
     }
@@ -181,7 +259,7 @@ public sealed record AccuracyReport(bool Enough, int Trained, int Tested, double
     /// Tries the baseline the honest way: learn from the earlier 80% of the decisions (by time) and ask about the latest 20%, so it
     /// is judged on files it has not seen and on the direction the taste is moving. <paramref name="examples"/> are decided files with their facts.
     /// </summary>
-    public static AccuracyReport Evaluate(IReadOnlyList<(TriageDecisionRecord Decision, FileFacts Facts)> examples)
+    public static AccuracyReport Evaluate(IReadOnlyList<(TriageDecisionRecord Decision, FileFacts Facts)> examples, ModelTrainer? train = null)
     {
         ArgumentNullException.ThrowIfNull(examples);
         var ordered = examples.Where(e => e.Decision.Decision is TriageDecision.Kept or TriageDecision.Discarded).OrderBy(e => e.Decision.Time).ToList();
@@ -192,11 +270,7 @@ public sealed record AccuracyReport(bool Enough, int Trained, int Tested, double
         }
 
         var split = Math.Min(ordered.Count - 10, (int)(ordered.Count * 0.8));
-        var model = new BaselineModel();
-        foreach (var (decision, facts) in ordered.Take(split))
-        {
-            model.Add(LearningFeatures.Of(facts), decision.Decision == TriageDecision.Discarded);
-        }
+        var model = (train ?? BaselineModel.Train)([.. ordered.Take(split).Select(e => (LearningFeatures.Of(e.Facts), e.Decision.Decision == TriageDecision.Discarded))]);
 
         var right = 0;
         var guessedDiscard = 0;

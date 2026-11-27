@@ -172,19 +172,24 @@ public sealed class FeatureCollector
     private async Task CollectAsync(TriageDecisionRecord record)
     {
         var stored = await _store.GetAsync(record.Path, CancellationToken.None).ConfigureAwait(false);
-        var video = stored?.Video;
-        if (video is null)
-        {
-            video = await SafeVideoAsync(record).ConfigureAwait(false);
-        }
+        var facts = await GatherAsync(record.Path, record.Size, record.ModifiedTicks, stored, CancellationToken.None).ConfigureAwait(false);
+        await _store.SaveAsync(facts, CancellationToken.None).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Works out what is known about a file now, adding to <paramref name="stored"/> when some facts were already kept. Nothing is saved:
+    /// the hint uses this for the file on screen, the collector saves it for a decided one.
+    /// </summary>
+    public async Task<FileFacts> GatherAsync(string path, long size, long modifiedTicks, FileFacts? stored, CancellationToken cancellationToken)
+    {
+        var video = stored?.Video ?? await SafeVideoAsync(path, size, modifiedTicks, cancellationToken).ConfigureAwait(false);
         var scenes = new List<SceneFacts>(stored?.Scenes ?? []);
         var asked = new List<string>(stored?.Asked ?? []);
         var active = _settings().Active.ToList();
         foreach (var source in active.Where(s => !asked.Contains(s.Id)))
         {
-            var key = await Task.Run(() => _secrets.Get(source.Id)).ConfigureAwait(false);
-            var result = await _scenes.FindAsync(source, key, record.Path, record.Size, CancellationToken.None).ConfigureAwait(false);
+            var key = await Task.Run(() => _secrets.Get(source.Id), cancellationToken).ConfigureAwait(false);
+            var result = await _scenes.FindAsync(source, key, path, size, cancellationToken).ConfigureAwait(false);
             if (result.Reached)
             {
                 asked.Add(source.Id);
@@ -196,16 +201,14 @@ public sealed class FeatureCollector
         }
 
         var complete = active.All(s => asked.Contains(s.Id));
-        await _store.SaveAsync(
-            new FileFacts(record.Path, record.Size, record.ModifiedTicks, _time.GetUtcNow(), NameParser.Parse(record.Path), video, scenes, asked, complete),
-            CancellationToken.None).ConfigureAwait(false);
+        return new FileFacts(path, size, modifiedTicks, _time.GetUtcNow(), NameParser.Parse(path), video, scenes, asked, complete);
     }
 
-    private async Task<VideoFacts?> SafeVideoAsync(TriageDecisionRecord record)
+    private async Task<VideoFacts?> SafeVideoAsync(string path, long size, long modifiedTicks, CancellationToken cancellationToken)
     {
         try
         {
-            return await _video.GetAsync(record.Path, record.Size, record.ModifiedTicks, CancellationToken.None).ConfigureAwait(false);
+            return await _video.GetAsync(path, size, modifiedTicks, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException)
         {

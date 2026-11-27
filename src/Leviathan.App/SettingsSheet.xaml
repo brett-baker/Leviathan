@@ -350,6 +350,10 @@
                                    Info="Everything stays on this PC. It works without any server, from file names and video facts; a server only adds facts such as performers and tags. Off, nothing is remembered and none of this shows.">
                   <ToggleSwitch x:Name="LearningSwitch" Toggled="OnLearningToggled" AutomationProperties.Name="Learn from my decisions" />
                 </local:SettingCard>
+                <local:SettingCard x:Name="LearningHintCard" Glyph="&#xE82F;" Title="Show a Keep or Discard hint" Description="Once it has learned enough, shows a guess such as Keep 69% beside the Learning bar, with why."
+                                   Info="Only a guess, and only when it has been right clearly more often than always guessing the commoner answer on your latest decisions. It never decides for you. Off, it still learns but shows nothing.">
+                  <ToggleSwitch x:Name="LearningHintSwitch" Toggled="OnLearningHintToggled" AutomationProperties.Name="Show a Keep or Discard hint" />
+                </local:SettingCard>
                 <StackPanel x:Name="LearningServersPanel" Spacing="4" Visibility="Collapsed">
                   <TextBlock x:Name="LearningStatusText" Style="{StaticResource SettingNote}" Margin="2,4,0,0" TextWrapping="Wrap" />
                   <TextBlock Style="{StaticResource SettingNote}" Margin="2,4,0,0" TextWrapping="Wrap"

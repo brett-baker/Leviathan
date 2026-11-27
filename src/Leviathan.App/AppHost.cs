@@ -333,6 +333,7 @@ internal sealed class AppHost
             () => Settings.Current.Learning,
             LearningSecrets,
             TriageHistory);
+        Advisor = new Leviathan.ViewModels.Triage.Learning.LearningAdvisor(TriageHistory, FileFacts, FeatureCollector);
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
@@ -573,6 +574,9 @@ internal sealed class AppHost
 
     /// <summary>Collects the facts about decided files in the background; created at start-up by <see cref="StartLearning"/>.</summary>
     public Leviathan.ViewModels.Triage.Learning.FeatureCollector FeatureCollector { get; private set; } = null!;
+
+    /// <summary>Gives the Keep/Discard hint for a file; created at start-up by <see cref="StartLearning"/>.</summary>
+    public Leviathan.ViewModels.Triage.Learning.LearningAdvisor Advisor { get; private set; } = null!;
 
     /// <summary>How far the learning has got and whether the data holds a pattern; created at start-up by <see cref="StartLearning"/>.</summary>
     public Leviathan.ViewModels.Triage.Learning.LearningService Learning { get; private set; } = null!;

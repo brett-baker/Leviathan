@@ -428,6 +428,7 @@ internal sealed partial class TriageWindow : Window
     private void ShowCurrent(TriageItem item)
     {
         var file = item.File;
+        ShowHintFor(item);
         if (_infoFor != file.Location.Value)
         {
             _info = null;
