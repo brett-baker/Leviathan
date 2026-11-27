@@ -17,6 +17,11 @@ internal sealed partial class SettingsSheet
         LearningSwitch.IsOn = learning.Enabled;
         LearningServersPanel.Visibility = learning.Enabled ? Visibility.Visible : Visibility.Collapsed;
 
+        if (learning.Enabled)
+        {
+            _ = ShowLearningStatusAsync();
+        }
+
         var signature = string.Join('|', learning.Sources.Select(s => $"{s.Id}:{s.Kind}:{s.Name}:{s.Url}:{s.Enabled}"));
         if (signature == _learningShown)
         {
@@ -31,6 +36,25 @@ internal sealed partial class SettingsSheet
         }
     }
 
+    // How many decided files the learning has facts for, so the user can see it working (read off the UI thread).
+    private async Task ShowLearningStatusAsync()
+    {
+        try
+        {
+            var (complete, incomplete) = await App.Host.FileFacts.CountAsync(CancellationToken.None);
+            var waiting = App.Host.FeatureCollector.Pending;
+            LearningStatusText.Text = complete == 0 && incomplete == 0 && waiting == 0
+                ? "Nothing learned from yet. Facts are gathered in the background as you keep and discard."
+                : $"Facts gathered for {complete} decided file{(complete == 1 ? string.Empty : "s")}"
+                    + (incomplete > 0 ? $", {incomplete} waiting for a server to answer" : string.Empty)
+                    + (waiting > 0 ? $", {waiting} being gathered now" : string.Empty) + ".";
+        }
+        catch (IOException)
+        {
+            LearningStatusText.Text = "The learning facts could not be read.";
+        }
+    }
+
     private async void OnLearningToggled(object sender, RoutedEventArgs e)
     {
         if (!_ready || _loading)
@@ -40,6 +64,10 @@ internal sealed partial class SettingsSheet
 
         var on = LearningSwitch.IsOn;
         await SaveAsync(s => s with { Learning = s.Learning with { Enabled = on } });
+        if (on)
+        {
+            _ = App.Host.BackfillLearningAsync();
+        }
     }
 
     private Grid SourceRow(LearningSource source)
@@ -184,5 +212,6 @@ internal sealed partial class SettingsSheet
                     : [.. s.Learning.Sources.Select(x => x.Id == saved.Id ? saved : x)],
             },
         });
+        _ = App.Host.BackfillLearningAsync(); // files collected before this server existed are asked about it
     }
 }

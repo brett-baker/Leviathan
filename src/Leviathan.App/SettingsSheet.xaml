@@ -351,6 +351,7 @@
                   <ToggleSwitch x:Name="LearningSwitch" Toggled="OnLearningToggled" AutomationProperties.Name="Learn from my decisions" />
                 </local:SettingCard>
                 <StackPanel x:Name="LearningServersPanel" Spacing="4" Visibility="Collapsed">
+                  <TextBlock x:Name="LearningStatusText" Style="{StaticResource SettingNote}" Margin="2,4,0,0" TextWrapping="Wrap" />
                   <TextBlock Style="{StaticResource SettingNote}" Margin="2,4,0,0" TextWrapping="Wrap"
                              Text="Servers that know about your videos can help it learn. Only Stash is supported now; more kinds can be added later. Leave this empty if you have none." />
                   <StackPanel x:Name="LearningSourceList" Spacing="4" />

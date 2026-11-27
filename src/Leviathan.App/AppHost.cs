@@ -319,6 +319,39 @@ internal sealed class AppHost
         _ = Updates.RunAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Creates the collector that gathers facts about decided files, and a minute after start-up (so it never competes with the first
+    /// folder, spec §3.1) queues the files that have none yet. Does nothing while learning is off.
+    /// </summary>
+    public void StartLearning()
+    {
+        FeatureCollector = new Leviathan.ViewModels.Triage.Learning.FeatureCollector(
+            FileFacts,
+            new TriageVideoFacts(new MediaInfoSource(() => MediaHost)),
+            new Leviathan.ViewModels.Triage.Learning.StashSceneLookup(),
+            () => Settings.Current.Learning,
+            LearningSecrets,
+            TriageHistory);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
+            await BackfillLearningAsync().ConfigureAwait(false);
+        });
+    }
+
+    /// <summary>Queues the decided files that still lack facts (after learning or a server is switched on). Never throws; runs in the background.</summary>
+    public async Task BackfillLearningAsync()
+    {
+        try
+        {
+            await FeatureCollector.BackfillAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            UiTrace.Mark($"learning backfill failed: {ex.Message}");
+        }
+    }
+
     /// <summary>The folder a new tab opens: the one chosen in General, else Home.</summary>
     public LocationPath NewTabLocation() =>
         Settings.Current.General.NewTabLocation is { Length: > 0 } chosen && LocationPath.TryParse(chosen, out var parsed) ? parsed : Home;
@@ -533,6 +566,12 @@ internal sealed class AppHost
 
     /// <summary>Every triage decision kept for good, with its reject reason: the examples the recommendations learn from.</summary>
     public Leviathan.ViewModels.Triage.Learning.ITriageHistory TriageHistory { get; private init; } = null!;
+
+    /// <summary>What is known about each decided file (name, video, server facts), kept for the learning.</summary>
+    public Leviathan.ViewModels.Triage.Learning.IFileFactStore FileFacts { get; private init; } = null!;
+
+    /// <summary>Collects the facts about decided files in the background; created at start-up by <see cref="StartLearning"/>.</summary>
+    public Leviathan.ViewModels.Triage.Learning.FeatureCollector FeatureCollector { get; private set; } = null!;
 
     /// <summary>Where the API keys of learning servers are kept (Windows Credential Manager).</summary>
     public Leviathan.ViewModels.Triage.Learning.ILearningSecrets LearningSecrets { get; private init; } = null!;
@@ -977,6 +1016,7 @@ internal sealed class AppHost
             HubStore = new JsonFileStore<HubLayout>(disk, Path.Combine(data, "hub.json")),
             TriageJournal = triageJournal,
             TriageHistory = new Leviathan.Data.SqliteTriageHistory(Path.Combine(data, "triage-history.db")),
+            FileFacts = new Leviathan.Data.SqliteFileFactStore(Path.Combine(data, "triage-facts.db")),
             RejectReasons = new Leviathan.ViewModels.Triage.Learning.RejectReasonStore(disk, Path.Combine(data, "reject-reasons.json")),
             Inboxes = new InboxCatalog(new JsonFileStore<InboxesFile>(disk, Path.Combine(data, "inboxes.json")), journal: triageJournal),
             Providers = providers,
@@ -996,6 +1036,7 @@ internal sealed class AppHost
         }
 
         host.StartUpdateChecks();
+        host.StartLearning();
         transfers.VerifySource = () => host.Settings.Current.Performance.Verify;
         transfers.Volumes = host.Volumes;
         transfers.KeepOwnTrashSource = () => host.Settings.Current.Files.KeepOwnTrashOnShares;

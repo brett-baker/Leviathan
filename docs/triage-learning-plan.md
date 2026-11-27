@@ -17,8 +17,11 @@ so neither holds the discards. Examples build up from now on.
 - [x] 2b. Learning is optional (Settings, Triage, Learning; off by default). Off: no history, no chip bar, no Shift+number
       discard. A list of servers that can help it learn, added from presets (Stash today, more kinds later), each with a name,
       address, API key (Windows Credential Manager, never the settings file), an on/off switch and a Test connection button.
-- [ ] 3. Background feature collection per decided file: parsed file name, ffprobe facts, folder, and the Stash scene when the
-      file matches one (from the enabled servers in Settings).
+- [x] 3. Background feature collection per decided file (`triage-facts.db`): the words of the file name, folder, year and
+      resolution; ffprobe facts (from the media cache, or a probe while the file still exists); and the Stash scene (performers,
+      tags, studio, date, rating) matched by file name and size from each enabled server. Collected the moment a file is decided,
+      then a backfill a minute after start-up and when learning or a server is switched on. A server that cannot be reached leaves
+      the file incomplete, to be retried; a server added later is asked about older files. Settings shows how many files have facts.
 - [ ] 4. The "Learning" bar: examples so far against what is needed (both kinds), counts of keeps and discards.
 - [ ] 5. The model and the hint: gradient-boosted trees or logistic regression on the features, judged on later decisions, the
       hint with confidence and top reasons, a recent accuracy figure, a setting to switch it off.

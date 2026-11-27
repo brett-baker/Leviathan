@@ -177,12 +177,14 @@ public sealed class TriageRecorder : IDisposable
     private readonly Func<string?> _moveTo;
     private readonly Learning.ITriageHistory? _history;
     private readonly TimeProvider _time;
+    private readonly Action<Learning.TriageDecisionRecord>? _decided;
     private readonly Lock _lock = new();
     private Task _tail = Task.CompletedTask;
 
     /// <summary>Starts recording <paramref name="session"/>. <paramref name="scope"/> is the inbox id (empty for a plain queue); <paramref name="moveTo"/> gives the folder a kept file is to be moved to later, or null when it is not.</summary>
-    public TriageRecorder(TriageSession session, TriageJournal journal, string scope, Func<string?> moveTo, Learning.ITriageHistory? history = null, TimeProvider? time = null)
+    public TriageRecorder(TriageSession session, TriageJournal journal, string scope, Func<string?> moveTo, Learning.ITriageHistory? history = null, TimeProvider? time = null, Action<Learning.TriageDecisionRecord>? decided = null)
     {
+        _decided = decided;
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(moveTo);
@@ -244,6 +246,9 @@ public sealed class TriageRecorder : IDisposable
                         {
                             LastError = ex.Message;
                         }
+
+                        // Hand it to the collector straight away, while the file can still be read for its video facts.
+                        _decided?.Invoke(example);
                     }
                 },
                 CancellationToken.None,
